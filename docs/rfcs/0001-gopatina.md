@@ -446,7 +446,8 @@ consent, to either:
 
 Neither changes the system without consent. In CI, consent is given once
 with a flag or environment variable (name to be decided). The pinned version
-follows the compatibility policy of RFC 0003 (to be proposed).
+follows the compatibility policy of
+[RFC 0003](0003-toolchain-compatibility.md).
 
 ## Open questions
 

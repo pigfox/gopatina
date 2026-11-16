@@ -37,6 +37,9 @@ Until 1.0.0, minor versions may contain breaking changes.
 - RFC 0002: concurrency in patina mode (goroutines on Tokio's multi-threaded
   runtime, automatic async colouring, data races as compile errors or
   automatic fixes).
+- RFC 0003: toolchain compatibility and versioning; docs/compat.md, the Go
+  feature-support matrix for patina mode; a supported-toolchains table in
+  the README.
 
 ### Changed
 
