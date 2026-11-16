@@ -22,5 +22,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 - gopatina CLI prototype: passes every command through to the go command
   unchanged; -patina and -emit-rust report that they are not implemented yet
   and exit 2.
+- Quality policy (docs/QUALITY.md): 100% unit-test coverage, enforced in CI,
+  and the test layers each phase requires.
+- Performance policy: benchmarks against hand-written Rust on the latest
+  stable toolchain, the planned suite and harness (bench/), and a bench
+  workflow that skips measurement until there is generated code. No results
+  exist yet.
+
+### Changed
+
+- CI uses actions/checkout v7 and actions/setup-go v7.
 
 [Unreleased]: https://github.com/pigfox/gopatina/commits/main

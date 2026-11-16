@@ -30,14 +30,45 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
    ```sh
    gofmt -l .          # must print nothing
    go vet ./...
-   go test -race ./...
+   go test -race -coverprofile=coverage.out ./...
+   go tool cover -func=coverage.out | tail -n 1   # must say 100.0%
    ```
+
+   If your change touches code generation (the emitters, the native backend
+   or the runtime), also run the benchmarks against hand-written Rust and put
+   the results in the pull request description (see
+   [Quality and performance](#quality-and-performance)).
 
 5. Commit with a sign-off (`git commit -s`) and a Conventional Commit message.
 6. Push the branch to your fork and open a pull request against `main`. Fill in
    the pull request template.
 7. Address review feedback with new commits. The branch is squashed on merge,
    so there is no need to rewrite history during review.
+
+## Quality and performance
+
+The full policy is in [docs/QUALITY.md](docs/QUALITY.md). In short:
+
+- **Coverage stays at 100%.** CI fails if unit-test statement coverage drops
+  below 100.0%. New code comes with tests that assert its behaviour.
+- **Each phase's test layers are required**: golden, compile and differential
+  tests for the emitters, rejection and fuzz tests for ownership inference,
+  and so on, as listed in the policy.
+- **Benchmarks run when code generation changes.** Pull requests that change
+  code generation include benchmark results against equivalent hand-written
+  Rust built with the latest stable toolchain (with its `rustc --version`),
+  and explain any ratio that gets worse beyond noise. See
+  [bench/README.md](bench/README.md).
+
+### Pull request checklist
+
+- [ ] Title is a Conventional Commit; every commit is signed off.
+- [ ] `gofmt -l .` prints nothing; `go vet ./...` and `go test -race ./...` pass.
+- [ ] Coverage is still 100.0%.
+- [ ] If code generation changed: benchmark results against Rust are in the
+      description.
+- [ ] Docs and `CHANGELOG.md` updated; semantics changes reference an accepted
+      RFC.
 
 ## Commit messages
 
