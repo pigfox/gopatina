@@ -52,11 +52,31 @@ requirement for the phase to be complete, not an extra.
   run (`rustup toolchain install stable`). The exact `rustc --version` is
   recorded with every result, together with the Go version, the GoPatina
   commit, the machine and the operating system.
-- **When.** For every release, and for every pull request that changes code
-  generation (the borrow checker's fixes, the Rust emitter, or the runtime
-  support code).
 - **What is reported.** For each benchmark, the ratio of GoPatina's time (and
-  peak memory) to hand-written Rust's, with the spread over repeated runs.
+  peak memory) to hand-written Rust's and to plain Go's, with the spread over
+  repeated runs.
+
+### Where benchmarks run
+
+There are two kinds of run, and they are kept apart:
+
+- **Per pull request, on GitHub-hosted runners: ratios only.** For every pull
+  request that changes code generation (the borrow checker's fixes, the Rust
+  emitter, or the runtime support code), CI builds the GoPatina binary, the
+  hand-written Rust and the plain Go program **in the same job**, runs each
+  many times, and reports the **median** of each and the ratios between them.
+  Shared runners are too noisy for absolute numbers, so none are reported;
+  running all three side by side on one machine makes the ratios
+  meaningful.
+- **Official numbers, on the maintainer's own test server, outside GitHub.**
+  Release numbers, and any figure published as GoPatina's performance, come
+  only from a dedicated test server run by the maintainer. It benchmarks only
+  code that is already merged into `main` with the maintainer's approval, and
+  is **never triggered by a pull request**. It runs only when the server is
+  quiet: before starting, the runner checks the machine's load and that no
+  other CI job is running, and waits until both are clear. Results are
+  committed to the repository with the machine description, the Go and Rust
+  versions, the GoPatina commit and the date.
 - **Target.** Within 10% of hand-written Rust on each benchmark, tracked over
   time. This is a goal that guides the work, **not a claim**. A pull request
   that makes a ratio worse beyond run-to-run noise must explain why in its
@@ -67,6 +87,8 @@ requirement for the phase to be complete, not an extra.
 **No numbers exist yet.** Neither patina mode generates code today, so there
 is nothing to measure. The harness and the suite are described in
 [`bench/README.md`](../bench/README.md), and the
-[`bench` workflow](../.github/workflows/bench.yml) is in place but skips its
-measurement steps until there is generated code. No performance figure will
-be published without the raw results and the versions that produced it.
+[`bench` workflow](../.github/workflows/bench.yml) (the per-pull-request
+ratio run) is in place but skips its measurement steps until there is
+generated code. The test-server runner does not exist yet either. No
+performance figure will be published without the raw results and the
+versions that produced it.

@@ -9,6 +9,7 @@ The project lead is **Peter Sjolin** ([@pigfox](https://github.com/pigfox)),
 who founded the project. The project lead:
 
 - sets the project's direction and roadmap,
+- approves every pull request before it is merged,
 - accepts or rejects RFCs,
 - has the final say when consensus cannot be reached,
 - manages releases, repository settings and access.
@@ -19,18 +20,34 @@ explains decisions in writing.
 
 ## Maintainers
 
-Maintainers can review and merge pull requests. The current maintainers are
-listed in [`.github/CODEOWNERS`](.github/CODEOWNERS). A contributor with a
+Maintainers review pull requests. The current maintainers are listed in
+[`.github/CODEOWNERS`](.github/CODEOWNERS). A contributor with a
 sustained record of high-quality contributions and reviews may be invited to
 become a maintainer by the project lead.
+
+## Approval of changes
+
+Every pull request is merged only after the project lead, Peter Sjolin, has
+approved it. This applies to every change: the maintainer's own pull
+requests, contributions from forks, and pull requests opened by automation
+(Dependabot and similar). Passing CI is required but is never enough on its
+own; no change merges on green CI alone. A new push to a pull request needs a
+new approval.
+
+GitHub Actions runs on pull requests from outside contributors only after a
+maintainer approves the run.
+
+These rules are enforced by `main`'s branch protection: one required
+approval, code-owner review, approval required after the last push, and the
+required CI checks.
 
 ## Decision process
 
 | Change                                   | Needs                                   |
 | ---------------------------------------- | --------------------------------------- |
-| Bug fix, test, docs, CLI improvement     | A pull request with passing CI          |
-| Language subset, semantics, code gen     | An accepted RFC, then pull requests     |
-| Governance, license, code of conduct     | A pull request merged by the lead       |
+| Bug fix, test, docs, CLI improvement     | A pull request with passing CI, approved by the lead |
+| Language subset, semantics, code gen     | An accepted RFC, then approved pull requests |
+| Governance, license, code of conduct     | A pull request approved and merged by the lead |
 
 ## Evolving this document
 

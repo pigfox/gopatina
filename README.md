@@ -237,7 +237,8 @@ gopatina build -patina .        # exits 2: not implemented yet (see RFC 0001)
 
 Contributions are welcome, and at this stage critique of the
 [RFC](docs/rfcs/0001-gopatina.md) is the most useful kind. Every change
-lands through a pull request with passing CI; commits follow Conventional
+lands through a pull request with passing CI and is merged only after the
+project lead has approved it; commits follow Conventional
 Commits and carry a DCO sign-off (`git commit -s`). Language changes go
 through the RFC process. See [CONTRIBUTING.md](CONTRIBUTING.md),
 [GOVERNANCE.md](GOVERNANCE.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).

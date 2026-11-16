@@ -8,6 +8,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- Every pull request, including the maintainer's own and automated ones, is
+  merged only after the project lead's approval; CI for outside contributors
+  runs after maintainer approval (GOVERNANCE.md, CONTRIBUTING.md).
+- Benchmarks: pull requests get ratios only (GoPatina, Rust and Go in the
+  same job, medians) on GitHub-hosted runners; official numbers come only
+  from the maintainer's test server, on merged code, when the server is
+  quiet (docs/QUALITY.md, bench/README.md).
+
 ## [0.0.1] - 2026-11-16
 
 Phase 0: RFC and pass-through CLI. A pre-release; GoPatina is at the design

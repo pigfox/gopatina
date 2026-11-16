@@ -74,9 +74,10 @@ stricter mode, and get Rust's runtime model underneath.
 - **Interop.** Patina code can call Rust crates with no FFI layer in between.
 - **Shadow Rust and keep up.** Patina-mode output is benchmarked against
   equivalent hand-written Rust, built with the latest stable Rust toolchain,
-  for every release and every change to code generation. The target is to
-  stay within 10% of Rust on each benchmark, tracked over time. This is a
-  goal, not a claim; see [`docs/QUALITY.md`](../QUALITY.md) and
+  for every release and every change to code generation: ratios on CI for
+  pull requests, official numbers only on the maintainer's test server after
+  merging. The target is to stay within 10% of Rust on each benchmark,
+  tracked over time. This is a goal, not a claim; see [`docs/QUALITY.md`](../QUALITY.md) and
   [`bench/`](../../bench/README.md).
 - **Fully tested.** 100% unit-test coverage, enforced in CI, plus the
   integration, golden, differential and fuzz tests each phase requires
