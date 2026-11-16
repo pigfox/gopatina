@@ -19,7 +19,8 @@ bench/
       input/     fixed inputs, if the program reads any
       expected   the exact output both versions must print
   run.sh         the harness
-  results/       one JSON file per run (committed for releases only)
+  results/       <date>-<gopatina version>.json and a summary, one pair per
+                 official run (published through a pull request)
 ```
 
 ## The suite (planned)
@@ -73,6 +74,16 @@ and published numbers come only from a dedicated test server run by the
 maintainer, on code already merged into `main` with the maintainer's
 approval. It is never triggered by a pull request. Before each run it checks
 the machine's load and that no other CI job is running, and waits until the
-machine is quiet. Results are committed under `results/` with the machine,
-Go and Rust versions, GoPatina commit and date. This runner does not exist
-yet, and no results exist yet.
+machine is quiet. Every official run is the **full suite**, every
+benchmark.
+
+**Publishing.** Each official run produces
+`results/<date>-<gopatina version>.json` and a human-readable summary table,
+with the machine, Go and Rust versions, GoPatina commit and date. They are
+proposed in a pull request that the maintainer approves like any other
+change. Once merged, the numbers are shown in
+[`BENCHMARKS.md`](../BENCHMARKS.md) (latest run in full, history below), in
+the README's Benchmarks section, and in the GitHub release notes for that
+version, each linking to the raw results file.
+
+This runner does not exist yet, and **nothing has been measured yet**.

@@ -18,6 +18,14 @@ Until 1.0.0, minor versions may contain breaking changes.
   from the maintainer's test server, on merged code, when the server is
   quiet (docs/QUALITY.md, bench/README.md).
 
+### Added
+
+- BENCHMARKS.md, the published home of official benchmark results, and a
+  Benchmarks section in the README. Every official run is the full suite,
+  published as bench/results/<date>-<version>.json with a summary through an
+  approved pull request, then shown in BENCHMARKS.md, the README and the
+  release notes. Nothing has been measured yet.
+
 ## [0.0.1] - 2026-11-16
 
 Phase 0: RFC and pass-through CLI. A pre-release; GoPatina is at the design

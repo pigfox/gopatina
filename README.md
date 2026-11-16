@@ -183,6 +183,17 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
 
 Details: [docs/QUALITY.md](docs/QUALITY.md) and [bench/](bench/README.md).
 
+## Benchmarks
+
+**No benchmarks have been run yet**: GoPatina does not generate code yet.
+Official results, measured on the maintainer's test server with the full
+suite, are published in [BENCHMARKS.md](BENCHMARKS.md); the latest headline
+ratios will appear here.
+
+| Benchmark | GoPatina / Rust | GoPatina / Go | Run |
+| --- | --- | --- | --- |
+| *(none yet)* | | | |
+
 ## Supported toolchains
 
 What each GoPatina release supports is stated here and in its release notes

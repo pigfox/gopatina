@@ -77,6 +77,20 @@ There are two kinds of run, and they are kept apart:
   other CI job is running, and waits until both are clear. Results are
   committed to the repository with the machine description, the Go and Rust
   versions, the GoPatina commit and the date.
+
+### Publishing official results
+
+- **Every official run is the full suite**: every benchmark, never a subset.
+- **Each run is published** as a results file,
+  `bench/results/<date>-<gopatina version>.json`, plus a human-readable
+  summary table, proposed in a pull request that the maintainer approves like
+  any other change.
+- **Once merged**, the numbers appear in [`BENCHMARKS.md`](../BENCHMARKS.md),
+  the published home of the results (the latest run in full, every earlier
+  run below it), in the README's Benchmarks section (the latest headline
+  ratios), and in the GitHub release notes for that version. Each shows the
+  machine, the Go and Rust versions, the commit and the date, and links to the
+  raw results file.
 - **Target.** Within 10% of hand-written Rust on each benchmark, tracked over
   time. This is a goal that guides the work, **not a claim**. A pull request
   that makes a ratio worse beyond run-to-run noise must explain why in its
@@ -89,6 +103,7 @@ is nothing to measure. The harness and the suite are described in
 [`bench/README.md`](../bench/README.md), and the
 [`bench` workflow](../.github/workflows/bench.yml) (the per-pull-request
 ratio run) is in place but skips its measurement steps until there is
-generated code. The test-server runner does not exist yet either. No
-performance figure will be published without the raw results and the
-versions that produced it.
+generated code. The test-server runner does not exist yet either.
+**Nothing has been measured yet**, and [`BENCHMARKS.md`](../BENCHMARKS.md)
+says so. No performance figure will be published without the raw results and
+the versions that produced it.
