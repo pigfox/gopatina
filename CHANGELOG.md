@@ -28,6 +28,8 @@ Until 1.0.0, minor versions may contain breaking changes.
 - EXAMPLES.md and runnable examples (examples/hello, examples/ownership,
   examples/counter) walking through default mode (real output), -emit-rust
   and -patina=check (planned output, labelled as design).
+- Project website for gopatina.org (site/), published to GitHub Pages by the
+  pages workflow on pushes to main.
 
 ## [0.0.1] - 2026-11-16
 
