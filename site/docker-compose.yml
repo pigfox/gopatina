@@ -1,0 +1,35 @@
+# gopatina.org's server. Run from the repository root:
+#
+#   CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" docker compose -f site/docker-compose.yml up -d --build
+#
+# It listens on 127.0.0.1:8590 only; TLS and HSTS belong to the proxy in front.
+name: gopatina-site
+
+x-labels: &labels
+  org.pigfox.estate: CO
+  org.pigfox.created-by: site/docker-compose.yml
+  org.pigfox.created-at: ${CREATED_AT:?set CREATED_AT to the current UTC time, e.g. 2026-11-16T12:00:00Z}
+  org.pigfox.purpose: gopatina.org one-page site, built with gopatina
+
+services:
+  gopatina-site:
+    build:
+      context: ..
+      dockerfile: site/Dockerfile
+      labels: *labels
+    image: gopatina-site:latest
+    container_name: gopatina-site
+    labels: *labels
+    ports:
+      - "127.0.0.1:8590:8590"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks: [gopatina-site]
+
+networks:
+  gopatina-site:
+    name: gopatina-site
+    labels: *labels

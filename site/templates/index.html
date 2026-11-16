@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoPatina: write Go, run it like Rust, no GC</title>
+<meta name="description" content="GoPatina is an open-source experiment by Pigfox: write ordinary Go, and in an opt-in mode get Rust's performance and memory safety with no garbage collector. Design stage; plain Go stays fully compatible.">
+<link rel="canonical" href="{{.URL}}">
+<link rel="alternate" type="text/markdown" href="/index.md" title="This page as Markdown">
+<link rel="icon" type="image/svg+xml" href="{{.Favicon}}">
+<link rel="stylesheet" href="{{.CSS}}">
+<meta name="theme-color" content="#1f6658">
+<meta name="author" content="Peter Sjolin">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoPatina">
+<meta property="og:title" content="GoPatina: Go on the surface, Rust underneath">
+<meta property="og:description" content="Write ordinary Go; in an opt-in mode, get Rust's performance and safety with no garbage collector. An open-source experiment by Pigfox, at the design stage.">
+<meta property="og:url" content="{{.URL}}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="GoPatina: Go on the surface, Rust underneath">
+<meta name="twitter:description" content="Write ordinary Go; in an opt-in mode, get Rust's performance and safety with no garbage collector. Design stage.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://pigfox.com/#organization",
+      "name": "Pigfox LLC",
+      "url": "https://pigfox.com"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://gopatina.org/#website",
+      "name": "GoPatina",
+      "url": "https://gopatina.org/",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://pigfox.com/#organization"}
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://gopatina.org/#webpage",
+      "url": "https://gopatina.org/",
+      "name": "GoPatina: write Go, run it like Rust, no GC",
+      "isPartOf": {"@id": "https://gopatina.org/#website"},
+      "about": {"@id": "https://gopatina.org/#software"},
+      "dateModified": "2026-11-16",
+      "inLanguage": "en"
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://gopatina.org/#software",
+      "name": "GoPatina",
+      "url": "https://gopatina.org/",
+      "description": "A Go toolchain front end at the design stage. Without a flag it runs the installed Go toolchain unchanged; opt-in modes are designed to compile a defined subset of Go through Rust, with no garbage collector.",
+      "codeRepository": "https://github.com/pigfox/gopatina",
+      "programmingLanguage": "Go",
+      "license": "https://github.com/pigfox/gopatina#license",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Linux, macOS",
+      "softwareVersion": "0.0.1",
+      "author": {"@type": "Person", "name": "Peter Sjolin", "url": "https://github.com/pigfox"},
+      "publisher": {"@id": "https://pigfox.com/#organization"}
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://gopatina.org/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is GoPatina?",
+          "acceptedAnswer": {"@type": "Answer", "text": "GoPatina is an open-source Go toolchain front end by Pigfox. Without a flag it is plain Go. With an opt-in flag, a defined subset of Go is designed to compile through Rust, with no garbage collector and Rust's memory safety."}
+        },
+        {
+          "@type": "Question",
+          "name": "Does GoPatina work today?",
+          "acceptedAnswer": {"@type": "Answer", "text": "Only its default mode. The gopatina command passes every command through to the installed go tool. The Rust-based modes are designed in public RFCs and report that they are not implemented yet."}
+        },
+        {
+          "@type": "Question",
+          "name": "Will my existing Go code still work?",
+          "acceptedAnswer": {"@type": "Answer", "text": "Yes. Without a patina flag, gopatina runs go with the same arguments, so every Go program builds exactly as before. Only code you opt into patina mode must follow its stricter rules."}
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need to learn Rust to use GoPatina?",
+          "acceptedAnswer": {"@type": "Answer", "text": "No. You write Go. Without a garbage collector a few ownership rules remain, but GoPatina's borrow checker infers ownership and lifetimes, fixes what it safely can, and explains the rest in Go terms."}
+        },
+        {
+          "@type": "Question",
+          "name": "How fast is GoPatina?",
+          "acceptedAnswer": {"@type": "Answer", "text": "Nobody knows yet. GoPatina does not generate code yet, so no benchmarks have been run. Official results will be published in BENCHMARKS.md, measured against hand-written Rust and plain Go."}
+        },
+        {
+          "@type": "Question",
+          "name": "What does a machine need to run a patina binary?",
+          "acceptedAnswer": {"@type": "Answer", "text": "Nothing extra. A patina binary is native machine code, built static by default, so the target needs neither Go nor Rust installed, just like a Go binary."}
+        },
+        {
+          "@type": "Question",
+          "name": "Who makes GoPatina, and under what license?",
+          "acceptedAnswer": {"@type": "Answer", "text": "GoPatina was started by Peter Sjolin as an experiment by Pigfox. It is open source under MIT OR Apache-2.0, and every change goes through a reviewed pull request on GitHub."}
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="wrap">
+  <h1>Go<span class="accent">Patina</span></h1>
+  <p class="tagline">A patina is the thin layer that forms on metal: Go on the surface, Rust underneath.</p>
+  <nav aria-label="Sections">
+    <ul>
+      <li><a href="#why">Why</a></li>
+      <li><a href="#modes">Modes</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+      <li><a href="#benchmarks">Benchmarks</a></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="https://github.com/pigfox/gopatina">GitHub</a></li>
+    </ul>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="definition"><strong>GoPatina is an open-source Go toolchain front end in which ordinary Go code can opt into running the way Rust code does: no garbage collector, ownership and borrowing, and Rust-grade memory safety.</strong> Without the flag it is plain Go, and every existing Go program builds exactly as before.</p>
+
+  <p class="mission">Mission: Go developers get Rust's performance and safety without the painful Rust learning curve.</p>
+
+  <p class="status"><strong>Status: design stage.</strong> GoPatina is not a working compiler yet. What exists today is the design, in public RFCs, and a prototype <code>gopatina</code> command that passes every command through to the Go toolchain. The Rust-based modes report "not implemented yet". No benchmarks have been run.</p>
+
+  <p class="meta">Last updated <time datetime="{{.LastUpdated}}">{{.LastUpdated}}</time>. This page is also available <a href="/index.md">as Markdown</a>.</p>
+
+  <h2 id="why">Why GoPatina</h2>
+  <p>The language you write in matters more to you, day to day, than what runs underneath it. Go is small, readable and quick to learn, with fast builds and excellent tooling. Rust gives deterministic memory management with no garbage collector, and catches memory errors and data races at compile time, but it is powerful and painful to learn: ownership, borrowing, lifetimes and <code>async</code> are a steep climb.</p>
+  <p>GoPatina keeps Go on top and puts Rust underneath. You keep writing Go; the compiler does the Rust part. <strong>GoPatina is an experiment by <a href="https://pigfox.com">Pigfox</a> to get Go developers past Rust's learning curve.</strong> Without a garbage collector a few ownership rules remain, but GoPatina states and checks them in Go terms: no Rust syntax, no lifetime annotations, no <code>async</code> keywords to learn.</p>
+
+  <h2 id="modes">Three modes, two flags</h2>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th scope="col">Mode</th><th scope="col">Flag</th><th scope="col">Garbage collector</th><th scope="col">Works with all Go</th><th scope="col">Output</th><th scope="col">Status</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Default</td><td>none</td><td>Yes (Go's)</td><td>Yes</td><td>A Go binary, built by your installed <code>go</code></td><td>Works today</td></tr>
+      <tr><td>Emit Rust</td><td><code>-emit-rust</code></td><td>No</td><td>No: a defined subset</td><td>A readable Rust crate you can keep and build with cargo</td><td>Planned</td></tr>
+      <tr><td>Patina</td><td><code>-patina</code></td><td>No</td><td>No: the same subset</td><td>A native binary built by rustc from that crate</td><td>Planned</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>A planned variant, <code>-patina=check</code>, runs the same checks and then builds with the Go compiler, for machines where Rust cannot be installed. It is never a silent fallback: you choose it, and the output says which compiler built the binary.</p>
+
+  <h2 id="how">How it works</h2>
+  <h3>What you write on top</h3>
+  <p>Ordinary Go, formatted by <code>gofmt</code> and type-checked by Go's own libraries. Patina code is always valid Go, so the plain Go toolchain can always build it too. A package can keep a patina version beside a plain one with the <code>//go:build patina</code> constraint.</p>
+
+  <h3>What happens underneath</h3>
+  <p>Both patina flags translate the Go program into readable Rust. <code>-emit-rust</code> stops there and writes a cargo crate. <code>-patina</code> goes on to build that crate with rustc, so the result is a Rust program: no garbage collector, memory safe, and able to call Rust crates directly. rustc and LLVM do the optimising, and Rust's own borrow checker verifies every program GoPatina writes.</p>
+
+  <h3>The GoPatina borrow checker</h3>
+  <p>Before any Rust is written, GoPatina's own borrow checker runs on the Go code. It infers ownership, borrows and lifetimes, and automatically applies fixes that keep the program's meaning: a move instead of a copy, a clone of a small value, shared ownership for shared values, a mutex for values shared across goroutines. Every fix is reported with <code>-explain</code>, and <code>gopatina fix</code> can write it back into the Go source. When no safe fix exists, the error is in Go terms, for example:</p>
+<pre><code>main.go:33:2: m.Body is changed after m was handed to out.Queue on line 32
+    if the outbox should keep the original text, queue a copy:
+        out.Queue(Message{To: m.To, Body: bytes.Clone(m.Body)})</code></pre>
+  <p>That message is the planned wording; it is not produced by code yet.</p>
+
+  <h3>Goroutines</h3>
+  <p>In patina mode, goroutines are designed to run as tasks on Tokio's multi-threaded runtime, the closest match to Go's own scheduler. Channels map to Tokio channels and <code>select</code> to <code>tokio::select!</code>. The compiler decides which functions must be <code>async</code>, so Go code never says <code>async</code> or <code>await</code>. Data races, which Go finds only at run time with <code>-race</code>, become compile errors or are fixed automatically.</p>
+
+  <h3>Portability</h3>
+  <p>A patina binary is native code, static by default (musl on Linux), so it drops in wherever a Go binary for the same system would run, with neither Go nor Rust installed. <code>GOOS</code> and <code>GOARCH</code> cross-compile as usual.</p>
+
+  <h3>Compatibility as Go and Rust evolve</h3>
+  <p>Default mode always uses your installed Go, so new Go releases work there immediately. Patina modes support the two latest Go releases and refuse, by name, any Go feature they do not support yet; they never miscompile silently. Generated Rust uses stable Rust only, a declared edition (2024) and a minimum supported Rust version, and CI tests against Go and Rust release channels every week.</p>
+
+  <h2 id="try">Try it today</h2>
+  <p>Requires Go 1.25 or later. This is everything that works now:</p>
+<pre><code>go install github.com/pigfox/gopatina/cmd/gopatina@latest
+gopatina version
+gopatina build ./...           # exactly go build ./...
+gopatina build -emit-rust .    # exits 2: not implemented yet</code></pre>
+  <p>See <a href="https://github.com/pigfox/gopatina/blob/main/EXAMPLES.md">the examples</a> for the three modes on three small programs, with today's real output and the planned output clearly labelled.</p>
+
+  <h2 id="roadmap">Roadmap</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th scope="col">Phase</th><th scope="col">Scope</th><th scope="col">Status</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>The RFCs; the <code>gopatina</code> command with default-mode pass-through</td><td>Done (v0.0.1)</td></tr>
+      <tr><td>1</td><td><code>-emit-rust</code> for a tiny subset (functions, structs, integers, strings); <code>-patina</code> builds it with rustc</td><td>Planned</td></tr>
+      <tr><td>2</td><td>The GoPatina borrow checker: ownership and lifetime inference, automatic fixes, Go-style errors</td><td>Planned</td></tr>
+      <tr><td>3</td><td>Goroutines and channels on a multi-threaded async runtime</td><td>Planned</td></tr>
+      <tr><td>4</td><td>A standard library subset and Rust crate interop</td><td>Planned</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2 id="quality">Quality policy</h2>
+  <p>Every Go package in the project has 100% unit-test coverage, enforced in CI, and each phase adds its own required test layers: golden tests of generated Rust, compile-and-run tests, rejection and fuzz tests for the borrow checker. Every change, including the maintainer's own, goes through a pull request that the project lead approves.</p>
+
+  <h2 id="benchmarks">Benchmarks</h2>
+  <p><strong>No benchmarks have been run yet</strong>, because GoPatina does not generate code yet. The goal is to shadow Rust and keep up: within 10% of equivalent hand-written Rust on every benchmark, built with the latest stable Rust. That is a goal, not a claim. Pull requests get ratio checks in CI; official numbers will come only from the maintainer's dedicated test server, run on the full suite and published in <a href="https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md">BENCHMARKS.md</a> with the machine, Go and Rust versions, commit and date.</p>
+
+  <h2 id="faq">Frequently asked questions</h2>
+  <dl>
+    <dt>What is GoPatina?</dt>
+    <dd>GoPatina is an open-source Go toolchain front end by Pigfox. Without a flag it is plain Go. With an opt-in flag, a defined subset of Go is designed to compile through Rust, with no garbage collector and Rust's memory safety.</dd>
+    <dt>Does GoPatina work today?</dt>
+    <dd>Only its default mode. The gopatina command passes every command through to the installed go tool. The Rust-based modes are designed in public RFCs and report that they are not implemented yet.</dd>
+    <dt>Will my existing Go code still work?</dt>
+    <dd>Yes. Without a patina flag, gopatina runs go with the same arguments, so every Go program builds exactly as before. Only code you opt into patina mode must follow its stricter rules.</dd>
+    <dt>Do I need to learn Rust to use GoPatina?</dt>
+    <dd>No. You write Go. Without a garbage collector a few ownership rules remain, but GoPatina's borrow checker infers ownership and lifetimes, fixes what it safely can, and explains the rest in Go terms.</dd>
+    <dt>How fast is GoPatina?</dt>
+    <dd>Nobody knows yet. GoPatina does not generate code yet, so no benchmarks have been run. Official results will be published in BENCHMARKS.md, measured against hand-written Rust and plain Go.</dd>
+    <dt>What does a machine need to run a patina binary?</dt>
+    <dd>Nothing extra. A patina binary is native machine code, built static by default, so the target needs neither Go nor Rust installed, just like a Go binary.</dd>
+    <dt>Who makes GoPatina, and under what license?</dt>
+    <dd>GoPatina was started by Peter Sjolin as an experiment by Pigfox. It is open source under MIT OR Apache-2.0, and every change goes through a reviewed pull request on GitHub.</dd>
+  </dl>
+
+  <h2 id="more">Read more</h2>
+  <ul>
+    <li><a href="https://github.com/pigfox/gopatina">Source code and README on GitHub</a></li>
+    <li><a href="https://github.com/pigfox/gopatina/blob/main/EXAMPLES.md">Examples of the three build modes</a></li>
+    <li><a href="https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0001-gopatina.md">RFC 0001: the design, the borrow checker, Rust underneath</a></li>
+    <li><a href="https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0002-concurrency.md">RFC 0002: concurrency in patina mode</a></li>
+    <li><a href="https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0003-toolchain-compatibility.md">RFC 0003: toolchain compatibility and versioning</a></li>
+    <li><a href="https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md">Benchmarks (none yet)</a></li>
+  </ul>
+</main>
+<footer class="wrap">
+  <p>GoPatina is an experiment by <a href="https://pigfox.com">Pigfox</a>, started by Peter Sjolin, and open source under MIT OR Apache-2.0. This site's server is a Go program built with gopatina's default mode; the Rust modes aren't built yet.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# GoPatina
+
+> GoPatina is an open-source Go toolchain front end, at the design stage, in which ordinary Go code can opt into running the way Rust code does: no garbage collector, ownership and borrowing, and Rust-grade memory safety. Without a flag it runs the installed Go toolchain unchanged. It is an experiment by Pigfox to get Go developers past Rust's learning curve.
+
+Status: design stage. Only the default (plain Go) mode works today; the Rust-based modes (-emit-rust, -patina) are designed in public RFCs and report "not implemented yet". No benchmarks have been run. Last updated 2026-11-16.
+
+## Docs
+
+- [This page as Markdown](https://gopatina.org/index.md): mission, the three build modes, how it works, roadmap, quality and benchmark policy, FAQ
+- [README](https://github.com/pigfox/gopatina#readme): project overview, status and quick start
+- [Examples](https://github.com/pigfox/gopatina/blob/main/EXAMPLES.md): the three build modes on three small programs, with real and planned output labelled
+- [RFC 0001](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0001-gopatina.md): the design, the GoPatina borrow checker, Rust underneath, deployment
+- [RFC 0002](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0002-concurrency.md): goroutines on a multi-threaded async runtime
+- [RFC 0003](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0003-toolchain-compatibility.md): toolchain compatibility and versioning
+- [Benchmarks](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md): where official results will be published (none yet)
+
+## Optional
+
+- [Source code](https://github.com/pigfox/gopatina): MIT OR Apache-2.0
+- [Pigfox](https://pigfox.com): the company behind the experiment
