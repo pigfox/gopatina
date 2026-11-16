@@ -19,5 +19,8 @@ Until 1.0.0, minor versions may contain breaking changes.
 - Dependabot updates for Go modules and GitHub Actions.
 - RFC 0001: the GoPatina design (three build modes: default, -patina and
   -emit-rust), and the RFC template.
+- gopatina CLI prototype: passes every command through to the go command
+  unchanged; -patina and -emit-rust report that they are not implemented yet
+  and exit 2.
 
 [Unreleased]: https://github.com/pigfox/gopatina/commits/main
