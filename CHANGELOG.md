@@ -34,6 +34,9 @@ Until 1.0.0, minor versions may contain breaking changes.
   checker (ownership and lifetime inference, automatic fixes, -explain,
   gopatina fix, Go-style errors), deployment and portability (static
   binaries, cross-compilation, -patina=check, toolchain provisioning).
+- RFC 0002: concurrency in patina mode (goroutines on Tokio's multi-threaded
+  runtime, automatic async colouring, data races as compile errors or
+  automatic fixes).
 
 ### Changed
 

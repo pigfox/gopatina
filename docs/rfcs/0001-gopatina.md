@@ -453,8 +453,8 @@ follows the compatibility policy of RFC 0003 (to be proposed).
 Each will get an RFC.
 
 1. **Goroutines and channels.** How `go f()`, channels, `select` and `sync`
-   map onto Rust, and how data races are prevented, is the subject of its own
-   RFC (0002, to be proposed).
+   map onto Rust, and how data races are prevented, is the subject of
+   [RFC 0002](0002-concurrency.md).
 2. **Interfaces and traits.** Go interfaces are satisfied implicitly and
    used as dynamic values. Lower to `dyn Trait` objects, to generics with
    trait bounds where the concrete type is known, or both? How do empty
@@ -490,7 +490,7 @@ Each will get an RFC.
 | 0 | This RFC; CLI with default-mode pass-through; both patina flags report "not implemented" | Merged RFC, CI green, pass-through tested |
 | 1 | `-emit-rust` for a tiny subset: functions, structs, integers, strings; `-patina` builds the same crate with rustc | Generated crates compile with stable rustc; Go and Rust print the same output on a test suite |
 | 2 | The GoPatina borrow checker: ownership and lifetime inference, automatic fixes, `-explain`, `gopatina fix`, Go-style errors | Rejection tests with exact diagnostics; no program accepted by GoPatina is rejected by rustc |
-| 3 | Goroutines, channels, `select` and `sync`, per RFC 0002 | Data races are compile errors or fixed automatically |
+| 3 | Goroutines, channels, `select` and `sync`, per [RFC 0002](0002-concurrency.md) | Data races are compile errors or fixed automatically |
 | 4 | Standard library subset and Rust crate interop | A small real program builds in all three modes |
 
 Every phase ships with 100% unit-test coverage and the test layers listed in

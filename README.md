@@ -161,7 +161,7 @@ fn main() {
 | 0 | RFC 0001; CLI with default-mode pass-through; patina flags report "not implemented" | **In progress** |
 | 1 | `-emit-rust` for a tiny subset (functions, structs, integers, strings); `-patina` builds it with rustc | Planned |
 | 2 | The GoPatina borrow checker: ownership and lifetime inference, automatic fixes, Go-style errors | Planned |
-| 3 | Goroutines and channels | Planned |
+| 3 | Goroutines and channels on a multi-threaded async runtime ([RFC 0002](docs/rfcs/0002-concurrency.md)) | Planned |
 | 4 | Standard library subset and Rust crate interop | Planned |
 
 Every phase ships with 100% unit-test coverage and is benchmarked against
