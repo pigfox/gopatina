@@ -28,6 +28,8 @@ Until 1.0.0, minor versions may contain breaking changes.
   stable toolchain, the planned suite and harness (bench/), and a bench
   workflow that skips measurement until there is generated code. No results
   exist yet.
+- Full README: mission, status, the three build modes, roadmap, quality and
+  performance policy, quick start, prior art.
 
 ### Changed
 
