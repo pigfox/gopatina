@@ -30,9 +30,15 @@ Until 1.0.0, minor versions may contain breaking changes.
   exist yet.
 - Full README: mission, status, the three build modes, roadmap, quality and
   performance policy, quick start, prior art.
+- RFC 0001: Rust underneath for both patina flags, the GoPatina borrow
+  checker (ownership and lifetime inference, automatic fixes, -explain,
+  gopatina fix, Go-style errors), deployment and portability (static
+  binaries, cross-compilation, -patina=check, toolchain provisioning).
 
 ### Changed
 
 - CI uses actions/checkout v7 and actions/setup-go v7.
+- RFC 0001: the -patina backend is decided (Rust source built by rustc);
+  the roadmap is now four phases after Phase 0.
 
 [Unreleased]: https://github.com/pigfox/gopatina/commits/main
