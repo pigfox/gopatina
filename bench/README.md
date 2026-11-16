@@ -31,11 +31,11 @@ added as the patina subset grows to support them:
 | --- | --- | --- |
 | `fib` | function calls, integer arithmetic | 1 |
 | `nbody` | structs, floating point, loops | 1 |
-| `spectral-norm` | slices, nested loops | 3 |
-| `fannkuch-redux` | slices, permutations, mutation through borrows | 3 |
-| `binary-trees` | allocation and freeing of many small boxes (where a GC would run) | 3 |
-| `json-roundtrip` | strings, maps, the standard library subset | 5 |
-| `chan-pipeline` | goroutines and channels | 4 |
+| `spectral-norm` | slices, nested loops | 2 |
+| `fannkuch-redux` | slices, permutations, mutation through borrows | 2 |
+| `binary-trees` | allocation and freeing of many small boxes (where a GC would run) | 2 |
+| `json-roundtrip` | strings, maps, the standard library subset | 4 |
+| `chan-pipeline` | goroutines and channels | 3 |
 
 The Rust versions are written to be idiomatic and safe (no `unsafe`), as a
 Rust developer would write them, not tuned to make GoPatina look good.
@@ -46,10 +46,9 @@ For each case, `run.sh` will:
 
 1. Check that the Go version, run with `go run`, and the Rust version print
    the same `expected` output, so only equivalent programs are compared.
-2. Build three binaries: `gopatina build -patina`, `gopatina build
-   -emit-rust` followed by `cargo build --release`, and the hand-written Rust
-   crate with `cargo build --release`. Plain `go build` is measured too, for
-   reference.
+2. Build two binaries: `gopatina build -patina` (the generated crate,
+   built by rustc in release mode) and the hand-written Rust crate with
+   `cargo build --release`. Plain `go build` is measured too, for reference.
 3. Run each binary repeatedly (with warm-up runs discarded) using
    [hyperfine](https://github.com/sharkdp/hyperfine), and record wall time
    and peak resident memory.

@@ -35,26 +35,26 @@ requirement for the phase to be complete, not an extra.
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |
 | 0: pass-through CLI | CLI tests that run a stand-in `go` command and check arguments, streams and exit status are passed through unchanged |
-| 1: `-emit-rust` | **Golden tests**: each Go input in `testdata/` has the exact Rust it must produce, reviewed in the pull request. **Compile tests**: every golden output builds with stable `rustc`. **Differential tests**: the Go program run with `go run` and the generated crate run with `cargo run` print the same output. |
-| 2: `-patina` native | The phase 1 differential suite, run against `-patina` binaries as well. All three modes must agree. |
-| 3: ownership inference | **Rejection tests**: programs that must not compile, each with the exact diagnostic. **Fuzz tests** (`go test -fuzz`) on the inference engine and the emitters, run in CI for a fixed time budget. |
-| 4: concurrency | Race tests under `-race` for default mode, and tests that patina mode rejects programs with data races. |
-| 5: stdlib and interop | Integration tests that build small real programs and call real Rust crates. |
+| 1: `-emit-rust` and `-patina` | **Golden tests**: each Go input in `testdata/` has the exact Rust it must produce, reviewed in the pull request. **Compile tests**: every golden output builds with stable `rustc`. **Differential tests**: the Go program run with `go run`, and the `-patina` binary, print the same output. |
+| 2: borrow checker | **Rejection tests**: programs that must not compile, each with the exact Go-style diagnostic. **Fix tests**: each automatic fix, its `-explain` report and its `gopatina fix` rewrite. **Agreement tests**: nothing GoPatina accepts is rejected by rustc. **Fuzz tests** (`go test -fuzz`) on the checker and the emitter, run in CI for a fixed time budget. |
+| 3: concurrency (RFC 0002) | Race tests under `-race` for default mode, and tests that patina mode rejects or fixes programs with data races. |
+| 4: stdlib and interop | Integration tests that build small real programs and call real Rust crates. |
 
 ## Performance: shadow Rust and keep up
 
 ### Policy
 
 - **What is measured.** A benchmark suite of small, classic programs, each
-  written twice: in Go (built with `gopatina build -patina`, and through
-  `-emit-rust` plus `cargo build --release`) and as equivalent, idiomatic,
+  written twice: in Go (built with `gopatina build -patina`, which compiles the
+  generated crate with rustc in release mode) and as equivalent, idiomatic,
   hand-written Rust.
 - **Against which Rust.** The latest stable Rust toolchain at the time of the
   run (`rustup toolchain install stable`). The exact `rustc --version` is
   recorded with every result, together with the Go version, the GoPatina
   commit, the machine and the operating system.
 - **When.** For every release, and for every pull request that changes code
-  generation (the emitters, the native backend, or the runtime).
+  generation (the borrow checker's fixes, the Rust emitter, or the runtime
+  support code).
 - **What is reported.** For each benchmark, the ratio of GoPatina's time (and
   peak memory) to hand-written Rust's, with the spread over repeated runs.
 - **Target.** Within 10% of hand-written Rust on each benchmark, tracked over

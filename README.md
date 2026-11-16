@@ -7,6 +7,10 @@
 **Mission: Go developers get Rust's performance and safety without the painful
 Rust learning curve.**
 
+Without a garbage collector a few ownership rules remain, but GoPatina states
+and checks them in Go terms: no Rust syntax, no lifetime annotations, no
+`async` keywords to learn.
+
 GoPatina is a Go toolchain front end with an opt-in mode in which Go code
 runs the way Rust code does: no garbage collector, ownership and borrowing,
 Rust-grade memory safety. Without the flag, it is plain Go, and every
@@ -35,8 +39,8 @@ stricter mode, and get Rust's runtime model underneath.
 | Mode | Flag | Garbage collector | Backward compatible with Go | Output |
 | --- | --- | --- | --- | --- |
 | Default | none | Yes (Go's) | Yes, fully | Native binary built by the installed `go` tool |
-| Patina | `-patina` | No | No: a defined subset of Go | Native binary that behaves like Rust under the hood |
-| Emit Rust | `-emit-rust` | No | No: the same subset | Readable Rust source (a cargo crate) |
+| Emit Rust | `-emit-rust` | No | No: a defined subset of Go | Readable Rust source (a cargo crate); stops there |
+| Patina | `-patina` | No | No: the same subset | Native binary: the same crate, built by rustc |
 
 ```sh
 gopatina build ./...                 # default: exactly go build ./...
@@ -47,18 +51,44 @@ gopatina build -emit-rust ./cmd/app  # Rust source you can keep    (planned)
 - **Default mode** runs the `go` command with the same arguments, streams and
   exit status. Anything `go` accepts, `gopatina` accepts, with the same
   result. This works today.
-- **`-patina`** compiles a defined subset of Go to a native binary with the
-  same features as Rust: no garbage collector, ownership and borrowing
-  inferred from ordinary Go code (with annotations where inference is not
-  enough), Rust-grade memory safety, and direct use of Rust crates.
-  Programs the compiler cannot prove safe are rejected with an explanation.
-  **How this backend is built is an open decision** (lowering through rustc's
-  MIR or LLVM back end, or a Go front end with Rust-style ownership checks
-  and a runtime written in Rust); see the RFC.
-- **`-emit-rust`** applies the same rules but writes readable Rust source, a
-  cargo crate a developer can keep, edit and build with cargo. It is the
-  first mode to be built, because its output can be read by people and
-  checked by `rustc` itself.
+- **`-emit-rust`** translates a defined subset of Go to readable Rust source,
+  a cargo crate a developer can keep, edit and build with cargo, and stops
+  there. It is the first mode to be built, because its output can be read by
+  people and checked by `rustc` itself.
+- **`-patina`** runs the same pipeline and then builds the crate with rustc
+  into a native binary that behaves exactly like Rust under the hood: no
+  garbage collector, ownership and borrowing, Rust-grade memory safety, and
+  direct use of Rust crates.
+
+**Rust underneath, Go on top.** Before any Rust is written, GoPatina's own
+**borrow checker** runs on the Go program. It infers ownership, borrows and
+lifetimes automatically, and fixes what it safely can: a move instead of a
+copy, a clone of a small value, `Rc`/`Arc` for shared values, `Arc<Mutex<T>>`
+for values shared across goroutines, a narrower borrow. Every fix is reported
+(`gopatina build -patina -explain`), and `gopatina fix` can rewrite the Go
+source to make it explicit, like `go fix`. When no safe fix exists, the error
+is in Go terms, for example:
+
+```text
+./main.go:14:9: variable buf is still used after it was handed to send on line 12
+    pass a copy (send(slices.Clone(buf))), or use buf before handing it over
+```
+
+rustc's own borrow checker then verifies the generated code as the final
+proof.
+
+**Drop-in binaries.** A patina binary is native code, static by default (musl
+on Linux), so the target machine needs neither Go nor Rust, just as with a Go
+binary, and `GOOS`/`GOARCH` cross-compile as usual. Because patina code is
+valid Go, `gopatina build -patina=check` runs the patina checks and then
+builds with the Go compiler, for machines where Rust cannot be installed.
+That is never a silent fallback: you choose it, and the output says which
+backend built the binary.
+
+The design and its trade-offs are in [RFC 0001](docs/rfcs/0001-gopatina.md):
+the [borrow checker](docs/rfcs/0001-gopatina.md#the-gopatina-borrow-checker),
+[why Rust underneath](docs/rfcs/0001-gopatina.md#why-rust-underneath) and
+[deployment](docs/rfcs/0001-gopatina.md#deployment-and-portability).
 
 Files can carry a patina implementation beside a plain one: both patina flags
 set the `patina` build tag (`//go:build patina` and `//go:build !patina`),
@@ -129,11 +159,13 @@ fn main() {
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | RFC 0001; CLI with default-mode pass-through; patina flags report "not implemented" | **In progress** |
-| 1 | `-emit-rust` for a tiny subset: functions, structs, integers, booleans, strings, no pointers, no goroutines | Planned |
-| 2 | `-patina` native backend for the same subset; the backend chosen by RFC | Planned |
-| 3 | Ownership and borrowing inference: pointers, slices, maps, methods | Planned |
-| 4 | Concurrency: goroutines, channels, `select` | Planned |
-| 5 | Standard library subset and Rust crate interop | Planned |
+| 1 | `-emit-rust` for a tiny subset (functions, structs, integers, strings); `-patina` builds it with rustc | Planned |
+| 2 | The GoPatina borrow checker: ownership and lifetime inference, automatic fixes, Go-style errors | Planned |
+| 3 | Goroutines and channels | Planned |
+| 4 | Standard library subset and Rust crate interop | Planned |
+
+Every phase ships with 100% unit-test coverage and is benchmarked against
+hand-written Rust on the latest stable toolchain.
 
 The open questions (goroutines and channels, interfaces and traits, slice
 and map ownership, escape analysis, error handling, generics, `unsafe`) are
