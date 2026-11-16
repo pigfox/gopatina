@@ -183,6 +183,20 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
 
 Details: [docs/QUALITY.md](docs/QUALITY.md) and [bench/](bench/README.md).
 
+## Supported toolchains
+
+What each GoPatina release supports is stated here and in its release notes
+([RFC 0003](docs/rfcs/0003-toolchain-compatibility.md)).
+
+| GoPatina | Go | Rust stable | Rust MSRV | Rust edition |
+| --- | --- | --- | --- | --- |
+| `main` (Phase 0) | the two latest releases (stable, oldstable) | not used yet | not used yet | 2024 (planned) |
+
+Default mode works with any Go release, because it runs your installed `go`.
+Patina modes will refuse Go features they do not support yet, naming the
+feature and the Go version that introduced it; see the
+[feature matrix](docs/compat.md).
+
 ## Quick start (prototype CLI)
 
 Requires Go 1.25 or later.
