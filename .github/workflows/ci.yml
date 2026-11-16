@@ -52,8 +52,16 @@ jobs:
           go-version: ${{ matrix.go }}
       - name: go test
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
-      - name: coverage summary
-        run: go tool cover -func=coverage.out | tail -n 1
+      - name: coverage must be 100%
+        # Policy: docs/QUALITY.md#unit-tests-100-coverage-enforced
+        run: |
+          total="$(go tool cover -func=coverage.out | awk '/^total:/ {print $NF}')"
+          echo "total coverage: $total"
+          if [ "$total" != "100.0%" ]; then
+            go tool cover -func=coverage.out | grep -v '100.0%$'
+            echo "::error::Statement coverage is $total; it must be 100.0% (see docs/QUALITY.md)"
+            exit 1
+          fi
 
   pr-hygiene:
     name: pr hygiene

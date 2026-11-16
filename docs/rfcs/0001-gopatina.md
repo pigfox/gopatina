@@ -62,9 +62,11 @@ stricter mode, and get Rust's runtime model underneath.
   equivalent hand-written Rust, built with the latest stable Rust toolchain,
   for every release and every change to code generation. The target is to
   stay within 10% of Rust on each benchmark, tracked over time. This is a
-  goal, not a claim.
+  goal, not a claim; see [`docs/QUALITY.md`](../QUALITY.md) and
+  [`bench/`](../../bench/README.md).
 - **Fully tested.** 100% unit-test coverage, enforced in CI, plus the
-  integration, golden and fuzz tests each phase requires.
+  integration, golden, differential and fuzz tests each phase requires
+  ([`docs/QUALITY.md`](../QUALITY.md#other-test-layers-by-phase)).
 
 ## Non-goals
 

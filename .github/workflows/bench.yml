@@ -1,0 +1,63 @@
+name: bench
+
+# Benchmarks GoPatina's generated code against hand-written Rust built with
+# the latest stable toolchain. See docs/QUALITY.md and bench/README.md.
+# Until there is generated code to measure, the measurement steps are skipped.
+
+on:
+  release:
+    types: [published]
+  pull_request:
+    branches: [main]
+    paths:
+      - "bench/**"
+      - "internal/codegen/**"
+      - "internal/emit/**"
+      - "internal/runtime/**"
+      - ".github/workflows/bench.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: bench against Rust stable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check for benchmark cases
+        id: cases
+        run: |
+          if [ -d bench/cases ] && [ -x bench/run.sh ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No generated code to benchmark yet; skipping measurement (see bench/README.md)."
+          fi
+
+      - uses: actions/setup-go@v7
+        if: steps.cases.outputs.ready == 'true'
+        with:
+          go-version: stable
+
+      - name: Install the latest stable Rust
+        if: steps.cases.outputs.ready == 'true'
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version | tee rust-version.txt
+
+      - name: Run benchmarks
+        if: steps.cases.outputs.ready == 'true'
+        run: bench/run.sh --out bench-results.json
+
+      - name: Upload results
+        if: steps.cases.outputs.ready == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-results
+          path: |
+            bench-results.json
+            rust-version.txt

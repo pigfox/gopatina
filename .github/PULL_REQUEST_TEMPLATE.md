@@ -20,5 +20,7 @@
 - [ ] The title follows [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [ ] Every commit is signed off (`git commit -s`).
 - [ ] `gofmt -l .` prints nothing, and `go vet ./...` and `go test -race ./...` pass.
+- [ ] Unit-test coverage is still 100.0% ([policy](https://github.com/pigfox/gopatina/blob/main/docs/QUALITY.md)).
+- [ ] If code generation changed: benchmark results against hand-written Rust (latest stable, `rustc --version` recorded) are in this description.
 - [ ] Documentation and `CHANGELOG.md` are updated where relevant.
 - [ ] Language or semantics changes reference an accepted RFC.
