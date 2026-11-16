@@ -25,6 +25,9 @@ Until 1.0.0, minor versions may contain breaking changes.
   published as bench/results/<date>-<version>.json with a summary through an
   approved pull request, then shown in BENCHMARKS.md, the README and the
   release notes. Nothing has been measured yet.
+- EXAMPLES.md and runnable examples (examples/hello, examples/ownership,
+  examples/counter) walking through default mode (real output), -emit-rust
+  and -patina=check (planned output, labelled as design).
 
 ## [0.0.1] - 2026-11-16
 
