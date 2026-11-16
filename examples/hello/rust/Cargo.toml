@@ -1,0 +1,16 @@
+# Planned output of: gopatina build -emit-rust ./examples/hello
+[package]
+name = "hello"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[dependencies]
+
+# Reproducible-build settings (docs/REPRODUCIBLE.md).
+[profile.release]
+codegen-units = 1
+debug = false
+strip = true
+incremental = false
