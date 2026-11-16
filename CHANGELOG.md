@@ -17,5 +17,7 @@ Until 1.0.0, minor versions may contain breaking changes.
   go test -race on Ubuntu and macOS with the two supported Go releases.
 - Pull request checks for a Conventional Commit title and DCO sign-off.
 - Dependabot updates for Go modules and GitHub Actions.
+- RFC 0001: the GoPatina design (three build modes: default, -patina and
+  -emit-rust), and the RFC template.
 
 [Unreleased]: https://github.com/pigfox/gopatina/commits/main
