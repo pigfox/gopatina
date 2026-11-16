@@ -1,4 +1,6 @@
 version: 2
+# Add the cargo ecosystem here when the first Cargo.toml (generated-code
+# runtime crates, RFC 0003) lands; Dependabot fails on a missing manifest.
 updates:
   - package-ecosystem: gomod
     directory: /

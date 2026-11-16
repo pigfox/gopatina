@@ -1,0 +1,115 @@
+name: toolchains
+
+# Tests GoPatina against the Go and Rust release channels (RFC 0003).
+#
+# - toolchains: Go {stable, oldstable} x Rust {stable, MSRV}. Required.
+# - canary: Go tip, Rust beta and Rust nightly. Allowed to fail; on the
+#   weekly scheduled run a failure opens an issue.
+#
+# PLACEHOLDER for the Rust side: there is no generated Rust code yet (Phase 1
+# of RFC 0001). Until there is, the Rust steps only install the toolchain and
+# record its version; the Go tests run in full.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1" # every Monday, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Minimum supported Rust version for generated crates. Placeholder until
+  # RFC 0003 settles it: 1.85 is the first release with the 2024 edition.
+  RUST_MSRV: "1.85"
+
+jobs:
+  toolchains:
+    name: toolchains (go ${{ matrix.go }}, rust ${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: [stable, oldstable]
+        rust: [stable, msrv]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install Rust ${{ matrix.rust }}
+        run: |
+          toolchain="${{ matrix.rust }}"
+          if [ "$toolchain" = msrv ]; then toolchain="$RUST_MSRV"; fi
+          rustup toolchain install "$toolchain" --profile minimal
+          rustup default "$toolchain"
+      - name: Record versions
+        run: |
+          go version
+          rustc --version
+          cargo --version
+      - name: go test
+        run: go test -race ./...
+      - name: Generated Rust (placeholder)
+        run: |
+          if [ -d testdata/golden ]; then
+            echo "::error::Golden tests exist; replace this placeholder with the compile-and-run step (RFC 0003)."
+            exit 1
+          fi
+          echo "::notice::No generated Rust code yet; Rust compile-and-run tests start in Phase 1 (RFC 0003)."
+
+  canary:
+    name: canary (go ${{ matrix.go }}, rust ${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      issues: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { go: tip, rust: stable }
+          - { go: stable, rust: beta }
+          - { go: stable, rust: nightly }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: Install Go tip
+        if: matrix.go == 'tip'
+        run: |
+          go install golang.org/dl/gotip@latest
+          gotip download
+          echo "$HOME/sdk/gotip/bin" >> "$GITHUB_PATH"
+      - name: Install Rust ${{ matrix.rust }}
+        run: |
+          rustup toolchain install "${{ matrix.rust }}" --profile minimal
+          rustup default "${{ matrix.rust }}"
+      - name: Record versions
+        run: |
+          go version
+          rustc --version
+      - name: go test
+        run: go test -race ./...
+      - name: Generated Rust (placeholder)
+        run: echo "::notice::No generated Rust code yet; Rust compile-and-run tests start in Phase 1 (RFC 0003)."
+      - name: Open an issue on a scheduled failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "ci: canary failing on go ${{ matrix.go }}, rust ${{ matrix.rust }}"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Still failing: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label triage \
+              --body "The scheduled canary run failed: $RUN_URL. A coming Go or Rust release may break GoPatina; see RFC 0003."
+          fi
