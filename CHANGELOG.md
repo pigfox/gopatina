@@ -41,6 +41,10 @@ Until 1.0.0, minor versions may contain breaking changes.
   feature-support matrix for patina mode; a supported-toolchains table in
   the README.
 
+- Toolchains workflow: Go stable and oldstable with Rust stable and MSRV
+  (required), Go tip and Rust beta and nightly canaries, weekly schedule;
+  the Rust steps are placeholders until there is generated code.
+
 ### Changed
 
 - CI uses actions/checkout v7 and actions/setup-go v7.
