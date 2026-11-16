@@ -1,0 +1,13 @@
+# Build output
+/gopatina
+/bin/
+/dist/
+
+# Test output
+coverage.out
+*.test
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
