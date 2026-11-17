@@ -26,6 +26,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- docs/go-rust-disconnects.md lists every known place where Go's and Rust's
+  semantics differ, with Go's exact behaviour, the options, a recommended fix
+  and whether it blocks full compatibility; default mode is stated as a pure
+  pass-through to the go tool.
 - Patina front end: the package loader (go/build with the patina build tag,
   go/parser, go/types at the module's Go version) and the phase 1 subset
   checker, which rejects every construct outside the subset with a Go-style

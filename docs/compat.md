@@ -11,6 +11,8 @@ rejected with a message naming it, and the Go version that introduced it
 where that helps ([RFC 0003](rfcs/0003-toolchain-compatibility.md#the-go-side)).
 The "Planned phase" column refers to the roadmap in
 [RFC 0001](rfcs/0001-gopatina.md#roadmap).
+Where Go and Rust semantics differ, and the plan for each difference, is in
+[go-rust-disconnects.md](go-rust-disconnects.md).
 
 Status values: **supported** (implemented and tested), **partial**
 (supported within the limits in the notes), **planned** (on the roadmap),
