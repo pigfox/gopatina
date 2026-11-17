@@ -1,0 +1,292 @@
+package emit
+
+import (
+	"sort"
+	"strings"
+)
+
+// The runtime support module, src/rt.rs, holds the few pieces of Go
+// behaviour that have no direct Rust spelling. Only the pieces a program
+// uses are written, in a fixed order.
+
+type rtItem struct {
+	name string
+	uses []string // the std items it needs
+	deps []string // other runtime items it needs
+	code string
+}
+
+var rtItems = []rtItem{
+	{
+		name: "exit_on_panic",
+		code: `/// Ends the program on a panic the way Go does: the message on standard
+/// error, then exit status 2. (Rust's default status is 101.)
+pub fn exit_on_panic() {
+    std::panic::set_hook(Box::new(|info| {
+        let payload = info.payload();
+        let msg = if let Some(s) = payload.downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            String::from("unknown panic")
+        };
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        eprintln!("panic: {msg}");
+        std::process::exit(2);
+    }));
+}
+`,
+	},
+	{
+		name: "Float",
+		uses: []string{"fmt"},
+		code: `/// A float64 printed the way Go's fmt prints it: %v uses the shortest
+/// digits that read back as the same number, with an exponent below 1e-4
+/// and from 1e+06 up; a precision (%.2f) prints fixed digits.
+pub struct Float(pub f64);
+
+impl fmt::Display for Float {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let x = self.0;
+        if x.is_nan() {
+            return pad(f, "NaN");
+        }
+        if x.is_infinite() {
+            return pad(f, if x > 0.0 { "+Inf" } else { "-Inf" });
+        }
+        if f.precision().is_some() {
+            return fmt::Display::fmt(&x, f);
+        }
+        pad(f, &shortest(x))
+    }
+}
+
+/// Pads s to the formatter's width with spaces, as Go does for a float
+/// shown as text: on the left unless the - flag is given, ignoring the
+/// precision and the 0 flag.
+fn pad(f: &mut fmt::Formatter<'_>, s: &str) -> fmt::Result {
+    let fill = " ".repeat(f.width().unwrap_or(0).saturating_sub(s.chars().count()));
+    match f.align() {
+        Some(fmt::Alignment::Left) => write!(f, "{s}{fill}"),
+        _ => write!(f, "{fill}{s}"),
+    }
+}
+
+/// Go's strconv.FormatFloat(x, 'g', -1, 64). Rust's {:e} gives the same
+/// shortest digits; only the layout differs.
+fn shortest(x: f64) -> String {
+    let e = format!("{x:e}");
+    let (mantissa, exp) = e.split_once('e').unwrap_or((&e, "0"));
+    let exp: i32 = exp.parse().unwrap_or(0);
+    let (sign, mantissa) = match mantissa.strip_prefix('-') {
+        Some(m) => ("-", m),
+        None => ("", mantissa),
+    };
+    let digits = mantissa.replace('.', "");
+    let body = if !(-4..6).contains(&exp) {
+        let (first, rest) = digits.split_at(1);
+        let point = if rest.is_empty() { "" } else { "." };
+        let exp_sign = if exp < 0 { '-' } else { '+' };
+        format!("{first}{point}{rest}e{exp_sign}{:02}", exp.unsigned_abs())
+    } else if exp < 0 {
+        format!("0.{}{digits}", "0".repeat((-exp - 1) as usize))
+    } else {
+        let point = exp as usize + 1;
+        if digits.len() <= point {
+            format!("{digits}{}", "0".repeat(point - digits.len()))
+        } else {
+            format!("{}.{}", &digits[..point], &digits[point..])
+        }
+    };
+    format!("{sign}{body}")
+}
+`,
+	},
+	{
+		name: "hex",
+		code: `/// An integer in hexadecimal the way Go's %x prints it: a minus sign and
+/// the digits of the absolute value, not two's complement.
+pub fn hex(x: i64, upper: bool) -> String {
+    let digits = if upper {
+        format!("{:X}", x.unsigned_abs())
+    } else {
+        format!("{:x}", x.unsigned_abs())
+    };
+    if x < 0 { format!("-{digits}") } else { digits }
+}
+`,
+	},
+	{
+		name: "rune",
+		code: `/// The character with code point x, as Go's %c prints it: U+FFFD for a
+/// value that is not a valid code point.
+pub fn rune(x: i64) -> char {
+    u32::try_from(x)
+        .ok()
+        .and_then(char::from_u32)
+        .unwrap_or('\u{FFFD}')
+}
+`,
+	},
+	{
+		name: "runes",
+		code: `/// The byte offset and code point of each character of s, as Go's
+/// for i, r := range s produces them.
+pub fn runes(s: &str) -> impl Iterator<Item = (i64, i32)> + '_ {
+    s.char_indices().map(|(i, c)| (i as i64, c as i32))
+}
+`,
+	},
+	{
+		name: "trim_space",
+		code: `/// Go's strings.TrimSpace: removes leading and trailing white space, as
+/// Go's unicode.IsSpace defines it.
+pub fn trim_space(s: &str) -> String {
+    s.trim_matches(is_space).to_string()
+}
+
+fn is_space(c: char) -> bool {
+    matches!(
+        c,
+        '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{85}' | '\u{A0}'
+    ) || (c > '\u{FF}' && c.is_whitespace())
+}
+`,
+	},
+	{
+		name: "Slice",
+		uses: []string{"fmt"},
+		deps: []string{"Show"},
+		code: `/// A slice printed the way Go's fmt prints one: [a b c].
+pub struct Slice<'a, T>(pub &'a [T]);
+
+impl<T: Show> fmt::Display for Slice<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = String::from("[");
+        for (i, x) in self.0.iter().enumerate() {
+            if i > 0 {
+                s.push(' ');
+            }
+            x.show(&mut s);
+        }
+        s.push(']');
+        f.pad(&s)
+    }
+}
+`,
+	},
+	{
+		name: "Show",
+		deps: []string{"Float"},
+		code: `/// A value printed with Go's %v.
+pub trait Show {
+    fn show(&self, out: &mut String);
+}
+
+macro_rules! show_display {
+    ($($t:ty),*) => {
+        $(impl Show for $t {
+            fn show(&self, out: &mut String) {
+                out.push_str(&self.to_string());
+            }
+        })*
+    };
+}
+
+show_display!(i64, i32, u8, bool, String);
+
+impl Show for f64 {
+    fn show(&self, out: &mut String) {
+        out.push_str(&Float(*self).to_string());
+    }
+}
+`,
+	},
+	{
+		name: "Error",
+		uses: []string{"fmt"},
+		code: `/// A Go error value made by errors.New or fmt.Errorf. Functions that
+/// return (T, error) in Go return Result<T, Error> here.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Error {
+    message: String,
+}
+
+impl Error {
+    pub fn new(message: impl Into<String>) -> Error {
+        Error {
+            message: message.into(),
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad(&self.message)
+    }
+}
+`,
+	},
+	{
+		name: "write_bytes",
+		code: `/// Writes the parts one after the other, as Go's fmt does when it prints
+/// a []byte with %s: the bytes as they are, valid UTF-8 or not.
+pub fn write_bytes(w: &mut dyn std::io::Write, parts: &[&[u8]]) {
+    for part in parts {
+        let _ = w.write_all(part);
+    }
+}
+`,
+	},
+}
+
+// rtModule returns the source of src/rt.rs holding the named items and
+// what they depend on, or "" if none are used.
+func rtModule(used map[string]bool) string {
+	need := map[string]bool{}
+	var add func(string)
+	add = func(name string) {
+		if need[name] {
+			return
+		}
+		need[name] = true
+		for _, it := range rtItems {
+			if it.name == name {
+				for _, d := range it.deps {
+					add(d)
+				}
+			}
+		}
+	}
+	for name := range used {
+		add(name)
+	}
+	if len(need) == 0 {
+		return ""
+	}
+	uses := map[string]bool{}
+	var parts []string
+	for _, it := range rtItems {
+		if need[it.name] {
+			parts = append(parts, it.code)
+			for _, u := range it.uses {
+				uses[u] = true
+			}
+		}
+	}
+	var b strings.Builder
+	b.WriteString("//! Runtime support for this crate, written by GoPatina: the few pieces\n")
+	b.WriteString("//! of Go behaviour that have no direct Rust spelling.\n\n")
+	var us []string
+	for u := range uses {
+		us = append(us, "use std::"+u+";\n")
+	}
+	sort.Strings(us)
+	if len(us) > 0 {
+		b.WriteString(strings.Join(us, ""))
+		b.WriteString("\n")
+	}
+	b.WriteString(strings.Join(parts, "\n"))
+	return b.String()
+}

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package main\nimport\"fmt\"\nfunc main(){z:=00\nfmt.Print(\"\",z)}")
