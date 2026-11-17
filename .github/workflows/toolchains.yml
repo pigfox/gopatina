@@ -56,11 +56,11 @@ jobs:
         run: go test -race ./...
       - name: Generated Rust (placeholder)
         run: |
-          if [ -d testdata/golden ]; then
-            echo "::error::Golden tests exist; replace this placeholder with the compile-and-run step (RFC 0003)."
+          if [ -d internal/patina ]; then
+            echo "::error::The patina pipeline exists; replace this placeholder with the compile-and-run step (RFC 0003)."
             exit 1
           fi
-          echo "::notice::No generated Rust code yet; Rust compile-and-run tests start in Phase 1 (RFC 0003)."
+          echo "::notice::No generated Rust code yet; the golden programs are built with Rust once the code generator and CLI land (RFC 0003)."
 
   canary:
     name: canary (go ${{ matrix.go }}, rust ${{ matrix.rust }})
