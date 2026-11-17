@@ -1,0 +1,1 @@
+./main.go:5:10: parameter s is a shared borrow: fnv only reads it

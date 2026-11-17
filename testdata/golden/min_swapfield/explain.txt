@@ -1,0 +1,3 @@
+./main.go:7:7: receiver p is an exclusive borrow: Swap changes it, and the caller sees the change
+./main.go:8:13: copied p.b into p.a: p is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:8:18: copied p.a into p.b: p is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning

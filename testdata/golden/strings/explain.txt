@@ -1,0 +1,3 @@
+./main.go:10:12: parameter s is a shared borrow: shout only reads it
+./main.go:14:12: parameter name is a shared borrow: greet only reads it
+./main.go:52:14: copied name into greeting: name is used again on line 54; Go strings are immutable, so a copy keeps the program's meaning

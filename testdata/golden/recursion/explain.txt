@@ -1,0 +1,4 @@
+./main.go:19:19: parameter from is a shared borrow: hanoi only reads it
+./main.go:19:25: parameter to is a shared borrow: hanoi only reads it
+./main.go:19:29: parameter via is a shared borrow: hanoi only reads it
+./main.go:19:41: parameter moves is an exclusive borrow: hanoi changes it, and the caller sees the change

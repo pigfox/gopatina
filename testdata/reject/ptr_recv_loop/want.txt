@@ -1,0 +1,7 @@
+./main.go:28:9: c is a copy of an element of cs that shares memory with it
+    in Go, changes through one are seen through the other; patina mode does not copy such values on its own
+    use cs[i] directly
+./main.go:36:7: cs[0] cannot be handed to c without a copy: cs[0] is an element of cs, and an element cannot be moved out
+    in Go the copy would share cs[0]'s memory, so a change through one is seen through the other;
+    patina mode does not copy such values on its own, because a copy would change what the program does
+    hand over a copy instead: Counter{n: cs[0].n, hist: slices.Clone(cs[0].hist)}

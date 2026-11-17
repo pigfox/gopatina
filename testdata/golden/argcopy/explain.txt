@@ -1,0 +1,3 @@
+./main.go:12:11: parameter b is an exclusive borrow: bump changes it, and the caller sees the change
+./main.go:17:11: parameter name is a shared borrow: show only reads it
+./main.go:23:7: copied b.Name before calling show: a later argument changes b; Go strings are immutable, so a copy keeps the program's meaning

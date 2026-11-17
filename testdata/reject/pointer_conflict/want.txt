@@ -1,0 +1,2 @@
+./main.go:12:2: p is used while the pointer q, taken on line 11, is still in use (line 13)
+    use p through q, or finish with q before using p again

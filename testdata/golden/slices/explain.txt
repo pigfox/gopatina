@@ -1,0 +1,4 @@
+./main.go:11:12: parameter items is a shared borrow: total only reads it
+./main.go:19:13: parameter xs is an exclusive borrow: double changes it, and the caller sees the change
+./main.go:33:12: parameter items is a shared borrow: names only reads it
+./main.go:36:21: copied it.Name into append: it is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning

@@ -1,0 +1,3 @@
+./main.go:14:2: xs is read by fmt.Println, and another operand changes xs
+    Go does not specify whether the read comes before or after the change, so patina mode does not guess
+    compute the operand that changes xs into a variable in its own statement first

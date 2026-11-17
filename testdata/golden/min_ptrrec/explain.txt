@@ -1,0 +1,1 @@
+./main.go:5:19: parameter moves is an exclusive borrow: hanoi changes it, and the caller sees the change

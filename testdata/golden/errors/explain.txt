@@ -1,0 +1,2 @@
+./main.go:17:12: parameter s is a shared borrow: parse only reads it
+./main.go:46:11: parameter s is a shared borrow: both only reads it

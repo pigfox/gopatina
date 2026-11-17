@@ -1,0 +1,2 @@
+./main.go:23:9: copied each element of w into x: a copy of a string, or of a struct of strings and numbers, keeps the program's meaning
+./main.go:31:17: copied n for the loop: the body changes it, and Go ranges over the value it had when the loop started

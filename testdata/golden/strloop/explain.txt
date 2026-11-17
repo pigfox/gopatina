@@ -1,0 +1,2 @@
+./main.go:17:9: moved b into a: b is not used afterwards
+./main.go:17:12: moved a into b: a is not used afterwards

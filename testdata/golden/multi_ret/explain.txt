@@ -1,0 +1,12 @@
+./main.go:8:13: parameter s is a shared borrow: split3 only reads it
+./main.go:15:11: parameter x is owned: pair keeps it
+./main.go:15:14: parameter y is owned: pair keeps it
+./main.go:29:15: moved a into pair: a is not used afterwards
+./main.go:29:18: moved b into pair: b is not used afterwards
+./main.go:30:14: moved x into pair: x is not used afterwards
+./main.go:30:17: moved y into pair: y is not used afterwards
+./main.go:31:9: moved y into x: y is not used afterwards
+./main.go:31:12: moved x into y: x is not used afterwards
+./main.go:38:12: moved q into p: q is not used afterwards
+./main.go:38:15: moved r into q: r is not used afterwards
+./main.go:38:18: moved p into r: p is not used afterwards

@@ -1,0 +1,14 @@
+./main.go:17:7: receiver r is an exclusive borrow: Add changes it, and the caller sees the change
+./main.go:17:24: parameter name is owned: Add keeps it
+./main.go:21:7: receiver r is an exclusive borrow: AddConfig changes it, and the caller sees the change
+./main.go:21:30: parameter c is owned: AddConfig keeps it
+./main.go:25:7: receiver r is a shared borrow: Count only reads it
+./main.go:29:12: parameter c is a shared borrow: label only reads it
+./main.go:33:14: parameter c is owned: upgrade keeps it
+./main.go:38:14: parameter words is a shared borrow: lengths only reads it
+./main.go:49:10: copied name into reg.Add: name is used again on line 50; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:54:16: copied cfg into reg.AddConfig: cfg is used again on line 55; Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning
+./main.go:55:16: copied cfg into upgrade: cfg is used again on line 56; Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning
+./main.go:60:10: copied words[len(words)-1] into last: words[len(words)-1] is an element of words, and an element cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:64:11: moved words into moved: words is not used afterwards
+./main.go:68:11: moved title into final: title is not used afterwards

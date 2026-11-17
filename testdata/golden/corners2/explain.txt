@@ -1,0 +1,6 @@
+./main.go:19:7: receiver s is an exclusive borrow: Combine changes it, and the caller sees the change
+./main.go:24:7: receiver s is an exclusive borrow: Merge changes it, and the caller sees the change
+./main.go:24:23: parameter other is an exclusive borrow: Merge changes it, and the caller sees the change
+./main.go:31:11: parameter p is a shared borrow: area only reads it
+./main.go:42:14: parameter xs is an exclusive borrow: setLast changes it, and the caller sees the change
+./main.go:113:7: receiver s is a shared borrow: items2 only reads it
