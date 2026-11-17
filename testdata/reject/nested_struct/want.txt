@@ -1,0 +1,6 @@
+./main.go:40:14: o is still used after it was handed to p on line 37
+        p := o                                              // line 37: p now holds o
+        fmt.Println(o.In.Name, p.In.Name, o.Items[0].Name)  // line 40: o is used here, but p now owns it
+    patina mode does not copy o on its own: a copy would not share that memory, so the program could behave differently
+    if p should keep the original, hand it a copy: Outer{ID: o.ID, In: Inner{Name: o.In.Name, Tags: slices.Clone(o.In.Tags), Score: o.In.Score}, Items: a deep copy of o.Items, Flag: o.Flag}
+    or finish using o before handing it over

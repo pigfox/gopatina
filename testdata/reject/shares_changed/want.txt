@@ -1,0 +1,6 @@
+./main.go:20:14: m is still used after it was handed to scrub on line 19
+        scrub(m)                        // line 19: scrub changes what m shares
+        fmt.Println(m.To, len(m.Body))  // line 20: m is used here, but scrub now owns it
+    patina mode does not copy m on its own: a copy would not share that memory, so the program could behave differently
+    if scrub should keep the original, hand it a copy: Msg{To: m.To, Body: bytes.Clone(m.Body)}
+    or finish using m before handing it over

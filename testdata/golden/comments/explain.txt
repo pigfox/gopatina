@@ -1,0 +1,2 @@
+./main.go:17:7: receiver p is a shared borrow: Add only reads it
+./main.go:17:20: parameter o is a shared borrow: Add only reads it

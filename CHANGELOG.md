@@ -25,6 +25,12 @@ Until 1.0.0, minor versions may contain breaking changes.
   checker, which rejects every construct outside the subset with a Go-style
   error naming it, and plans how errors lower to Result. Test programs under
   testdata/golden (accepted) and testdata/reject (rejected).
+- Stage 3, the GoPatina borrow checker (internal/borrow): ownership kinds,
+  parameter and receiver modes inferred across the call graph, liveness that
+  moves a value on its last use and copies a string or a small struct when it
+  is used again, checks for pointers and call arguments, an -explain report
+  of every decision, and Go-style errors with both lines and a fix when no
+  copy keeps Go's meaning.
 - BENCHMARKS.md, the published home of official benchmark results, and a
   Benchmarks section in the README. Every official run is the full suite,
   published as bench/results/<date>-<version>.json with a summary through an

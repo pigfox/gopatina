@@ -1,0 +1,1 @@
+./main.go:34:12: parameter c is a shared borrow: color only reads it

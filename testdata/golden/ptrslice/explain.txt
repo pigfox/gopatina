@@ -1,0 +1,2 @@
+./main.go:8:11: parameter xs is an exclusive borrow: grow changes it, and the caller sees the change
+./main.go:13:11: parameter b is an exclusive borrow: fill changes it, and the caller sees the change

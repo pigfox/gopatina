@@ -1,0 +1,6 @@
+./main.go:33:2: m.Body is changed after m was handed to out.Queue on line 32
+        out.Queue(m)     // line 32: out.Queue keeps m
+        m.Body[0] = 'D'  // line 33: this also changes the copy out.Queue kept, which shares m.Body's memory
+    patina mode does not copy m on its own: a copy would not share that memory, so the program could behave differently
+    if out.Queue should keep the original, hand it a copy: Message{To: m.To, Body: bytes.Clone(m.Body)}
+    or finish using m before handing it over

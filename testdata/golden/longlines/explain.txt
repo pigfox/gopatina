@@ -1,0 +1,4 @@
+./main.go:17:25: parameter name is owned: buildConfiguration keeps it
+./main.go:17:38: parameter description is owned: buildConfiguration keeps it
+./main.go:17:102: parameter tags is owned: buildConfiguration keeps it
+./main.go:21:27: parameter c is a shared borrow: isValidConfiguration only reads it

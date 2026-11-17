@@ -1,0 +1,2 @@
+./main.go:21:13: parameter g is a shared borrow: render only reads it
+./main.go:30:11: copied names[0] into first: names[0] is an element of names, and an element cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning

@@ -1,0 +1,2 @@
+./main.go:24:6: type Color: a named type that is not a struct is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports

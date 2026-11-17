@@ -1,0 +1,2 @@
+./main.go:9:7: append whose result is not assigned back to its first operand (s = append(s, ...)) is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports

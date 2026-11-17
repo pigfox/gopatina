@@ -1,0 +1,19 @@
+./main.go:16:11: parameter m is owned: Size changes its own copy
+./main.go:26:7: receiver t is owned: Renamed keeps it
+./main.go:26:22: parameter suffix is a shared borrow: Renamed only reads it
+./main.go:31:11: parameter a is owned: pair keeps it
+./main.go:31:21: parameter b is owned: pair keeps it
+./main.go:35:12: parameter s is owned: shout keeps it
+./main.go:40:11: parameter s is owned: addr changes its own copy
+./main.go:54:12: parameter p is a shared borrow: norm1 only reads it
+./main.go:62:19: copied m into Size: m is used again on line 62; Size neither keeps it nor changes what it shares, so a copy behaves like Go's
+./main.go:62:28: copied m into Size: m is used again on line 62; Size neither keeps it nor changes what it shares, so a copy behaves like Go's
+./main.go:65:7: copied t into t's method Renamed: t is used again on line 66; Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning
+./main.go:69:19: copied name into pair: name is used again on line 69; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:69:25: copied name into pair: name is used again on line 69; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:69:38: copied name into shout: name is used again on line 69; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:69:50: moved name into addr: name is not used afterwards
+./main.go:104:20: copied s for the loop: the body changes it, and Go ranges over the value it had when the loop started
+./main.go:119:12: parameter prefix is a shared borrow: label only reads it
+./main.go:119:27: parameter keep is owned: label keeps it
+./main.go:126:26: copied word into label: word is also borrowed by an earlier argument of label; Go strings are immutable, so a copy keeps the program's meaning

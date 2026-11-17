@@ -1,0 +1,5 @@
+./main.go:14:13: parameter xs is a shared borrow: minMax only reads it
+./main.go:27:12: parameter full is owned: split keeps it
+./main.go:28:9: copied full into a return: full is used again on line 28; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:51:9: moved t into s: t is not used afterwards
+./main.go:51:12: moved s into t: s is not used afterwards

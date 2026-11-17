@@ -1,0 +1,2 @@
+./main.go:5:10: parameter s is a shared borrow: rev only reads it
+./main.go:13:12: parameter s is a shared borrow: count only reads it

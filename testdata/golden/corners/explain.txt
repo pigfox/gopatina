@@ -1,0 +1,9 @@
+./main.go:23:7: receiver p is an exclusive borrow: Scale changes it, and the caller sees the change
+./main.go:34:11: parameter a is a shared borrow: same only reads it
+./main.go:34:14: parameter b is a shared borrow: same only reads it
+./main.go:36:12: parameter p is an exclusive borrow: scale changes it, and the caller sees the change
+./main.go:46:26: parameter b is a shared borrow: report only reads it
+./main.go:50:11: parameter xs is a shared borrow: find only reads it
+./main.go:59:13: parameter xs is a shared borrow: lookup only reads it
+./main.go:161:9: copied each element of tags into tag: a copy of a string, or of a struct of strings and numbers, keeps the program's meaning
+./main.go:165:9: copied each element of tags into tag: a copy of a string, or of a struct of strings and numbers, keeps the program's meaning

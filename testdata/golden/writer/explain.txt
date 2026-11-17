@@ -1,0 +1,2 @@
+./main.go:16:26: parameter name is a shared borrow: report only reads it
+./main.go:16:39: parameter vals is a shared borrow: report only reads it

@@ -1,0 +1,6 @@
+./main.go:19:2: buf is changed after buf was handed to log.Add on line 18
+        log.Add(buf)  // line 18: log.Add keeps buf
+        buf[0] = 'F'  // line 19: this also changes the copy log.Add kept, which shares buf's memory
+    patina mode does not copy buf on its own: a copy would not share that memory, so the program could behave differently
+    if log.Add should keep the original, hand it a copy: bytes.Clone(buf)
+    or finish using buf before handing it over

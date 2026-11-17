@@ -1,0 +1,1 @@
+./main.go:7:9: parameter xs is a shared borrow: at only reads it

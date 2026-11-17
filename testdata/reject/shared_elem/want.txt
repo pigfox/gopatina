@@ -1,0 +1,4 @@
+./main.go:9:9: grid[0] cannot be handed to row without a copy: grid[0] is an element of grid, and an element cannot be moved out
+    in Go the copy would share grid[0]'s memory, so a change through one is seen through the other;
+    patina mode does not copy such values on its own, because a copy would change what the program does
+    hand over a copy instead: slices.Clone(grid[0])

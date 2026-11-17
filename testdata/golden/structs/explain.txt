@@ -1,0 +1,9 @@
+./main.go:13:7: receiver p is an exclusive borrow: Scale changes it, and the caller sees the change
+./main.go:35:7: receiver p is an exclusive borrow: Birthday changes it, and the caller sees the change
+./main.go:39:7: receiver p is a shared borrow: Describe only reads it
+./main.go:43:13: parameter p is an exclusive borrow: rename changes it, and the caller sees the change
+./main.go:43:24: parameter name is owned: rename keeps it
+./main.go:44:11: moved name into p.Name: name is not used afterwards
+./main.go:47:12: parameter a is a shared borrow: older only reads it
+./main.go:47:15: parameter b is a shared borrow: older only reads it
+./main.go:51:11: parameter n is an exclusive borrow: bump changes it, and the caller sees the change

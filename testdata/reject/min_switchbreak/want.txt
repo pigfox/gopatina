@@ -1,0 +1,2 @@
+./main.go:10:5: a break that leaves a switch before the end of its case is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports

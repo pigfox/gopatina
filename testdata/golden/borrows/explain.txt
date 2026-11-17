@@ -1,0 +1,6 @@
+./main.go:12:7: receiver c is an exclusive borrow: Add changes it, and the caller sees the change
+./main.go:17:7: receiver c is an exclusive borrow: Next changes it, and the caller sees the change
+./main.go:22:12: parameter c is an exclusive borrow: addTo changes it, and the caller sees the change
+./main.go:26:11: parameter c is a shared borrow: show only reads it
+./main.go:26:22: parameter label is a shared borrow: show only reads it
+./main.go:30:11: parameter xs is an exclusive borrow: fill changes it, and the caller sees the change
