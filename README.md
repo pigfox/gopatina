@@ -154,6 +154,25 @@ fn main() {
 }
 ```
 
+## Examples
+
+[EXAMPLES.md](EXAMPLES.md) walks through all three modes with three runnable
+programs in [`examples/`](examples/): `hello`, `ownership` (a value used
+after it was handed off) and `counter` (goroutines and a shared counter).
+Default mode works today:
+
+```console
+$ gopatina run ./examples/counter
+total: 4000
+```
+
+For `-emit-rust`, the page shows the Rust crate GoPatina is designed to
+generate, including how goroutines become Tokio tasks, and the borrow
+checker's `-explain` report; for `-patina=check`, the Go-style errors for a
+use after hand-off and a data race. All of that is labelled **planned output
+(design, not yet implemented)**, next to the real "not implemented yet"
+response of today's CLI.
+
 ## Status and roadmap
 
 | Phase | Scope | Status |
