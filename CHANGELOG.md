@@ -37,6 +37,14 @@ Until 1.0.0, minor versions may contain breaking changes.
   1.93.0), .cargo/config.toml (the target), src/rt.rs (only the runtime
   support used) and gopatina-manifest.sha256. Golden crates for every test
   program, and FuzzEmit, run by CI for 60 seconds.
+- The patina modes in the CLI: gopatina build -emit-rust, build -patina, run
+  -patina, build/run -patina=check, -explain, and gopatina verify, which
+  checks deterministic emission and that the -patina binary is
+  byte-identical to a plain cargo build --release --locked of the emitted
+  crate. Differential tests (go build and -patina must print the same output
+  and exit with the same status) for every golden program with Rust stable
+  and the MSRV, and the benchmark harness bench/run.sh with the fib and sieve
+  cases (ratios only).
 - BENCHMARKS.md, the published home of official benchmark results, and a
   Benchmarks section in the README. Every official run is the full suite,
   published as bench/results/<date>-<version>.json with a summary through an
