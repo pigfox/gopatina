@@ -3,8 +3,8 @@
 // embedded in the binary.
 //
 // It is built with gopatina's default mode (gopatina build, which runs go
-// build), so it is an ordinary Go program; GoPatina's Rust modes are not built
-// yet.
+// build), so it is an ordinary Go program: it uses net/http and embed, which
+// are outside the phase 1 subset that GoPatina's Rust modes accept.
 //
 // Usage:
 //

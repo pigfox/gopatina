@@ -1,14 +1,17 @@
 # GoPatina
 
-> GoPatina is an open-source Go toolchain front end, at the design stage, in which ordinary Go code can opt into running the way Rust code does: no garbage collector, ownership and borrowing, and Rust-grade memory safety. Without a flag it runs the installed Go toolchain unchanged. It is an experiment by Pigfox to get Go developers past Rust's learning curve.
+> GoPatina is an open-source Go toolchain front end in which ordinary Go code can opt into running the way Rust code does: no garbage collector, ownership and borrowing, and Rust-grade memory safety. Without a flag it runs the installed Go toolchain unchanged. It is an experiment by Pigfox to get Go developers past Rust's learning curve.
 
-Status: design stage. Only the default (plain Go) mode works today; the Rust-based modes (-emit-rust, -patina) are designed in public RFCs and report "not implemented yet". No benchmarks have been run. Last updated 2026-11-16.
+Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress. Default mode works for all Go. For the phase 1 subset (functions, structs and methods, slices, strings, errors, fmt printing), -emit-rust, -patina, -patina=check, -explain and gopatina verify are implemented, checked by differential tests (69 programs, same output as go build) and byte-identical rebuilds. Not supported yet: goroutines and channels, maps, closures, interfaces, generics, defer, slicing, most of the standard library. No benchmarks have been published. Last updated 2026-11-17.
 
 ## Docs
 
 - [This page as Markdown](https://gopatina.org/index.md): mission, the three build modes, how it works, roadmap, quality and benchmark policy, FAQ
 - [README](https://github.com/pigfox/gopatina#readme): project overview, status and quick start
 - [Examples](https://github.com/pigfox/gopatina/blob/main/EXAMPLES.md): the three build modes on three small programs, with real and planned output labelled
+- [Phase 1 subset](https://github.com/pigfox/gopatina/blob/main/docs/patina-subset.md): the Go the patina modes accept today
+- [Feature matrix](https://github.com/pigfox/gopatina/blob/main/docs/compat.md): supported and planned Go features
+- [Go-Rust disconnects](https://github.com/pigfox/gopatina/blob/main/docs/go-rust-disconnects.md): where Go and Rust semantics differ
 - [RFC 0001](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0001-gopatina.md): the design, the GoPatina borrow checker, Rust underneath, deployment
 - [RFC 0002](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0002-concurrency.md): goroutines on a multi-threaded async runtime
 - [RFC 0003](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0003-toolchain-compatibility.md): toolchain compatibility and versioning
