@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package A000\nimport\"fmt\"\nfunc A(){z:=00\nfmt.Print (\"00000000000000000000000000000\",00%z)\nfmt.Printf(\"0000000%0X0\")}")

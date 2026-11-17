@@ -52,7 +52,7 @@ scripts/repro-check.sh examples/hello/rust examples/counter/rust
 
 | Crate | sha256 of the release binary |
 | --- | --- |
-| `examples/hello/rust` | `88b84bc668a94fd6da64013263f1b1c7afd2822cb087b503e7d749beff763710` |
+| `examples/hello/rust` (now emitted by gopatina) | `96af9d4017b79bf6f35da51a892f4f631ad887aafb7e771364bd704dea495e85` |
 | `examples/counter/rust` | `d26e71aefe07da850ffa5a74821095f50053bbd8957182585745d96e5b436ef3` |
 
 Toolchain: `rustc 1.93.0 (254b59607 2026-01-19)`, target

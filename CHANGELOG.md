@@ -31,6 +31,12 @@ Until 1.0.0, minor versions may contain breaking changes.
   is used again, checks for pointers and call arguments, an -explain report
   of every decision, and Go-style errors with both lines and a fix when no
   copy keeps Go's meaning.
+- Stage 4, the Rust code generator (internal/emit): readable, rustfmt-clean
+  Rust 2024, deterministic, as a cargo crate with Cargo.toml (the
+  reproducible release profile), Cargo.lock, rust-toolchain.toml (Rust
+  1.93.0), .cargo/config.toml (the target), src/rt.rs (only the runtime
+  support used) and gopatina-manifest.sha256. Golden crates for every test
+  program, and FuzzEmit, run by CI for 60 seconds.
 - BENCHMARKS.md, the published home of official benchmark results, and a
   Benchmarks section in the README. Every official run is the full suite,
   published as bench/results/<date>-<version>.json with a summary through an
