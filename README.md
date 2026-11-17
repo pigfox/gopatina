@@ -183,6 +183,17 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
 
 Details: [docs/QUALITY.md](docs/QUALITY.md) and [bench/](bench/README.md).
 
+## Benchmarks
+
+**No benchmarks have been run yet**: GoPatina does not generate code yet.
+Official results, measured on the maintainer's test server with the full
+suite, are published in [BENCHMARKS.md](BENCHMARKS.md); the latest headline
+ratios will appear here.
+
+| Benchmark | GoPatina / Rust | GoPatina / Go | Run |
+| --- | --- | --- | --- |
+| *(none yet)* | | | |
+
 ## Supported toolchains
 
 What each GoPatina release supports is stated here and in its release notes
@@ -237,7 +248,8 @@ gopatina build -patina .        # exits 2: not implemented yet (see RFC 0001)
 
 Contributions are welcome, and at this stage critique of the
 [RFC](docs/rfcs/0001-gopatina.md) is the most useful kind. Every change
-lands through a pull request with passing CI; commits follow Conventional
+lands through a pull request with passing CI and is merged only after the
+project lead has approved it; commits follow Conventional
 Commits and carry a DCO sign-off (`git commit -s`). Language changes go
 through the RFC process. See [CONTRIBUTING.md](CONTRIBUTING.md),
 [GOVERNANCE.md](GOVERNANCE.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).

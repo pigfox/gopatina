@@ -11,7 +11,15 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 - **Every change lands through a pull request.** Nobody pushes to `main`
   directly, maintainers included. `main` is protected: it requires a pull
-  request, passing CI and a linear history.
+  request, passing CI, a linear history and the project lead's approval.
+- **Nothing merges without the project lead's approval.** Every pull request,
+  including the maintainer's own and those opened by automation such as
+  Dependabot, is merged only after Peter Sjolin has approved it. Passing CI is
+  necessary but never sufficient. An approval is needed again after any new
+  push to the branch.
+- **CI for outside contributors runs after approval.** GitHub Actions runs on
+  a pull request from a fork only after a maintainer has approved the run, so
+  your first push may show checks waiting; that is expected.
 - **Pull requests are squash-merged.** The pull request title becomes the commit
   subject on `main`, so it must follow [Conventional Commits](#commit-messages).
 - **Every commit is signed off** under the [Developer Certificate of
@@ -44,6 +52,8 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
    the pull request template.
 7. Address review feedback with new commits. The branch is squashed on merge,
    so there is no need to rewrite history during review.
+8. When CI is green and the project lead has approved the pull request, the
+   project lead merges it.
 
 ## Quality and performance
 
@@ -55,10 +65,11 @@ The full policy is in [docs/QUALITY.md](docs/QUALITY.md). In short:
   tests for the emitters, rejection and fuzz tests for ownership inference,
   and so on, as listed in the policy.
 - **Benchmarks run when code generation changes.** Pull requests that change
-  code generation include benchmark results against equivalent hand-written
-  Rust built with the latest stable toolchain (with its `rustc --version`),
-  and explain any ratio that gets worse beyond noise. See
-  [bench/README.md](bench/README.md).
+  code generation include the benchmark ratios from CI against equivalent
+  hand-written Rust built with the latest stable toolchain (with its
+  `rustc --version`), and explain any ratio that gets worse beyond noise.
+  Official numbers are measured only after merging, on the maintainer's test
+  server. See [bench/README.md](bench/README.md).
 
 ### Pull request checklist
 
