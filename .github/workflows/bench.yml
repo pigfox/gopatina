@@ -2,7 +2,7 @@ name: bench
 
 # Benchmarks GoPatina's generated code against hand-written Rust built with
 # the latest stable toolchain. See docs/QUALITY.md and bench/README.md.
-# Until there is generated code to measure, the measurement steps are skipped.
+# Shared runners are noisy, so this job reports ratios only (bench/run.sh).
 
 on:
   release:

@@ -6,9 +6,12 @@ name: toolchains
 # - canary: Go tip, Rust beta and Rust nightly. Allowed to fail; on the
 #   weekly scheduled run a failure opens an issue.
 #
-# PLACEHOLDER for the Rust side: there is no generated Rust code yet (Phase 1
-# of RFC 0001). Until there is, the Rust steps only install the toolchain and
-# record its version; the Go tests run in full.
+# The Rust side builds every golden program under testdata/golden with the
+# generated crate and the toolchain of the matrix (RUSTUP_TOOLCHAIN overrides
+# the crate's pinned rust-toolchain.toml), runs it, and requires the same
+# output and exit status as the Go build (internal/patina/rust_test.go). One
+# job also checks the committed golden crates with the pinned toolchain: no
+# warnings, rustfmt-clean, and gopatina verify (reproducible builds).
 
 on:
   push:
@@ -23,9 +26,11 @@ permissions:
   contents: read
 
 env:
-  # Minimum supported Rust version for generated crates. Placeholder until
-  # RFC 0003 settles it: 1.85 is the first release with the 2024 edition.
+  # Minimum supported Rust version for generated crates (rust-version in
+  # their Cargo.toml): 1.85 is the first release with the 2024 edition.
   RUST_MSRV: "1.85"
+  # The toolchain emitted crates pin (internal/emit, rust-toolchain.toml).
+  RUST_PINNED: "1.93.0"
 
 jobs:
   toolchains:
@@ -47,6 +52,9 @@ jobs:
           if [ "$toolchain" = msrv ]; then toolchain="$RUST_MSRV"; fi
           rustup toolchain install "$toolchain" --profile minimal
           rustup default "$toolchain"
+          echo "RUST_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
+      - name: Install the pinned toolchain with rustfmt
+        run: rustup toolchain install "$RUST_PINNED" --profile minimal --component rustfmt
       - name: Record versions
         run: |
           go version
@@ -54,13 +62,16 @@ jobs:
           cargo --version
       - name: go test
         run: go test -race ./...
-      - name: Generated Rust (placeholder)
-        run: |
-          if [ -d internal/patina ]; then
-            echo "::error::The patina pipeline exists; replace this placeholder with the compile-and-run step (RFC 0003)."
-            exit 1
-          fi
-          echo "::notice::No generated Rust code yet; the golden programs are built with Rust once the code generator and CLI land (RFC 0003)."
+      - name: Generated Rust, built and run with Rust ${{ matrix.rust }}
+        env:
+          GOPATINA_RUST_TESTS: "1"
+          RUSTUP_TOOLCHAIN: ${{ env.RUST_TOOLCHAIN }}
+        run: go test -run 'TestDifferential' -v ./internal/patina
+      - name: Golden crates with the pinned toolchain (warnings, rustfmt, gopatina verify)
+        if: matrix.go == 'stable' && matrix.rust == 'stable'
+        env:
+          GOPATINA_RUST_TESTS: "1"
+        run: go test -run 'TestGoldenCratesAreClean|TestVerifyGolden' -v ./internal/patina
 
   canary:
     name: canary (go ${{ matrix.go }}, rust ${{ matrix.rust }})
@@ -97,8 +108,11 @@ jobs:
           rustc --version
       - name: go test
         run: go test -race ./...
-      - name: Generated Rust (placeholder)
-        run: echo "::notice::No generated Rust code yet; Rust compile-and-run tests start in Phase 1 (RFC 0003)."
+      - name: Generated Rust, built and run with Rust ${{ matrix.rust }}
+        env:
+          GOPATINA_RUST_TESTS: "1"
+          RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
+        run: go test -run 'TestDifferential' ./internal/patina
       - name: Open an issue on a scheduled failure
         if: failure() && github.event_name == 'schedule'
         env:

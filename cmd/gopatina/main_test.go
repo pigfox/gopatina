@@ -103,35 +103,6 @@ func TestVersion(t *testing.T) {
 	}
 }
 
-func TestPatinaModesAreNotImplemented(t *testing.T) {
-	tests := []struct {
-		args []string
-		want string
-	}{
-		{[]string{"build", "-patina", "./..."}, "gopatina build -patina: patina native backend not implemented yet (see RFC 0001)\n"},
-		{[]string{"build", "--patina"}, "gopatina build -patina: patina native backend not implemented yet (see RFC 0001)\n"},
-		{[]string{"run", "-patina", "."}, "gopatina run -patina: patina native backend not implemented yet (see RFC 0001)\n"},
-		{[]string{"build", "-emit-rust", "./cmd/app"}, "gopatina build -emit-rust: Rust source emitter not implemented yet (see RFC 0001)\n"},
-		{[]string{"run", "--emit-rust"}, "gopatina run -emit-rust: Rust source emitter not implemented yet (see RFC 0001)\n"},
-		{[]string{"build", "-patina", "--patina"}, "gopatina build -patina: patina native backend not implemented yet (see RFC 0001)\n"},
-	}
-	for _, tt := range tests {
-		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
-			useFakeGo(t, 0) // must not be run
-			r := runCLI(t, "", tt.args...)
-			if r.code != exitUsage {
-				t.Errorf("exit = %d, want %d", r.code, exitUsage)
-			}
-			if r.stderr != tt.want {
-				t.Errorf("stderr = %q, want %q", r.stderr, tt.want)
-			}
-			if r.stdout != "" {
-				t.Errorf("stdout = %q, want empty (the go command must not run)", r.stdout)
-			}
-		})
-	}
-}
-
 func TestPatinaAndEmitRustAreExclusive(t *testing.T) {
 	r := runCLI(t, "", "build", "-patina", "-emit-rust", ".")
 	want := "gopatina build: -patina and -emit-rust cannot be used together\n"

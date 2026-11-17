@@ -4,9 +4,12 @@ name: reproducible
 # different CARGO_HOMEs, using the reproducible-build settings in
 # docs/REPRODUCIBLE.md, and fails if the two release binaries differ.
 #
-# This checks the reproducible-build setup on hand-written crates. It does not
-# test GoPatina's Rust emitter, which does not exist yet; the planned
-# "gopatina verify" job will replace it.
+# examples/hello/rust is the crate gopatina emits for examples/hello;
+# examples/counter/rust is still the hand-written design for goroutines
+# (RFC 0002). The verify step runs gopatina verify on the hello example:
+# emission is deterministic, and the -patina binary is byte-identical to a
+# plain cargo build --release --locked of the emitted crate. The toolchains
+# workflow runs the same check on every golden program.
 
 on:
   push:
@@ -24,6 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
       - name: Install the pinned toolchain (rust-toolchain.toml)
         run: |
           for crate in examples/*/rust; do
@@ -40,4 +46,12 @@ jobs:
             cat hashes.txt
             cat toolchain.txt
             echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: gopatina verify ./examples/hello
+        run: |
+          go run ./cmd/gopatina verify ./examples/hello | tee verify.txt
+          {
+            echo "### gopatina verify ./examples/hello"
+            echo
+            sed 's/^/    /' verify.txt
           } >> "$GITHUB_STEP_SUMMARY"
