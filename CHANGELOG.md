@@ -28,6 +28,9 @@ Until 1.0.0, minor versions may contain breaking changes.
 - EXAMPLES.md and runnable examples (examples/hello, examples/ownership,
   examples/counter) walking through default mode (real output), -emit-rust
   and -patina=check (planned output, labelled as design).
+- gopatina.org one-page site (site/): a small Go server built with gopatina's
+  default mode, with the page, its Markdown version, llms.txt, robots.txt,
+  sitemap.xml and a health check; a Dockerfile and docker-compose.yml.
 
 ## [0.0.1] - 2026-11-16
 
