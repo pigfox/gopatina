@@ -376,6 +376,86 @@ later as a compile-speed optimisation, behind the same flags.
 - **A toolchain dependency.** Patina modes need a Rust toolchain
   installed, in addition to Go.
 
+## Verified: Rust underneath, byte for byte
+
+"Rust underneath" is a claim that can be checked, and GoPatina is designed so
+that anyone can check it with `sha256sum`. There are two guarantees. Both are
+**planned**: neither the emitter nor `gopatina verify` exists yet. What can
+be shown today is in [`docs/REPRODUCIBLE.md`](../REPRODUCIBLE.md).
+
+### (a) Deterministic emission
+
+The same Go input, GoPatina version and options always produce
+byte-identical Rust source. `-emit-rust` writes, beside the crate, a manifest
+`gopatina-manifest.sha256` in `sha256sum` format, listing every emitted file:
+
+```text
+3b0c…  Cargo.toml
+9f2e…  Cargo.lock
+4a7d…  rust-toolchain.toml
+e1c8…  src/main.rs
+```
+
+Anyone can run `sha256sum -c gopatina-manifest.sha256` in the crate. The
+emitter must not depend on map iteration order, the clock, the host, the
+user, absolute paths or environment variables; this is tested by emitting
+every golden input twice, in different directories, and comparing manifests.
+
+### (b) No hidden compiler
+
+The binary from `gopatina build -patina` is byte-identical, with the same
+sha256, to the one you get by running plain cargo yourself on the crate that
+`-emit-rust` writes:
+
+```sh
+gopatina build -emit-rust -o crate ./cmd/app
+(cd crate && cargo build --release --locked)
+sha256sum crate/target/<target>/release/app   # same as the -patina binary
+```
+
+So `-patina` is exactly "`-emit-rust`, then cargo", with nothing added in
+between. This needs a reproducible build, which GoPatina sets up in every
+emitted crate:
+
+| Setting | Why |
+| --- | --- |
+| `rust-toolchain.toml` pinning an exact Rust release and target | A different compiler is a different binary |
+| `Cargo.lock`, built with `--locked` | The same dependency versions and sources |
+| `SOURCE_DATE_EPOCH` set to a fixed value | No build-time timestamps |
+| `--remap-path-prefix` for the build directory and `CARGO_HOME` | No host paths in panic messages or debug info |
+| `codegen-units = 1`, `incremental = false` | No parallel or incremental code generation differences |
+| An explicit target triple (`--target`) | No dependence on the host's default target |
+| `strip = true`, `debug = false` (or fixed debuginfo settings) | No symbol tables or debug info that embed paths |
+
+What can still break identity, and how it is controlled:
+
+- **A different toolchain** (rustc, cargo, LLVM version): pinned in
+  `rust-toolchain.toml`; `gopatina verify` refuses to compare builds made
+  with different toolchains and says so.
+- **Host paths** (build directory, user's home, `CARGO_HOME`): remapped.
+- **The linker and system libraries** (C runtime objects, the system `cc`
+  and its version): the default patina target is static musl, and GoPatina
+  is designed to link it with Rust's bundled `rust-lld` and Rust's own musl
+  C runtime objects (`-C link-self-contained=yes`), so the host's C
+  toolchain is not involved. On targets that use the system linker,
+  identity holds only with the same linker and libraries, and the verify
+  report names them.
+- **Environment and features** (`RUSTFLAGS`, enabled features, build
+  scripts): `-patina` passes nothing that the crate's own files do not
+  state; build scripts in runtime crates are reviewed for determinism.
+
+### `gopatina verify` (planned)
+
+`gopatina verify ./cmd/app` will run both paths, `-patina` and `-emit-rust`
+followed by plain `cargo build --release --locked`, in separate directories,
+check the emission manifest, and compare the two binaries' sha256. It fails
+on any difference and prints the toolchain, target and both hashes. A CI job
+will run it on every golden program and fail the build on any mismatch.
+
+Until the emitter exists, CI runs the same reproducible-build check on the
+hand-written example crates (`scripts/repro-check.sh`, the `reproducible`
+workflow). That demonstrates the build settings, not GoPatina's emitter.
+
 ## Deployment and portability
 
 ### Binaries need neither Go nor Rust

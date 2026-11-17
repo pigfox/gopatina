@@ -202,6 +202,12 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
 
 Details: [docs/QUALITY.md](docs/QUALITY.md) and [bench/](bench/README.md).
 
+**Checksum-verified builds.** Emitted Rust is designed to be byte-identical for
+the same input, and a `-patina` binary to have the same sha256 as plain
+`cargo build --release --locked` on the emitted crate. CI already checks the
+reproducible-build setup on the example crates; see
+[docs/REPRODUCIBLE.md](docs/REPRODUCIBLE.md).
+
 ## Benchmarks
 
 **No benchmarks have been run yet**: GoPatina does not generate code yet.

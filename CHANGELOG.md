@@ -31,6 +31,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 - gopatina.org one-page site (site/): a small Go server built with gopatina's
   default mode, with the page, its Markdown version, llms.txt, robots.txt,
   sitemap.xml and a health check; a Dockerfile and docker-compose.yml.
+- Reproducible, checksum-verified builds: RFC 0001 section and
+  docs/REPRODUCIBLE.md (deterministic emission, no hidden compiler, planned
+  gopatina verify); example crates with pinned toolchains and lockfiles,
+  scripts/repro-check.sh and a reproducible CI workflow that builds each crate
+  twice and compares sha256.
 
 ## [0.0.1] - 2026-11-16
 

@@ -11,3 +11,6 @@ coverage.out
 .idea/
 .vscode/
 .DS_Store
+
+# Rust build output
+target/
