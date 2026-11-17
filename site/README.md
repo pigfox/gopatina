@@ -7,8 +7,8 @@ plain Go (`net/http`, `html/template`, `embed`; no third-party modules), with
 no JavaScript on the page.
 
 The server is a Go program **built with gopatina's default mode**
-(`gopatina build`, which runs `go build`). GoPatina's Rust modes are not
-built yet, and the page says so.
+(`gopatina build`, which runs `go build`). It uses `net/http` and `embed`,
+which are outside the phase 1 subset GoPatina's Rust modes accept.
 
 ## Run it locally
 
