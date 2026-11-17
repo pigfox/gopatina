@@ -139,14 +139,14 @@
 
   <h2 id="modes">Three modes, two flags</h2>
   <div class="table-wrap">
-  <table>
+  <table class="stack">
     <thead>
       <tr><th scope="col">Mode</th><th scope="col">Flag</th><th scope="col">Garbage collector</th><th scope="col">Works with all Go</th><th scope="col">Output</th><th scope="col">Status</th></tr>
     </thead>
     <tbody>
-      <tr><td>Default</td><td>none</td><td>Yes (Go's)</td><td>Yes</td><td>A Go binary, built by your installed <code>go</code></td><td>Works today</td></tr>
-      <tr><td>Emit Rust</td><td><code>-emit-rust</code></td><td>No</td><td>No: a defined subset</td><td>A readable Rust crate you can keep and build with cargo</td><td>Works for the phase 1 subset</td></tr>
-      <tr><td>Patina</td><td><code>-patina</code></td><td>No</td><td>No: the same subset</td><td>A native binary built by rustc from that crate</td><td>Works for the phase 1 subset</td></tr>
+      <tr><td data-label="Mode">Default</td><td data-label="Flag">none</td><td data-label="Garbage collector">Yes (Go's)</td><td data-label="Works with all Go">Yes</td><td data-label="Output">A Go binary, built by your installed <code>go</code></td><td data-label="Status">Works today</td></tr>
+      <tr><td data-label="Mode">Emit Rust</td><td data-label="Flag"><code>-emit-rust</code></td><td data-label="Garbage collector">No</td><td data-label="Works with all Go">No: a defined subset</td><td data-label="Output">A readable Rust crate you can keep and build with cargo</td><td data-label="Status">Works for the phase 1 subset</td></tr>
+      <tr><td data-label="Mode">Patina</td><td data-label="Flag"><code>-patina</code></td><td data-label="Garbage collector">No</td><td data-label="Works with all Go">No: the same subset</td><td data-label="Output">A native binary built by rustc from that crate</td><td data-label="Status">Works for the phase 1 subset</td></tr>
     </tbody>
   </table>
   </div>
@@ -203,14 +203,14 @@ gopatina verify .                           # reproducible: -patina == plain car
 
   <h2 id="roadmap">Roadmap</h2>
   <div class="table-wrap">
-  <table>
+  <table class="stack">
     <thead><tr><th scope="col">Phase</th><th scope="col">Scope</th><th scope="col">Status</th></tr></thead>
     <tbody>
-      <tr><td>0</td><td>The RFCs; the <code>gopatina</code> command with default-mode pass-through</td><td>Done (v0.0.1)</td></tr>
-      <tr><td>1</td><td><code>-emit-rust</code>, <code>-patina</code>, <code>-patina=check</code> and <code>gopatina verify</code> for the <a href="https://github.com/pigfox/gopatina/blob/main/docs/patina-subset.md">phase 1 subset</a>, with the borrow checker and the Rust code generator</td><td>Done (unreleased)</td></tr>
-      <tr><td>2</td><td>The rest of the borrow checker: maps, closures, <code>defer</code>, slicing, <code>gopatina fix</code>, the strict mode</td><td>Planned</td></tr>
-      <tr><td>3</td><td>Goroutines and channels on a multi-threaded async runtime, with shared-ownership and mutex fixes</td><td>Planned</td></tr>
-      <tr><td>4</td><td>A standard library subset and Rust crate interop</td><td>Planned</td></tr>
+      <tr><td data-label="Phase">0</td><td data-label="Scope">The RFCs; the <code>gopatina</code> command with default-mode pass-through</td><td data-label="Status">Done (v0.0.1)</td></tr>
+      <tr><td data-label="Phase">1</td><td data-label="Scope"><code>-emit-rust</code>, <code>-patina</code>, <code>-patina=check</code> and <code>gopatina verify</code> for the <a href="https://github.com/pigfox/gopatina/blob/main/docs/patina-subset.md">phase 1 subset</a>, with the borrow checker and the Rust code generator</td><td data-label="Status">Done (unreleased)</td></tr>
+      <tr><td data-label="Phase">2</td><td data-label="Scope">The rest of the borrow checker: maps, closures, <code>defer</code>, slicing, <code>gopatina fix</code>, the strict mode</td><td data-label="Status">Planned</td></tr>
+      <tr><td data-label="Phase">3</td><td data-label="Scope">Goroutines and channels on a multi-threaded async runtime, with shared-ownership and mutex fixes</td><td data-label="Status">Planned</td></tr>
+      <tr><td data-label="Phase">4</td><td data-label="Scope">A standard library subset and Rust crate interop</td><td data-label="Status">Planned</td></tr>
     </tbody>
   </table>
   </div>
