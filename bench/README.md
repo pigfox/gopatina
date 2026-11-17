@@ -1,37 +1,37 @@
 # Benchmarks: GoPatina against hand-written Rust
 
-> **Status: no results yet.** Neither patina mode generates code, so there is
-> nothing to measure. This directory describes the harness and the suite that
-> will be built in Phase 1, so the policy is in place before the first line of
-> code generation lands.
+> **Status: no official results yet.** The harness and the first two cases
+> exist and run per pull request, reporting ratios only. The test server that
+> produces official numbers does not exist yet.
 
 The policy (what is measured, when, against which Rust, and the target) is in
 [`docs/QUALITY.md`](../docs/QUALITY.md#performance-shadow-rust-and-keep-up).
 
-## Layout (planned)
+## Layout
 
 ```
 bench/
   cases/
     <name>/
-      go/        the Go program (patina subset), with a main package
+      go/        the Go program (patina subset), with a main package and a test
       rust/      equivalent hand-written Rust, as a cargo crate
-      input/     fixed inputs, if the program reads any
-      expected   the exact output both versions must print
+      input/     fixed inputs, if the program reads any (none yet)
+      expected   the exact output every version must print
   run.sh         the harness
   results/       <date>-<gopatina version>.json and a summary, one pair per
                  official run (published through a pull request)
 ```
 
-## The suite (planned)
+## The suite
 
 Small, well-known programs that exercise different parts of the language,
 added as the patina subset grows to support them:
 
 | Case | Exercises | Earliest phase |
 | --- | --- | --- |
-| `fib` | function calls, integer arithmetic | 1 |
-| `nbody` | structs, floating point, loops | 1 |
+| `fib` | function calls, integer arithmetic | 1 (in place) |
+| `sieve` | a large slice, nested loops, element writes | 1 (in place) |
+| `nbody` | structs, floating point, loops (needs `math.Sqrt`) | 2 |
 | `spectral-norm` | slices, nested loops | 2 |
 | `fannkuch-redux` | slices, permutations, mutation through borrows | 2 |
 | `binary-trees` | allocation and freeing of many small boxes (where a GC would run) | 2 |
@@ -41,22 +41,25 @@ added as the patina subset grows to support them:
 The Rust versions are written to be idiomatic and safe (no `unsafe`), as a
 Rust developer would write them, not tuned to make GoPatina look good.
 
-## The harness (planned)
+## The harness
 
-For each case, `run.sh` will:
+For each case, [`run.sh`](run.sh):
 
-1. Check that the Go version, run with `go run`, and the Rust version print
-   the same `expected` output, so only equivalent programs are compared.
-2. Build two binaries: `gopatina build -patina` (the generated crate,
-   built by rustc in release mode) and the hand-written Rust crate with
-   `cargo build --release`. Plain `go build` is measured too, for reference.
-3. Run each binary many times, interleaved and with warm-up runs discarded,
-   using [hyperfine](https://github.com/sharkdp/hyperfine), and record wall
-   time and peak resident memory.
-4. Write one JSON result with, per case and binary: the median, the spread,
-   the ratios to hand-written Rust and to plain Go, and the environment:
-   GoPatina commit, `go version`, `rustc --version` (latest stable via
-   `rustup toolchain install stable`), CPU, operating system, date.
+1. Builds three binaries: `gopatina build -patina` (the generated crate,
+   built by rustc in release mode with its pinned toolchain), the
+   hand-written Rust crate with `cargo build --release` (the latest stable
+   Rust on the machine), and plain `go build`.
+2. Checks that all three print the case's `expected` output, so only
+   equivalent programs are compared.
+3. Runs the three many times (11 by default), interleaved, after a warm-up
+   run each, and takes the median wall time of each.
+4. Writes one JSON result with, per case, the ratios GoPatina/Rust,
+   Go/Rust and GoPatina/Go, and the environment: GoPatina commit,
+   `go version`, both `rustc --version`s, operating system. It writes no
+   absolute times.
+
+Peak memory, the spread and the official-run format are planned with the
+test server.
 
 ## Where it runs
 
@@ -65,9 +68,8 @@ For each case, `run.sh` will:
 requests that touch code generation or this directory, on releases, and on
 demand. When cases exist, it installs the latest stable Rust, records
 `rustc --version`, builds and runs GoPatina, hand-written Rust and plain Go in
-the same job, and uploads the medians and ratios. Shared runners are noisy,
-so it reports no absolute numbers. While `bench/cases/` and `bench/run.sh` do
-not exist, it skips those steps and says so in a notice.
+the same job, and uploads the ratios. Shared runners are noisy, so it
+reports no absolute numbers.
 
 **Official numbers (the maintainer's test server, outside GitHub).** Release
 and published numbers come only from a dedicated test server run by the
@@ -86,4 +88,5 @@ change. Once merged, the numbers are shown in
 the README's Benchmarks section, and in the GitHub release notes for that
 version, each linking to the raw results file.
 
-This runner does not exist yet, and **nothing has been measured yet**.
+This runner does not exist yet, and **nothing has been measured officially
+yet**.

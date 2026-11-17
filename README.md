@@ -17,11 +17,14 @@ Rust-grade memory safety. Without the flag, it is plain Go, and every
 existing Go program builds exactly as before.
 
 > [!IMPORTANT]
-> **GoPatina is at the design (RFC) stage.** It is not a working compiler.
-> What exists today is the design, [RFC 0001](docs/rfcs/0001-gopatina.md),
-> and a small prototype CLI that passes commands through to the Go toolchain
-> and reports that the patina modes are not implemented yet. There are no
-> benchmarks, because there is no generated code to measure.
+> **GoPatina is early.** Phase 1 works for a defined subset of Go
+> ([docs/patina-subset.md](docs/patina-subset.md)): functions, structs and
+> methods, slices, strings, errors, `fmt` printing. For that subset the
+> borrow checker, the Rust code generator, `-emit-rust`, `-patina`,
+> `-patina=check` and `gopatina verify` are implemented and tested. Everything
+> else, goroutines and maps first among them, is planned and rejected with a
+> clear error today. No performance figures are published yet (see
+> [Quality and performance policy](#quality-and-performance-policy)).
 
 ## Why
 
@@ -44,8 +47,8 @@ stricter mode, and get Rust's runtime model underneath.
 
 ```sh
 gopatina build ./...                 # default: exactly go build ./...
-gopatina build -patina ./cmd/app     # native binary, no GC        (planned)
-gopatina build -emit-rust ./cmd/app  # Rust source you can keep    (planned)
+gopatina build -patina ./cmd/app     # native binary, no GC
+gopatina build -emit-rust ./cmd/app  # Rust source you can keep
 ```
 
 - **Default mode** runs the `go` command with the same arguments, streams and
@@ -53,8 +56,8 @@ gopatina build -emit-rust ./cmd/app  # Rust source you can keep    (planned)
   result. This works today.
 - **`-emit-rust`** translates a defined subset of Go to readable Rust source,
   a cargo crate a developer can keep, edit and build with cargo, and stops
-  there. It is the first mode to be built, because its output can be read by
-  people and checked by `rustc` itself.
+  there. The output is rustfmt-clean Rust 2024 and byte-for-byte
+  deterministic, listed with sha256 in `gopatina-manifest.sha256`.
 - **`-patina`** runs the same pipeline and then builds the crate with rustc
   into a native binary that behaves exactly like Rust under the hood: no
   garbage collector, ownership and borrowing, Rust-grade memory safety, and
@@ -65,21 +68,31 @@ gopatina build -emit-rust ./cmd/app  # Rust source you can keep    (planned)
 lifetimes automatically, and fixes what it safely can: a move instead of a
 copy, a clone of a small value, `Rc`/`Arc` for shared values, `Arc<Mutex<T>>`
 for values shared across goroutines, a narrower borrow. Every fix is reported
-(`gopatina build -patina -explain`), and `gopatina fix` can rewrite the Go
-source to make it explicit, like `go fix`. When no safe fix exists, the error
-is in Go terms, for example:
+(`gopatina build -patina -explain`), and `gopatina fix` will rewrite the Go
+source to make it explicit, like `go fix` (planned). When no safe fix exists,
+the error is in Go terms, for example:
 
 ```text
-./main.go:14:9: variable buf is still used after it was handed to send on line 12
-    pass a copy (send(slices.Clone(buf))), or use buf before handing it over
+./main.go:19:2: buf is changed after buf was handed to log.Add on line 18
+        log.Add(buf)  // line 18: log.Add keeps buf
+        buf[0] = 'F'  // line 19: this also changes the copy log.Add kept, which shares buf's memory
+    patina mode does not copy buf on its own: a copy would not share that memory, so the program could behave differently
+    if log.Add should keep the original, hand it a copy: bytes.Clone(buf)
+    or finish using buf before handing it over
 ```
+
+Phase 1 implements the moves, the copies of strings and small structs, and
+the inferred shared and exclusive borrows; the `Rc`/`Arc` fixes come with
+goroutines (RFC 0002).
 
 rustc's own borrow checker then verifies the generated code as the final
 proof.
 
-**Drop-in binaries.** A patina binary is native code, static by default (musl
-on Linux), so the target machine needs neither Go nor Rust, just as with a Go
-binary, and `GOOS`/`GOARCH` cross-compile as usual. Because patina code is
+**Drop-in binaries.** A patina binary is native code, so the target machine
+needs neither Go nor Rust, just as with a Go binary. `GOOS`/`GOARCH` choose
+the Rust target. Phase 1 builds for each platform's default C runtime (the
+`-gnu` targets on Linux); static musl binaries by default, and
+cross-compiling with a fetched target, are planned. Because patina code is
 valid Go, `gopatina build -patina=check` runs the patina checks and then
 builds with the Go compiler, for machines where Rust cannot be installed.
 That is never a silent fallback: you choose it, and the output says which
@@ -94,10 +107,10 @@ Files can carry a patina implementation beside a plain one: both patina flags
 set the `patina` build tag (`//go:build patina` and `//go:build !patina`),
 and default mode never does.
 
-### Example (illustrative only)
+### Example
 
-Nothing generates this yet. It shows the intended shape of `-emit-rust`
-output for a small patina program.
+`gopatina build -emit-rust -explain` on this program reports its two
+decisions and writes the crate below (its `src/main.rs`, as generated).
 
 ```go
 //go:build patina
@@ -126,61 +139,84 @@ func main() {
 }
 ```
 
+```text
+./main.go:9:7: receiver p is an exclusive borrow: Scale changes it, and the caller sees the change
+./main.go:14:15: parameter name is a shared borrow: describe only reads it
+```
+
 ```rust
-// Illustrative -emit-rust output. Not produced by any current code.
-#[derive(Clone, Copy, Debug, Default)]
+//! Generated by GoPatina from package main (main.go).
+//! Edit the Go source and regenerate, or keep this crate and continue in Rust.
+
+// Go allows unused functions, types, fields, parameters and assignments,
+// wraps integers on overflow, and panics on a division by zero at run time;
+// Rust warns about the first and rejects the others when it can see them.
+#![allow(
+    dead_code,
+    unused_assignments,
+    unused_variables,
+    arithmetic_overflow,
+    unconditional_panic
+)]
+
+mod rt;
+
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Point {
     pub x: i64,
     pub y: i64,
 }
 
 impl Point {
-    // `*Point` is used only to mutate `p`: inferred as an exclusive borrow.
     pub fn scale(&mut self, k: i64) {
         self.x *= k;
         self.y *= k;
     }
 }
 
-// `name` is only read: inferred as a shared borrow.
 fn describe(name: &str, p: Point) -> String {
     format!("{} at ({}, {})", name, p.x, p.y)
 }
 
 fn main() {
+    rt::exit_on_panic();
     let mut p = Point { x: 1, y: 2 };
     p.scale(3);
     println!("{}", describe("origin-ish", p));
 }
 ```
 
+`src/rt.rs` holds the small runtime support the program uses; here, a panic
+hook that exits with status 2, as Go does. `gopatina run -patina` and
+`go run` both print `origin-ish at (3, 6)`.
+
 ## Examples
 
 [EXAMPLES.md](EXAMPLES.md) walks through all three modes with three runnable
 programs in [`examples/`](examples/): `hello`, `ownership` (a value used
 after it was handed off) and `counter` (goroutines and a shared counter).
-Default mode works today:
+For `hello` and `ownership` everything on the page is real output: the
+`-explain` report and the crate `-emit-rust` writes for `hello`, and the
+Go-style error `-patina=check` gives for `ownership`:
 
 ```console
-$ gopatina run ./examples/counter
-total: 4000
+$ gopatina run -patina ./examples/hello
+Hello, Gopher! Hello, Gopher!
+Ferris 3
 ```
 
-For `-emit-rust`, the page shows the Rust crate GoPatina is designed to
-generate, including how goroutines become Tokio tasks, and the borrow
-checker's `-explain` report; for `-patina=check`, the Go-style errors for a
-use after hand-off and a data race. All of that is labelled **planned output
-(design, not yet implemented)**, next to the real "not implemented yet"
-response of today's CLI.
+`counter` uses goroutines, which are planned (RFC 0002): its Tokio crate and
+the data-race report are the design, labelled **planned output (design, not
+yet implemented)**.
 
 ## Status and roadmap
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 0 | RFC 0001; CLI with default-mode pass-through; patina flags report "not implemented" | **In progress** |
-| 1 | `-emit-rust` for a tiny subset (functions, structs, integers, strings); `-patina` builds it with rustc | Planned |
-| 2 | The GoPatina borrow checker: ownership and lifetime inference, automatic fixes, Go-style errors | Planned |
-| 3 | Goroutines and channels on a multi-threaded async runtime ([RFC 0002](docs/rfcs/0002-concurrency.md)) | Planned |
+| 0 | RFC 0001; CLI with default-mode pass-through | Done (v0.0.1) |
+| 1 | `-emit-rust`, `-patina`, `-patina=check` and `gopatina verify` for the subset in [docs/patina-subset.md](docs/patina-subset.md), with the borrow checker (stage 3) and the Rust code generator (stage 4) | **Implemented** (unreleased) |
+| 2 | The rest of the borrow checker: maps, closures, `defer`, slicing, `gopatina fix`, the strict mode | Planned |
+| 3 | Goroutines and channels on a multi-threaded async runtime ([RFC 0002](docs/rfcs/0002-concurrency.md)), with the `Arc`/`Mutex` fixes | Planned |
 | 4 | Standard library subset and Rust crate interop | Planned |
 
 Every phase ships with 100% unit-test coverage and is benchmarked against
@@ -198,19 +234,22 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
   changes code generation, is benchmarked against equivalent hand-written
   Rust built with the latest stable Rust toolchain, whose version is recorded
   with each result. The target is to stay within 10% of Rust on each
-  benchmark, tracked over time: a goal, not a claim. **No numbers exist yet.**
+  benchmark, tracked over time: a goal, not a claim. **No numbers are
+  published yet.** The harness ([bench/](bench/README.md)) runs in CI and
+  reports ratios only; official numbers come from a dedicated machine.
 
 Details: [docs/QUALITY.md](docs/QUALITY.md) and [bench/](bench/README.md).
 
-**Checksum-verified builds.** Emitted Rust is designed to be byte-identical for
-the same input, and a `-patina` binary to have the same sha256 as plain
-`cargo build --release --locked` on the emitted crate. CI already checks the
-reproducible-build setup on the example crates; see
+**Checksum-verified builds.** Emitted Rust is byte-identical for the same
+input, and a `-patina` binary has the same sha256 as plain
+`cargo build --release --locked` on the emitted crate: `gopatina verify`
+checks both, and CI runs it on every golden program; see
 [docs/REPRODUCIBLE.md](docs/REPRODUCIBLE.md).
 
 ## Benchmarks
 
-**No benchmarks have been run yet**: GoPatina does not generate code yet.
+**No official benchmarks have been run yet.** The harness runs on pull
+requests and reports ratios only, which are not published as results.
 Official results, measured on the maintainer's test server with the full
 suite, are published in [BENCHMARKS.md](BENCHMARKS.md); the latest headline
 ratios will appear here.
@@ -226,29 +265,32 @@ What each GoPatina release supports is stated here and in its release notes
 
 | GoPatina | Go | Rust stable | Rust MSRV | Rust edition |
 | --- | --- | --- | --- | --- |
-| `main` (Phase 0) | the two latest releases (stable, oldstable) | not used yet | not used yet | 2024 (planned) |
+| `main` (Phase 1, unreleased) | the two latest releases (stable, oldstable) | emitted crates pin 1.93.0; CI also tests the latest stable | 1.85 | 2024 |
 
 Default mode works with any Go release, because it runs your installed `go`.
-Patina modes will refuse Go features they do not support yet, naming the
-feature and the Go version that introduced it; see the
+Patina modes refuse Go features they do not support yet, naming the feature
+and, where it helps, the Go version that introduced it; see the
 [feature matrix](docs/compat.md).
 
-## Quick start (prototype CLI)
+## Quick start
 
-Requires Go 1.25 or later.
+Requires Go 1.25 or later; `-patina` and `gopatina verify` also need a Rust
+toolchain ([rustup](https://rustup.rs) installs the pinned version on first
+use). Phase 1 is not released yet, so install from `main`:
 
 ```sh
-go install github.com/pigfox/gopatina/cmd/gopatina@latest
+go install github.com/pigfox/gopatina/cmd/gopatina@main
 
-gopatina version
-gopatina build ./...            # runs go build ./...
-gopatina test ./...             # runs go test ./...
-gopatina build -emit-rust .     # exits 2: not implemented yet (see RFC 0001)
-gopatina build -patina .        # exits 2: not implemented yet (see RFC 0001)
+gopatina build ./...                        # runs go build ./...
+gopatina build -emit-rust -o crate .        # writes a cargo crate
+gopatina build -patina -explain -o app .    # native binary, with every decision
+gopatina run -patina .                      # build and run it
+gopatina build -patina=check .              # patina checks, then the Go compiler
+gopatina verify .                           # reproducible: -patina == plain cargo
 ```
 
-`gopatina` uses the `go` command on your `PATH`, or the one named by the
-`GOPATINA_GO` environment variable.
+`gopatina` uses the `go` and `cargo` commands on your `PATH`, or the ones
+named by the `GOPATINA_GO` and `GOPATINA_CARGO` environment variables.
 
 ## Prior art
 

@@ -1,7 +1,11 @@
 # RFC 0001: GoPatina, Go on the surface, Rust underneath
 
-- **Status:** Draft (design stage; nothing described here is implemented
-  beyond the default-mode pass-through CLI)
+- **Status:** Draft. Phase 1 is implemented for the subset specified in
+  [docs/patina-subset.md](../patina-subset.md): the borrow checker's
+  ownership and borrow inference with automatic moves and copies, `-explain`
+  and Go-style errors; the Rust code generator; `-emit-rust`, `-patina`,
+  `-patina=check` and `gopatina verify`. Everything else described here is
+  planned.
 - **Author(s):** Peter Sjolin
 - **Created:** 2026-11-16
 - **Discussion:** this file's pull request, and issues labelled `rfc`
@@ -276,10 +280,14 @@ output can be checked by eye and by `rustc` itself: if the generated crate
 compiles, the Rust compiler has verified the ownership GoPatina inferred.
 `-patina` is then little more than `-emit-rust` followed by a rustc build.
 
-### Example (illustrative only)
+### Example
 
-Nothing generates this yet. It shows the intended shape of `-emit-rust`
-output for a small patina program.
+This was written as the intended shape of `-emit-rust` output before the
+emitter existed. The [README](../../README.md#example) shows what GoPatina
+now generates for the same program: the same Rust, without the comments that
+explain the borrows (`-explain` reports them instead), with a crate-level
+`allow` for lints Go does not have, and with the panic hook that makes a
+panic exit with status 2, as in Go.
 
 ```go
 //go:build patina
@@ -379,9 +387,9 @@ later as a compile-speed optimisation, behind the same flags.
 ## Verified: Rust underneath, byte for byte
 
 "Rust underneath" is a claim that can be checked, and GoPatina is designed so
-that anyone can check it with `sha256sum`. There are two guarantees. Both are
-**planned**: neither the emitter nor `gopatina verify` exists yet. What can
-be shown today is in [`docs/REPRODUCIBLE.md`](../REPRODUCIBLE.md).
+that anyone can check it with `sha256sum`. There are two guarantees, and both
+are implemented for phase 1 and checked in CI on every golden program; the
+results are in [`docs/REPRODUCIBLE.md`](../REPRODUCIBLE.md).
 
 ### (a) Deterministic emission
 
@@ -444,17 +452,25 @@ What can still break identity, and how it is controlled:
   scripts): `-patina` passes nothing that the crate's own files do not
   state; build scripts in runtime crates are reviewed for determinism.
 
-### `gopatina verify` (planned)
+### `gopatina verify`
 
-`gopatina verify ./cmd/app` will run both paths, `-patina` and `-emit-rust`
-followed by plain `cargo build --release --locked`, in separate directories,
-check the emission manifest, and compare the two binaries' sha256. It fails
-on any difference and prints the toolchain, target and both hashes. A CI job
-will run it on every golden program and fail the build on any mismatch.
+`gopatina verify ./cmd/app` emits the package twice, into different
+directories, and requires identical manifests; then it builds the crate
+through the `-patina` path, and with plain `cargo build --release --locked`
+in another directory, and compares the two binaries' sha256. It fails on any
+difference and prints the toolchain, the target and both hashes. CI runs it
+on every golden program (`toolchains` workflow) and on `examples/hello`
+(`reproducible` workflow).
 
-Until the emitter exists, CI runs the same reproducible-build check on the
-hand-written example crates (`scripts/repro-check.sh`, the `reproducible`
-workflow). That demonstrates the build settings, not GoPatina's emitter.
+Phase 1 crates have no dependencies, so no `CARGO_HOME` path can reach the
+binary, and cargo passes the crate's own sources to rustc as relative
+paths: the build directory does not reach the binary either, and
+`gopatina verify` shows it by building in two directories. `-patina` runs
+cargo with `RUSTFLAGS`, `CARGO_TARGET_DIR` and the other variables that would
+change the build removed, so the crate's own files decide it. The
+`--remap-path-prefix` and `SOURCE_DATE_EPOCH` settings above matter once
+crates have dependencies (Tokio, RFC 0002); `scripts/repro-check.sh` applies
+them to the example crates.
 
 ## Deployment and portability
 

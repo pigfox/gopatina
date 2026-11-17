@@ -10,27 +10,48 @@ GoPatina's promise of "Rust underneath" is meant to be checked, not trusted:
    `cargo build --release --locked` yourself on the crate `-emit-rust`
    writes, with the same pinned toolchain and target.
 
-Both are **planned**: GoPatina's emitter and the `gopatina verify` command do
-not exist yet. The design, including every setting and what can break
-identity, is in
+Both are implemented for phase 1. The design, including every setting and
+what can break identity, is in
 [RFC 0001, "Verified: Rust underneath, byte for byte"](rfcs/0001-gopatina.md#verified-rust-underneath-byte-for-byte).
 
-## What is verified today
+## gopatina verify
 
-The reproducible-build **setup** that GoPatina will put in every emitted
-crate is checked today on the two hand-written example crates, which show
-the Rust GoPatina is designed to generate:
+```console
+$ gopatina verify ./examples/hello
+emission:  deterministic (manifest sha256 87299988e121159fca6e8d88a46cf233c22caa0520ec42350e18db66d987fcc1, 6 files)
+toolchain: Rust 1.93.0 (rust-toolchain.toml), target x86_64-unknown-linux-gnu
+-patina:   96af9d4017b79bf6f35da51a892f4f631ad887aafb7e771364bd704dea495e85
+cargo:     96af9d4017b79bf6f35da51a892f4f631ad887aafb7e771364bd704dea495e85  (cargo build --release --locked)
+verified:  the -patina binary is byte-identical to the plain cargo build
+```
 
-- [`examples/hello/rust`](../examples/hello/rust)
-- [`examples/counter/rust`](../examples/counter/rust) (with Tokio, pinned)
+It emits the package twice, into different directories, and requires the
+two manifests to be identical; then it builds the crate through the
+`-patina` path and with plain `cargo build --release --locked` in another
+directory, and requires the two binaries to have the same sha256. CI runs it
+on every program under `testdata/golden` (the `toolchains` workflow) and on
+`examples/hello` (the `reproducible` workflow). The output above is from the
+maintainer's workstation (Ubuntu 26.04.1, x86_64), on 2026-11-16.
 
-> This demonstrates the reproducible-build settings on hand-written Rust. It
-> does **not** test GoPatina's emitter, which does not exist yet.
+To check it yourself:
+
+```sh
+gopatina build -emit-rust -o crate ./examples/hello
+(cd crate && sha256sum -c gopatina-manifest.sha256 && cargo build --release --locked)
+sha256sum crate/target/x86_64-unknown-linux-gnu/release/hello
+```
+
+## The example crates
+
+`examples/hello/rust` is the crate gopatina emits for `examples/hello`
+(a test keeps it up to date); `examples/counter/rust` is still the
+hand-written design for goroutines, which are planned (RFC 0002).
 
 Each crate carries the settings:
 
 - `rust-toolchain.toml` pinning Rust 1.93.0 and the
-  `x86_64-unknown-linux-gnu` target;
+  `x86_64-unknown-linux-gnu` target (the emitted crate also names it in
+  `.cargo/config.toml`);
 - a committed `Cargo.lock`, built with `--locked`;
 - a release profile with `codegen-units = 1`, `debug = false`,
   `strip = true` and `incremental = false`.
@@ -59,15 +80,12 @@ Toolchain: `rustc 1.93.0 (254b59607 2026-01-19)`, target
 `x86_64-unknown-linux-gnu`, `SOURCE_DATE_EPOCH=1700000000`. Date:
 2026-11-16.
 
-These hashes were produced, identically, in two places:
-
-- the maintainer's workstation (Ubuntu 26.04.1 LTS, x86_64, system `cc`
-  GCC 15.2.0), both builds of each crate;
-- GitHub Actions (`ubuntu-26.04` runner image), both builds of each crate,
-  in the first run of the `reproducible` workflow.
-
-So for these crates the binaries were byte-identical across build
-directories, across `CARGO_HOME`s and across two different Linux machines.
+The counter hash was produced, identically, in two places: the
+maintainer's workstation (Ubuntu 26.04.1 LTS, x86_64, system `cc` GCC 15.2.0)
+and GitHub Actions (`ubuntu-26.04` runner image), both builds each. The hello
+hash is from the maintainer's workstation, where `scripts/repro-check.sh` and
+`gopatina verify` gave the same value; the `reproducible` workflow prints
+both on every run.
 This target uses the system linker, so identity on other distributions or
 linker versions is not claimed (see RFC 0001 for how the planned default
 musl target avoids the host's C toolchain).

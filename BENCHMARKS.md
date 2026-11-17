@@ -6,10 +6,11 @@ maintainer's test server. How the numbers are produced is described in
 [docs/QUALITY.md](docs/QUALITY.md#performance-shadow-rust-and-keep-up) and
 [bench/README.md](bench/README.md).
 
-> **No benchmarks have been run yet.** GoPatina does not generate code yet
-> (it is at Phase 0 of the roadmap), so there is nothing to measure. This
-> page will stay empty until the first official run, and no figure appears
-> here without its raw results.
+> **No official benchmarks have been run yet.** Phase 1 generates code for a
+> subset of Go, and the harness (bench/run.sh, with the fib and sieve cases)
+> runs on pull requests, reporting ratios only; those are not results. This
+> page will stay empty until the first official run on the test server, and
+> no figure appears here without its raw results.
 
 ## Latest run
 
