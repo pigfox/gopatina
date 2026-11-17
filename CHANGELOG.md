@@ -20,6 +20,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Patina front end: the package loader (go/build with the patina build tag,
+  go/parser, go/types at the module's Go version) and the phase 1 subset
+  checker, which rejects every construct outside the subset with a Go-style
+  error naming it, and plans how errors lower to Result. Test programs under
+  testdata/golden (accepted) and testdata/reject (rejected).
 - BENCHMARKS.md, the published home of official benchmark results, and a
   Benchmarks section in the README. Every official run is the full suite,
   published as bench/results/<date>-<version>.json with a summary through an
