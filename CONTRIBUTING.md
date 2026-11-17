@@ -42,6 +42,15 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
    go tool cover -func=coverage.out | tail -n 1   # must say 100.0%
    ```
 
+   If your change touches the compiler (internal/subset, internal/borrow,
+   internal/emit), also run the golden and Rust tests:
+
+   ```sh
+   go test ./internal/emit -update     # rewrite testdata/golden/*/rust; review the diff
+   go test ./internal/borrow -update   # rewrite the explain.txt and want.txt files
+   GOPATINA_RUST_TESTS=1 go test ./internal/patina   # build and run every golden program
+   ```
+
    If your change touches code generation (the emitters, the native backend
    or the runtime), also run the benchmarks against hand-written Rust and put
    the results in the pull request description (see

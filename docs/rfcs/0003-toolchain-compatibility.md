@@ -1,7 +1,8 @@
 # RFC 0003: Toolchain compatibility and versioning
 
-- **Status:** Draft (design stage; the CI parts marked as placeholders below
-  wait for generated code)
+- **Status:** Draft. The CI described below runs: generated crates are built
+  and run with Rust stable and the MSRV, and checked with the pinned
+  toolchain.
 - **Author(s):** Peter Sjolin
 - **Created:** 2026-11-16
 - **Discussion:** this file's pull request, and issues labelled `rfc`
@@ -97,9 +98,11 @@ still builds next year.
 - **Early warning:** a canary failure on a scheduled run opens an issue
   automatically, so a break is known before that toolchain release ships.
 
-**Status:** the Go jobs run today. Until there is generated code (Phase 1),
-the Rust jobs only install the toolchain and record its version; the workflow
-and this RFC say so.
+**Status:** the Go and Rust jobs run on every pull request: the
+`toolchains` workflow builds and runs every golden program's crate with Rust
+stable and the MSRV and compares it with the Go build, checks the committed
+crates with the pinned toolchain (no warnings, rustfmt-clean,
+`gopatina verify`), and runs Go tip and Rust beta and nightly as canaries.
 
 ## Drawbacks
 
@@ -110,9 +113,11 @@ and this RFC say so.
 
 ## Unresolved questions
 
-- The initial MSRV. The toolchains workflow uses 1.85, the first release
-  with the 2024 edition, as a placeholder.
-- Whether emitted crates pin an exact toolchain in `rust-toolchain.toml` or
-  only a channel with a minimum.
+- The initial MSRV is 1.85, the first release with the 2024 edition: it is
+  in every emitted `Cargo.toml` and tested in CI. Whether it stays there for
+  1.0 is open.
+- Emitted crates pin an exact toolchain (Rust 1.93.0) in
+  `rust-toolchain.toml`, as reproducible builds need. When the pin moves is
+  open.
 - How long a Go version stays supported in patina mode after it drops out of
   Go's own support window.

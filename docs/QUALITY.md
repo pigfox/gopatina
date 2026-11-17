@@ -32,6 +32,17 @@ execute lines.
 Each phase of the roadmap in RFC 0001 adds a layer, and that layer is a
 requirement for the phase to be complete, not an extra.
 
+Phase 1 has its layers, and the borrow-checker layers for the phase 1
+subset: golden crates in `testdata/golden/*/rust`
+(`go test ./internal/emit -update` rewrites them), `-explain` reports and
+exact rejection diagnostics in `testdata/*/*/explain.txt` and `want.txt`
+(`go test ./internal/borrow -update`), the differential, compile, rustfmt
+and `gopatina verify` tests in `internal/patina/rust_test.go` (run with
+`GOPATINA_RUST_TESTS=1` by the `toolchains` workflow, with Rust stable and the
+MSRV), and `FuzzEmit`, run by CI for 60 seconds. The differential tests build
+the Go program with `go build` and compare standard output and exit status.
+`gopatina fix` and its tests are planned.
+
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |
 | 0: pass-through CLI | CLI tests that run a stand-in `go` command and check arguments, streams and exit status are passed through unchanged |
@@ -98,12 +109,11 @@ There are two kinds of run, and they are kept apart:
 
 ### Status
 
-**No numbers exist yet.** Neither patina mode generates code today, so there
-is nothing to measure. The harness and the suite are described in
-[`bench/README.md`](../bench/README.md), and the
-[`bench` workflow](../.github/workflows/bench.yml) (the per-pull-request
-ratio run) is in place but skips its measurement steps until there is
-generated code. The test-server runner does not exist yet either.
-**Nothing has been measured yet**, and [`BENCHMARKS.md`](../BENCHMARKS.md)
-says so. No performance figure will be published without the raw results and
+**No official numbers exist yet.** The harness,
+[`bench/run.sh`](../bench/run.sh), and the first two cases (`fib`, `sieve`)
+exist, and the [`bench` workflow](../.github/workflows/bench.yml) (the
+per-pull-request ratio run) runs them on pull requests that change code
+generation, reporting ratios only. The test-server runner does not exist
+yet, so **nothing has been measured officially**, and
+[`BENCHMARKS.md`](../BENCHMARKS.md) says so. No performance figure will be published without the raw results and
 the versions that produced it.
