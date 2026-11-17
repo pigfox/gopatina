@@ -270,7 +270,9 @@ What each GoPatina release supports is stated here and in its release notes
 Default mode works with any Go release, because it runs your installed `go`.
 Patina modes refuse Go features they do not support yet, naming the feature
 and, where it helps, the Go version that introduced it; see the
-[feature matrix](docs/compat.md).
+[feature matrix](docs/compat.md). Every known place where Go's semantics and
+Rust's differ, and what GoPatina will do about it, is listed in
+[docs/go-rust-disconnects.md](docs/go-rust-disconnects.md).
 
 ## Quick start
 
