@@ -1,0 +1,2 @@
+./main.go:5:10: parameter p is an exclusive borrow: set changes it, and the caller sees the change
+./main.go:9:14: parameter p is an exclusive borrow: forward changes it, and the caller sees the change

@@ -1,0 +1,9 @@
+./main.go:15:20: s is replaced on line 17 inside the loop that ranges over it
+    Go ranges over the original slice even after it is replaced
+    range over a copy (slices.Clone(s)), or move the replacement after the loop
+./main.go:24:17: s is replaced on line 26 inside the loop that ranges over it
+    Go ranges over the original slice even after it is replaced
+    range over a copy (slices.Clone(s)), or move the replacement after the loop
+./main.go:33:17: s is replaced on line 36 inside the loop that ranges over it
+    Go ranges over the original slice even after it is replaced
+    range over a copy (slices.Clone(s)), or move the replacement after the loop

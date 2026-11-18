@@ -1,0 +1,2 @@
+./main.go:5:11: parameter  is a shared borrow: show only reads it
+./main.go:13:7: borrowed s[i:] as a read-only slice suffix: show only reads it

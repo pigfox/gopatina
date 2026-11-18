@@ -8,6 +8,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Patina mode preserves writes to a slice forwarded through wrapper
+  functions by borrowing the original backing array instead of copying it.
+- Loops bounded by `len(s)` recheck the length on each iteration when a
+  call can replace `s` through a pointer.
+- Slice range loops diagnose header replacement through pointers, including
+  forwarded calls, instead of reading replacement elements by mistake.
+
 ### Changed
 
 - Documentation describes phase 1 as it is: docs/patina-subset.md specifies
@@ -26,6 +35,9 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Patina supports `read(s[i:])` as a standalone call to a proven read-only
+  function over `[]int`. The temporary view checks bounds before the
+  callee runs, without copying the slice or inspecting its capacity.
 - docs/go-rust-disconnects.md lists every known place where Go's and Rust's
   semantics differ, with Go's exact behaviour, the options, a recommended fix
   and whether it blocks full compatibility; default mode is stated as a pure

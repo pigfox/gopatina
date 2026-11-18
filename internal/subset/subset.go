@@ -312,7 +312,7 @@ func (c *checker) stmt(s ast.Stmt) {
 			c.unsupported(s, "this expression statement")
 			return
 		}
-		c.expr(call)
+		c.call(call, true)
 	case *ast.AssignStmt:
 		c.assign(s)
 	case *ast.IncDecStmt:
@@ -573,7 +573,7 @@ func (c *checker) expr(e ast.Expr) {
 		c.expr(e.X)
 		c.expr(e.Index)
 	case *ast.CallExpr:
-		c.call(e)
+		c.call(e, false)
 	case *ast.StarExpr:
 		c.expr(e.X)
 	case *ast.UnaryExpr:
@@ -720,7 +720,7 @@ func isNil(info *types.Info, e ast.Expr) bool {
 	return info.Types[e].IsNil()
 }
 
-func (c *checker) call(e *ast.CallExpr) {
+func (c *checker) call(e *ast.CallExpr, standalone bool) {
 	info := c.pkg.Info
 	fun := ast.Unparen(e.Fun)
 	if tv := info.Types[fun]; tv.IsType() {
@@ -763,6 +763,9 @@ func (c *checker) call(e *ast.CallExpr) {
 		return
 	}
 	sig := info.Types[fun].Type.(*types.Signature)
+	if standalone && c.sliceSuffix(e, fun, sig) {
+		return
+	}
 	for i, a := range e.Args {
 		if info.Types[a].IsNil() && isPointer(sig.Params().At(i).Type()) {
 			c.unsupported(a, "passing nil for a pointer (phase 1 supports pointers only as borrows)")

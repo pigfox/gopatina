@@ -27,7 +27,7 @@ Status values: **supported** (implemented and tested), **partial**
 | `if`, `for`, `switch` | Go 1.0 | supported | 1 | Not `fallthrough`, labels, or a `break` before the end of a case |
 | Constants, `iota` | Go 1.0 | supported | 1 | Named types other than structs are planned |
 | Pointers | Go 1.0 | partial | 1, 2 | As borrows (`&x`, `&T{}`, parameters, receivers); not stored or returned |
-| Slices | Go 1.0 | partial | 1, 2 | `make`, `append`, `len`, indexing, range; not slicing (`s[i:j]`) or `cap`. Aliasing rules: [patina-subset.md](patina-subset.md#ownership-what-the-borrow-checker-decides) |
+| Slices | Go 1.0 | partial | 1, 2 | `make`, `append`, `len`, indexing, range, and [read-only `s[i:]` arguments](patina-subset.md#read-only-slice-suffix-arguments); not general slicing or `cap` |
 | Arrays | Go 1.0 | planned | 2 | |
 | Maps | Go 1.0 | planned | 2 | |
 | Closures | Go 1.0 | planned | 2 | Captures follow ownership rules |

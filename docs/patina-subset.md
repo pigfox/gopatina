@@ -1,4 +1,4 @@
-# The patina subset, phase 1
+# The patina subset
 
 This page is the specification of the Go that `gopatina build -patina`,
 `-emit-rust` and `-patina=check` accept today, and of the ownership rules the
@@ -40,7 +40,7 @@ the exact error committed beside it.
 | Types | `int`, `int64`, `int32` (`rune`), `uint8` (`byte`), `float64`, `bool`, `string`, slices of supported types, named struct types, `error` (as a result), `io.Writer` (as a parameter) |
 | Declarations | functions and methods, struct types, constants (typed, untyped, `iota`), local variables |
 | Statements | assignment (`=`, `:=`, `op=`, tuple assignment), `++`/`--`, `if`/`else` with an init statement, `for` (3-clause, condition, infinite), `for range` over slices, strings and integers, `switch` (with and without a tag, several values per case, `default` anywhere), `break`, `continue`, `return` |
-| Expressions | arithmetic, comparison, logical and bitwise operators, shifts by a constant, string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, method calls, `&x` and `*p` |
+| Expressions | arithmetic, comparison, logical and bitwise operators, shifts by a constant, string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, method calls, `&x` and `*p`; Phase 2 adds [read-only slice suffix arguments](#read-only-slice-suffix-arguments) |
 | Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string |
 | Pointers | only as borrows: `p := &x`, `p := &T{...}`, pointer parameters and receivers |
 | `fmt` | `Print`, `Println`, `Printf`, `Sprint`, `Sprintln`, `Sprintf`, `Fprint`, `Fprintln`, `Fprintf` (to an `io.Writer` parameter, `os.Stdout` or `os.Stderr`), `Errorf`; verbs `%v %d %s %t %f %x %X %c %%` with the `-`, `+` and `0` flags, a width and a precision |
@@ -50,7 +50,7 @@ Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values, interfaces other
 than `error` and `io.Writer`, generics, `defer`, labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,
-slicing (`s[i:j]`), arrays, package-level variables, `init`, embedded fields,
+general slicing (`s[i:j]`), arrays, package-level variables, `init`, embedded fields,
 type switches and assertions, variadic functions, the other built-ins
 (`cap`, `copy`, `new`, `min`, `max`, `clear`, ...), and the other integer and
 float types.
@@ -138,6 +138,22 @@ It also rejects, in Go terms:
 A range loop over a slice that the body does not change iterates over a
 borrow of it; one that the body changes iterates over the indices of the
 length it had when the loop started, as Go does.
+
+### Read-only slice suffix arguments
+
+`read(s[i:])` can pass a temporary view without copying if it is a
+standalone call to a local function with one `[]int` parameter and no
+results. `s` must be a `[]int` local or parameter; `i` must be an `int`
+local or parameter, or an integer literal or named integer constant that
+fits `int`. The callee may read the length or elements, range over or
+print the slice, or forward it to another proven reader. It cannot write
+through the view, reassign it, or keep it after the call. See the
+[slice suffix RFC](rfcs/0000-read-only-slice-suffix.md) for the exact rules.
+
+The view ends when the call returns. It uses `len(s)`, not capacity, so
+`i == len(s)` is empty (including `i == 0` on a nil slice), and a dynamic
+out-of-bounds start panics before the callee runs. Explicit high bounds,
+three-index slices, saved views, and computed bounds are not supported.
 
 `gopatina build -patina -explain` (or `-emit-rust -explain`) lists every
 decision: each parameter's mode with the reason, each move and each copy.
