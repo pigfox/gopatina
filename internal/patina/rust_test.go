@@ -49,20 +49,24 @@ func realSession(t *testing.T) *Session {
 type result struct {
 	stdout string
 	code   int
+	// Stderr is recorded separately so the legacy tests need not compare
+	// Rust and Go's different panic messages for other operations.
+	stderr string
 }
 
 func runBinary(t *testing.T, bin string) result {
 	t.Helper()
-	var out bytes.Buffer
+	var out, stderr bytes.Buffer
 	cmd := exec.Command(bin)
 	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 	err := cmd.Run()
 	var exitErr *exec.ExitError
 	switch {
 	case err == nil:
-		return result{out.String(), 0}
+		return result{stdout: out.String(), stderr: stderr.String()}
 	case errors.As(err, &exitErr):
-		return result{out.String(), exitErr.ExitCode()}
+		return result{stdout: out.String(), code: exitErr.ExitCode(), stderr: stderr.String()}
 	}
 	t.Fatalf("running %s: %v", bin, err)
 	return result{}
@@ -88,7 +92,7 @@ func TestDifferential(t *testing.T) {
 				t.Fatal(err)
 			}
 			want, got := runBinary(t, goBin), runBinary(t, patinaBin)
-			if got != want {
+			if got.stdout != want.stdout || got.code != want.code {
 				t.Errorf("Go and patina differ:\ngo     (exit %d):\n%s\npatina (exit %d):\n%s", want.code, want.stdout, got.code, got.stdout)
 			}
 		})

@@ -1,0 +1,6 @@
+./main.go:5:17: parameter p is an exclusive borrow: clearSlice changes it, and the caller sees the change
+./main.go:9:12: parameter p is an exclusive borrow: reset changes it, and the caller sees the change
+./main.go:13:16: parameter s is an exclusive borrow: markFirst changes it, and the caller sees the change
+./main.go:17:11: parameter s is a shared borrow: show only reads it
+./main.go:24:8: borrowed s[i:] as a read-only slice suffix: show only reads it
+./main.go:32:8: borrowed t[i:] as a read-only slice suffix: show only reads it

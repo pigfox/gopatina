@@ -1,0 +1,3 @@
+./main.go:5:14: parameter s is an exclusive borrow: forward changes it, and the caller sees the change
+./main.go:9:19: parameter s is an exclusive borrow: forwardAgain changes it, and the caller sees the change
+./main.go:13:12: parameter s is an exclusive borrow: write changes it, and the caller sees the change

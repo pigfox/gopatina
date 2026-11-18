@@ -129,6 +129,7 @@ func (w *walker) define(name *ast.Ident, value ast.Expr) {
 				ptr = &Pointer{pos: u.Pos()}
 				if ev, ok := w.place(ast.Unparen(u.X)); ok {
 					ptr.Target = ev.v
+					ptr.path = ev.path
 				}
 				w.a.pointers[v] = ptr
 			}
@@ -215,6 +216,7 @@ func (w *walker) target(l ast.Expr, subs bool) {
 	}
 	if ev, ok := w.place(l); ok {
 		ev.kind = evMut
+		ev.replacesSlice = !ev.elem && isSliceType(w.info().TypeOf(l))
 		w.add(ev)
 	}
 }

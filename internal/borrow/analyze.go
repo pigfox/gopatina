@@ -19,6 +19,8 @@ type analyzer struct {
 	res      *Result
 	diags    map[token.Pos]diag.Diagnostic
 	fixes    map[token.Pos]Fix
+	// Suffix calls encountered while walking evaluated expressions.
+	suffixes map[*ast.CallExpr]*Func
 	// final is set for the last pass, which records decisions.
 	final bool
 }
@@ -35,6 +37,7 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		refs:     map[*types.Var]bool{},
 		diags:    map[token.Pos]diag.Diagnostic{},
 		fixes:    map[token.Pos]Fix{},
+		suffixes: map[*ast.CallExpr]*Func{},
 	}
 	a.res = &Result{
 		Funcs:     a.funcs,
@@ -44,6 +47,7 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		Ranges:    map[*ast.RangeStmt]RangeForm{},
 		RangeCopy: map[*ast.RangeStmt]bool{},
 		Hoist:     map[*ast.CallExpr]bool{},
+		Suffixes:  map[*ast.CallExpr]*ast.SliceExpr{},
 		Counted:   map[*ast.ForStmt]bool{},
 		RefElems:  a.refs,
 		params:    a.params,
@@ -71,6 +75,7 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 	for _, fd := range decls {
 		a.liveness(a.funcs[pkg.Info.Defs[fd.Name].(*types.Func)])
 	}
+	a.checkSuffixes()
 	// A variable changed through a pointer to it is changed too.
 	for _, p := range a.pointers {
 		if p.Target != nil && p.Exclusive {
@@ -168,6 +173,9 @@ func (a *analyzer) summarize(fn *Func) bool {
 		if p := a.params[ev.v]; p != nil && p.Kind != Copy {
 			switch ev.kind {
 			case evMut:
+				if ptr, ok := p.Var.Type().(*types.Pointer); ok && ev.replacesSlice && isSliceType(ptr.Elem()) {
+					set(&p.replacesSlice)
+				}
 				switch {
 				case ev.indirect, p.Kind == PointerKind:
 					// Through the pointer, or the pointer passed on to change

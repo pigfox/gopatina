@@ -39,6 +39,21 @@ pub fn exit_on_panic() {
 `,
 	},
 	{
+		name: "slice_suffix",
+		code: `/// Borrows s[low:] after checking Go's signed low bound against len(s).
+pub fn slice_suffix(s: &[i64], low: i64) -> &[i64] {
+    if low < 0 {
+        panic!("runtime error: slice bounds out of range [{low}:]");
+    }
+    let len = s.len();
+    if low as u64 > len as u64 {
+        panic!("runtime error: slice bounds out of range [{low}:{len}]");
+    }
+    &s[low as usize..]
+}
+`,
+	},
+	{
 		name: "Float",
 		uses: []string{"fmt"},
 		code: `/// A float64 printed the way Go's fmt prints it: %v uses the shortest

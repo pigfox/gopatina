@@ -42,9 +42,10 @@ type event struct {
 	ptr *types.Var
 	// For evDef: the variable is being declared and initialised.
 	init bool
-	// For evMut: the change is an append or a reassignment of the whole
-	// value, not a write to its existing elements.
+	// A self-append to a slice, not a write to its existing elements.
 	grow bool
+	// A write to the header itself, not an element write or a self-append.
+	replacesSlice bool
 }
 
 // walker turns expressions and simple statements into events.
@@ -304,6 +305,16 @@ func (w *walker) receiver(ops *operands, x ast.Expr, callee *Func) {
 
 // args walks the arguments of a call to a function in the package.
 func (w *walker) args(ops *operands, e *ast.CallExpr, callee *Func, name string) {
+	if s := suffixArg(e); s != nil {
+		// The subset permits this only as the sole argument of a standalone
+		// call. Read both operands even before we know whether it is safe.
+		w.read(s.X)
+		w.read(s.Low)
+		if w.a.final {
+			w.a.suffixes[e] = callee
+		}
+		return
+	}
 	borrowed := map[string]bool{}
 	for i, a := range e.Args {
 		p := callee.Params[i]
@@ -334,6 +345,14 @@ func (w *walker) args(ops *operands, e *ast.CallExpr, callee *Func, name string)
 		}
 		for j := start; j < len(w.evs); j++ {
 			ev := &w.evs[j]
+			if ev.kind == evMut && ev.e == ast.Unparen(a) && p.Mode == RefMut && isSliceType(p.Var.Type()) {
+				// A callee borrowing a slice mutably can write its backing
+				// array, not replace the caller's slice header.
+				ev.indirect = true
+			}
+			if p.replacesSlice && ev.kind == evMut && ast.Unparen(ev.e) == ast.Unparen(stripAddr(a)) {
+				ev.replacesSlice = true
+			}
 			if ev.kind == evConsume && ev.e == ast.Unparen(a) && borrowed[rootName(ev.path)] {
 				ev.force = true
 			}

@@ -1,0 +1,13 @@
+./main.go:8:11: parameter s is a shared borrow: show only reads it
+./main.go:12:17: parameter s is a shared borrow: showSuffix only reads it
+./main.go:13:9: borrowed (s)[(i):] as a read-only slice suffix: show only reads it
+./main.go:16:12: parameter s is a shared borrow: readA only reads it
+./main.go:31:12: parameter s is a shared borrow: readB only reads it
+./main.go:35:11: parameter s is a shared borrow: read only reads it
+./main.go:39:20: parameter s is a shared borrow: forwardSuffix only reads it
+./main.go:40:8: borrowed s[1:] as a read-only slice suffix: read only reads it
+./main.go:47:7: borrowed s[3:] as a read-only slice suffix: show only reads it
+./main.go:49:7: borrowed s[i:] as a read-only slice suffix: show only reads it
+./main.go:52:7: borrowed empty[0:] as a read-only slice suffix: show only reads it
+./main.go:53:7: borrowed empty[os.O_RDONLY:] as a read-only slice suffix: show only reads it
+./main.go:56:16: borrowed nums[start:] as a read-only slice suffix: forwardSuffix only reads it

@@ -34,6 +34,7 @@ type Param struct {
 	// What the callee does with the parameter.
 	changesFields bool // writes a field of its own copy
 	changesShared bool // writes memory the caller can see (elements, *p)
+	replacesSlice bool // replaces the header through a pointer to a slice
 	reassigned    bool // assigns the whole parameter, or appends to it
 	escapes       bool // stores, returns or hands on the value
 	firstEscape   token.Pos
@@ -68,7 +69,8 @@ type Pointer struct {
 	// Target is the variable it points to, or nil when it was initialised
 	// with &T{...}, in which case it owns the value.
 	Target    *types.Var
-	Exclusive bool // it is used to change the target
+	Exclusive bool   // it is used to change the target
+	path      string // the place within Target, such as b.items
 	pos       token.Pos
 }
 
@@ -111,6 +113,8 @@ type Result struct {
 	// first, because the call also changes a variable that a later
 	// argument reads.
 	Hoist map[*ast.CallExpr]bool
+	// Suffixes holds approved read-only suffix arguments keyed by their call.
+	Suffixes map[*ast.CallExpr]*ast.SliceExpr
 	// RefElems holds range variables bound to a borrow of the element, not
 	// a copy: the loop does not change the slice or the variable.
 	RefElems map[*types.Var]bool

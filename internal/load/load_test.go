@@ -1,6 +1,10 @@
 package load
 
 import (
+	"go/ast"
+	"go/constant"
+	"go/token"
+	"go/types"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,6 +108,35 @@ func TestSource(t *testing.T) {
 	pkg, err := Source("/x", "main.go", "package main\nfunc main() {}\n", "go1.25")
 	if err != nil || pkg.Name != "main" {
 		t.Fatalf("Source: %v", err)
+	}
+}
+
+func TestSliceSuffixTypes(t *testing.T) {
+	const src = `package main
+func read([]int) {}
+func main() { s := []int{1}; const start byte = 1; read(s[start:]) }`
+	pkg, err := Source("/x", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for n := range ast.Preorder(pkg.Files[0]) {
+		if s, ok := n.(*ast.SliceExpr); ok {
+			found = true
+			if s.High != nil || !types.Identical(pkg.Info.TypeOf(s.X), types.NewSlice(types.Typ[types.Int])) ||
+				!types.Identical(pkg.Info.TypeOf(s.Low), types.Typ[types.Uint8]) ||
+				!constant.Compare(pkg.Info.Types[s.Low].Value, token.EQL, constant.MakeInt64(1)) {
+				t.Fatalf("unexpected suffix type information: %+v", s)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatal("loader did not retain the suffix expression")
+	}
+	bad := strings.Replace(src, "s[start:]", "s[-1:]", 1)
+	if _, err := Source("/x", "main.go", bad, "go1.25"); err == nil || !strings.Contains(err.Error(), "negative") {
+		t.Fatalf("negative constant bound: %v", err)
 	}
 }
 

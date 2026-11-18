@@ -61,6 +61,17 @@ func (g *gen) receiver(x ast.Expr, p *borrow.Param) node {
 
 // args renders the arguments of a call to a function in the package.
 func (g *gen) args(e *ast.CallExpr, fn *borrow.Func) []node {
+	if s := g.res.Suffixes[e]; s != nil {
+		g.rt["slice_suffix"] = true
+		low := s.Low
+		var index node
+		if tv := g.info.Types[low]; tv.Value != nil {
+			index = g.constant(tv.Value, types.Typ[types.Int])
+		} else {
+			index = g.value(low)
+		}
+		return []node{&call{head: "rt::slice_suffix", open: "(", close: ")", args: []node{g.ref(s.X), index}}}
+	}
 	var out []node
 	for i, a := range e.Args {
 		out = append(out, g.arg(a, fn.Params[i]))

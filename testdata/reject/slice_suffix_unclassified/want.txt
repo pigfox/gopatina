@@ -1,0 +1,4 @@
+./main.go:13:10: discard cannot borrow this slice suffix: its slice parameter is not proven read-only
+    a suffix may only be read or forwarded to another proven reader; pass the base and the offset separately otherwise
+./main.go:14:10: convert cannot borrow this slice suffix: its slice parameter is not proven read-only
+    a suffix may only be read or forwarded to another proven reader; pass the base and the offset separately otherwise

@@ -1,0 +1,2 @@
+./main.go:12:7: s is used while the pointer p, taken on line 11, is still in use (line 13)
+    use s through p, or finish with p before using s again

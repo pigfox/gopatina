@@ -215,7 +215,7 @@ yet implemented)**.
 | --- | --- | --- |
 | 0 | RFC 0001; CLI with default-mode pass-through | Done (v0.0.1) |
 | 1 | `-emit-rust`, `-patina`, `-patina=check` and `gopatina verify` for the subset in [docs/patina-subset.md](docs/patina-subset.md), with the borrow checker (stage 3) and the Rust code generator (stage 4) | **Implemented** (unreleased) |
-| 2 | The rest of the borrow checker: maps, closures, `defer`, slicing, `gopatina fix`, the strict mode | Planned |
+| 2 | The rest of the borrow checker: maps, closures, `defer`, general slicing, `gopatina fix`, the strict mode | [Read-only slice suffix arguments](docs/patina-subset.md#read-only-slice-suffix-arguments) implemented; rest planned |
 | 3 | Goroutines and channels on a multi-threaded async runtime ([RFC 0002](docs/rfcs/0002-concurrency.md)), with the `Arc`/`Mutex` fixes | Planned |
 | 4 | Standard library subset and Rust crate interop | Planned |
 

@@ -113,12 +113,22 @@ func (a *analyzer) rangeForm(fn *Func, r *ast.RangeStmt) {
 		root, path = ev.v, ev.path
 	}
 	grow, write, replaced := false, false, false
+	var replacement token.Pos
 	var valueVar *types.Var
 	if id, ok := r.Value.(*ast.Ident); ok {
 		valueVar = w.localVar(id)
 	}
 	valueChanged := false
 	for _, ev := range w.evs {
+		if ev.replacesSlice && !replacement.IsValid() && root != nil {
+			target, targetPath := ev.v, ev.path
+			if p := a.pointers[ev.v]; p != nil && p.Target != nil && ev.v != root {
+				target, targetPath = p.Target, p.path
+			}
+			if target == root && path == targetPath {
+				replacement = ev.pos
+			}
+		}
 		if root != nil && ev.v == root && overlaps(ev.path, path) {
 			switch {
 			case ev.kind == evMut && ev.grow:
@@ -142,6 +152,11 @@ func (a *analyzer) rangeForm(fn *Func, r *ast.RangeStmt) {
 		return
 	}
 	switch {
+	case replacement.IsValid():
+		a.report(r.X.Pos(), a.errorf(r.X.Pos(), "%s is replaced on line %d inside the loop that ranges over it", path, a.line(replacement)).With(
+			"Go ranges over the original slice even after it is replaced",
+			"range over a copy (slices.Clone("+exprString(r.X)+")), or move the replacement after the loop"))
+		return
 	case replaced || (grow && write):
 		a.report(r.X.Pos(), a.errorf(r.X.Pos(), "%s is replaced or both changed and appended to inside the loop that ranges over it", path).With(
 			"Go ranges over the slice as it was when the loop started, so the loop would see some changes and not others",
@@ -230,7 +245,14 @@ func (a *analyzer) counted(fn *Func, f *ast.ForStmt) {
 		if ev.v == v && ev.kind != evRead {
 			return
 		}
-		if ev.v != nil && ev.v == boundVar && (ev.kind == evDef || ev.kind == evConsume || ev.kind == evBorrow || ev.grow || (ev.kind == evMut && isInteger(boundVar.Type()))) {
+		if ev.v == nil || ev.v != boundVar {
+			continue
+		}
+		// A mutable borrow of the whole variable (such as clear(&s)) can
+		// replace a slice header. An indirect write to a slice's elements,
+		// including through a []T parameter, cannot change its length.
+		if ev.kind == evDef || ev.kind == evConsume || ev.kind == evBorrow || ev.grow ||
+			(ev.kind == evMut && (isInteger(boundVar.Type()) || (ev.whole && !ev.indirect))) {
 			return
 		}
 	}
