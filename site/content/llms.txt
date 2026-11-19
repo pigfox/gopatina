@@ -16,7 +16,7 @@ Status: early. Phase 1 works for a defined subset of Go; real programs need feat
 - [RFC 0002](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0002-concurrency.md): goroutines on a multi-threaded async runtime
 - [RFC 0003](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0003-toolchain-compatibility.md): toolchain compatibility and versioning
 - [RFC 0004](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0004-read-only-slice-suffix.md): read-only slice suffix arguments
-- [RFC 0005](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0005-phase1-semantic-exactness.md): proposed phase 1 semantic exactness fixes
+- [RFC 0005](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0005-phase1-semantic-exactness.md): phase 1 semantic exactness fixes
 - [Benchmarks](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md): where official results will be published (none yet)
 
 ## Optional

@@ -1,7 +1,7 @@
 # RFC 0005: Phase 1 semantic exactness fixes
 
-- **Status:** Proposed; implemented in
-  https://github.com/pigfox/gopatina/pull/27, awaiting lead acceptance
+- **Status:** Accepted by the project lead in
+  https://github.com/pigfox/gopatina/pull/27 and implemented there
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-18
 - **Discussion:** PR #27
