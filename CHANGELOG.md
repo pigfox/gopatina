@@ -33,7 +33,7 @@ Until 1.0.0, minor versions may contain breaking changes.
   hello and ownership, counter still the design), the feature matrix,
   RFC 0001 and RFC 0003, docs/REPRODUCIBLE.md, docs/QUALITY.md,
   bench/README.md and BENCHMARKS.md are updated; everything else stays
-  planned. No benchmark figures are published.
+  planned. No official benchmark figures are published.
 - Every pull request, including the maintainer's own and automated ones, is
   merged only after the project lead's approval; CI for outside contributors
   runs after maintainer approval (GOVERNANCE.md, CONTRIBUTING.md).
