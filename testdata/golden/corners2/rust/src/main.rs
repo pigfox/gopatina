@@ -143,13 +143,16 @@ fn main() {
     println!("{} {}", w, fallback);
     if let Err(err) = check(-3) {
         if xs.len() as i64 > 100 {
-            panic!("{}", format!("unreachable: {}", err.to_string()));
+            panic!(
+                "gopatina-user-panic:{}",
+                format!("unreachable: {}", err.to_string()),
+            );
         }
     }
     let u = match check(5) {
         Ok(value) => value,
         Err(err) => {
-            panic!("{}", err.to_string());
+            panic!("gopatina-user-panic:{}", err.to_string());
         }
     };
     println!("{}", u);

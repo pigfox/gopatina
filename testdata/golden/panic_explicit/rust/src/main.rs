@@ -16,7 +16,10 @@ mod rt;
 
 fn check(n: i64) {
     if n > 2 {
-        panic!("{}", format!("too big: {}", format!("{}", n)));
+        panic!(
+            "gopatina-user-panic:{}",
+            format!("too big: {}", format!("{}", n)),
+        );
     }
 }
 

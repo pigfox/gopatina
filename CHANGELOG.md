@@ -21,10 +21,10 @@ Until 1.0.0, minor versions may contain breaking changes.
   before emission.
 - Go/Rust differential tests compare the first stderr line again (Go's stack
   trace after a panic is ignored), restoring checks on panic messages.
-- The differential tests translate Rust's standard divide-by-zero and
-  index-out-of-bounds panic text to Go's first line before comparing, so
-  panic-message regressions are caught without rewriting a program's own
-  `panic("...")` payload.
+- Emitted binaries print Go's own `runtime error:` text for divide-by-zero
+  and index-out-of-bounds panics, while a program's `panic("...")` payload is
+  marked at emission and printed verbatim. Differential tests compare the
+  first stderr line without translating it.
 
 ### Changed
 

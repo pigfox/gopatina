@@ -11,6 +11,11 @@ import (
 	"github.com/pigfox/gopatina/internal/subset"
 )
 
+// userPanicMarker prefixes every panic that comes from a Go panic(...) call.
+// The runtime hook strips it and prints the payload verbatim; Rust's own
+// runtime panics do not carry it and can be translated to Go's wording.
+const userPanicMarker = "gopatina-user-panic:"
+
 // call renders a call expression as a value.
 func (g *gen) call(e *ast.CallExpr) node {
 	fun := ast.Unparen(e.Fun)
@@ -114,8 +119,9 @@ func (g *gen) builtin(e *ast.CallExpr, name string) node {
 		}
 		return &call{head: "vec!", open: "[", close: "]", args: []node{atom{g.typedZero(elem).flat() + "; " + g.index(e.Args[1]), precAtom}}}
 	}
-	// panic(s)
-	return g.format("panic!", nil, "{}", []ast.Expr{e.Args[0]})
+	// panic(s). The marker lets the runtime hook tell a Go panic apart from
+	// Rust's own runtime messages, which it translates to Go's text.
+	return g.format("panic!", nil, userPanicMarker+"{}", []ast.Expr{e.Args[0]})
 }
 
 // conversion renders T(x).

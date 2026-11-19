@@ -3,11 +3,9 @@ package patina
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -56,60 +54,10 @@ type result struct {
 
 // stderrLine reduces a program's stderr to the line tests compare. Go
 // prints a stack trace after a panic; GoPatina's Rust runtime prints only
-// the panic message. The first line carries the contract both share.
+// the panic message, in Go's wording. The first line is the shared contract.
 func stderrLine(s string) string {
 	line, _, _ := strings.Cut(s, "\n")
 	return strings.TrimRight(line, " \t\r")
-}
-
-// goPanicLine translates Rust's standard runtime panic text into the first
-// line Go prints for the same operation. GoPatina's emitted program prints
-// Rust's text; normalising it in the test restores the check on panic
-// behaviour without rewriting a user's own panic("...") payload at run time.
-func goPanicLine(s string) string {
-	line := stderrLine(s)
-	msg, ok := strings.CutPrefix(line, "panic: ")
-	if !ok {
-		return line
-	}
-	switch msg {
-	case "attempt to divide by zero", "attempt to calculate the remainder with a divisor of zero":
-		return "panic: runtime error: integer divide by zero"
-	}
-	const idxPrefix = "index out of bounds: the len is "
-	if !strings.HasPrefix(msg, idxPrefix) {
-		return line
-	}
-	parts := strings.Split(strings.TrimPrefix(msg, idxPrefix), " but the index is ")
-	if len(parts) != 2 {
-		return line
-	}
-	length, errLen := strconv.ParseUint(parts[0], 10, 64)
-	index, errIdx := strconv.ParseUint(parts[1], 10, 64)
-	if errLen != nil || errIdx != nil {
-		return line
-	}
-	if signed := int64(index); signed < 0 {
-		return fmt.Sprintf("panic: runtime error: index out of range [%d]", signed)
-	}
-	return fmt.Sprintf("panic: runtime error: index out of range [%d] with length %d", index, length)
-}
-
-func TestGoPanicLine(t *testing.T) {
-	for _, tt := range []struct{ in, want string }{
-		{"panic: attempt to divide by zero\nstack", "panic: runtime error: integer divide by zero"},
-		{"panic: attempt to calculate the remainder with a divisor of zero\n", "panic: runtime error: integer divide by zero"},
-		{"panic: index out of bounds: the len is 3 but the index is 5\n", "panic: runtime error: index out of range [5] with length 3"},
-		{"panic: index out of bounds: the len is 3 but the index is 18446744073709551615\n", "panic: runtime error: index out of range [-1]"},
-		{"panic: index out of bounds: the len is 3 but the index is x\n", "panic: index out of bounds: the len is 3 but the index is x"},
-		{"panic: index out of bounds: the len is 3\n", "panic: index out of bounds: the len is 3"},
-		{"panic: too big: 4\n", "panic: too big: 4"},
-		{"hello\n", "hello"},
-	} {
-		if got := goPanicLine(tt.in); got != tt.want {
-			t.Errorf("goPanicLine(%q) = %q, want %q", tt.in, got, tt.want)
-		}
-	}
 }
 
 func runBinary(t *testing.T, bin string) result {
@@ -150,11 +98,10 @@ func TestDifferential(t *testing.T) {
 				t.Fatal(err)
 			}
 			want, got := runBinary(t, goBin), runBinary(t, patinaBin)
-			gotPanic := goPanicLine(got.stderr)
-			if got.stdout != want.stdout || got.code != want.code || gotPanic != stderrLine(want.stderr) {
+			if got.stdout != want.stdout || got.code != want.code || stderrLine(got.stderr) != stderrLine(want.stderr) {
 				t.Errorf("Go and patina differ:\ngo     (exit %d):\n%sstderr: %q\npatina (exit %d):\n%sstderr: %q",
 					want.code, want.stdout, stderrLine(want.stderr),
-					got.code, got.stdout, gotPanic)
+					got.code, got.stdout, stderrLine(got.stderr))
 			}
 		})
 	}

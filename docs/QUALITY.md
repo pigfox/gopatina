@@ -42,7 +42,9 @@ and `gopatina verify` tests in `internal/patina/rust_test.go` (run with
 MSRV), and `FuzzCheck`, `FuzzBorrow` and `FuzzEmit`, run by CI for 60 seconds
 each. The differential tests build the Go program with `go build` and compare
 standard output, the first stderr line (Go's stack trace after a panic is
-ignored) and exit status. `gopatina fix` and its tests are planned.
+ignored) and exit status; the emitted binary prints Go's panic wording itself,
+so no translation happens in the test. `gopatina fix` and its tests are
+planned.
 
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |
