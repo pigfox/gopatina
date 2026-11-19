@@ -136,7 +136,6 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	// explicitly, not hidden by a blanket allow.
 	head.WriteString("#![allow(clippy::approx_constant)] // constants are written by the Go source\n")
 	head.WriteString("#![allow(clippy::assign_op_pattern)] // Go's x = x op y stays as written\n")
-	head.WriteString("#![allow(clippy::comparison_to_empty)] // Go's len(s) == 0 maps to s.len() == 0\n")
 	head.WriteString("#![allow(clippy::eq_op)] // the Go source may compare a value with itself\n")
 	head.WriteString("#![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!\n")
 	head.WriteString("#![allow(clippy::let_and_return)] // the Go source controls the returns\n")
@@ -146,7 +145,6 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	head.WriteString("#![allow(clippy::mut_range_bound)] // Go allows changing a range bound\n")
 	head.WriteString("#![allow(clippy::needless_return)] // the Go source controls the returns\n")
 	head.WriteString("#![allow(clippy::only_used_in_recursion)] // Go functions may recurse\n")
-	head.WriteString("#![allow(clippy::print_with_newline)] // Go's fmt.Print can end in a newline\n")
 	head.WriteString("#![allow(clippy::reversed_empty_ranges)] // the Go source controls the range\n")
 	head.WriteString("#![allow(clippy::should_implement_trait)] // Go function names are kept as written\n")
 	head.WriteString("#![allow(clippy::single_match)] // the Go source controls the switch\n")

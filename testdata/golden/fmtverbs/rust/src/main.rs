@@ -13,7 +13,6 @@
 )]
 #![allow(clippy::approx_constant)] // constants are written by the Go source
 #![allow(clippy::assign_op_pattern)] // Go's x = x op y stays as written
-#![allow(clippy::comparison_to_empty)] // Go's len(s) == 0 maps to s.len() == 0
 #![allow(clippy::eq_op)] // the Go source may compare a value with itself
 #![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!
 #![allow(clippy::let_and_return)] // the Go source controls the returns
@@ -23,7 +22,6 @@
 #![allow(clippy::mut_range_bound)] // Go allows changing a range bound
 #![allow(clippy::needless_return)] // the Go source controls the returns
 #![allow(clippy::only_used_in_recursion)] // Go functions may recurse
-#![allow(clippy::print_with_newline)] // Go's fmt.Print can end in a newline
 #![allow(clippy::reversed_empty_ranges)] // the Go source controls the range
 #![allow(clippy::should_implement_trait)] // Go function names are kept as written
 #![allow(clippy::single_match)] // the Go source controls the switch
@@ -39,26 +37,26 @@ fn main() {
     let s: String = String::from("go");
     let ok: bool = true;
     let b: u8 = b'A';
-    print!("{}|{:5}|{:<5}|{:05}|{:+}\n", n, n, n, n, n);
-    print!(
-        "{}|{}|{}|{:4x}|{}\n",
+    println!("{}|{:5}|{:<5}|{:05}|{:+}", n, n, n, n, n);
+    println!(
+        "{}|{}|{}|{:4x}|{}",
         rt::hex(n, false),
         rt::hex(n, true),
         rt::hex(neg, false),
         b,
         rt::hex(255, false),
     );
-    print!(
-        "{}|{}|{:>3}|{}\n",
+    println!(
+        "{}|{}|{:>3}|{}",
         rt::rune(b as i64),
         rt::rune(19990),
         rt::rune(120),
         rt::rune(-1),
     );
-    print!("{}|{:>6}|{:<6}|{:.1}\n", s, s, s, "hello");
-    print!("{}|{:>6}|{}\n", ok, ok, !ok);
-    print!(
-        "{:.6}|{:.2}|{:>8.3}|{:<8.1}|{:+.1}|{:>08.2}\n",
+    println!("{}|{:>6}|{:<6}|{:.1}", s, s, s, "hello");
+    println!("{}|{:>6}|{}", ok, ok, !ok);
+    println!(
+        "{:.6}|{:.2}|{:>8.3}|{:<8.1}|{:+.1}|{:>08.2}",
         rt::Float(f),
         rt::Float(f),
         rt::Float(f),
@@ -66,16 +64,16 @@ fn main() {
         rt::Float(f),
         rt::Float(-f),
     );
-    print!("{}|1e-07|2|{:>5}|1e+08\n", rt::Float(f), rt::Float(1.5));
-    print!("100% done, {{braces}} kept\n");
+    println!("{}|1e-07|2|{:>5}|1e+08", rt::Float(f), rt::Float(1.5));
+    println!("100% done, {{braces}} kept");
     let msg = format!("{} has {} items", s, n);
     println!("{} {}", msg, msg.len() as i64);
-    print!("ab1 2c3.5\n");
-    print!("1 2\n");
+    println!("ab1 2c3.5");
+    println!("1 2");
     let line = format!("x 1 true\n");
     print!("{}", line);
     println!("{}", format!("p7 8"));
     eprintln!("to stderr {}", n);
-    print!("to stdout {}\n", n);
+    println!("to stdout {}", n);
     println!();
 }

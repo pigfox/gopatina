@@ -13,7 +13,6 @@
 )]
 #![allow(clippy::approx_constant)] // constants are written by the Go source
 #![allow(clippy::assign_op_pattern)] // Go's x = x op y stays as written
-#![allow(clippy::comparison_to_empty)] // Go's len(s) == 0 maps to s.len() == 0
 #![allow(clippy::eq_op)] // the Go source may compare a value with itself
 #![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!
 #![allow(clippy::let_and_return)] // the Go source controls the returns
@@ -23,7 +22,6 @@
 #![allow(clippy::mut_range_bound)] // Go allows changing a range bound
 #![allow(clippy::needless_return)] // the Go source controls the returns
 #![allow(clippy::only_used_in_recursion)] // Go functions may recurse
-#![allow(clippy::print_with_newline)] // Go's fmt.Print can end in a newline
 #![allow(clippy::reversed_empty_ranges)] // the Go source controls the range
 #![allow(clippy::should_implement_trait)] // Go function names are kept as written
 #![allow(clippy::single_match)] // the Go source controls the switch
@@ -34,32 +32,29 @@ mod rt;
 
 fn main() {
     rt::exit_on_panic();
-    print!("[{:5}][{:<5}][{:05}][{:+}][{:+5}]\n", 42, 42, 42, 42, 42);
-    print!(
-        "[{:5}][{:<5}][{:05}][{:+}][{:+5}]\n",
-        -42, -42, -42, -42, -42,
-    );
-    print!(
-        "[{}][{}][{:<8}|]\n",
+    println!("[{:5}][{:<5}][{:05}][{:+}][{:+5}]", 42, 42, 42, 42, 42);
+    println!("[{:5}][{:<5}][{:05}][{:+}][{:+5}]", -42, -42, -42, -42, -42);
+    println!(
+        "[{}][{}][{:<8}|]",
         rt::hex(255, false),
         rt::hex(255, true),
         rt::hex(255, false),
     );
-    print!("[{}][{}]\n", rt::hex(-255, false), rt::hex(-255, true));
-    print!(
-        "[{:>10}][{:<10}][{:.3}][{:>10.3}]\n",
+    println!("[{}][{}]", rt::hex(-255, false), rt::hex(-255, true));
+    println!(
+        "[{:>10}][{:<10}][{:.3}][{:>10.3}]",
         "hello", "hello", "hello", "hello",
     );
-    print!("[true][{:>5}][{:<7}]\n", false, true);
-    print!(
-        "[{}][{:>5}][{:<3}]\n",
+    println!("[true][{:>5}][{:<7}]", false, true);
+    println!(
+        "[{}][{:>5}][{:<3}]",
         rt::rune(120),
         rt::rune(121),
         rt::rune(122),
     );
-    print!("[%]\n");
-    print!("[7][{:5}][{:<5}]\n", 7, 7);
-    print!("[s][{:>10}][{:<10}]\n", "s", "s");
-    print!("[true][97]\n");
-    print!("[-9223372036854775808][200]\n");
+    println!("[%]");
+    println!("[7][{:5}][{:<5}]", 7, 7);
+    println!("[s][{:>10}][{:<10}]", "s", "s");
+    println!("[true][97]");
+    println!("[-9223372036854775808][200]");
 }

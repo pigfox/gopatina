@@ -13,7 +13,6 @@
 )]
 #![allow(clippy::approx_constant)] // constants are written by the Go source
 #![allow(clippy::assign_op_pattern)] // Go's x = x op y stays as written
-#![allow(clippy::comparison_to_empty)] // Go's len(s) == 0 maps to s.len() == 0
 #![allow(clippy::eq_op)] // the Go source may compare a value with itself
 #![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!
 #![allow(clippy::let_and_return)] // the Go source controls the returns
@@ -23,7 +22,6 @@
 #![allow(clippy::mut_range_bound)] // Go allows changing a range bound
 #![allow(clippy::needless_return)] // the Go source controls the returns
 #![allow(clippy::only_used_in_recursion)] // Go functions may recurse
-#![allow(clippy::print_with_newline)] // Go's fmt.Print can end in a newline
 #![allow(clippy::reversed_empty_ranges)] // the Go source controls the range
 #![allow(clippy::should_implement_trait)] // Go function names are kept as written
 #![allow(clippy::single_match)] // the Go source controls the switch
@@ -41,10 +39,10 @@ fn main() {
         String::from("😀"),
         String::from(""),
     ] {
-        print!("[{:>4}][{:<4}][{:.1}][{:>3.2}]\n", s, s, s, s);
-        print!("[{:>4}][{:<4}]\n", s, s);
+        println!("[{:>4}][{:<4}][{:.1}][{:>3.2}]", s, s, s, s);
+        println!("[{:>4}][{:<4}]", s, s);
     }
-    print!("[{:>3}][{:<3}]\n", rt::rune(26085), rt::rune(233));
-    print!("[{:>5}]\n", true);
-    print!("x|y|5\n");
+    println!("[{:>3}][{:<3}]", rt::rune(26085), rt::rune(233));
+    println!("[{:>5}]", true);
+    println!("x|y|5");
 }

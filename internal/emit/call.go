@@ -311,15 +311,33 @@ func (g *gen) formatVerbs(macro string, writer ast.Expr, verbs []subset.Verb, op
 		f.WriteString(spec)
 		args = append(args, arg)
 	}
+	// A trailing newline in print!/eprint! is spelled as println!/eprintln!
+	// to keep clippy clean. The format string is built first so we can test
+	// and strip the final newline character.
+	if strings.HasSuffix(f.String(), "\n") {
+		switch macro {
+		case "print!":
+			macro = "println!"
+			s := f.String()
+			f.Reset()
+			f.WriteString(strings.TrimSuffix(s, "\n"))
+		case "eprint!":
+			macro = "eprintln!"
+			s := f.String()
+			f.Reset()
+			f.WriteString(strings.TrimSuffix(s, "\n"))
+		}
+	}
 	var all []node
 	if writer != nil {
 		all = append(all, g.mutRef(writer))
 	}
 	if macro == "format!" || f.Len() > 0 || len(args) > 0 {
 		all = append(all, text(strLit(f.String())))
+	} else if macro == "println!" || macro == "eprintln!" {
+		// keep the bare macro form println!()/eprintln!() rather than
+		// println!("")/eprintln!(""), which clippy flags as empty strings.
 	}
-	// Go's fmt.Println() with no operands prints just a newline; Rust spells
-	// that println!(), not println!("").
 	return &call{head: macro, open: "(", close: ")", args: append(all, args...)}
 }
 
