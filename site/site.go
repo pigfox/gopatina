@@ -21,7 +21,7 @@ var siteFS fs.FS = files
 // Site-wide facts, used by the page, the Markdown version and the sitemap.
 const (
 	siteURL     = "https://gopatina.org/"
-	lastUpdated = "2026-11-17"
+	lastUpdated = "2026-11-18"
 )
 
 // resource is a response prepared once at startup: the body, its gzip

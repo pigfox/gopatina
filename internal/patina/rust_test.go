@@ -49,9 +49,15 @@ func realSession(t *testing.T) *Session {
 type result struct {
 	stdout string
 	code   int
-	// Stderr is recorded separately so the legacy tests need not compare
-	// Rust and Go's different panic messages for other operations.
 	stderr string
+}
+
+// stderrLine reduces a program's stderr to the line tests compare. Go
+// prints a stack trace after a panic; GoPatina's Rust runtime prints only
+// the panic message, in Go's wording. The first line is the shared contract.
+func stderrLine(s string) string {
+	line, _, _ := strings.Cut(s, "\n")
+	return strings.TrimRight(line, " \t\r")
 }
 
 func runBinary(t *testing.T, bin string) result {
@@ -73,8 +79,8 @@ func runBinary(t *testing.T, bin string) result {
 }
 
 // TestDifferential builds every golden program with go build and with
-// gopatina build -patina, runs both, and requires the same standard output
-// and exit status.
+// gopatina build -patina, runs both, and requires the same standard output,
+// first stderr line and exit status.
 func TestDifferential(t *testing.T) {
 	needRust(t)
 	s := realSession(t)
@@ -92,8 +98,10 @@ func TestDifferential(t *testing.T) {
 				t.Fatal(err)
 			}
 			want, got := runBinary(t, goBin), runBinary(t, patinaBin)
-			if got.stdout != want.stdout || got.code != want.code {
-				t.Errorf("Go and patina differ:\ngo     (exit %d):\n%s\npatina (exit %d):\n%s", want.code, want.stdout, got.code, got.stdout)
+			if got.stdout != want.stdout || got.code != want.code || stderrLine(got.stderr) != stderrLine(want.stderr) {
+				t.Errorf("Go and patina differ:\ngo     (exit %d):\n%sstderr: %q\npatina (exit %d):\n%sstderr: %q",
+					want.code, want.stdout, stderrLine(want.stderr),
+					got.code, got.stdout, stderrLine(got.stderr))
 			}
 		})
 	}
@@ -112,8 +120,10 @@ func pinnedEnv() []string {
 }
 
 // TestGoldenCratesAreClean builds each committed golden crate with plain
-// cargo and the pinned toolchain, requiring no warnings, and checks that
-// it is rustfmt-clean with the pinned rustfmt.
+// cargo and the pinned toolchain, requiring no warnings, runs clippy with
+// warnings denied, and checks that it is rustfmt-clean with the pinned
+// rustfmt. The explicit allow list in emitted crates covers only patterns
+// a faithful Go translation cannot avoid.
 func TestGoldenCratesAreClean(t *testing.T) {
 	needRust(t)
 	for _, dir := range goldenDirs(t) {
@@ -129,6 +139,12 @@ func TestGoldenCratesAreClean(t *testing.T) {
 			}
 			if strings.Contains(string(out), "warning") {
 				t.Errorf("cargo build printed warnings:\n%s", out)
+			}
+			clippy := exec.Command("cargo", "clippy", "--release", "--locked", "--target-dir", target, "--", "-D", "warnings")
+			clippy.Dir = crate
+			clippy.Env = pinnedEnv()
+			if out, err := clippy.CombinedOutput(); err != nil {
+				t.Errorf("cargo clippy -D warnings: %v\n%s", err, out)
 			}
 			srcs, _ := filepath.Glob(filepath.Join(crate, "src", "*.rs"))
 			fmtCmd := exec.Command("rustfmt", append([]string{"--check", "--edition", "2024"}, srcs...)...)

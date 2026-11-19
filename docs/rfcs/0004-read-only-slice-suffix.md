@@ -1,10 +1,12 @@
-# RFC 0000: Read-only slice suffix arguments
+# RFC 0004: Read-only slice suffix arguments
 
-- **Status:** Approved by the project lead for local implementation;
-  not merged, formally numbered, or released
+- **Status:** Accepted and merged in PR #26 (squash commit `f6d0a50` on
+  `main`, 2026-11-18); implemented in `-emit-rust` and `-patina`
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-18
-- **Discussion:** Scope and panic contract approved for this worktree
+- **Discussion:** Scope and panic contract approved by the project lead;
+  implementation and review in
+  https://github.com/pigfox/gopatina/pull/26
 - **Supersedes / superseded by:** none; answers one part of
   [RFC 0001's slice question](0001-gopatina.md#open-questions)
 
@@ -93,9 +95,10 @@ below uses `\n` to show newlines; `before ` ends with a space and no newline.
 | `slice_suffix_write` | `[10 99 30]\n` | `0` | Reject; a forwarded write aliases the base |
 | `slice_suffix_effects` | `low\n[20]\n` | `0` | Reject; compute the bound in a separate statement |
 
-1. **Loader:** No production change. A test verifies
-   `go/types` supplies the base and bound information and rejects invalid
-   constant bounds before the subset gate.
+1. **Loader:** `go/types` supplies the base and bound information and
+   rejects invalid constant bounds before the subset gate. The loader
+   configures `types.Sizes` from `GOARCH`, so a bound that fits a 64-bit
+   `int` but overflows a 32-bit one is rejected for a 32-bit target.
 2. **Subset:** Uses `go/types` object identity to recognize the exact call
    and view shape, leaving the general `ast.SliceExpr` rejection in place.
 3. **Borrow:** Walks base and bound as reads throughout inference. After

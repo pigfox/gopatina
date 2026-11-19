@@ -36,12 +36,16 @@ Phase 1 has its layers, and the borrow-checker layers for the phase 1
 subset: golden crates in `testdata/golden/*/rust`
 (`go test ./internal/emit -update` rewrites them), `-explain` reports and
 exact rejection diagnostics in `testdata/*/*/explain.txt` and `want.txt`
-(`go test ./internal/borrow -update`), the differential, compile, rustfmt
+(`go test ./internal/borrow -update`), the differential, compile, clippy (`-D warnings`, with a documented allow
+list for Go-faithful patterns), rustfmt
 and `gopatina verify` tests in `internal/patina/rust_test.go` (run with
 `GOPATINA_RUST_TESTS=1` by the `toolchains` workflow, with Rust stable and the
-MSRV), and `FuzzEmit`, run by CI for 60 seconds. The differential tests build
-the Go program with `go build` and compare standard output and exit status.
-`gopatina fix` and its tests are planned.
+MSRV), and `FuzzCheck`, `FuzzBorrow` and `FuzzEmit`, run by CI for 60 seconds
+each. The differential tests build the Go program with `go build` and compare
+standard output, the first stderr line (Go's stack trace after a panic is
+ignored) and exit status; the emitted binary prints Go's panic wording itself,
+so no translation happens in the test. `gopatina fix` and its tests are
+planned.
 
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |
@@ -110,10 +114,12 @@ There are two kinds of run, and they are kept apart:
 ### Status
 
 **No official numbers exist yet.** The harness,
-[`bench/run.sh`](../bench/run.sh), and the first two cases (`fib`, `sieve`)
-exist, and the [`bench` workflow](../.github/workflows/bench.yml) (the
-per-pull-request ratio run) runs them on pull requests that change code
-generation, reporting ratios only. The test-server runner does not exist
-yet, so **nothing has been measured officially**, and
-[`BENCHMARKS.md`](../BENCHMARKS.md) says so. No performance figure will be published without the raw results and
-the versions that produced it.
+[`bench/run.sh`](../bench/run.sh), and three cases (`fib`, `sieve` and the
+read-only `s[i:]` case `suffix-sum`) exist, and the
+[`bench` workflow](../.github/workflows/bench.yml) (the per-pull-request
+ratio run) runs them on pull requests that change code generation, reporting
+ratios only. A local verification run on the maintainer's workstation has
+been published in [`BENCHMARKS.md`](../BENCHMARKS.md) with its raw results
+and environment, but it is **not** an official run: the dedicated,
+quiet test server does not exist yet. No figure is published without the
+raw results and the versions that produced it.

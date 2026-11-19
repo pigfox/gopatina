@@ -11,7 +11,7 @@ name: toolchains
 # the crate's pinned rust-toolchain.toml), runs it, and requires the same
 # output and exit status as the Go build (internal/patina/rust_test.go). One
 # job also checks the committed golden crates with the pinned toolchain: no
-# warnings, rustfmt-clean, and gopatina verify (reproducible builds).
+# warnings, clippy-clean, rustfmt-clean, and gopatina verify (reproducible builds).
 
 on:
   push:
@@ -53,8 +53,8 @@ jobs:
           rustup toolchain install "$toolchain" --profile minimal
           rustup default "$toolchain"
           echo "RUST_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
-      - name: Install the pinned toolchain with rustfmt
-        run: rustup toolchain install "$RUST_PINNED" --profile minimal --component rustfmt
+      - name: Install the pinned toolchain with rustfmt and clippy
+        run: rustup toolchain install "$RUST_PINNED" --profile minimal --component rustfmt,clippy
       - name: Record versions
         run: |
           go version

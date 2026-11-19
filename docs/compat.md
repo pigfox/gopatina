@@ -38,7 +38,8 @@ Status values: **supported** (implemented and tested), **partial**
 | Goroutines, channels, `select` | Go 1.0 | planned | 3 | RFC 0002 |
 | `sync` package | Go 1.0 | planned | 3 | RFC 0002 |
 | Generics (type parameters) | Go 1.18 | open | | RFC 0001 open question 6 |
-| `min`, `max`, `clear` built-ins | Go 1.21 | planned | 2 | |
+| `min`, `max` built-ins | Go 1.21 | partial | 1 | Integers only; float calls are rejected, as Rust's NaN rules differ |
+| `clear` built-in | Go 1.21 | planned | 2 | |
 | Per-iteration loop variables | Go 1.22 | supported | 1 | Without closures the difference cannot be observed |
 | Range over integers | Go 1.22 | supported | 1 | |
 | Range over functions (iterators) | Go 1.23 | open | | |

@@ -16,6 +16,25 @@ Until 1.0.0, minor versions may contain breaking changes.
   call can replace `s` through a pointer.
 - Slice range loops diagnose header replacement through pointers, including
   forwarded calls, instead of reading replacement elements by mistake.
+- The loader type-checks for the selected `GOARCH`, so a constant suffix
+  bound that fits a 64-bit `int` but overflows a 32-bit one is rejected
+  before emission.
+- Go/Rust differential tests compare the first stderr line again (Go's stack
+  trace after a panic is ignored), restoring checks on panic messages.
+- Generated crates are now checked with `cargo clippy -D warnings` in CI.
+  Empty `fmt.Println()` calls emit `println!()` and `err.Error()` in a format
+  argument emits the error directly; remaining Go-idiom patterns are covered
+  by an explicit, commented allow list.
+- Go 1.21's `min` and `max` built-ins are supported for integer arguments,
+  including calls with more than two arguments; float calls are rejected
+  rather than silently given Rust's different NaN behaviour.
+- `strings.TrimSpace` now uses Go's `unicode.White_Space` code points written
+  out in the generated runtime, instead of Rust's version-dependent
+  `is_whitespace`, so the result no longer depends on the Rust Unicode tables.
+- Emitted binaries print Go's own `runtime error:` text for divide-by-zero
+  and index-out-of-bounds panics, while a program's `panic("...")` payload is
+  marked at emission and printed verbatim. Differential tests compare the
+  first stderr line without translating it.
 
 ### Changed
 
@@ -24,7 +43,7 @@ Until 1.0.0, minor versions may contain breaking changes.
   hello and ownership, counter still the design), the feature matrix,
   RFC 0001 and RFC 0003, docs/REPRODUCIBLE.md, docs/QUALITY.md,
   bench/README.md and BENCHMARKS.md are updated; everything else stays
-  planned. No benchmark figures are published.
+  planned. No official benchmark figures are published.
 - Every pull request, including the maintainer's own and automated ones, is
   merged only after the project lead's approval; CI for outside contributors
   runs after maintainer approval (GOVERNANCE.md, CONTRIBUTING.md).
@@ -32,12 +51,27 @@ Until 1.0.0, minor versions may contain breaking changes.
   same job, medians) on GitHub-hosted runners; official numbers come only
   from the maintainer's test server, on merged code, when the server is
   quiet (docs/QUALITY.md, bench/README.md).
+- The site now matches the merged compiler: gopatina.org, `index.md`,
+  `llms.txt`, the JSON-LD `dateModified` and the sitemap report 2026-11-18,
+  75 golden programs, 24 rejection fixtures and 3 Go-only semantics cases,
+  and describe the supported read-only `s[i:]` view.
+- The slice-suffix RFC is numbered 0004 and records its merge in PR #26;
+  `docs/patina-subset.md` links to the final number.
 
 ### Added
 
 - Patina supports `read(s[i:])` as a standalone call to a proven read-only
   function over `[]int`. The temporary view checks bounds before the
   callee runs, without copying the slice or inspecting its capacity.
+- `FuzzCheck` and `FuzzBorrow` fuzz the subset gate and borrow checker from
+  the accepted and rejected fixtures; CI runs each for 60 seconds alongside
+  `FuzzEmit`.
+- A `suffix-sum` benchmark case measures the read-only `s[i:]` path against
+  hand-written Rust and plain Go.
+- Two full local verification runs are published in BENCHMARKS.md with raw
+  JSON and environment metadata. All three cases stayed within the 1.10
+  GoPatina/Rust target (worst 1.043); they are explicitly not official
+  test-server results.
 - docs/go-rust-disconnects.md lists every known place where Go's and Rust's
   semantics differ, with Go's exact behaviour, the options, a recommended fix
   and whether it blocks full compatibility; default mode is stated as a pure

@@ -804,6 +804,11 @@ func isNumeric(t types.Type) bool {
 	return ok && b.Info()&types.IsNumeric != 0
 }
 
+func isInteger(t types.Type) bool {
+	b, ok := t.Underlying().(*types.Basic)
+	return ok && b.Info()&types.IsInteger != 0
+}
+
 func isByteSlice(t types.Type) bool {
 	s, ok := t.Underlying().(*types.Slice)
 	if !ok {
@@ -837,7 +842,19 @@ func (c *checker) builtin(e *ast.CallExpr, name string) {
 			return
 		}
 		c.exprs(e.Args)
-	case "min", "max", "clear":
+	case "min", "max":
+		if len(e.Args) < 2 {
+			c.unsupported(e, fmt.Sprintf("the %s built-in with fewer than two arguments", name))
+			return
+		}
+		for _, a := range e.Args {
+			if !isInteger(info.Types[a].Type) {
+				c.unsupported(e, fmt.Sprintf("the %s built-in with a non-integer argument", name))
+				return
+			}
+		}
+		c.exprs(e.Args)
+	case "clear":
 		c.unsupported(e, fmt.Sprintf("the %s built-in (Go 1.21)", name))
 	default:
 		c.unsupported(e, fmt.Sprintf("the %s built-in", name))

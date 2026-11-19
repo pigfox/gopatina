@@ -64,7 +64,7 @@ jobs:
           fi
 
   fuzz:
-    name: fuzz (parser to emitter)
+    name: fuzz (parser, checker, emitter)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -73,8 +73,12 @@ jobs:
           go-version: stable
       - name: go test -fuzz
         # A fixed time budget (docs/QUALITY.md). A failing input is written
-        # under internal/emit/testdata/fuzz; commit it as a regression test.
-        run: go test -run '^$' -fuzz FuzzEmit -fuzztime 60s ./internal/emit
+        # under the package's testdata/fuzz directory; commit it as a
+        # regression test.
+        run: |
+          go test -run '^$' -fuzz FuzzCheck -fuzztime 60s ./internal/subset
+          go test -run '^$' -fuzz FuzzBorrow -fuzztime 60s ./internal/borrow
+          go test -run '^$' -fuzz FuzzEmit -fuzztime 60s ./internal/emit
 
   pr-hygiene:
     name: pr hygiene

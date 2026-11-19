@@ -41,6 +41,20 @@ These rules are enforced by `main`'s branch protection: one required
 approval, code-owner review, approval required after the last push, and the
 required CI checks.
 
+### The lead's own pull requests
+
+GitHub does not let an author approve their own pull request, so the lead's
+own changes cannot satisfy the required-approval rule through the review UI.
+For those, the lead's recorded approval is a comment on the pull request,
+written from the lead's account, that states the approval and the commit it
+applies to; the merge is then performed with the administrator override. The
+comment is the approval record and is kept for audit, exactly as a review
+would be. Any push after that comment needs a new comment.
+
+This is a narrower exception than it sounds: it does not let anyone but the
+lead merge, it still requires the required CI checks to pass first, and it
+keeps the approval in writing on the pull request.
+
 ## Decision process
 
 | Change                                   | Needs                                   |

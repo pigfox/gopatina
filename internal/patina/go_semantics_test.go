@@ -3,7 +3,6 @@ package patina
 import (
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -44,7 +43,7 @@ func TestSliceGoSemantics(t *testing.T) {
 			check := func(t *testing.T, mode string, got result) {
 				t.Helper()
 				// Compare panic text but not the Go toolchain's stack trace.
-				line, _, _ := strings.Cut(got.stderr, "\n")
+				line := stderrLine(got.stderr)
 				if got.stdout != tt.stdout || got.code != tt.exitStatus || line != tt.panicLine {
 					t.Errorf("%s (stdout, exit, stderr first line) = (%q, %d, %q), want (%q, %d, %q)",
 						mode, got.stdout, got.code, line, tt.stdout, tt.exitStatus, tt.panicLine)

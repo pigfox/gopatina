@@ -6,17 +6,54 @@ maintainer's test server. How the numbers are produced is described in
 [docs/QUALITY.md](docs/QUALITY.md#performance-shadow-rust-and-keep-up) and
 [bench/README.md](bench/README.md).
 
-> **No official benchmarks have been run yet.** Phase 1 generates code for a
-> subset of Go, and the harness (bench/run.sh, with the fib and sieve cases)
-> runs on pull requests, reporting ratios only; those are not results. This
-> page will stay empty until the first official run on the test server, and
-> no figure appears here without its raw results.
+> **No official run has happened yet.** The dedicated, quiet test server does
+> not exist. The local verification runs below are evidence from the
+> maintainer's workstation, published with their raw JSON, but they are not
+> official results.
 
-## Latest run
+## Latest official run
 
 None yet.
 
-When there is one, it is shown here in this form:
+## Local verification runs (not official)
+
+Two full runs of `bench/run.sh --runs 11` on the maintainer's workstation,
+both on GoPatina commit `71630d17ab9bf38de6e7602e24807c859a206c70`. The
+machine was in normal use (8 logical CPUs, load average roughly 2.5–5.0,
+browser and background agents active), not the quiet dedicated server the
+policy requires. Full metadata and raw files are in the
+[run notes](bench/results/2026-11-18-local-71630d1.md).
+
+| Field | Value |
+| --- | --- |
+| Dates | 2026-11-18 (two runs) |
+| GoPatina | `71630d17ab9bf38de6e7602e24807c859a206c70` |
+| Machine | Intel Core i7-8650U @ 1.90 GHz, 8 logical CPUs, 60 GiB RAM |
+| Operating system | Linux 7.0.0-43-generic x86_64 |
+| Go | go version go1.27.1 linux/amd64 |
+| Rust | rustc 1.93.0 (254b59607 2026-01-19); latest stable and the pinned toolchain |
+| Runs | 11 per binary per case, interleaved after one warm-up; median wall time |
+| Raw results | [run 1](bench/results/2026-11-18-local-71630d1.json), [run 2](bench/results/2026-11-18-local-71630d1-repeat.json) |
+
+| Benchmark | GoPatina / Rust, run 1 | GoPatina / Rust, run 2 | Worst observed | Plain Go / Rust, run 1 / 2 | GoPatina / Go, run 1 / 2 |
+| --- | --- | --- | --- | --- | --- |
+| `fib` | 0.890 | 1.039 | 1.039 | 2.043 / 1.885 | 0.436 / 0.551 |
+| `sieve` | 1.018 | 1.043 | 1.043 | 0.942 / 1.006 | 1.080 / 1.036 |
+| `suffix-sum` | 1.042 | 1.028 | 1.042 | 1.024 / 1.029 | 1.018 / 0.999 |
+
+The harness records ratios only, not absolute times. The target is
+GoPatina / Rust within 1.10 on every benchmark. The worst observed ratio
+across both runs is 1.043, so the suite meets the target on this machine, but
+the spread (notably `fib`, 0.890 to 1.039) is why a quiet dedicated server is
+still needed before these become official figures.
+
+`suffix-sum` is the case that exercises the new read-only `s[i:]` path: it
+fills a large `[]int`, passes `s[start:]` to a one-argument proven reader and
+checks a checksum. Its GoPatina / Rust ratios were 1.042 and 1.028.
+
+## Future official runs
+
+When the dedicated test server exists, results will be shown in this form:
 
 | Field | Value |
 | --- | --- |
@@ -31,11 +68,8 @@ When there is one, it is shown here in this form:
 | --- | --- | --- | --- | --- | --- |
 | *(every benchmark in the suite, one row each)* | | | | | |
 
-Times are wall-clock medians over many runs. Ratios below 1.00 mean
-GoPatina was faster. The target is GoPatina / Rust within 1.10 on every
-benchmark: a goal, not a claim.
-
 ## History
 
-Past runs, newest first, each with the same fields and a link to its raw
-results. None yet.
+- 2026-11-18 — two local verification runs above (not official).
+
+Official runs: none yet.

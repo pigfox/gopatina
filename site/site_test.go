@@ -154,7 +154,7 @@ func TestPageSEO(t *testing.T) {
 		"Go developers get Rust's performance and safety without the painful Rust learning curve.",
 		"GoPatina is an experiment by",
 		"built with gopatina's default mode",
-		"No benchmarks have been run yet",
+		"No official test-server run has happened yet.",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page does not contain %q", want)

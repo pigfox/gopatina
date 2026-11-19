@@ -1,0 +1,14 @@
+{
+  "note": "ratios only (median wall time over hand-written Rust); no absolute numbers come from shared runners",
+  "runs": 11,
+  "gopatina_commit": "71630d17ab9bf38de6e7602e24807c859a206c70",
+  "go": "go version go1.27.1 linux/amd64",
+  "rust_stable": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "rust_pinned_for_gopatina": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "os": "Linux 7.0.0-43-generic x86_64",
+  "results": [
+    {"case": "fib", "gopatina_over_rust": 1.039, "go_over_rust": 1.885, "gopatina_over_go": 0.551},
+    {"case": "sieve", "gopatina_over_rust": 1.043, "go_over_rust": 1.006, "gopatina_over_go": 1.036},
+    {"case": "suffix-sum", "gopatina_over_rust": 1.028, "go_over_rust": 1.029, "gopatina_over_go": 0.999}
+  ]
+}

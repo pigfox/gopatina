@@ -588,13 +588,17 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   asleep - deadlock!`, `concurrent map writes`, `unlock of unlocked mutex`)
   print `fatal error: ...` and cannot be recovered.
 - **Rust**: `panicked at ...` and exit status 101.
-- **Recommendation**: the panic hook prints Go's first line and exits
-  with status 2 (done); fatal errors print Go's `fatal error:` line
-  (planned with goroutines, for deadlock and the sync errors). The goroutine traces after
-  the first line contain addresses and goroutine numbers that differ
-  between Go runs too, so they are not reproduced; differential tests
-  compare standard output, the exit status and the first line of standard
-  error.
+- **Recommendation**: the panic hook prints the message and exits with status
+  2 (done); fatal errors print Go's `fatal error:` line (planned with
+  goroutines, for deadlock and the sync errors). GoPatina marks every panic
+  from a Go `panic(...)` call, so the hook prints that payload verbatim and
+  translates only Rust's own divide-by-zero and index-out-of-bounds messages
+  to Go's `runtime error:` wording. The emitted binary therefore prints the
+  same first line as Go without the tests normalising it. The goroutine
+  traces after the first line contain addresses and goroutine numbers that
+  differ between Go runs too, so they are not reproduced; differential
+  tests compare standard output, the exit status and the first line of
+  standard error.
 - **Blocks 100%?** Partly: programs that parse their own crash traces.
 
 ## 33. Algorithms whose output is observable
@@ -617,10 +621,10 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   (`unicode.Version`); `strings.ToUpper` and friends use them.
 - **Rust**: `char` methods use Rust's Unicode version, which can differ.
 - **Recommendation**: generate the tables from the Go release GoPatina
-  targets, so results match that Go exactly. (Phase 1's `rt::trim_space`
-  uses Rust's `is_whitespace` above U+00FF: the same Unicode property, but
-  from Rust's Unicode version, so it is to be replaced by generated
-  tables.)
+  targets, so results match that Go exactly. Phase 1's `rt::trim_space`
+  writes Go's `unicode.White_Space` code points out explicitly instead of
+  using Rust's `is_whitespace`, so it is independent of Rust's Unicode
+  version; the other case conversions remain planned.
 - **Blocks 100%?** No.
 
 ## Keeping this list honest

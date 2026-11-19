@@ -31,6 +31,7 @@ added as the patina subset grows to support them:
 | --- | --- | --- |
 | `fib` | function calls, integer arithmetic | 1 (in place) |
 | `sieve` | a large slice, nested loops, element writes | 1 (in place) |
+| `suffix-sum` | a read-only `s[i:]` view passed to a proven reader, slice fill and range | 2 (read-only slice suffix) |
 | `nbody` | structs, floating point, loops (needs `math.Sqrt`) | 2 |
 | `spectral-norm` | slices, nested loops | 2 |
 | `fannkuch-redux` | slices, permutations, mutation through borrows | 2 |

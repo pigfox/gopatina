@@ -111,6 +111,29 @@ func TestSource(t *testing.T) {
 	}
 }
 
+// The type checker must use the target's int width, not the host's: a
+// suffix bound that fits an amd64 int can overflow a 386 int before the
+// subset or borrow checker ever sees it.
+func TestTargetSizes(t *testing.T) {
+	const src = `package main
+func read([]int) {}
+func main() { s := []int{1}; read(s[2147483648:]) }`
+	for _, arch := range []string{"386", "amd64", "", "no-such-arch"} {
+		t.Run(arch, func(t *testing.T) {
+			t.Setenv("GOARCH", arch)
+			sizes := targetSizes()
+			if sizes == nil || sizes.Sizeof(types.Typ[types.Int]) == 0 {
+				t.Fatalf("targetSizes(%q) = %v", arch, sizes)
+			}
+			_, err := Source("/x", "main.go", src, "go1.25")
+			wantErr := sizes.Sizeof(types.Typ[types.Int]) < 8
+			if gotErr := err != nil; gotErr != wantErr {
+				t.Fatalf("GOARCH=%q: load error = %v, want error %t", arch, err, wantErr)
+			}
+		})
+	}
+}
+
 func TestSliceSuffixTypes(t *testing.T) {
 	const src = `package main
 func read([]int) {}

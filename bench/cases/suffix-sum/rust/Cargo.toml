@@ -1,0 +1,12 @@
+# Hand-written Rust for the suffix-sum benchmark, built with the latest
+# stable Rust.
+[package]
+name = "suffix-sum"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+
+[profile.release]
+codegen-units = 1
