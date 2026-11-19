@@ -52,7 +52,7 @@ than `error` and `io.Writer`, generics, `defer`, labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,
 general slicing (`s[i:j]`), arrays, package-level variables, `init`, embedded fields,
 type switches and assertions, variadic functions, the other built-ins
-(`cap`, `copy`, `new`, `min`, `max`, `clear`, ...), and the other integer and
+(`cap`, `copy`, `new`, `clear`, ...), and the other integer and
 float types.
 
 ## How Go values become Rust values
@@ -74,6 +74,9 @@ Go. A panic, including an index out of range or a division by zero, prints
 `panic: <message>` to standard error and exits with status 2, as Go does.
 Floats print with Go's formatting (`rt::Float`), slices print as `[a b c]`,
 and `%x` of a negative number prints a minus sign, all as in Go.
+Go 1.21's `min` and `max` are supported for integers (`std::cmp::min` and
+`std::cmp::max`, folded from the left for more than two arguments); calls with
+float arguments are rejected rather than translated with Rust's NaN rules.
 
 `int` is 64 bits, as on every target patina mode builds for. Converting a
 float that does not fit to an integer is implementation-specific in Go;

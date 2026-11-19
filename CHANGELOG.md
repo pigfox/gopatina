@@ -21,6 +21,9 @@ Until 1.0.0, minor versions may contain breaking changes.
   before emission.
 - Go/Rust differential tests compare the first stderr line again (Go's stack
   trace after a panic is ignored), restoring checks on panic messages.
+- Go 1.21's `min` and `max` built-ins are supported for integer arguments,
+  including calls with more than two arguments; float calls are rejected
+  rather than silently given Rust's different NaN behaviour.
 - `strings.TrimSpace` now uses Go's `unicode.White_Space` code points written
   out in the generated runtime, instead of Rust's version-dependent
   `is_whitespace`, so the result no longer depends on the Rust Unicode tables.

@@ -67,6 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println(v, strings.Repeat("a", v), s, float64(v)/2, int32(v), uint8(v), int64(v))
+	fmt.Println(min(v, 2), max(v, 1, 9), min(int32(v), -1), max(uint8(v), 3))
 	for i := range 3 {
 		fmt.Print(i)
 	}
@@ -178,7 +179,8 @@ func TestRejected(t *testing.T) {
 		{"conversion other", "package main\ntype A struct{}\ntype B struct{}\nfunc main() { _ = B(A{}) }\n", "converting main.A to main.B is not supported"},
 		{"make map", "package main\nfunc main() { _ = make(map[int]int) }\n", "make of map[int]int is not supported"},
 		{"panic value", "package main\nfunc main() { panic(1) }\n", "panic with a value that is not a string is not supported"},
-		{"min", "package main\nfunc main() { x := 1; _ = min(x, 2) }\n", "the min built-in (Go 1.21) is not supported"},
+		{"min one arg", "package main\nfunc main() { x := 1; _ = min(x) }\n", "the min built-in with fewer than two arguments is not supported"},
+		{"max float", "package main\nfunc main() { x := 1.0; _ = max(x, 2.0) }\n", "the max built-in with a non-integer argument is not supported"},
 		{"cap", "package main\nfunc main() { _ = cap([]int{}) }\n", "the cap built-in is not supported"},
 		{"format not const", "package main\nimport \"fmt\"\nfunc main() { f := \"%d\"; fmt.Printf(f, 1) }\n", "a format string that is not a constant is not supported"},
 		{"format bad", "package main\nimport \"fmt\"\nfunc main() { fmt.Printf(\"%[1]d\", 1) }\n", "'[' in a directive is not supported"},

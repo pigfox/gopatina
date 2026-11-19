@@ -109,6 +109,21 @@ func (g *gen) builtin(e *ast.CallExpr, name string) node {
 	switch name {
 	case "len":
 		return atom{(&call{recv: g.strRef(e.Args[0]), head: ".len", open: "(", close: ")"}).flat() + " as i64", precCast}
+	case "min", "max":
+		// Go's min/max take two or more arguments; Rust's take two, so
+		// fold from the left. Naming the type keeps an all-constant call
+		// from defaulting to Rust's i32 rather than Go's int (i64).
+		t := g.rustType(g.typeOf(e))
+		out := g.value(e.Args[0])
+		for _, a := range e.Args[1:] {
+			out = &call{
+				head:  "std::cmp::" + name + "::<" + t + ">",
+				open:  "(",
+				close: ")",
+				args:  []node{out, g.value(a)},
+			}
+		}
+		return out
 	case "make":
 		t := g.info.Types[e.Args[0]].Type
 		elem := t.Underlying().(*types.Slice).Elem()
