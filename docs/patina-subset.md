@@ -41,7 +41,7 @@ the exact error committed beside it.
 | Declarations | functions and methods, struct types, constants (typed, untyped, `iota`), local variables |
 | Statements | assignment (`=`, `:=`, `op=`, tuple assignment), `++`/`--`, `if`/`else` with an init statement, `for` (3-clause, condition, infinite), `for range` over slices, strings and integers, `switch` (with and without a tag, several values per case, `default` anywhere), `break`, `continue`, `return` |
 | Expressions | arithmetic, comparison, logical and bitwise operators, shifts by a constant, string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, method calls, `&x` and `*p`; Phase 2 adds [read-only slice suffix arguments](#read-only-slice-suffix-arguments) |
-| Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string |
+| Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string, `min` and `max` (Go 1.21, integers only) |
 | Pointers | only as borrows: `p := &x`, `p := &T{...}`, pointer parameters and receivers |
 | `fmt` | `Print`, `Println`, `Printf`, `Sprint`, `Sprintln`, `Sprintf`, `Fprint`, `Fprintln`, `Fprintf` (to an `io.Writer` parameter, `os.Stdout` or `os.Stderr`), `Errorf`; verbs `%v %d %s %t %f %x %X %c %%` with the `-`, `+` and `0` flags, a width and a precision |
 | Other functions | `strings.Contains`, `HasPrefix`, `HasSuffix`, `Index`, `Join`, `Repeat`, `TrimSpace`; `errors.New`; `os.Exit`; `slices.Clone`, `bytes.Clone` |
@@ -52,7 +52,7 @@ than `error` and `io.Writer`, generics, `defer`, labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,
 general slicing (`s[i:j]`), arrays, package-level variables, `init`, embedded fields,
 type switches and assertions, variadic functions, the other built-ins
-(`cap`, `copy`, `new`, `clear`, ...), and the other integer and
+(`cap`, `copy`, `new`, `clear`, ...), `min`/`max` with float arguments, and the other integer and
 float types.
 
 ## How Go values become Rust values
