@@ -21,6 +21,9 @@ Until 1.0.0, minor versions may contain breaking changes.
   before emission.
 - Go/Rust differential tests compare the first stderr line again (Go's stack
   trace after a panic is ignored), restoring checks on panic messages.
+- `strings.TrimSpace` now uses Go's `unicode.White_Space` code points written
+  out in the generated runtime, instead of Rust's version-dependent
+  `is_whitespace`, so the result no longer depends on the Rust Unicode tables.
 - Emitted binaries print Go's own `runtime error:` text for divide-by-zero
   and index-out-of-bounds panics, while a program's `panic("...")` payload is
   marked at emission and printed verbatim. Differential tests compare the

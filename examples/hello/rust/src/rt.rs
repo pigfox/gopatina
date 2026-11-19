@@ -57,9 +57,21 @@ pub fn trim_space(s: &str) -> String {
     s.trim_matches(is_space).to_string()
 }
 
+/// Go's unicode.White_Space, written out so the result does not depend on
+/// Rust's Unicode version (docs/go-rust-disconnects.md, entry 34).
 fn is_space(c: char) -> bool {
     matches!(
         c,
-        '\t' | '\n' | '\u{0B}' | '\u{0C}' | '\r' | ' ' | '\u{85}' | '\u{A0}'
-    ) || (c > '\u{FF}' && c.is_whitespace())
+        '\u{0009}'..='\u{000D}'
+            | '\u{0020}'
+            | '\u{0085}'
+            | '\u{00A0}'
+            | '\u{1680}'
+            | '\u{2000}'..='\u{200A}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202F}'
+            | '\u{205F}'
+            | '\u{3000}'
+    )
 }

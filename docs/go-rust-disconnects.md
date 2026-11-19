@@ -621,10 +621,10 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   (`unicode.Version`); `strings.ToUpper` and friends use them.
 - **Rust**: `char` methods use Rust's Unicode version, which can differ.
 - **Recommendation**: generate the tables from the Go release GoPatina
-  targets, so results match that Go exactly. (Phase 1's `rt::trim_space`
-  uses Rust's `is_whitespace` above U+00FF: the same Unicode property, but
-  from Rust's Unicode version, so it is to be replaced by generated
-  tables.)
+  targets, so results match that Go exactly. Phase 1's `rt::trim_space`
+  writes Go's `unicode.White_Space` code points out explicitly instead of
+  using Rust's `is_whitespace`, so it is independent of Rust's Unicode
+  version; the other case conversions remain planned.
 - **Blocks 100%?** No.
 
 ## Keeping this list honest
