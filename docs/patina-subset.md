@@ -148,7 +148,7 @@ local or parameter, or an integer literal or named integer constant that
 fits `int`. The callee may read the length or elements, range over or
 print the slice, or forward it to another proven reader. It cannot write
 through the view, reassign it, or keep it after the call. See the
-[slice suffix RFC](rfcs/0000-read-only-slice-suffix.md) for the exact rules.
+[slice suffix RFC](rfcs/0004-read-only-slice-suffix.md) for the exact rules.
 
 The view ends when the call returns. It uses `len(s)`, not capacity, so
 `i == len(s)` is empty (including `i == 0` on a nil slice), and a dynamic

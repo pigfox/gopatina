@@ -6,9 +6,9 @@
 
 **Mission: Go developers get Rust's performance and safety without the painful Rust learning curve.**
 
-**Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress.** Default mode works for all Go. For the subset, `-emit-rust`, `-patina`, `-patina=check`, `-explain` and `gopatina verify` are implemented and tested; everything else is rejected with a clear error. No performance figures are published yet.
+**Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress.** Default mode works for all Go. For the subset, `-emit-rust`, `-patina`, `-patina=check`, `-explain` and `gopatina verify` are implemented and tested, including read-only `s[i:]` suffix arguments; everything else is rejected with a clear error. No performance figures are published yet.
 
-Last updated 2026-11-17. Canonical page: https://gopatina.org/
+Last updated 2026-11-18. Canonical page: https://gopatina.org/
 
 ## Why GoPatina
 
@@ -31,14 +31,14 @@ A variant, `-patina=check`, runs the same checks and then builds with the Go com
 The patina modes accept a defined subset of Go, specified in [docs/patina-subset.md](https://github.com/pigfox/gopatina/blob/main/docs/patina-subset.md):
 
 - `package main` in one directory, with functions, methods and named struct types
-- `int`, `int64`, `int32` (`rune`), `byte`, `float64`, `bool`, `string`, and slices of supported types
+- `int`, `int64`, `int32` (`rune`), `byte`, `float64`, `bool`, `string`, and slices of supported types, including read-only `s[i:]` suffix arguments
 - `if`, `for` (including `for range` over slices, strings and integers), `switch`, constants and `iota`
 - `error` results with `errors.New` and `fmt.Errorf`, and pointers used as borrows
 - `fmt` printing (`Println`, `Printf`, `Sprintf`, `Fprintf` and the rest) and a few functions from `strings`, `slices`, `bytes` and `os`
 
-**Not supported yet:** goroutines and channels, maps, closures and function values, interfaces other than `error` and `io.Writer`, generics, `defer`, slicing (`s[i:j]`), and most of the standard library. Each is rejected with a Go-style error that names the construct; nothing is translated approximately. See the [feature matrix](https://github.com/pigfox/gopatina/blob/main/docs/compat.md) and [every known place where Go and Rust semantics differ](https://github.com/pigfox/gopatina/blob/main/docs/go-rust-disconnects.md).
+**Not supported yet:** goroutines and channels, maps, closures and function values, interfaces other than `error` and `io.Writer`, generics, `defer`, general slicing (`s[i:j]`), slices with an explicit high or max bound, saved slice views, and most of the standard library. A narrow read-only suffix view, `read(s[i:])`, is supported when passed to a proven local reader. Every unsupported construct is rejected with a Go-style error that names the construct; nothing is translated approximately. See the [feature matrix](https://github.com/pigfox/gopatina/blob/main/docs/compat.md) and [every known place where Go and Rust semantics differ](https://github.com/pigfox/gopatina/blob/main/docs/go-rust-disconnects.md).
 
-**How it is checked.** Each of the 69 test programs in the project's golden suite is built both ways in CI, with `go build` and with `gopatina build -patina`, and both binaries must print the same output and exit with the same status. Emitted Rust is byte-identical for the same input, and `gopatina verify` checks that a `-patina` binary has the same sha256 as a plain `cargo build --release --locked` of the emitted crate.
+**How it is checked.** Each of the 75 test programs in the project's golden suite is built both ways in CI, with `go build` and with `gopatina build -patina`, and both binaries must print the same output, the same first stderr line and exit with the same status; 24 rejection fixtures and 3 Go-only semantics counterexamples pin down what must be refused. Emitted Rust is byte-identical for the same input, and `gopatina verify` checks that a `-patina` binary has the same sha256 as a plain `cargo build --release --locked` of the emitted crate.
 
 ## How it works
 
@@ -98,7 +98,7 @@ The patina commands work on programs inside the phase 1 subset. See [the example
 | --- | --- | --- |
 | 0 | The RFCs; the `gopatina` command with default-mode pass-through | Done (v0.0.1) |
 | 1 | `-emit-rust`, `-patina`, `-patina=check` and `gopatina verify` for the [phase 1 subset](https://github.com/pigfox/gopatina/blob/main/docs/patina-subset.md), with the borrow checker and the Rust code generator | Done (unreleased) |
-| 2 | The rest of the borrow checker: maps, closures, `defer`, slicing, `gopatina fix`, the strict mode | Planned |
+| 2 | The rest of the borrow checker: maps, closures, `defer`, general slicing, `gopatina fix`, the strict mode | Read-only slice suffix arguments done; rest planned |
 | 3 | Goroutines and channels on a multi-threaded async runtime, with shared-ownership and mutex fixes | Planned |
 | 4 | A standard library subset and Rust crate interop | Planned |
 
@@ -143,6 +143,7 @@ GoPatina was started by Peter Sjolin as an experiment by Pigfox. It is open sour
 - RFC 0001, the design: https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0001-gopatina.md
 - RFC 0002, concurrency: https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0002-concurrency.md
 - RFC 0003, toolchain compatibility: https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0003-toolchain-compatibility.md
+- RFC 0004, read-only slice suffix arguments: https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0004-read-only-slice-suffix.md
 - Benchmarks: https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md
 - Pigfox: https://pigfox.com
 

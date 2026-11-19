@@ -2,7 +2,7 @@
 
 > GoPatina is an open-source Go toolchain front end in which ordinary Go code can opt into running the way Rust code does: no garbage collector, ownership and borrowing, and Rust-grade memory safety. Without a flag it runs the installed Go toolchain unchanged. It is an experiment by Pigfox to get Go developers past Rust's learning curve.
 
-Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress. Default mode works for all Go. For the phase 1 subset (functions, structs and methods, slices, strings, errors, fmt printing), -emit-rust, -patina, -patina=check, -explain and gopatina verify are implemented, checked by differential tests (69 programs, same output as go build) and byte-identical rebuilds. Not supported yet: goroutines and channels, maps, closures, interfaces, generics, defer, slicing, most of the standard library. No benchmarks have been published. Last updated 2026-11-17.
+Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress. Default mode works for all Go. For the phase 1 subset (functions, structs and methods, slices, strings, errors, fmt printing, and read-only s[i:] suffix arguments), -emit-rust, -patina, -patina=check, -explain and gopatina verify are implemented, checked by differential tests (75 golden programs, 24 rejection fixtures and 3 Go-only semantics cases; same stdout, first stderr line and exit status as go build) and byte-identical rebuilds. Not supported yet: goroutines and channels, maps, closures, interfaces, generics, defer, general slicing, slices with high or max bounds, saved slice views, most of the standard library. No benchmarks have been published. Last updated 2026-11-18.
 
 ## Docs
 
@@ -15,6 +15,7 @@ Status: early. Phase 1 works for a defined subset of Go; real programs need feat
 - [RFC 0001](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0001-gopatina.md): the design, the GoPatina borrow checker, Rust underneath, deployment
 - [RFC 0002](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0002-concurrency.md): goroutines on a multi-threaded async runtime
 - [RFC 0003](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0003-toolchain-compatibility.md): toolchain compatibility and versioning
+- [RFC 0004](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0004-read-only-slice-suffix.md): read-only slice suffix arguments
 - [Benchmarks](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md): where official results will be published (none yet)
 
 ## Optional

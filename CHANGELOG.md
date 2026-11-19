@@ -40,6 +40,12 @@ Until 1.0.0, minor versions may contain breaking changes.
   same job, medians) on GitHub-hosted runners; official numbers come only
   from the maintainer's test server, on merged code, when the server is
   quiet (docs/QUALITY.md, bench/README.md).
+- The site now matches the merged compiler: gopatina.org, `index.md`,
+  `llms.txt`, the JSON-LD `dateModified` and the sitemap report 2026-11-18,
+  75 golden programs, 24 rejection fixtures and 3 Go-only semantics cases,
+  and describe the supported read-only `s[i:]` view.
+- The slice-suffix RFC is numbered 0004 and records its merge in PR #26;
+  `docs/patina-subset.md` links to the final number.
 
 ### Added
 
