@@ -120,8 +120,10 @@ func pinnedEnv() []string {
 }
 
 // TestGoldenCratesAreClean builds each committed golden crate with plain
-// cargo and the pinned toolchain, requiring no warnings, and checks that
-// it is rustfmt-clean with the pinned rustfmt.
+// cargo and the pinned toolchain, requiring no warnings, runs clippy with
+// warnings denied, and checks that it is rustfmt-clean with the pinned
+// rustfmt. The explicit allow list in emitted crates covers only patterns
+// a faithful Go translation cannot avoid.
 func TestGoldenCratesAreClean(t *testing.T) {
 	needRust(t)
 	for _, dir := range goldenDirs(t) {
@@ -137,6 +139,12 @@ func TestGoldenCratesAreClean(t *testing.T) {
 			}
 			if strings.Contains(string(out), "warning") {
 				t.Errorf("cargo build printed warnings:\n%s", out)
+			}
+			clippy := exec.Command("cargo", "clippy", "--release", "--locked", "--target-dir", target, "--", "-D", "warnings")
+			clippy.Dir = crate
+			clippy.Env = pinnedEnv()
+			if out, err := clippy.CombinedOutput(); err != nil {
+				t.Errorf("cargo clippy -D warnings: %v\n%s", err, out)
 			}
 			srcs, _ := filepath.Glob(filepath.Join(crate, "src", "*.rs"))
 			fmtCmd := exec.Command("rustfmt", append([]string{"--check", "--edition", "2024"}, srcs...)...)

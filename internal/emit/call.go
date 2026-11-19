@@ -311,10 +311,15 @@ func (g *gen) formatVerbs(macro string, writer ast.Expr, verbs []subset.Verb, op
 		f.WriteString(spec)
 		args = append(args, arg)
 	}
-	all := []node{text(strLit(f.String()))}
+	var all []node
 	if writer != nil {
-		all = append([]node{g.mutRef(writer)}, all...)
+		all = append(all, g.mutRef(writer))
 	}
+	if macro == "format!" || f.Len() > 0 || len(args) > 0 {
+		all = append(all, text(strLit(f.String())))
+	}
+	// Go's fmt.Println() with no operands prints just a newline; Rust spells
+	// that println!(), not println!("").
 	return &call{head: macro, open: "(", close: ")", args: append(all, args...)}
 }
 
@@ -395,7 +400,7 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		arg = g.value(e)
 	default: // strings, booleans, errors
 		flags(false)
-		arg = g.display(e)
+		arg = g.formatDisplay(e)
 	}
 	b.WriteString("}")
 	return b.String(), arg, ""
@@ -417,6 +422,20 @@ func (g *gen) asI64(e ast.Expr) node {
 		return text(tv.Value.ExactString())
 	}
 	return atom{paren(g.value(e), precCast) + " as i64", precCast}
+}
+
+// formatDisplay renders a string, boolean or error operand of a format macro.
+// rt::Error implements Display with exactly the text Go's Error() returns, so
+// passing the error itself avoids a redundant to_string() in the arguments.
+func (g *gen) formatDisplay(e ast.Expr) node {
+	if call, ok := ast.Unparen(e).(*ast.CallExpr); ok {
+		if sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr); ok && sel.Sel.Name == "Error" {
+			if obj, ok := g.info.Selections[sel].Obj().(*types.Func); ok && g.res.Funcs[obj] == nil {
+				return g.place(sel.X)
+			}
+		}
+	}
+	return g.display(e)
 }
 
 // display renders a string, boolean or error operand of a format macro.

@@ -36,7 +36,8 @@ Phase 1 has its layers, and the borrow-checker layers for the phase 1
 subset: golden crates in `testdata/golden/*/rust`
 (`go test ./internal/emit -update` rewrites them), `-explain` reports and
 exact rejection diagnostics in `testdata/*/*/explain.txt` and `want.txt`
-(`go test ./internal/borrow -update`), the differential, compile, rustfmt
+(`go test ./internal/borrow -update`), the differential, compile, clippy (`-D warnings`, with a documented allow
+list for Go-faithful patterns), rustfmt
 and `gopatina verify` tests in `internal/patina/rust_test.go` (run with
 `GOPATINA_RUST_TESTS=1` by the `toolchains` workflow, with Rust stable and the
 MSRV), and `FuzzCheck`, `FuzzBorrow` and `FuzzEmit`, run by CI for 60 seconds

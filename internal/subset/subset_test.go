@@ -181,6 +181,7 @@ func TestRejected(t *testing.T) {
 		{"panic value", "package main\nfunc main() { panic(1) }\n", "panic with a value that is not a string is not supported"},
 		{"min one arg", "package main\nfunc main() { x := 1; _ = min(x) }\n", "the min built-in with fewer than two arguments is not supported"},
 		{"max float", "package main\nfunc main() { x := 1.0; _ = max(x, 2.0) }\n", "the max built-in with a non-integer argument is not supported"},
+		{"clear", "package main\nfunc main() { s := []int{1}; clear(s) }\n", "the clear built-in (Go 1.21) is not supported"},
 		{"cap", "package main\nfunc main() { _ = cap([]int{}) }\n", "the cap built-in is not supported"},
 		{"format not const", "package main\nimport \"fmt\"\nfunc main() { f := \"%d\"; fmt.Printf(f, 1) }\n", "a format string that is not a constant is not supported"},
 		{"format bad", "package main\nimport \"fmt\"\nfunc main() { fmt.Printf(\"%[1]d\", 1) }\n", "'[' in a directive is not supported"},

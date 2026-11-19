@@ -144,6 +144,7 @@ GoPatina was started by Peter Sjolin as an experiment by Pigfox. It is open sour
 - RFC 0002, concurrency: https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0002-concurrency.md
 - RFC 0003, toolchain compatibility: https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0003-toolchain-compatibility.md
 - RFC 0004, read-only slice suffix arguments: https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0004-read-only-slice-suffix.md
+- RFC 0005, proposed phase 1 semantic exactness fixes: https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0005-phase1-semantic-exactness.md
 - Benchmarks: https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md
 - Pigfox: https://pigfox.com
 
