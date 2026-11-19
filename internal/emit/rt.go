@@ -54,17 +54,18 @@ fn go_panic_message(msg: &str) -> String {
         _ => {}
     }
     const INDEX: &str = "index out of bounds: the len is ";
-    if let Some(rest) = msg.strip_prefix(INDEX) {
-        if let Some((len, index)) = rest.split_once(" but the index is ") {
-            if let (Ok(len), Ok(index)) = (len.parse::<u64>(), index.parse::<u64>()) {
-                // Go's signed index reaches Rust as a wrapped usize.
-                let signed = index as i64;
-                if signed < 0 {
-                    return format!("runtime error: index out of range [{signed}]");
-                }
-                return format!("runtime error: index out of range [{index}] with length {len}");
-            }
+    let parts = || {
+        let rest = msg.strip_prefix(INDEX)?;
+        let (len, index) = rest.split_once(" but the index is ")?;
+        Some((len.parse::<u64>().ok()?, index.parse::<u64>().ok()?))
+    };
+    if let Some((len, index)) = parts() {
+        // Go's signed index reaches Rust as a wrapped usize.
+        let signed = index as i64;
+        if signed < 0 {
+            return format!("runtime error: index out of range [{signed}]");
         }
+        return format!("runtime error: index out of range [{index}] with length {len}");
     }
     msg.to_string()
 }
