@@ -18,6 +18,7 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ type Package struct {
 	Files     []*ast.File // sorted by file name
 	Types     *types.Package
 	Info      *types.Info
+	Sizes     types.Sizes       // word sizes of the GOOS/GOARCH target
 	Src       map[string][]byte // file contents, by absolute file name
 }
 
@@ -111,6 +113,20 @@ func Source(dir, name, src, goVersion string) (*Package, error) {
 	return check(dir, dir, goVersion, map[string][]byte{filepath.Join(dir, name): []byte(src)})
 }
 
+// targetSizes returns the go/types sizes for the GOARCH gopatina is
+// building for. An unset or unknown GOARCH falls back to the host, which is
+// what go/types does when no sizes are configured.
+func targetSizes() types.Sizes {
+	arch := os.Getenv("GOARCH")
+	if arch == "" {
+		arch = runtime.GOARCH
+	}
+	if sizes := types.SizesFor("gc", arch); sizes != nil {
+		return sizes
+	}
+	return types.SizesFor("gc", runtime.GOARCH)
+}
+
 // check parses and type-checks the files of a package.
 func check(dir, cwd, goVersion string, srcs map[string][]byte) (*Package, error) {
 	pkg := &Package{Dir: dir, GoVersion: goVersion, Fset: token.NewFileSet(), Src: srcs}
@@ -140,9 +156,11 @@ func check(dir, cwd, goVersion string, srcs map[string][]byte) (*Package, error)
 		Selections: map[*ast.SelectorExpr]*types.Selection{},
 		Scopes:     map[ast.Node]*types.Scope{},
 	}
+	pkg.Sizes = targetSizes()
 	conf := types.Config{
 		Importer:  lockedImporter{},
 		GoVersion: goVersion,
+		Sizes:     pkg.Sizes,
 		Error: func(err error) {
 			te := err.(types.Error)
 			diags = append(diags, diag.Diagnostic{Pos: te.Fset.Position(te.Pos), Msg: te.Msg})

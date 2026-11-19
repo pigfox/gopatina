@@ -39,9 +39,10 @@ exact rejection diagnostics in `testdata/*/*/explain.txt` and `want.txt`
 (`go test ./internal/borrow -update`), the differential, compile, rustfmt
 and `gopatina verify` tests in `internal/patina/rust_test.go` (run with
 `GOPATINA_RUST_TESTS=1` by the `toolchains` workflow, with Rust stable and the
-MSRV), and `FuzzEmit`, run by CI for 60 seconds. The differential tests build
-the Go program with `go build` and compare standard output and exit status.
-`gopatina fix` and its tests are planned.
+MSRV), and `FuzzCheck`, `FuzzBorrow` and `FuzzEmit`, run by CI for 60 seconds
+each. The differential tests build the Go program with `go build` and compare
+standard output, the first stderr line (Go's stack trace after a panic is
+ignored) and exit status. `gopatina fix` and its tests are planned.
 
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |

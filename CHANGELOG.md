@@ -16,6 +16,14 @@ Until 1.0.0, minor versions may contain breaking changes.
   call can replace `s` through a pointer.
 - Slice range loops diagnose header replacement through pointers, including
   forwarded calls, instead of reading replacement elements by mistake.
+- The loader type-checks for the selected `GOARCH`, so a constant suffix
+  bound that fits a 64-bit `int` but overflows a 32-bit one is rejected
+  before emission.
+- Go/Rust differential tests compare the first stderr line again (Go's stack
+  trace after a panic is ignored), restoring checks on panic messages.
+- The panic hook translates Rust's divide-by-zero and index-out-of-bounds
+  text to Go's `runtime error:` first line, which the differential tests
+  now verify for every golden program.
 
 ### Changed
 
@@ -38,6 +46,9 @@ Until 1.0.0, minor versions may contain breaking changes.
 - Patina supports `read(s[i:])` as a standalone call to a proven read-only
   function over `[]int`. The temporary view checks bounds before the
   callee runs, without copying the slice or inspecting its capacity.
+- `FuzzCheck` and `FuzzBorrow` fuzz the subset gate and borrow checker from
+  the accepted and rejected fixtures; CI runs each for 60 seconds alongside
+  `FuzzEmit`.
 - docs/go-rust-disconnects.md lists every known place where Go's and Rust's
   semantics differ, with Go's exact behaviour, the options, a recommended fix
   and whether it blocks full compatibility; default mode is stated as a pure

@@ -49,9 +49,15 @@ func realSession(t *testing.T) *Session {
 type result struct {
 	stdout string
 	code   int
-	// Stderr is recorded separately so the legacy tests need not compare
-	// Rust and Go's different panic messages for other operations.
 	stderr string
+}
+
+// stderrLine reduces a program's stderr to the line tests compare. Go
+// prints a stack trace after a panic; GoPatina's Rust runtime prints only
+// the panic message. The first line carries the contract both share.
+func stderrLine(s string) string {
+	line, _, _ := strings.Cut(s, "\n")
+	return strings.TrimRight(line, " \t\r")
 }
 
 func runBinary(t *testing.T, bin string) result {
@@ -73,8 +79,8 @@ func runBinary(t *testing.T, bin string) result {
 }
 
 // TestDifferential builds every golden program with go build and with
-// gopatina build -patina, runs both, and requires the same standard output
-// and exit status.
+// gopatina build -patina, runs both, and requires the same standard output,
+// first stderr line and exit status.
 func TestDifferential(t *testing.T) {
 	needRust(t)
 	s := realSession(t)
@@ -92,8 +98,10 @@ func TestDifferential(t *testing.T) {
 				t.Fatal(err)
 			}
 			want, got := runBinary(t, goBin), runBinary(t, patinaBin)
-			if got.stdout != want.stdout || got.code != want.code {
-				t.Errorf("Go and patina differ:\ngo     (exit %d):\n%s\npatina (exit %d):\n%s", want.code, want.stdout, got.code, got.stdout)
+			if got.stdout != want.stdout || got.code != want.code || stderrLine(got.stderr) != stderrLine(want.stderr) {
+				t.Errorf("Go and patina differ:\ngo     (exit %d):\n%sstderr: %q\npatina (exit %d):\n%sstderr: %q",
+					want.code, want.stdout, stderrLine(want.stderr),
+					got.code, got.stdout, stderrLine(got.stderr))
 			}
 		})
 	}
