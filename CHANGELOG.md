@@ -21,9 +21,10 @@ Until 1.0.0, minor versions may contain breaking changes.
   before emission.
 - Go/Rust differential tests compare the first stderr line again (Go's stack
   trace after a panic is ignored), restoring checks on panic messages.
-- The panic hook translates Rust's divide-by-zero and index-out-of-bounds
-  text to Go's `runtime error:` first line, which the differential tests
-  now verify for every golden program.
+- The differential tests translate Rust's standard divide-by-zero and
+  index-out-of-bounds panic text to Go's first line before comparing, so
+  panic-message regressions are caught without rewriting a program's own
+  `panic("...")` payload.
 
 ### Changed
 
@@ -55,6 +56,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 - `FuzzCheck` and `FuzzBorrow` fuzz the subset gate and borrow checker from
   the accepted and rejected fixtures; CI runs each for 60 seconds alongside
   `FuzzEmit`.
+- A `suffix-sum` benchmark case measures the read-only `s[i:]` path against
+  hand-written Rust and plain Go.
+- Two full local verification runs are published in BENCHMARKS.md with raw
+  JSON and environment metadata. All three cases stayed within the 1.10
+  GoPatina/Rust target (worst 1.043); they are explicitly not official
+  test-server results.
 - docs/go-rust-disconnects.md lists every known place where Go's and Rust's
   semantics differ, with Go's exact behaviour, the options, a recommended fix
   and whether it blocks full compatibility; default mode is stated as a pure

@@ -111,10 +111,12 @@ There are two kinds of run, and they are kept apart:
 ### Status
 
 **No official numbers exist yet.** The harness,
-[`bench/run.sh`](../bench/run.sh), and the first two cases (`fib`, `sieve`)
-exist, and the [`bench` workflow](../.github/workflows/bench.yml) (the
-per-pull-request ratio run) runs them on pull requests that change code
-generation, reporting ratios only. The test-server runner does not exist
-yet, so **nothing has been measured officially**, and
-[`BENCHMARKS.md`](../BENCHMARKS.md) says so. No performance figure will be published without the raw results and
-the versions that produced it.
+[`bench/run.sh`](../bench/run.sh), and three cases (`fib`, `sieve` and the
+read-only `s[i:]` case `suffix-sum`) exist, and the
+[`bench` workflow](../.github/workflows/bench.yml) (the per-pull-request
+ratio run) runs them on pull requests that change code generation, reporting
+ratios only. A local verification run on the maintainer's workstation has
+been published in [`BENCHMARKS.md`](../BENCHMARKS.md) with its raw results
+and environment, but it is **not** an official run: the dedicated,
+quiet test server does not exist yet. No figure is published without the
+raw results and the versions that produced it.

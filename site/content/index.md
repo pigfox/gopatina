@@ -108,7 +108,7 @@ Every Go package in the project has 100% unit-test coverage, enforced in CI, and
 
 ## Benchmarks
 
-**No benchmarks have been run yet** on the maintainer's test server, so no performance figures are published. The goal is to shadow Rust and keep up: within 10% of equivalent hand-written Rust on every benchmark, built with the latest stable Rust. That is a goal, not a claim. Official numbers will come only from the maintainer's dedicated test server, run on the full suite and published in [BENCHMARKS.md](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md).
+**No official test-server run has happened yet.** Two local verification runs on the maintainer's workstation are published in [BENCHMARKS.md](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md) with raw JSON and environment details: all three cases, including the read-only `s[i:]` case, stayed within 10% of hand-written Rust (worst ratio 1.043 across both runs), but the `fib` ratio ranged from 0.890 to 1.039. Those are not official results. The goal is to shadow Rust and keep up: within 10% of equivalent hand-written Rust on every benchmark, built with the latest stable Rust. That is a goal, not a claim. Official numbers will come only from the maintainer's dedicated test server, run on the full suite.
 
 ## Frequently asked questions
 
@@ -125,7 +125,7 @@ Yes. Without a patina flag, gopatina runs go with the same arguments, so every G
 No. You write Go. Without a garbage collector a few ownership rules remain, but GoPatina's borrow checker infers ownership and borrows, fixes what it safely can, and explains the rest in Go terms.
 
 **How fast is GoPatina?**
-Nobody knows yet. No benchmarks have been published. Official results will be published in BENCHMARKS.md, measured against hand-written Rust and plain Go.
+Two local verification runs have been published in BENCHMARKS.md: all three cases were within 10% of hand-written Rust, with a worst observed ratio of 1.043. These are not official results; official numbers will come from the maintainer's dedicated test server, measured against hand-written Rust and plain Go.
 
 **What does a machine need to run a patina binary?**
 Nothing extra. A patina binary is native machine code, so the target needs neither Go nor Rust installed, just like a Go binary. Phase 1 links against the platform's default C runtime; static binaries are planned.
