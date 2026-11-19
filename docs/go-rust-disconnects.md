@@ -588,10 +588,12 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   asleep - deadlock!`, `concurrent map writes`, `unlock of unlocked mutex`)
   print `fatal error: ...` and cannot be recovered.
 - **Rust**: `panicked at ...` and exit status 101.
-- **Recommendation**: the panic hook translates Rust's divide-by-zero and
-  index-out-of-bounds text to Go's `runtime error:` line, prints Go's first
-  line and exits with status 2 (done); fatal errors print Go's `fatal error:`
-  line (planned with goroutines, for deadlock and the sync errors). The
+- **Recommendation**: the panic hook prints the panic message and exits with
+  status 2 (done); fatal errors print Go's `fatal error:` line (planned with
+  goroutines, for deadlock and the sync errors). Rust's standard
+  divide-by-zero and index-out-of-bounds text differs from Go's first line,
+  so the differential tests translate just those two standard messages before
+  comparing; a program's own `panic("...")` payload is never rewritten. The
   goroutine traces after the first line contain addresses and goroutine
   numbers that differ between Go runs too, so they are not reproduced;
   differential tests compare standard output, the exit status and the first
