@@ -233,7 +233,7 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
 - **Shadow Rust and keep up.** Every release, and every pull request that
   changes code generation, is benchmarked against equivalent hand-written
   Rust built with the latest stable Rust toolchain, whose version is recorded
-  with each result. The target is to stay within 10% of Rust on each
+  with each result. The target is identical speed to Rust on each
   benchmark, tracked over time: a goal, not a claim. **No numbers are
   published yet.** The harness ([bench/](bench/README.md)) runs in CI and
   reports ratios only; official numbers come from a dedicated machine.

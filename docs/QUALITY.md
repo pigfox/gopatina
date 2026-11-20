@@ -106,7 +106,7 @@ There are two kinds of run, and they are kept apart:
   ratios), and in the GitHub release notes for that version. Each shows the
   machine, the Go and Rust versions, the commit and the date, and links to the
   raw results file.
-- **Target.** Within 10% of hand-written Rust on each benchmark, tracked over
+- **Target.** Identical speed to hand-written Rust on each benchmark, tracked over
   time. This is a goal that guides the work, **not a claim**. A pull request
   that makes a ratio worse beyond run-to-run noise must explain why in its
   description.
