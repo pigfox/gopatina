@@ -108,7 +108,7 @@ Every Go package in the project has 100% unit-test coverage, enforced in CI, and
 
 ## Benchmarks
 
-**No official test-server run has happened yet.** Two local verification runs on the maintainer's workstation are published in [BENCHMARKS.md](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md) with raw JSON and environment details: all three cases, including the read-only `s[i:]` case, stayed within 10% of hand-written Rust (worst ratio 1.043 across both runs), but the `fib` ratio ranged from 0.890 to 1.039. Those are not official results. The goal is to shadow Rust and keep up: within 10% of equivalent hand-written Rust on every benchmark, built with the latest stable Rust. That is a goal, not a claim. Official numbers will come only from the maintainer's dedicated test server, run on the full suite.
+**No official test-server run has happened yet.** Two local verification runs on the maintainer's workstation are published in [BENCHMARKS.md](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md) with raw JSON and environment details: all three cases, including the read-only `s[i:]` case, stayed within 10% of hand-written Rust (worst ratio 1.043 across both runs), but the `fib` ratio ranged from 0.890 to 1.039. Those are not official results. The goal is identical speed to equivalent hand-written Rust on every benchmark, built with the latest stable Rust. That is a goal, not a claim. Official numbers will come only from the maintainer's dedicated test server, run on the full suite.
 
 ## Frequently asked questions
 
