@@ -13,17 +13,14 @@
 )]
 #![allow(clippy::approx_constant)] // constants are written by the Go source
 #![allow(clippy::assign_op_pattern)] // Go's x = x op y stays as written
-#![allow(clippy::comparison_to_empty)] // Go's len(s) == 0 maps to s.len() == 0
 #![allow(clippy::eq_op)] // the Go source may compare a value with itself
 #![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!
-#![allow(clippy::let_and_return)] // the Go source controls the returns
 #![allow(clippy::manual_range_contains)] // the Go source controls the comparison
 #![allow(clippy::manual_unwrap_or)] // Go's error patterns map to match
 #![allow(clippy::manual_unwrap_or_default)] // Go's error patterns map to match
 #![allow(clippy::mut_range_bound)] // Go allows changing a range bound
 #![allow(clippy::needless_return)] // the Go source controls the returns
 #![allow(clippy::only_used_in_recursion)] // Go functions may recurse
-#![allow(clippy::print_with_newline)] // Go's fmt.Print can end in a newline
 #![allow(clippy::reversed_empty_ranges)] // the Go source controls the range
 #![allow(clippy::should_implement_trait)] // Go function names are kept as written
 #![allow(clippy::single_match)] // the Go source controls the switch
@@ -52,5 +49,5 @@ fn main() {
         x.wrapping_div(-y),
         x.wrapping_rem(-y),
     );
-    print!("-3 -1\n");
+    println!("-3 -1");
 }

@@ -22,9 +22,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 - Go/Rust differential tests compare the first stderr line again (Go's stack
   trace after a panic is ignored), restoring checks on panic messages.
 - Generated crates are now checked with `cargo clippy -D warnings` in CI.
-  Empty `fmt.Println()` calls emit `println!()` and `err.Error()` in a format
-  argument emits the error directly; remaining Go-idiom patterns are covered
-  by an explicit, commented allow list.
+  Empty `fmt.Println()` calls emit `println!()`, trailing-newline `print`/`eprint`
+  forms emit `println!`/`eprintln!`, `s == ""`/`s != ""` comparisons emit
+  `is_empty()`/`!is_empty()`, simple function-tail `let`+`return` patterns are
+  folded into tail expressions, and `err.Error()` in a format argument emits the
+  error directly; remaining Go-idiom patterns are covered by an explicit,
+  commented allow list.
 - Go 1.21's `min` and `max` built-ins are supported for integer arguments,
   including calls with more than two arguments; float calls are rejected
   rather than silently given Rust's different NaN behaviour.

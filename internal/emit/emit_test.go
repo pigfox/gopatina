@@ -139,3 +139,28 @@ func FuzzEmit(f *testing.F) {
 		}
 	})
 }
+
+func TestCoverageEdgeEmission(t *testing.T) {
+	dir := t.TempDir()
+	src := `package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	s := "x"
+	_ = "" == s
+	_ = s != ""
+	_ = "" != s
+	fmt.Fprintf(os.Stderr, "err\n")
+	fmt.Fprint(os.Stderr, "")
+	fmt.Println(s)
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = emitDir(t, dir)
+}
