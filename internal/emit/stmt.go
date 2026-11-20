@@ -160,6 +160,28 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 		s := list[i]
 		g.commentsBefore(s.Pos())
 		g.blankBefore(g.pkg.Fset.Position(s.Pos()).Line)
+		if fnBody && i == len(list)-2 {
+			if ret, ok := list[i+1].(*ast.ReturnStmt); ok {
+				if !g.hasLineCommentsBetween(s.End(), ret.Pos()) {
+					if e, folded, ok := g.foldTailLetReturn(s, ret); ok {
+						var b strings.Builder
+						out := g.out
+						g.out = &b
+						g.stmtLine("", e, "")
+						g.out = out
+						endLine := g.pkg.Fset.Position(folded.End()).Line
+						text := b.String()
+						if c := g.trailingComment(folded.End(), endLine); c != "" {
+							text = strings.TrimSuffix(text, "\n") + " " + c + "\n"
+						}
+						g.out.WriteString(text)
+						g.lastLine = endLine
+						i++ // the tail let+return was folded
+						continue
+					}
+				}
+			}
+		}
 		last := s
 		var b strings.Builder
 		out := g.out
@@ -1264,4 +1286,44 @@ func (g *gen) hasComments(b *ast.BlockStmt) bool {
 		}
 	}
 	return false
+}
+
+// hasLineCommentsBetween reports whether an unwritten comment falls between
+// start and end, which would be lost by folding statements across the gap.
+func (g *gen) hasLineCommentsBetween(start, end token.Pos) bool {
+	for _, cg := range g.comments {
+		if !g.usedComments[cg] && cg.Pos() >= start && cg.End() <= end {
+			return true
+		}
+	}
+	return false
+}
+
+// foldTailLetReturn folds `v := e` followed by `return v` at the end of a
+// function body into the tail expression `e` in the simple cases clippy flags
+// as let_and_return.
+func (g *gen) foldTailLetReturn(s ast.Stmt, r *ast.ReturnStmt) (node, *ast.ReturnStmt, bool) {
+	if g.errs.Returns[r] != 0 || len(r.Results) != 1 {
+		return nil, nil, false
+	}
+	rid, ok := ast.Unparen(r.Results[0]).(*ast.Ident)
+	if !ok || rid.Name == "_" {
+		return nil, nil, false
+	}
+	rdef := g.info.Uses[rid]
+	if rdef == nil {
+		return nil, nil, false
+	}
+	as, ok := s.(*ast.AssignStmt)
+	if !ok || as.Tok != token.DEFINE || len(as.Lhs) != 1 || len(as.Rhs) != 1 {
+		return nil, nil, false
+	}
+	id, ok := as.Lhs[0].(*ast.Ident)
+	if !ok || id.Name == "_" || g.info.Defs[id] != rdef {
+		return nil, nil, false
+	}
+	if g.errs.Calls[as] != nil || isPointerType(g.typeOf(id)) {
+		return nil, nil, false
+	}
+	return g.owned(as.Rhs[0]), r, true
 }

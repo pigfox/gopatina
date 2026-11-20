@@ -16,7 +16,6 @@
 #![allow(clippy::comparison_to_empty)] // Go's len(s) == 0 maps to s.len() == 0
 #![allow(clippy::eq_op)] // the Go source may compare a value with itself
 #![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!
-#![allow(clippy::let_and_return)] // the Go source controls the returns
 #![allow(clippy::manual_range_contains)] // the Go source controls the comparison
 #![allow(clippy::manual_unwrap_or)] // Go's error patterns map to match
 #![allow(clippy::manual_unwrap_or_default)] // Go's error patterns map to match

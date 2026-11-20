@@ -139,7 +139,7 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	head.WriteString("#![allow(clippy::comparison_to_empty)] // Go's len(s) == 0 maps to s.len() == 0\n")
 	head.WriteString("#![allow(clippy::eq_op)] // the Go source may compare a value with itself\n")
 	head.WriteString("#![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!\n")
-	head.WriteString("#![allow(clippy::let_and_return)] // the Go source controls the returns\n")
+
 	head.WriteString("#![allow(clippy::manual_range_contains)] // the Go source controls the comparison\n")
 	head.WriteString("#![allow(clippy::manual_unwrap_or)] // Go's error patterns map to match\n")
 	head.WriteString("#![allow(clippy::manual_unwrap_or_default)] // Go's error patterns map to match\n")
