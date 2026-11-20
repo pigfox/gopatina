@@ -13,17 +13,14 @@
 )]
 #![allow(clippy::approx_constant)] // constants are written by the Go source
 #![allow(clippy::assign_op_pattern)] // Go's x = x op y stays as written
-#![allow(clippy::comparison_to_empty)] // Go's len(s) == 0 maps to s.len() == 0
 #![allow(clippy::eq_op)] // the Go source may compare a value with itself
 #![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!
-#![allow(clippy::let_and_return)] // the Go source controls the returns
 #![allow(clippy::manual_range_contains)] // the Go source controls the comparison
 #![allow(clippy::manual_unwrap_or)] // Go's error patterns map to match
 #![allow(clippy::manual_unwrap_or_default)] // Go's error patterns map to match
 #![allow(clippy::mut_range_bound)] // Go allows changing a range bound
 #![allow(clippy::needless_return)] // the Go source controls the returns
 #![allow(clippy::only_used_in_recursion)] // Go functions may recurse
-#![allow(clippy::print_with_newline)] // Go's fmt.Print can end in a newline
 #![allow(clippy::reversed_empty_ranges)] // the Go source controls the range
 #![allow(clippy::should_implement_trait)] // Go function names are kept as written
 #![allow(clippy::single_match)] // the Go source controls the switch
@@ -34,24 +31,24 @@ mod rt;
 
 fn main() {
     rt::exit_on_panic();
-    print!(
-        "{:.0} {:.0} {:.0} {:.0}\n",
+    println!(
+        "{:.0} {:.0} {:.0} {:.0}",
         rt::Float(0.5),
         rt::Float(1.5),
         rt::Float(2.5),
         rt::Float(3.5),
     );
-    print!(
-        "{:.1} {:.1} {:.2} {:.2}\n",
+    println!(
+        "{:.1} {:.1} {:.2} {:.2}",
         rt::Float(0.25),
         rt::Float(0.35),
         rt::Float(1.005),
         rt::Float(2.675),
     );
-    print!("{:.10}\n", rt::Float(0.1));
-    print!("{:.20}\n", rt::Float(0.1));
-    print!(
-        "{:>6.2}|{:<6.2}|{:>06.2}|{:>+6.2}\n",
+    println!("{:.10}", rt::Float(0.1));
+    println!("{:.20}", rt::Float(0.1));
+    println!(
+        "{:>6.2}|{:<6.2}|{:>06.2}|{:>+6.2}",
         rt::Float(3.14159),
         rt::Float(3.14159),
         rt::Float(3.14159),

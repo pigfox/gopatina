@@ -469,6 +469,11 @@ func (g *gen) receiverValue(e ast.Expr) node {
 func (g *gen) compare(e *ast.BinaryExpr) node {
 	op := binOps[e.Op]
 	xt := g.typeOf(e.X)
+	if isStringType(xt) && (e.Op == token.EQL || e.Op == token.NEQ) {
+		if n, ok := g.emptyStringCheck(e, e.Op == token.NEQ); ok {
+			return n
+		}
+	}
 	var l, r node
 	switch {
 	case isStringType(xt) && e.Op != token.EQL && e.Op != token.NEQ:
@@ -483,6 +488,31 @@ func (g *gen) compare(e *ast.BinaryExpr) node {
 		l = atom{"(" + l.flat() + ")", precAtom}
 	}
 	return &binary{op: op.op, l: l, r: r, p: op.prec, nonAssoc: true}
+}
+
+// emptyStringCheck renders s == "" / "" == s and their negations as
+// s.is_empty() / !s.is_empty(), which keeps clippy's comparison_to_empty
+// lint satisfied for generated code.
+func (g *gen) emptyStringCheck(e *ast.BinaryExpr, neq bool) (node, bool) {
+	isEmpty := func(x ast.Expr) bool {
+		tv := g.info.Types[x]
+		return tv.Value != nil && constant.StringVal(tv.Value) == ""
+	}
+	var other ast.Expr
+	switch {
+	case isEmpty(e.Y):
+		other = e.X
+	case isEmpty(e.X):
+		other = e.Y
+	default:
+		return nil, false
+	}
+	recv := atom{paren(g.cmpOperand(other), precPostfix), precPostfix}
+	call := &call{recv: recv, head: ".is_empty", open: "(", close: ")"}
+	if neq {
+		return atom{"!" + paren(call, precUnary), precUnary}, true
+	}
+	return call, true
 }
 
 // cmpOperand renders an operand of == or != on a string or struct.
