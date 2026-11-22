@@ -109,19 +109,36 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	posts, err := loadPosts(fsys)
+	if err != nil {
+		return nil, err
+	}
+	blog := blogPage
+	blog.NoIndex = len(posts) == 0 // in the navigation and sitemap once it has a post
+	blog.Updated = lastUpdated
+	for _, p := range posts {
+		blog.Updated = max(blog.Updated, p.Updated)
+	}
 	var nav []navItem
-	for _, q := range pages {
+	for _, q := range append(append([]page{}, pages...), blog) {
 		if !q.NoIndex {
 			nav = append(nav, navItem{Path: q.Path, Name: q.Crumb})
 		}
 	}
-	// build renders one page, and returns it with its Markdown source.
-	build := func(p page) (*resource, []byte, error) {
-		src, err := fs.ReadFile(fsys, "content/pages/"+p.File+".md")
-		if err != nil {
-			return nil, nil, err
-		}
+	bodies := map[string]string{} // each post's HTML, for the feed
+	// build renders one page from its Markdown, and returns it with the
+	// Markdown.
+	build := func(p page, src []byte) (*resource, []byte, error) {
 		d := render(string(src))
+		switch p.Kind {
+		case "post":
+			d.HTML = postHTML(p, d.HTML)
+			bodies[p.Path] = d.HTML
+		case "blog":
+			for _, q := range posts {
+				d.Posts = append(d.Posts, q.page)
+			}
+		}
 		data := pageData{
 			page: p, URL: p.url(), Markdown: p.markdownPath(), CSS: static["style.css"], NoJSCSS: static["nojs.css"], Favicon: static["favicon.svg"], NavScript: static["nav.js"],
 			OGType: "article", H1: d.Title, Body: template.HTML(d.HTML), JSONLD: p.jsonLD(d),
@@ -146,8 +163,25 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 
 	var sitemap, llms strings.Builder
 	sitemap.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+	type source struct {
+		p   page
+		src []byte
+	}
+	var all []source
 	for _, p := range pages {
-		res, src, err := build(p)
+		src, err := fs.ReadFile(fsys, "content/pages/"+p.File+".md")
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, source{p, src})
+	}
+	all = append(all, source{blog, []byte(blogIndex(posts))})
+	for _, q := range posts {
+		all = append(all, source{q.page, []byte(q.src)})
+	}
+	for _, s := range all {
+		p := s.p
+		res, src, err := build(p, s.src)
 		if err != nil {
 			return nil, err
 		}
@@ -159,6 +193,7 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 		}
 	}
 	sitemap.WriteString("</urlset>\n")
+	routes["/blog/feed.xml"] = newResource([]byte(atomFeed(posts, bodies)), "application/atom+xml; charset=utf-8", cacheShort)
 	routes["/sitemap.xml"] = newResource([]byte(sitemap.String()), "application/xml; charset=utf-8", cacheShort)
 
 	head, err := fs.ReadFile(fsys, "content/llms.txt")
@@ -170,10 +205,13 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 		"text/plain; charset=utf-8", cacheShort)
 	routes["/healthz"] = newResource([]byte("ok\n"), "text/plain; charset=utf-8", "no-store")
 
-	notFound, _, err := build(notFoundPage)
+	src404, err := fs.ReadFile(fsys, "content/pages/"+notFoundPage.File+".md")
 	if err != nil {
 		return nil, err
 	}
+	// The template has rendered every other page by now, so it renders
+	// this one too.
+	notFound, _, _ := build(notFoundPage, src404)
 	notFound.cache = "no-store"
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

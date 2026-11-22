@@ -22,6 +22,7 @@ type doc struct {
 	HTML     string    // the body, without the title
 	Sections []section // each "### " heading with the plain text after it
 	Steps    []string  // the plain text of each item of the first "1. " list
+	Posts    []page    // on the blog's index: its posts
 }
 
 // section is a "### " heading and the plain text of the paragraphs after

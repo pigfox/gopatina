@@ -17,6 +17,9 @@ type page struct {
 	Kind        string // home, article, faq, howto or page
 	NoIndex     bool   // kept out of search engines and the sitemap
 	Updated     string // the date the page last changed, YYYY-MM-DD
+	// A blog post's date, and the page above it in the breadcrumb.
+	Published              string
+	ParentPath, ParentName string
 }
 
 // pages lists the site, in the order of its navigation.
@@ -116,13 +119,12 @@ func (p page) jsonLD(d doc) template.JS {
 	author := map[string]any{"@type": "Person", "name": "Peter Sjolin", "url": "https://github.com/pigfox"}
 	if p.Path != "/" {
 		webpage["breadcrumb"] = map[string]any{"@id": u + "#breadcrumb"}
-		graph = append(graph, map[string]any{
-			"@type": "BreadcrumbList", "@id": u + "#breadcrumb",
-			"itemListElement": []any{
-				map[string]any{"@type": "ListItem", "position": 1, "name": "GoPatina", "item": siteURL},
-				map[string]any{"@type": "ListItem", "position": 2, "name": p.Crumb, "item": u},
-			},
-		})
+		items := []any{map[string]any{"@type": "ListItem", "position": 1, "name": "GoPatina", "item": siteURL}}
+		if p.ParentPath != "" {
+			items = append(items, map[string]any{"@type": "ListItem", "position": 2, "name": p.ParentName, "item": siteURL + p.ParentPath[1:]})
+		}
+		items = append(items, map[string]any{"@type": "ListItem", "position": len(items) + 1, "name": p.Crumb, "item": u})
+		graph = append(graph, map[string]any{"@type": "BreadcrumbList", "@id": u + "#breadcrumb", "itemListElement": items})
 	}
 	switch p.Kind {
 	case "home":
@@ -161,6 +163,27 @@ func (p page) jsonLD(d doc) template.JS {
 			})
 		}
 		webpage["mainEntity"] = qs
+	case "blog":
+		var posts []any
+		for _, q := range d.Posts {
+			posts = append(posts, map[string]any{
+				"@type": "BlogPosting", "@id": q.url() + "#post", "headline": q.Title, "url": q.url(),
+				"datePublished": q.Published, "dateModified": q.Updated,
+			})
+		}
+		graph = append(graph, map[string]any{
+			"@type": "Blog", "@id": u + "#blog", "name": "GoPatina blog", "url": u,
+			"description": p.Description, "author": author, "publisher": map[string]any{"@id": orgID},
+			"mainEntityOfPage": map[string]any{"@id": u + "#webpage"}, "inLanguage": "en", "blogPost": posts,
+		})
+	case "post":
+		graph = append(graph, map[string]any{
+			"@type": "BlogPosting", "@id": u + "#post", "headline": d.Title, "description": p.Description,
+			"datePublished": p.Published, "dateModified": p.Updated, "author": author,
+			"publisher": map[string]any{"@id": orgID}, "mainEntityOfPage": map[string]any{"@id": u + "#webpage"},
+			"isPartOf": map[string]any{"@id": blogPage.url() + "#blog"}, "about": map[string]any{"@id": softID},
+			"inLanguage": "en",
+		})
 	case "howto":
 		var steps []any
 		for i, s := range d.Steps {
