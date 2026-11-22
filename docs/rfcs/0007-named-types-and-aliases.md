@@ -216,6 +216,56 @@ types are unchanged.
 A named type has its underlying type's ownership class (Copy, Value or
 owned slice, `docs/patina-subset.md`), so the borrow rules are unchanged.
 
+## Forward compatibility: interfaces
+
+With aliases, `type Celsius float64` and `type Fahrenheit float64` are the
+same Rust type, `f64`. Inside this RFC nothing needs them apart: every
+method call, conversion and `fmt` use is resolved from the static Go type.
+Interfaces (a later RFC) need the *dynamic* Go type: `var s fmt.Stringer =
+c`, `any(c)`, type switches and assertions, `%v` and `%T` through an
+interface. The plan, which the later RFC will settle:
+
+- **A value gets its Go type where it enters an interface, and only there.**
+  A conversion to an interface type is explicit in `go/types` (an
+  assignment, argument, result or composite element whose target is an
+  interface, or `any(x)`), so the emitter knows the static type at that
+  point. For each named type that is ever converted to an interface, the
+  crate gets a wrapper, `struct CelsiusIface(f64);` (named by the namer, so
+  it cannot collide), and the conversion wraps: `Box::new(CelsiusIface(c))`
+  or the interface RFC's chosen representation (a trait object or a tagged
+  enum of the types converted in the program). Code that never converts a
+  named type to an interface never sees the wrapper.
+- **Method sets attach to the wrapper.** The interface's trait is
+  implemented for `CelsiusIface` by calling the free functions this RFC
+  emits (`celsius_string(self.0)`), so each method exists once, and
+  `Celsius` and `Fahrenheit` get separate impls although both are `f64`.
+- **`%v`, `%s` and `%T` through an interface** dispatch on the wrapper:
+  `Error`, then `String`, by the same `handleMethods` rule as below, and
+  `%T` prints the Go name the wrapper records (`main.Celsius`).
+- **Assertions and type switches back** (`s.(Celsius)`, `case Fahrenheit:`)
+  test the wrapper's identity (`Any::downcast_ref::<CelsiusIface>()` or the
+  enum's variant) and unwrap `.0`, which is the alias representation again.
+
+Nothing in the alias representation makes this harder:
+
+- Each named type keeps a stable Rust identifier: its alias name (`Celsius`)
+  and the prefix of its method functions (`celsius_`) are given once by the
+  namer for the whole crate, so a later wrapper `CelsiusIface` and its impls
+  can be derived from them without renaming anything.
+- The boundary is the same either way: a newtype would also have to be boxed
+  or tagged to become an interface value, so the wrapper costs nothing this
+  RFC avoided. What changes is only where the distinct Rust type first
+  appears: at interface conversions instead of everywhere.
+- Values that never enter an interface keep the underlying representation,
+  so the arithmetic paths and RFC 0006's proven ranges stay as they are.
+
+**Readability.** The emitted Rust for these types uses aliases and calls
+like `celsius_fahrenheit(c)` rather than newtypes and `c.fahrenheit()`. The
+project's claims are about speed and behaviour (identical to hand-written
+Rust, equal to Go), not about the emitted code's style. On 2026-11-22 neither
+the README nor gopatina.org claims idiomatic method syntax for the emitted
+Rust, and pages describing this feature will show the actual output.
+
 ## Compatibility
 
 Default mode is unchanged. Patina mode only accepts programs it rejected
