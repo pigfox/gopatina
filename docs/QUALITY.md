@@ -47,13 +47,19 @@ test is a defect, and p₀ = 3.4 × 10⁻⁶.
   6 − 1.5 = 4.5σ, and P(Z > 4.5) ≈ 3.4 × 10⁻⁶, that is 3.4 defects per
   million opportunities (DPMO).
 - **Hypotheses.** H₀: p ≥ p₀; H₁: p < p₀.
-- **Test.** With 0 defects in N independent tests, the exact one-sided 95%
-  upper bound on p is 1 − 0.05<sup>1/N</sup>, which is below −ln(0.05) / N ≈ 3 / N
-  (the rule of three, Hanley and Lippman-Hand 1983). H₀ is rejected at the 5%
-  level when N ≥ −ln(0.05) / p₀ = **881,098**.
-- **Confidence.** This bar is at 95% confidence, the usual reading of Six
-  Sigma. The same rate at the speed bar's confidence needs more tests: with
-  0 defects, N ≥ −ln(α) / p₀, that is 4,430,882 tests at 5σ and 6,099,050 at 6σ.
+- **Test.** With 0 defects in N independent tests, the exact one-sided upper
+  bound on p at confidence 1 − α is 1 − α<sup>1/N</sup>, which is below
+  −ln(α) / N. H₀ is rejected at level α when N ≥ −ln(α) / p₀.
+- **The bar: 6σ confidence.** α = P(Z > 6) = Φ(−6) ≈ 9.87 × 10⁻¹⁰, so the bar
+  is met by 0 defects in at least **6,099,050** tests. The project lead chose
+  the higher confidence on 2026-11-21: "I think the higher sigma is better,
+  right?"
+- **The milestone: 95% confidence.** α = 0.05, the usual reading of Six
+  Sigma: 0 defects in at least 881,098 tests, where −ln(0.05) / N ≈ 3 / N is
+  the rule of three (Hanley and Lippman-Hand 1983). It is reported on the
+  way to the bar, as a milestone, not as the bar.
+- **Between them,** 5σ confidence (α ≈ 2.87 × 10⁻⁷, the speed bar's) would
+  need 4,430,882 tests.
 - **What it covers.** The bound is for programs drawn from GoPatina's
   generator (below), inside the phase 1 subset; it says nothing directly
   about other programs.
@@ -128,18 +134,31 @@ range, an explicit `panic`, or a cube nest one past its RFC 0006
 threshold, where the general copy must reproduce Go's wrap-around and index
 panic. It must match Go's output, the first line of
 Go's standard error and Go's exit status. Programs and panic cases together
-are the tests. With no defect among N tests, the 95% upper bound on the
-defect rate is below -ln(0.05) / N; 881,098 defect-free tests bound it at 3.4
-defects per million, the Six Sigma bar ([above](#correctness-the-six-sigma-bar-at-most-34-defects-per-million)). A long run belongs on the test server, not a workstation:
+are the tests. With no defect among N tests, the upper bound on the defect
+rate at confidence 1 − α is below −ln(α) / N: 881,098 defect-free tests bound
+it at 3.4 per million with 95% confidence (the milestone), and 6,099,050 with
+6σ confidence (the bar, [above](#correctness-the-six-sigma-bar-at-most-34-defects-per-million)).
+A long run belongs on the test server, not a workstation. With 150 programs
+to a batch, each part of 98,000 programs is 98,654 tests (one panic case per
+batch); parts 0 to 8 (887,886 tests) reach the milestone, and parts 0 to 61
+(6,116,548 tests) the bar:
 
 ```sh
 go build -o gopatina ./cmd/gopatina && go build -o gopatina-difftest ./cmd/gopatina-difftest
-./gopatina-difftest -seed 1 -programs 882000 -per 150 -jobs 6 \
-  -gopatina ./gopatina -failures difftest-failures >difftest.json 2>difftest.log
+for i in $(seq 0 61); do
+  ./gopatina-difftest -seed 1 -start $((i*98000)) -programs 98000 -per 150 -jobs 6 \
+    -gopatina ./gopatina -failures difftest-failures \
+    >difftest-part$i.json 2>difftest-part$i.log
+done
 ```
 
-The report (`difftest.json`) gives programs, panic cases, tests, defects,
-defects per million tests and the bound; `difftest.log` lists each batch as it finishes, and failing
+Each part is independent of the others (program k depends only on the seed
+and k), so a stopped run resumes at the first part without a report, and
+the parts' tests add up.
+
+Each report (`difftest-part<i>.json`) gives programs, panic cases, tests,
+defects, defects per million tests and, with no defects, the 95% and 6σ
+bounds for that part; `difftest.log` lists each batch as it finishes, and failing
 batches are kept with both outputs under `difftest-failures`.
 
 | Phase | Required test layers (in addition to 100% unit coverage) |

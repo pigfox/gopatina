@@ -160,6 +160,11 @@ func TestPageSEO(t *testing.T) {
 			t.Errorf("page does not contain %q", want)
 		}
 	}
+	// Markdown link syntax left in the HTML shows a raw URL, which cannot
+	// wrap and widens the page on a phone (scripts/site-overflow.mjs).
+	if strings.Contains(body, "](http") {
+		t.Error("page contains a Markdown link; write it as an HTML link")
+	}
 	if strings.Contains(body, "<script>") || strings.Contains(body, "<script src") {
 		t.Error("page must not contain executable scripts")
 	}
