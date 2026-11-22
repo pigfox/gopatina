@@ -5,5 +5,5 @@
 ./main.go:67:7: receiver t is a shared borrow: Size only reads it
 ./main.go:92:11: parameter x is a shared borrow: kind only reads it
 ./main.go:115:11: parameter x is a shared borrow: sort only reads it
-./main.go:143:22: copied sc into asNamed: sc is used again on line 144; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:143:22: copied sc into asNamed: sc is used again on line 144; a copy of an interface value holds the same value, which no copy can change, so a copy keeps the program's meaning
 ./main.go:147:8: copied h into h2: h is used again on line 148; Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning
