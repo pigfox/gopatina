@@ -44,7 +44,7 @@ the exact error committed beside it.
 | Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string, `min` and `max` (Go 1.21, integers only) |
 | Pointers | only as borrows: `p := &x`, `p := &T{...}`, pointer parameters and receivers |
 | `fmt` | `Print`, `Println`, `Printf`, `Sprint`, `Sprintln`, `Sprintf`, `Fprint`, `Fprintln`, `Fprintf` (to an `io.Writer` parameter, `os.Stdout` or `os.Stderr`), `Errorf`; verbs `%v %d %s %t %f %x %X %c %%` with the `-`, `+` and `0` flags, a width and a precision; `%x` and `%X` also of strings and `[]byte` and with the `#` flag; values and slices of a named type printed through its `String` or `Error` method (where the method cannot panic); a width on a slice pads each element, as in Go |
-| Other functions | `strings.Contains`, `HasPrefix`, `HasSuffix`, `Index`, `Join`, `Repeat`, `TrimSpace`; `errors.New`; `os.Exit`; `slices.Clone`, `bytes.Clone` |
+| Other functions | `strings.Contains`, `HasPrefix`, `HasSuffix`, `Index`, `Join`, `Repeat`, `TrimSpace`, and (RFC 0011) `ToLower`, `ToUpper`, `EqualFold`, `Split`, `Cut`, `TrimPrefix`, `TrimSuffix`, `ReplaceAll`, `IndexByte`; `errors.New`; `os.Exit`; `slices.Clone`, `bytes.Clone` |
 
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values, interfaces other

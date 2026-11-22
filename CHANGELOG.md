@@ -162,6 +162,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Patina mode supports more of package `strings` (RFC 0011's first provided
+  API): `ToLower`, `ToUpper`, `EqualFold`, `Split`, `Cut`, `TrimPrefix`,
+  `TrimSuffix`, `ReplaceAll` and `IndexByte`, with Go's semantics: case
+  mapping and folding by Go's own Unicode tables (generated from Go 1.27,
+  Unicode 17.0.0), and `Split` and `ReplaceAll` with an empty separator as
+  Go defines them. Golden `strings_provided`; the generator calls them on
+  strings with the Unicode corners.
 - Package-level variables (RFC 0010): read-only ones as static LazyLocks
   forced in Go's initialization order (go/types' InitOrder, per package,
   before the init functions); changed numbers, booleans and structs of them

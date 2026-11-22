@@ -22,9 +22,19 @@ var StdFuncs = map[string]bool{
 	"strings.Join":      true,
 	"strings.Repeat":    true,
 	"strings.TrimSpace": true,
-	"os.Exit":           true,
-	"slices.Clone":      true,
-	"bytes.Clone":       true,
+	// RFC 0011: the first provided API of package strings.
+	"strings.ToLower":    true,
+	"strings.ToUpper":    true,
+	"strings.EqualFold":  true,
+	"strings.TrimPrefix": true,
+	"strings.TrimSuffix": true,
+	"strings.Split":      true,
+	"strings.Cut":        true,
+	"strings.IndexByte":  true,
+	"strings.ReplaceAll": true,
+	"os.Exit":            true,
+	"slices.Clone":       true,
+	"bytes.Clone":        true,
 }
 
 // StdVars lists the standard-library variables patina mode supports.

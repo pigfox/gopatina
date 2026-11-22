@@ -255,7 +255,7 @@ func TestRejected(t *testing.T) {
 		{"std value", "package main\nimport \"strings\"\nfunc main() { f := strings.Repeat; _ = f }\n", "using strings.Repeat as a value is not supported"},
 		{"std var", "package main\nimport \"os\"\nfunc main() { _ = os.Args }\n", "os.Args is not supported"},
 		{"std type", "package main\nimport \"io\"\nfunc main() { var r io.Reader; _ = r }\n", "io.Reader is not supported"},
-		{"std func", "package main\nimport \"strings\"\nfunc main() { _ = strings.ToUpper(\"x\") }\n", "strings.ToUpper is not supported"},
+		{"std func", "package main\nimport \"strings\"\nfunc main() { _ = strings.Title(\"x\") }\n", "strings.Title is not supported"},
 		{"method value", "package main\ntype T struct{}\nfunc (T) M() {}\nfunc main() { f := T{}.M; _ = f }\n", "a method value is not supported"},
 		{"method expr", "package main\ntype T struct{}\nfunc (T) M() {}\nfunc main() { f := T.M; _ = f }\n", "a method expression is not supported"},
 		{"error method", "package main\nimport \"errors\"\nfunc f() error { return errors.New(\"x\") }\nfunc main() { if err := f(); err != nil { _ = err.Error } }\n", "a method value is not supported"},
