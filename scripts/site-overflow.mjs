@@ -27,9 +27,18 @@ const proc = spawn(chrome, [
   `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank',
 ], { stdio: 'ignore' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const done = (code) => {
+// done stops Chrome, waits for it to exit so it no longer writes to its
+// profile, removes the profile, and exits; a failed clean-up of a
+// temporary directory does not change the result.
+const done = async (code) => {
+  const exited = new Promise((resolve) => proc.once('exit', resolve));
   proc.kill();
-  rmSync(profile, { recursive: true, force: true });
+  await Promise.race([exited, sleep(5000)]);
+  try {
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch {
+    // Left for the system's temporary-file clean-up.
+  }
   process.exit(code);
 };
 
@@ -46,7 +55,7 @@ for (let i = 0; i < 100 && !ws; i++) {
 }
 if (!ws) {
   console.error('site-overflow: Chrome did not start');
-  done(2);
+  await done(2);
 }
 await new Promise((r) => ws.addEventListener('open', r));
 let next = 0;
@@ -122,4 +131,4 @@ for (const width of widths) {
   }
 }
 ws.close();
-done(failed ? 1 : 0);
+await done(failed ? 1 : 0);

@@ -9,7 +9,7 @@ Rust.
 
 GoPatina holds itself to two measurable bars. Both are targets until a run on
 the test server meets them; [BENCHMARKS.md](../BENCHMARKS.md) and
-<https://gopatina.org/#evidence> give the status of each.
+<https://gopatina.org/evidence> give the status of each.
 
 ### Speed: equivalent to hand-written Rust within ±0.5%, at 5σ
 

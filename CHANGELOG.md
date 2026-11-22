@@ -59,6 +59,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- gopatina.org is several pages, each at its own address, instead of one page
+  of #anchors: overview, how it works, get started, evidence, benchmarks,
+  correctness, roadmap and FAQ, each with its own title, description,
+  canonical URL, Open Graph and Twitter tags, breadcrumb and structured data
+  (TechArticle with citations, FAQPage, HowTo), and each also served as
+  Markdown. The sitemap lists every page with its date; old #links are sent
+  to their pages by a few lines of vanilla JavaScript on the home page;
+  addresses have no trailing slash (301), and unknown ones get a 404 page.
+  Pages are written once in Markdown and rendered by the server.
 - The correctness bar is shown at 6σ confidence: 0 defects in at least
   6,099,050 differential tests (α = Φ(−6) ≈ 9.87 × 10⁻¹⁰), with 881,098 tests
   at 95% as the milestone on the way. `gopatina-difftest` reports both

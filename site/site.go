@@ -12,13 +12,13 @@ import (
 	"strings"
 )
 
-//go:embed templates/index.html content static
+//go:embed templates/page.html content static
 var files embed.FS
 
 // siteFS is where the server reads its files from; replaceable in tests.
 var siteFS fs.FS = files
 
-// Site-wide facts, used by the page, the Markdown version and the sitemap.
+// Site-wide facts, used by the pages, their Markdown and the sitemap.
 const (
 	siteURL     = "https://gopatina.org/"
 	lastUpdated = "2026-11-21"
@@ -41,7 +41,7 @@ const (
 // securityHeaders are sent with every response. HSTS is left to the TLS
 // proxy in front of the server.
 var securityHeaders = map[string]string{
-	"Content-Security-Policy":      "default-src 'none'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+	"Content-Security-Policy":      "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 	"X-Content-Type-Options":       "nosniff",
 	"X-Frame-Options":              "DENY",
 	"Referrer-Policy":              "strict-origin-when-cross-origin",
@@ -69,10 +69,18 @@ func hashedName(name string, body []byte) string {
 
 // pageData is what the page template needs.
 type pageData struct {
-	CSS         string
-	Favicon     string
-	LastUpdated string
-	URL         string
+	page
+	URL, Markdown, CSS, Favicon, Script, OGType string
+	H1                                          string
+	Body                                        template.HTML
+	JSONLD                                      template.JS
+	Nav                                         []navItem
+}
+
+// navItem is one link of the site navigation.
+type navItem struct {
+	Path, Name string
+	Current    bool
 }
 
 // newHandler builds every response from the embedded files and returns the
@@ -84,6 +92,7 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 	for _, f := range []struct{ name, ctype string }{
 		{"style.css", "text/css; charset=utf-8"},
 		{"favicon.svg", "image/svg+xml"},
+		{"anchors.js", "text/javascript; charset=utf-8"},
 	} {
 		body, err := fs.ReadFile(fsys, "static/"+f.name)
 		if err != nil {
@@ -94,38 +103,76 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 		routes[path] = newResource(body, f.ctype, cacheImmutable)
 	}
 
-	tmpl, err := template.ParseFS(fsys, "templates/index.html")
+	tmpl, err := template.ParseFS(fsys, "templates/page.html")
 	if err != nil {
 		return nil, err
 	}
-	var page bytes.Buffer
-	data := pageData{CSS: static["style.css"], Favicon: static["favicon.svg"], LastUpdated: lastUpdated, URL: siteURL}
-	if err := tmpl.Execute(&page, data); err != nil {
-		return nil, err
+	var nav []navItem
+	for _, q := range pages {
+		if !q.NoIndex {
+			nav = append(nav, navItem{Path: q.Path, Name: q.Crumb})
+		}
 	}
-	routes["/"] = newResource(page.Bytes(), "text/html; charset=utf-8", cacheShort)
+	// build renders one page, and returns it with its Markdown source.
+	build := func(p page) (*resource, []byte, error) {
+		src, err := fs.ReadFile(fsys, "content/pages/"+p.File+".md")
+		if err != nil {
+			return nil, nil, err
+		}
+		d := render(string(src))
+		data := pageData{
+			page: p, URL: p.url(), Markdown: p.markdownPath(), CSS: static["style.css"], Favicon: static["favicon.svg"],
+			OGType: "article", H1: d.Title, Body: template.HTML(d.HTML), JSONLD: p.jsonLD(d),
+		}
+		if p.Path == "/" {
+			// The home page has no breadcrumb, and sends old #links on.
+			data.OGType, data.Script, data.page.Crumb = "website", static["anchors.js"], ""
+		}
+		if p == notFoundPage {
+			data.Markdown = "" // the 404 page has no Markdown version
+		}
+		for _, n := range nav {
+			n.Current = n.Path == p.Path
+			data.Nav = append(data.Nav, n)
+		}
+		var b bytes.Buffer
+		if err := tmpl.Execute(&b, data); err != nil {
+			return nil, nil, err
+		}
+		return newResource(b.Bytes(), "text/html; charset=utf-8", cacheShort), src, nil
+	}
 
-	for _, f := range []struct{ path, file, ctype string }{
-		{"/index.md", "content/index.md", "text/markdown; charset=utf-8"},
-		{"/llms.txt", "content/llms.txt", "text/plain; charset=utf-8"},
-	} {
-		body, err := fs.ReadFile(fsys, f.file)
+	var sitemap, llms strings.Builder
+	sitemap.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+	for _, p := range pages {
+		res, src, err := build(p)
 		if err != nil {
 			return nil, err
 		}
-		routes[f.path] = newResource(body, f.ctype, cacheShort)
+		routes[p.Path] = res
+		routes[p.markdownPath()] = newResource(src, "text/markdown; charset=utf-8", cacheShort)
+		if !p.NoIndex {
+			sitemap.WriteString("  <url><loc>" + p.url() + "</loc><lastmod>" + p.Updated + "</lastmod></url>\n")
+			llms.WriteString("- [" + p.Crumb + "](" + p.url() + "): " + p.Description + " As Markdown: " + siteURL + p.markdownPath()[1:] + "\n")
+		}
 	}
+	sitemap.WriteString("</urlset>\n")
+	routes["/sitemap.xml"] = newResource([]byte(sitemap.String()), "application/xml; charset=utf-8", cacheShort)
 
+	head, err := fs.ReadFile(fsys, "content/llms.txt")
+	if err != nil {
+		return nil, err
+	}
+	routes["/llms.txt"] = newResource([]byte(strings.Replace(string(head), "{{pages}}\n", llms.String(), 1)), "text/plain; charset=utf-8", cacheShort)
 	routes["/robots.txt"] = newResource([]byte("User-agent: *\nAllow: /\n\nSitemap: "+siteURL+"sitemap.xml\n"),
 		"text/plain; charset=utf-8", cacheShort)
-	routes["/sitemap.xml"] = newResource([]byte(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>`+siteURL+`</loc><lastmod>`+lastUpdated+`</lastmod></url>
-</urlset>
-`), "application/xml; charset=utf-8", cacheShort)
 	routes["/healthz"] = newResource([]byte("ok\n"), "text/plain; charset=utf-8", "no-store")
 
-	notFound := newResource([]byte("404 page not found\n"), "text/plain; charset=utf-8", "no-store")
+	notFound, _, err := build(notFoundPage)
+	if err != nil {
+		return nil, err
+	}
+	notFound.cache = "no-store"
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -137,13 +184,31 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		res, ok := routes[r.URL.Path]
+		path := r.URL.Path
+		// One address per page: no trailing slash, and / for /index.html.
+		if target := canonicalPath(path); target != path && routes[target] != nil {
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
+			return
+		}
+		res, ok := routes[path]
 		status := http.StatusOK
 		if !ok {
 			res, status = notFound, http.StatusNotFound
 		}
 		serve(w, r, res, status)
 	}), nil
+}
+
+// canonicalPath returns the one address of a page that path may also be
+// written as: without trailing slashes, and / for /index.html.
+func canonicalPath(path string) string {
+	if path == "/index.html" {
+		return "/"
+	}
+	if trimmed := strings.TrimRight(path, "/"); trimmed != "" {
+		return trimmed
+	}
+	return "/"
 }
 
 // serve writes res, gzipped when the client accepts it.

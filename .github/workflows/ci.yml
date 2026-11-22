@@ -76,10 +76,16 @@ jobs:
           go build -o /tmp/gopatina-site ./site
           GOPATINA_SITE_ADDR=127.0.0.1:8590 /tmp/gopatina-site &
           for i in $(seq 1 50); do curl -fs http://127.0.0.1:8590/healthz && break; sleep 0.2; done
-      - name: check widths 320 to 430 px (scripts/site-overflow.mjs)
+      - name: check widths 320 to 430 px on every page (scripts/site-overflow.mjs)
         # The runner image has Chrome and Node; the script uses neither
-        # packages nor the network beyond the local page.
-        run: node scripts/site-overflow.mjs "$(command -v google-chrome)" http://127.0.0.1:8590/
+        # packages nor the network beyond the local pages. Every page of
+        # the sitemap is checked, and the 404 page.
+        run: |
+          pages=$(curl -fs http://127.0.0.1:8590/sitemap.xml | grep -o '<loc>[^<]*' | sed 's|<loc>https://gopatina.org/|/|')
+          for p in $pages /no-such-page; do
+            echo "== $p"
+            node scripts/site-overflow.mjs "$(command -v google-chrome)" "http://127.0.0.1:8590$p"
+          done
 
   fuzz:
     name: fuzz (parser, checker, emitter)
