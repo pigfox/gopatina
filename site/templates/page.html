@@ -15,6 +15,7 @@
 <link rel="icon" type="image/svg+xml" href="{{.Favicon}}">
 <link rel="stylesheet" href="{{.CSS}}">
 <noscript><link rel="stylesheet" href="{{.NoJSCSS}}"></noscript>
+<link rel="alternate" type="application/atom+xml" title="GoPatina blog" href="/blog/feed.xml">
 <script src="{{.NavScript}}" defer></script>
 {{- if .Script}}
 <script src="{{.Script}}" defer></script>
@@ -49,7 +50,7 @@
 </header>
 <main class="wrap">
 {{- if .Crumb}}
-  <nav aria-label="Breadcrumb" class="crumbs"><a href="/">GoPatina</a> <span aria-hidden="true">›</span> <span aria-current="page">{{.Crumb}}</span></nav>
+  <nav aria-label="Breadcrumb" class="crumbs"><a href="/">GoPatina</a> <span aria-hidden="true">›</span> {{if .ParentPath}}<a href="{{.ParentPath}}">{{.ParentName}}</a> <span aria-hidden="true">›</span> {{end}}<span aria-current="page">{{.Crumb}}</span></nav>
 {{- end}}
   <h1>{{.H1}}</h1>
 {{.Body}}
