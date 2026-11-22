@@ -3,8 +3,9 @@
 // usage: node scripts/site-overflow.mjs CHROME URL
 //
 // It starts headless Chrome (or Chromium) with its DevTools protocol, loads
-// URL at the phone widths 320, 360, 390, 412 and 430 CSS pixels, and fails
-// if the page is wider than the viewport at any of them, printing the
+// URL at the phone widths 320, 360, 390, 412 and 430 CSS pixels and the
+// tablet and desktop widths 768, 1024 and 1440, and fails if the page is
+// wider than the viewport at any of them, printing the
 // elements that stick out. Content inside its own scroll container (a code
 // block or a wide table with overflow-x: auto) does not count: it scrolls
 // on its own, not the page. Node 22 or later (for the built-in WebSocket);
@@ -19,7 +20,7 @@ if (!chrome || !url) {
   console.error('usage: node scripts/site-overflow.mjs CHROME URL');
   process.exit(2);
 }
-const widths = [320, 360, 390, 412, 430];
+const widths = [320, 360, 390, 412, 430, 768, 1024, 1440];
 const port = 9222 + Math.floor(Math.random() * 1000);
 const profile = mkdtempSync(join(tmpdir(), 'site-overflow-'));
 const proc = spawn(chrome, [
@@ -109,7 +110,7 @@ const measure = `(() => {
 let failed = false;
 await send('Page.enable');
 for (const width of widths) {
-  await send('Emulation.setDeviceMetricsOverride', { width, height: 800, deviceScaleFactor: 2, mobile: true });
+  await send('Emulation.setDeviceMetricsOverride', { width, height: 800, deviceScaleFactor: 2, mobile: width < 768 });
   const loaded = new Promise((resolve) => {
     const on = (e) => {
       if (JSON.parse(e.data).method === 'Page.loadEventFired') {

@@ -70,11 +70,11 @@ func hashedName(name string, body []byte) string {
 // pageData is what the page template needs.
 type pageData struct {
 	page
-	URL, Markdown, CSS, Favicon, Script, OGType string
-	H1                                          string
-	Body                                        template.HTML
-	JSONLD                                      template.JS
-	Nav                                         []navItem
+	URL, Markdown, CSS, NoJSCSS, Favicon, Script, NavScript, OGType string
+	H1                                                              string
+	Body                                                            template.HTML
+	JSONLD                                                          template.JS
+	Nav                                                             []navItem
 }
 
 // navItem is one link of the site navigation.
@@ -91,8 +91,10 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 	static := map[string]string{}
 	for _, f := range []struct{ name, ctype string }{
 		{"style.css", "text/css; charset=utf-8"},
+		{"nojs.css", "text/css; charset=utf-8"},
 		{"favicon.svg", "image/svg+xml"},
 		{"anchors.js", "text/javascript; charset=utf-8"},
+		{"nav.js", "text/javascript; charset=utf-8"},
 	} {
 		body, err := fs.ReadFile(fsys, "static/"+f.name)
 		if err != nil {
@@ -121,7 +123,7 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 		}
 		d := render(string(src))
 		data := pageData{
-			page: p, URL: p.url(), Markdown: p.markdownPath(), CSS: static["style.css"], Favicon: static["favicon.svg"],
+			page: p, URL: p.url(), Markdown: p.markdownPath(), CSS: static["style.css"], NoJSCSS: static["nojs.css"], Favicon: static["favicon.svg"], NavScript: static["nav.js"],
 			OGType: "article", H1: d.Title, Body: template.HTML(d.HTML), JSONLD: p.jsonLD(d),
 		}
 		if p.Path == "/" {
