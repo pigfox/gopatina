@@ -10,6 +10,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A match arm whose only statement is a `match` or a `loop`, or a switch with
+  an init statement, is written the way rustfmt writes it, so the emitted
+  crate stays rustfmt-clean. Crates allow `clippy::manual_rem_euclid` and
+  `clippy::nonminimal_bool`, patterns the Go source controls.
 - A left operand of <, <= or << that ends with a cast, such as
   i as i64 * i as i64 << 27, is parenthesized, so rustc no longer reads it
   as generic arguments; the defect-rate run found the case on the test
@@ -59,6 +63,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- The Go oracle of the differential tests (`gopatina-difftest` and the golden
+  `TestDifferential`) is Go's reference build, `go build -gcflags=all=-N -l`.
+  The generated tests found two programs whose optimized gc build (Go 1.25.0
+  to 1.27.1, amd64) prints results that contradict the specification and a
+  hand calculation, while the reference build and GoPatina agree; both,
+  reduced, are golden programs (`gc_inline_carry_1`, `_2`).
+  `gopatina-difftest` still builds each batch optimized too and reports
+  programs whose two Go builds disagree as `go_disagreements`, kept for
+  review and not counted as defects.
 - `bench/run.sh` builds GoPatina's crate and the hand-written Rust with the
   same rustc by default (`--toolchain same`, `--rust stable`), the official
   comparison, and records the rustc that built each binary, read from the

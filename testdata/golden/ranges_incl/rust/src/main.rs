@@ -16,11 +16,13 @@
 #![allow(clippy::eq_op)] // the Go source may compare a value with itself
 #![allow(clippy::format_in_format_args)] // fmt.Sprintf maps to format!
 #![allow(clippy::manual_range_contains)] // the Go source controls the comparison
+#![allow(clippy::manual_rem_euclid)] // the Go source computes the remainder as written
 #![allow(clippy::manual_unwrap_or)] // Go's error patterns map to match
 #![allow(clippy::manual_unwrap_or_default)] // Go's error patterns map to match
 #![allow(clippy::mut_range_bound)] // Go allows changing a range bound
 #![allow(clippy::needless_range_loop)] // the Go source indexes by position
 #![allow(clippy::needless_return)] // the Go source controls the returns
+#![allow(clippy::nonminimal_bool)] // the Go source controls the condition
 #![allow(clippy::only_used_in_recursion)] // Go functions may recurse
 #![allow(clippy::reversed_empty_ranges)] // the Go source controls the range
 #![allow(clippy::should_implement_trait)] // Go function names are kept as written

@@ -41,6 +41,55 @@ chmod +x "$out"
 	return path
 }
 
+// twoGo writes a stand-in for go whose reference build (-gcflags=all=-N -l)
+// behaves like ref, and whose plain build behaves like opt; each is a
+// fakeTool.
+func twoGo(t *testing.T, ref, opt string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "go")
+	script := "#!/bin/sh\ncase \"$*\" in\n*-gcflags=all=-N\\ -l*) exec '" + ref + "' \"$@\" ;;\n*) exec '" + opt + "' \"$@\" ;;\nesac\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// TestGoDisagreements checks that patina is compared with Go's reference
+// build, and that a plain Go build that prints something else is recorded
+// as a Go disagreement, not a defect.
+func TestGoDisagreements(t *testing.T) {
+	ref := fakeTool(t, "goref", false, "x", "true")
+	p := fakeTool(t, "gopatina", false, "x", "true")
+	fail := t.TempDir()
+	for _, tc := range []struct {
+		name      string
+		opt       string
+		disagreed int
+	}{
+		{"different output", fakeTool(t, "goopt", false, "y", "true"), 6},
+		{"different exit", fakeTool(t, "goopt", false, "x", "echo panic: x >&2; exit 2"), 2},
+		{"agreeing", fakeTool(t, "goopt", false, "x", "true"), 0},
+	} {
+		code, out, errs := difftest("-programs", "4", "-per", "2", "-go", twoGo(t, ref, tc.opt), "-gopatina", p, "-failures", fail)
+		var r report
+		json.Unmarshal([]byte(out), &r)
+		if code != 0 || r.Defects != 0 || r.GoDisagreements != tc.disagreed || !strings.Contains(errs, "Go disagreements") {
+			t.Errorf("%s: code %d, report %s, stderr %s", tc.name, code, out, errs)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(fail, "seed1-b0", "goref.out")); err != nil {
+		t.Error("a disagreeing batch is not kept:", err)
+	}
+	code, _, errs := difftest("-programs", "1", "-go", twoGo(t, fakeTool(t, "goref", true, "", ""), p), "-gopatina", p)
+	if code != 1 || !strings.Contains(errs, "go build (reference)") {
+		t.Errorf("reference build failure: %d %s", code, errs)
+	}
+	code, _, errs = difftest("-programs", "1", "-go", twoGo(t, ref, fakeTool(t, "goopt", true, "", "")), "-gopatina", p)
+	if code != 1 || !strings.Contains(errs, "go build:") {
+		t.Errorf("plain build failure: %d %s", code, errs)
+	}
+}
+
 func difftest(args ...string) (int, string, string) {
 	var out, errb bytes.Buffer
 	code := run(args, &out, &errb)
@@ -198,8 +247,9 @@ func TestSummarizeTruncates(t *testing.T) {
 	for k := range 150 {
 		bad = append(bad, k)
 	}
-	r := summarize(config{programs: 999}, []outcome{{first: 0, n: 150, mismatched: bad}})
-	if r.Defects != 150 || r.Tests != 1000 || len(r.FailedPrograms) != 100 || r.DefectsPerMillion != 150000 {
+	r := summarize(config{programs: 999}, []outcome{{first: 0, n: 150, mismatched: bad, goDisagree: bad}})
+	if r.Defects != 150 || r.Tests != 1000 || len(r.FailedPrograms) != 100 || r.DefectsPerMillion != 150000 ||
+		r.GoDisagreements != 150 || len(r.GoDisagreementPrograms) != 100 {
 		t.Errorf("%+v", r)
 	}
 }

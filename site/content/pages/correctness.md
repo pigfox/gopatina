@@ -1,6 +1,6 @@
 # GoPatina correctness: differential tests against Go
 
-A program compiled through Rust is only useful if it does exactly what the Go program does. GoPatina checks that by differential testing: the same program is built with `go build` and with `gopatina build -patina`, and both must print the same standard output, the same first line of standard error, and exit with the same status.
+A program compiled through Rust is only useful if it does exactly what the Go program does. GoPatina checks that by differential testing: the same program is built with Go's reference build (`go build -gcflags=all=-N -l`, optimization and inlining off) and with `gopatina build -patina`, and both must print the same standard output, the same first line of standard error, and exit with the same status.
 
 ## The Six Sigma bar {#bar}
 
@@ -8,7 +8,7 @@ The bar is at most 3.4 defects per million tests, the Six Sigma rate, shown at 6
 
 ## How programs are checked {#checks}
 
-- **Golden programs.** 93 hand-written Go programs, each with the exact Rust it must produce, are built both ways in CI on every change, and must match Go. 24 rejection fixtures and 3 Go-only semantics counterexamples pin down what must be refused.
+- **Golden programs.** 95 hand-written Go programs, each with the exact Rust it must produce, are built both ways in CI on every change, and must match Go. 24 rejection fixtures and 3 Go-only semantics counterexamples pin down what must be refused.
 - **Generated programs.** `cmd/gopatina-difftest` builds random programs from GoPatina's generator, inside the phase 1 subset: wrapping integer arithmetic, shifts, slices, `append`, `switch`, formatted printing and the loop nests that RFC 0006 specializes, some at exactly their thresholds.
 - **Panic cases.** Each batch of generated programs ends with one that panics at run time (an index out of range, a division by zero, a `make` out of range, an explicit `panic`), and GoPatina must panic with Go's message and Go's exit status.
 - **Reproducible builds.** Emitted Rust is byte-identical for the same input, and `gopatina verify` checks that a `-patina` binary has the same sha256 as a plain `cargo build --release --locked` of the emitted crate.
@@ -20,6 +20,10 @@ The bar is at most 3.4 defects per million tests, the Six Sigma rate, shown at 6
 | --- | --- | --- |
 | 2026-11-21, by hand | `make` with a negative length known only at run time panicked with Rust's message instead of Go's | with five golden programs |
 | 2026-11-22, by the generated tests on the test server | an expression such as `a*b << 27` whose left side ended in a conversion did not compile as Rust | with a golden program and a generator case |
+
+## When Go itself is wrong {#go-disagreements}
+
+On 2026-11-22 the generated tests reported two programs where GoPatina's output differed from `go build`'s. Both times GoPatina was right: the optimized gc build (Go 1.25.0 to 1.27.1, amd64) printed a result that contradicts the language specification and a hand calculation, while gc with optimization and inlining off agreed with GoPatina. A test whose oracle can be wrong measures the oracle too, so the oracle is now Go's reference build, `go build -gcflags=all=-N -l`. Every batch is still built optimized as well, and a program whose two Go builds disagree is recorded and kept for review as a Go compiler disagreement, never counted as a GoPatina defect and never silently passed. Both programs, reduced, are golden tests.
 
 A defect found is a defect the bar's run would also have counted, so the long run starts again from the beginning with each fixed compiler. Development smoke runs (1,318 generated tests on a laptop, 0 defects) are far below the bar and are not evidence for it.
 

@@ -992,10 +992,10 @@ func (g *gen) match(s *ast.SwitchStmt) {
 			tv := g.info.Types[e]
 			pats = append(pats, constLit(tv.Value, g.typeOf(s.Tag)))
 		}
-		g.arm(strings.Join(pats, " | "), cc.Body)
+		g.arm(strings.Join(pats, " | "), cc)
 	}
 	if def != nil {
-		g.arm("_", def.Body)
+		g.arm("_", def)
 	} else {
 		g.line("_ => {}")
 	}
@@ -1004,9 +1004,13 @@ func (g *gen) match(s *ast.SwitchStmt) {
 }
 
 // arm writes one match arm.
-func (g *gen) arm(pat string, body []ast.Stmt) {
+func (g *gen) arm(pat string, cc *ast.CaseClause) {
+	body := cc.Body
 	if len(withoutBreak(body)) == 0 {
 		g.line(pat + " => {}")
+		return
+	}
+	if g.bareArm(pat, cc) {
 		return
 	}
 	g.line(pat + " => {")
@@ -1016,6 +1020,56 @@ func (g *gen) arm(pat string, body []ast.Stmt) {
 	g.ind--
 	g.labels = g.labels[:len(g.labels)-1]
 	g.line("}")
+}
+
+// bareArm writes an arm whose only statement is a match or a loop the way
+// rustfmt does, without a block around it: pat => match x { ... },. It
+// reports false, and writes nothing, for any other arm, and for one with a
+// comment, which keeps its block.
+func (g *gen) bareArm(pat string, cc *ast.CaseClause) bool {
+	body := withoutBreak(cc.Body)
+	if len(body) != 1 || g.hasLineCommentsBetween(cc.Colon, cc.End()) {
+		return false
+	}
+	switch s := body[0].(type) {
+	case *ast.SwitchStmt:
+		if !g.matchable(s) {
+			return false
+		}
+	case *ast.ForStmt:
+		if s.Init != nil || s.Cond != nil {
+			return false
+		}
+	default:
+		return false
+	}
+	var b strings.Builder
+	out := g.out
+	g.out = &b
+	g.labels = append(g.labels, label{isSwitch: true})
+	g.stmt(body[0])
+	g.labels = g.labels[:len(g.labels)-1]
+	g.out = out
+	indent := strings.Repeat(" ", g.ind*indentWidth)
+	lines := strings.Split(strings.TrimSuffix(b.String(), "\n"), "\n")
+	// The first line is "match ...", "loop {", or "{" for a switch with
+	// an init statement: hoist never writes before a switch or a loop, and
+	// a loop without init or condition is never specialized (ranges.go).
+	first := strings.TrimPrefix(lines[0], indent)
+	if first == "{" {
+		// A block of its own, which scopes an init statement: the arm's
+		// block scopes it as well, and rustfmt drops the inner one.
+		g.line(pat + " => {")
+		// It was written at the arm's indentation, so its lines are
+		// already where the arm's body goes.
+		g.out.WriteString(strings.Join(lines[1:len(lines)-1], "\n") + "\n")
+		g.line("}")
+		return true
+	}
+	lines[0] = indent + pat + " => " + first
+	lines[len(lines)-1] += ","
+	g.out.WriteString(strings.Join(lines, "\n") + "\n")
+	return true
 }
 
 func withoutBreak(body []ast.Stmt) []ast.Stmt {
