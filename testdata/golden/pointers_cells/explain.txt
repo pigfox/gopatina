@@ -6,4 +6,4 @@
 ./main.go:32:10: parameter x is an exclusive borrow: inc changes it, and the caller sees the change
 ./main.go:45:11: parameter c is owned: hold keeps it
 ./main.go:47:7: receiver c is a shared borrow: Hit only reads it
-./main.go:67:7: copied x into y: x is used again on line 68; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:67:7: copied x into y: x is used again on line 68; a copy of a pointer points at the same variable, as Go's does (RFC 0013)

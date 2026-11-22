@@ -52,6 +52,8 @@ func (l *live) handOff(ev event, lv set) {
 	switch {
 	case k == Shared:
 		reason = fmt.Sprintf("%s neither keeps it nor changes what it shares, so a copy behaves like Go's", ev.into)
+	case heapPtrType(t):
+		reason = "a copy of a pointer points at the same variable, as Go's does (RFC 0013)"
 	case isStruct(t):
 		reason = "Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning"
 	}

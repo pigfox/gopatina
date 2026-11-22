@@ -2,5 +2,5 @@
 ./main.go:14:11: parameter head is owned: push keeps it
 ./main.go:21:15: moved list into push: list is not used afterwards
 ./main.go:23:11: moved list into n: list is not used afterwards
-./main.go:28:7: copied c into d: c is used again on line 30; Go strings are immutable, so a copy keeps the program's meaning
-./main.go:34:7: copied p into q: p is used again on line 36; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:28:7: copied c into d: c is used again on line 30; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
+./main.go:34:7: copied p into q: p is used again on line 36; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
