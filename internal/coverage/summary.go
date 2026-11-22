@@ -2,7 +2,9 @@ package coverage
 
 import (
 	"math/rand/v2"
+	"regexp"
 	"sort"
+	"strings"
 )
 
 // A Rate is a share with its 95% bootstrap interval: packages are drawn
@@ -54,6 +56,71 @@ type Summary struct {
 	Std        Group              `json:"std"`
 	ThirdParty Group              `json:"third_party"`
 	Modules    map[string]float64 `json:"function_rate_by_module"`
+	// TopMessages are the most frequent diagnostics of each feature.
+	TopMessages map[string][]MessageCount `json:"top_messages"`
+	// ForeignTypes counts the diagnostics about a type from another package
+	// by where the type is declared: the measured package's own module,
+	// the standard library, or another module.
+	ForeignTypes map[string]int `json:"foreign_types_by_origin"`
+}
+
+// A MessageCount is a diagnostic message and how often it was given.
+type MessageCount struct {
+	Message string `json:"message"`
+	Count   int    `json:"count"`
+}
+
+// topPerFeature is how many messages TopMessages keeps for each feature.
+const topPerFeature = 25
+
+var foreignPathRE = regexp.MustCompile(`type [*\[\]]*([a-z][^ \[]*)\.[A-Za-z_]`)
+
+// origin says where the type named in a "types from other packages"
+// diagnostic of a package in module is declared.
+func origin(msg, module string) string {
+	m := foreignPathRE.FindStringSubmatch(msg)
+	switch {
+	case m == nil:
+		return "unknown"
+	case module != "std" && (m[1] == module || strings.HasPrefix(m[1], module+"/")):
+		return "same module"
+	case !strings.Contains(strings.SplitN(m[1], "/", 2)[0], "."):
+		return "standard library"
+	}
+	return "other modules"
+}
+
+// messages computes TopMessages and ForeignTypes.
+func messages(pkgs []Package) (map[string][]MessageCount, map[string]int) {
+	byFeature := map[string]map[string]int{}
+	foreign := map[string]int{}
+	for _, p := range pkgs {
+		for msg, n := range p.Messages {
+			f := Feature(msg)
+			if byFeature[f] == nil {
+				byFeature[f] = map[string]int{}
+			}
+			byFeature[f][msg] += n
+			if f == "types from other packages" {
+				foreign[origin(msg, p.Module)] += n
+			}
+		}
+	}
+	top := map[string][]MessageCount{}
+	for f, ms := range byFeature {
+		var list []MessageCount
+		for m, n := range ms {
+			list = append(list, MessageCount{m, n})
+		}
+		sort.Slice(list, func(i, j int) bool {
+			if list[i].Count != list[j].Count {
+				return list[i].Count > list[j].Count
+			}
+			return list[i].Message < list[j].Message
+		})
+		top[f] = list[:min(len(list), topPerFeature)]
+	}
+	return top, foreign
 }
 
 // Summarize computes the summary of pkgs, with boot bootstrap draws from
@@ -71,6 +138,7 @@ func Summarize(pkgs []Package, boot int, seed uint64) Summary {
 		All: group(pkgs, boot, seed), Std: group(std, boot, seed), ThirdParty: group(third, boot, seed),
 		Modules: map[string]float64{},
 	}
+	s.TopMessages, s.ForeignTypes = messages(pkgs)
 	for m, ps := range byModule(pkgs) {
 		c := count(ps)
 		s.Modules[m] = ratio(c.funcs[0], c.funcs[1])

@@ -1,6 +1,7 @@
 package coverage
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"strings"
@@ -291,5 +292,50 @@ func TestSummarizeEdges(t *testing.T) {
 	odd := []Package{{Path: "z", Module: "std", Funcs: []Func{{Name: "f", Accepted: false}}}}
 	if r := Summarize(odd, 10, 1).All.Roadmap; len(r) != 0 {
 		t.Errorf("a rejected function without features: roadmap %+v", r)
+	}
+}
+
+func TestOrigin(t *testing.T) {
+	for _, tc := range []struct{ msg, module, want string }{
+		{"type example.com/m/sub.T is not supported in patina mode yet", "example.com/m", "same module"},
+		{"type *example.com/m.T is not supported in patina mode yet", "example.com/m", "same module"},
+		{"type []strings.Builder is not supported in patina mode yet", "example.com/m", "standard library"},
+		{"type time.Duration is not supported in patina mode yet", "std", "standard library"},
+		{"type google.golang.org/grpc/metadata.MD is not supported in patina mode yet", "example.com/m", "other modules"},
+		{"type example.com/mother.T is not supported in patina mode yet", "example.com/m", "other modules"},
+		{"type Timestamp: a struct type from another package is not supported in patina mode yet", "example.com/m", "unknown"},
+	} {
+		if got := origin(tc.msg, tc.module); got != tc.want {
+			t.Errorf("origin(%q, %q) = %q, want %q", tc.msg, tc.module, got, tc.want)
+		}
+	}
+}
+
+func TestMessages(t *testing.T) {
+	foreign := "type time.Duration is not supported in patina mode yet"
+	pkgs := []Package{
+		{Module: "a.org/m", Messages: map[string]int{foreign: 2, "a map type is not supported in patina mode yet": 1}},
+		{Module: "b.org/n", Messages: map[string]int{foreign: 1, "a map type is not supported in patina mode yet": 3, "range over a map (M) is not supported in patina mode yet": 3, "range over a map (N) is not supported in patina mode yet": 3}},
+	}
+	top, origins := messages(pkgs)
+	if got := top["maps"]; len(got) != 3 || got[0].Count != 4 || got[1].Message != "range over a map (M) is not supported in patina mode yet" {
+		t.Errorf("top maps = %v", got)
+	}
+	if got := top["types from other packages"]; len(got) != 1 || got[0].Count != 3 {
+		t.Errorf("top foreign = %v", got)
+	}
+	if origins["standard library"] != 3 {
+		t.Errorf("origins = %v", origins)
+	}
+	many := map[string]int{}
+	for i := range topPerFeature + 5 {
+		many[fmt.Sprintf("a map type %d is not supported in patina mode yet", i)] = i
+	}
+	if top, _ := messages([]Package{{Messages: many}}); len(top["maps"]) != topPerFeature {
+		t.Errorf("kept %d messages", len(top["maps"]))
+	}
+	s := Summarize(pkgs, 1, 1)
+	if s.ForeignTypes["standard library"] != 3 || len(s.TopMessages["maps"]) != 3 {
+		t.Errorf("Summarize: %v %v", s.ForeignTypes, s.TopMessages)
 	}
 }
