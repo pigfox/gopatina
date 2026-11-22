@@ -189,7 +189,13 @@ fn shortest(x: f64) -> String {
     } else {
         e
     };
-    let (mantissa, exp) = e.split_once('e').unwrap_or((&e, "0"));
+    layout(&e)
+}
+
+/// Lays out Rust's {:e} digits the way Go's %v does: an exponent below
+/// 1e-4 and from 1e+06 up, plain digits between.
+fn layout(e: &str) -> String {
+    let (mantissa, exp) = e.split_once('e').unwrap_or((e, "0"));
     let exp: i32 = exp.parse().unwrap_or(0);
     let (sign, mantissa) = match mantissa.strip_prefix('-') {
         Some(m) => ("-", m),
@@ -212,6 +218,69 @@ fn shortest(x: f64) -> String {
         }
     };
     format!("{sign}{body}")
+}
+`,
+	},
+	{
+		name: "Float32",
+		uses: []string{"fmt"},
+		deps: []string{"Float"},
+		code: `/// A float32 printed the way Go's fmt prints it: %v uses the shortest
+/// digits that read back as the same float32 (FormatFloat(x, 'g', -1, 32)),
+/// laid out as for a float64; a precision prints the exact value's digits.
+pub struct Float32(pub f32);
+
+impl fmt::Display for Float32 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let x = self.0;
+        if x.is_nan() || x.is_infinite() || f.precision().is_some() {
+            return fmt::Display::fmt(&Float(f64::from(x)), f);
+        }
+        let e = format!("{x:e}");
+        let digits = e.split('e').next().unwrap_or("");
+        let n = digits.bytes().filter(u8::is_ascii_digit).count();
+        let rounded = format!("{x:.*e}", n.saturating_sub(1));
+        let e = if rounded.parse::<f32>() == Ok(x) {
+            rounded
+        } else {
+            e
+        };
+        pad(f, &layout(&e))
+    }
+}
+`,
+	},
+	{
+		name: "uindex",
+		code: `/// An index of Go type uint64 (uint, uintptr): out of range, Go prints it
+/// as an unsigned number, which Rust's own message, read as Go's signed
+/// index, would not.
+pub fn uindex(i: u64, len: usize) -> usize {
+    if i >= len as u64 {
+        panic!("gopatina-user-panic:runtime error: index out of range [{i}] with length {len}");
+    }
+    i as usize
+}
+`,
+	},
+	{
+		name: "f64_to_u64",
+		deps: []string{"f64_to_i64"},
+		code: `/// A float64 converted to a uint64 the way Go's compiler converts it on
+/// this target. On x86-64 gc converts a value below 2^63 as an int64 (so a
+/// negative one wraps) and any other as the int64 conversion of x - 2^63
+/// with the top bit set: 2^63 for NaN, the infinities and values of 2^64
+/// and above. Elsewhere, Rust's saturating conversion (gc's arm64 FCVTZU).
+pub fn f64_to_u64(x: f64) -> u64 {
+    if cfg!(target_arch = "x86_64") {
+        if x < 9223372036854775808.0 {
+            f64_to_i64(x) as u64
+        } else {
+            (f64_to_i64(x - 9223372036854775808.0) as u64) | (1 << 63)
+        }
+    } else {
+        x as u64
+    }
 }
 `,
 	},
@@ -441,6 +510,22 @@ show_display!(i64, i32, u8, bool, String);
 impl Show for f64 {
     fn show(&self, out: &mut String) {
         out.push_str(&Float(*self).to_string());
+    }
+}
+`,
+	},
+	{
+		name: "show_ints",
+		deps: []string{"Show"},
+		code: `show_display!(i8, i16, u16, u32, u64);
+`,
+	},
+	{
+		name: "show_f32",
+		deps: []string{"Show", "Float32"},
+		code: `impl Show for f32 {
+    fn show(&self, out: &mut String) {
+        out.push_str(&Float32(*self).to_string());
     }
 }
 `,

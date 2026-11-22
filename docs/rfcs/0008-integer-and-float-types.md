@@ -1,6 +1,8 @@
 # RFC 0008: The remaining integer types and float32
 
-- **Status:** Draft
+- **Status:** Approved by the coordinator on the project lead's authority
+  (2026-11-22, merged in #57); implemented 2026-11-22 (see "Implementation
+  notes")
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
@@ -215,6 +217,20 @@ before; every program it accepts today emits the same Rust.
   specification of the conversions above; GoPatina reproduces its results.
 - TinyGo compiles through LLVM, whose `fptosi` is undefined (poison) for
   out-of-range values; it does not promise gc's results.
+
+## Implementation notes
+
+- As specified, with each rule measured against gc 1.27.1 on amd64 and
+  tested by the golden program `numeric_types` and the generator.
+- **Found while implementing (pre-existing):** a slice literal printed
+  without a type from its context (`fmt.Println([]int{1 << 40})`,
+  `len([]int{-1 << 63})`) was written as `vec![...]` with untyped
+  constants, which Rust takes as `i32`, so it did not compile; a `float32`
+  slice literal would have been `f64`. The first constant element now
+  carries its type when Rust's default would be wrong.
+- Printing a slice of the new integer types or of `float32` uses separate
+  runtime pieces (`show_ints`, `show_f32`), written only into crates that
+  need them.
 
 ## Unresolved questions
 

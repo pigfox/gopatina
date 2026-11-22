@@ -6,6 +6,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -152,7 +153,7 @@ func (g *gen) place(e ast.Expr) node {
 		} else {
 			b = g.value(x.X)
 		}
-		return atom{paren(b, precPostfix) + "[" + g.index(x.Index) + "]", precPostfix}
+		return atom{paren(b, precPostfix) + "[" + g.indexOf(b, x.Index) + "]", precPostfix}
 	}
 	// *p
 	v := g.localVar(ast.Unparen(ast.Unparen(e).(*ast.StarExpr).X).(*ast.Ident))
@@ -160,6 +161,18 @@ func (g *gen) place(e ast.Expr) node {
 		return text(g.varName(v)) // a pointer that owns its value
 	}
 	return atom{"*" + g.varName(v), precUnary}
+}
+
+// indexOf renders index e of base as a usize. An index of Go type uint64
+// (uint, uintptr) goes through rt::uindex: out of range, Go prints it as an
+// unsigned number, which Rust's own message, read as Go's signed index,
+// would not.
+func (g *gen) indexOf(base node, e ast.Expr) string {
+	if g.rustType(g.typeOf(e)) == "u64" && g.info.Types[e].Value == nil {
+		g.rt["uindex"] = true
+		return "rt::uindex(" + g.value(e).flat() + ", " + paren(base, precPostfix) + ".len())"
+	}
+	return g.index(e)
 }
 
 // index renders an index operand as a usize.
@@ -200,7 +213,8 @@ func (g *gen) value(e ast.Expr) node {
 		return text(g.varName(v))
 	case *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr:
 		if ix, ok := x.(*ast.IndexExpr); ok && isStringType(g.typeOf(ix.X)) {
-			return atom{paren(g.strRef(ix.X), precPostfix) + ".as_bytes()[" + g.index(ix.Index) + "]", precPostfix}
+			s := g.strRef(ix.X)
+			return atom{paren(s, precPostfix) + ".as_bytes()[" + g.indexOf(s, ix.Index) + "]", precPostfix}
 		}
 		return g.place(e) // a Copy value; others are handed over with owned
 	case *ast.CallExpr:
@@ -322,6 +336,11 @@ func constLit(v constant.Value, t types.Type) string {
 		return strLit(constant.StringVal(v))
 	case b != nil && b.Info()&types.IsBoolean != 0:
 		return strconv.FormatBool(constant.BoolVal(v))
+	case b != nil && b.Kind() == types.Float32:
+		// Rounded once, from the exact value, as Go rounds a float32
+		// constant; its shortest digits read back as the same f32.
+		f, _ := constant.Float32Val(constant.ToFloat(v))
+		return rustFloat(strconv.FormatFloat(float64(f), 'g', -1, 32))
 	case b != nil && b.Info()&types.IsFloat != 0:
 		f, _ := constant.Float64Val(constant.ToFloat(v))
 		return floatLit(f)
@@ -338,7 +357,11 @@ func constLit(v constant.Value, t types.Type) string {
 // floatLit renders f so that Rust reads back exactly the same float64.
 // A Go constant is always finite.
 func floatLit(f float64) string {
-	s := strconv.FormatFloat(f, 'g', -1, 64)
+	return rustFloat(strconv.FormatFloat(f, 'g', -1, 64))
+}
+
+// rustFloat turns Go's 'g' digits into a Rust float literal.
+func rustFloat(s string) string {
 	if strings.ContainsAny(s, "e") {
 		mant, exp, _ := strings.Cut(s, "e")
 		if !strings.Contains(mant, ".") {
@@ -474,7 +497,7 @@ func (g *gen) binary(e *ast.BinaryExpr) node {
 // shift operators do not accept such a count. The subset checker allows
 // only constant counts, on the integer types below.
 func (g *gen) wideShift(t types.Type, y ast.Expr) (int, bool) {
-	w := map[string]int{"i64": 64, "i32": 32, "u8": 8}[g.rustType(t)]
+	w := map[string]int{"i64": 64, "u64": 64, "i32": 32, "u32": 32, "i16": 16, "u16": 16, "i8": 8, "u8": 8}[g.rustType(t)]
 	return w, constant.Compare(g.info.Types[y].Value, token.GEQ, constant.MakeInt64(int64(w)))
 }
 
@@ -634,6 +657,30 @@ func escapeFormat(s string) string {
 	return strings.NewReplacer("{", "{{", "}", "}}").Replace(s)
 }
 
+// needsElemSuffix reports whether the first element of a slice literal of
+// type t must carry its Rust type: it is a constant, and the elements are
+// float32 or an integer constant is outside i32's range.
+func (g *gen) needsElemSuffix(t types.Type, elts []ast.Expr) bool {
+	if len(elts) == 0 || g.info.Types[elts[0]].Value == nil {
+		return false
+	}
+	elem := t.Underlying().(*types.Slice).Elem()
+	if g32(elem) {
+		return true
+	}
+	if !isInt(elem) {
+		return false
+	}
+	for _, el := range elts {
+		if v := g.info.Types[el].Value; v != nil {
+			if n, exact := constant.Int64Val(v); !exact || n < math.MinInt32 || n > math.MaxInt32 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // composite renders a composite literal.
 func (g *gen) composite(e *ast.CompositeLit) node {
 	t := g.typeOf(e)
@@ -644,6 +691,13 @@ func (g *gen) composite(e *ast.CompositeLit) node {
 		var elems []node
 		for _, el := range e.Elts {
 			elems = append(elems, g.owned(el))
+		}
+		if g.needsElemSuffix(t, e.Elts) {
+			// Without a type from its context, Rust would take the
+			// constants as i32 or f64: a float32 would print as a float64,
+			// and an int out of i32's range would not compile.
+			tv := g.info.Types[e.Elts[0]]
+			elems[0] = text(constLit(tv.Value, tv.Type) + "_" + g.rustType(tv.Type))
 		}
 		return &call{head: "vec!", open: "[", close: "]", args: elems, array: true}
 	}

@@ -8,8 +8,8 @@ The bar is at most 3.4 defects per million tests, the Six Sigma rate, shown at 6
 
 ## How programs are checked {#checks}
 
-- **Golden programs.** 100 hand-written Go programs, each with the exact Rust it must produce, are built both ways in CI on every change, and must match Go. 23 rejection fixtures and 3 Go-only semantics counterexamples pin down what must be refused.
-- **Generated programs.** `cmd/gopatina-difftest` builds random programs from GoPatina's generator, inside the phase 1 subset: wrapping integer arithmetic, shifts, slices, `append`, `switch`, formatted printing, named types of every supported integer width with their methods, float-to-integer conversions (including NaN, the infinities and values far out of range), fmt widths and flags on slices, integers and strings, and the loop nests that RFC 0006 specializes, some at exactly their thresholds.
+- **Golden programs.** 101 hand-written Go programs, each with the exact Rust it must produce, are built both ways in CI on every change, and must match Go. 23 rejection fixtures and 3 Go-only semantics counterexamples pin down what must be refused.
+- **Generated programs.** `cmd/gopatina-difftest` builds random programs from GoPatina's generator, inside the phase 1 subset: wrapping integer arithmetic, shifts, slices, `append`, `switch`, formatted printing, named types of every integer width with their methods, `float32` arithmetic and conversions, float-to-integer conversions (including NaN, the infinities and values far out of range), fmt widths and flags on slices, integers and strings, and the loop nests that RFC 0006 specializes, some at exactly their thresholds.
 - **Panic cases.** Each batch of generated programs ends with one that panics at run time (an index out of range, a division by zero, a `make` out of range, an explicit `panic`), and GoPatina must panic with Go's message and Go's exit status.
 - **Reproducible builds.** Emitted Rust is byte-identical for the same input, and `gopatina verify` checks that a `-patina` binary has the same sha256 as a plain `cargo build --release --locked` of the emitted crate.
 - **Unit tests.** Every Go package has 100% statement coverage, enforced in CI.
@@ -24,6 +24,7 @@ The bar is at most 3.4 defects per million tests, the Six Sigma rate, shown at 6
 | 2026-11-22, by hand, while planning RFC 0008 | a float-to-integer conversion gave Rust's saturated result where Go's compiler gives another: NaN and out-of-range values, and `uint8(-2.5)`, which is 254 in Go | with a golden program and generator cases |
 | 2026-11-22, by those generator cases, before they were merged | a float whose shortest digits have two equally close candidates printed the upper one (`1.2848823997124483e+15`) where Go prints the even one (`...482e+15`) | with a golden program |
 | 2026-11-22, by hand, while adding fmt flags | a width on a slice (`%6v` of `[]int`) padded the whole slice, where Go pads each element (`[     1    -20]`) | with a golden program and generator cases |
+| 2026-11-22, by hand, while adding RFC 0008's types | a slice literal printed or measured without a type from its context (`fmt.Println([]int{1 << 40})`) did not compile: Rust took its constants as 32-bit | with a golden program |
 
 ## When Go itself is wrong {#go-disagreements}
 

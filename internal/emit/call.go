@@ -196,14 +196,21 @@ func (g *gen) conversion(e *ast.CallExpr, to types.Type) node {
 	}
 	if isFloat(from) && isInt(to) {
 		// Go's compiler, not Rust's saturating as, decides an out-of-range
-		// conversion; types narrower than 32 bits go through int32.
-		helper := "f64_to_i32"
-		if g.rustType(to) == "i64" {
-			helper = "f64_to_i64"
+		// conversion (RFC 0008, measured against gc on amd64): types
+		// narrower than 32 bits go through int32, uint32 through int64,
+		// uint64 by its own rule; a float32 as its exact float64 widening.
+		r := g.rustType(to)
+		helper := map[string]string{"i64": "f64_to_i64", "u32": "f64_to_i64", "u64": "f64_to_u64"}[r]
+		if helper == "" {
+			helper = "f64_to_i32"
 		}
 		g.rt[helper] = true
-		n := node(&call{head: "rt::" + helper, open: "(", close: ")", args: []node{g.value(x)}})
-		if r := g.rustType(to); r != "i64" && r != "i32" {
+		arg := g.value(x)
+		if g.rustType(from) == "f32" {
+			arg = atom{paren(arg, precCast) + " as f64", precCast}
+		}
+		n := node(&call{head: "rt::" + helper, open: "(", close: ")", args: []node{arg}})
+		if r != map[string]string{"f64_to_i64": "i64", "f64_to_i32": "i32", "f64_to_u64": "u64"}[helper] {
 			n = atom{n.flat() + " as " + r, precCast}
 		}
 		return n
@@ -501,6 +508,15 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		g.rt["rune"] = true
 		flags(false)
 		arg = &call{head: "rt::rune", open: "(", close: ")", args: []node{g.asI64(e)}}
+	case isFloat(t) && g32(t):
+		g.rt["Float32"] = true
+		if v.Verb == 'f' || v.Verb == 'F' {
+			if v.Prec < 0 {
+				v.Prec = 6
+			}
+		}
+		flags(false)
+		arg = &call{head: "rt::Float32", open: "(", close: ")", args: []node{g.value(e)}}
 	case isFloat(t):
 		g.rt["Float"] = true
 		if v.Verb == 'f' || v.Verb == 'F' {
@@ -518,6 +534,12 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		arg = &call{head: "rt::SliceMap", open: "(", close: ")", args: []node{g.ref(e), text(g.elemPrinter(m))}}
 	case isSlice(t):
 		g.rt["Slice"] = true
+		switch g.rustType(t.Underlying().(*types.Slice).Elem()) {
+		case "i8", "i16", "u16", "u32", "u64":
+			g.rt["show_ints"] = true
+		case "f32":
+			g.rt["show_f32"] = true
+		}
 		flags(false)
 		x := g.ref(e)
 		if lit, ok := ast.Unparen(e).(*ast.CompositeLit); ok && len(lit.Elts) == 0 {
@@ -564,6 +586,12 @@ func (g *gen) elemPrinter(m *types.Func) string {
 		return "|e| " + g.funcs[m] + "(e)"
 	}
 	return "|e| " + g.funcs[m] + "(*e)"
+}
+
+// g32 reports whether t is float32.
+func g32(t types.Type) bool {
+	b, ok := t.Underlying().(*types.Basic)
+	return ok && b.Kind() == types.Float32
 }
 
 func boolLit(b bool) string {
@@ -614,6 +642,9 @@ func goConstText(v constant.Value, t types.Type) string {
 	switch {
 	case isStringType(t):
 		return constant.StringVal(v)
+	case isFloat(t) && g32(t):
+		f, _ := constant.Float32Val(constant.ToFloat(v))
+		return strconv.FormatFloat(float64(f), 'g', -1, 32)
 	case isFloat(t):
 		f, _ := constant.Float64Val(constant.ToFloat(v))
 		return goFloat(f)

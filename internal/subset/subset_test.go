@@ -184,6 +184,9 @@ func TestRejected(t *testing.T) {
 		{"print panicky String slice", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return fmt.Sprint(10 / int(k)) }\nfunc main() { fmt.Println([]K{1}) }\n", "printing a value whose String method may panic is not supported"},
 		{"print String hex plus", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return \"k\" }\nfunc main() { fmt.Printf(\"%+x\", K(1)) }\n", "the format %+x with a value of type main.K is not supported"},
 		{"hex space", "package main\nimport \"fmt\"\nfunc main() { fmt.Printf(\"% x\", \"ab\") }\n", "the format % x with a value of type string is not supported"},
+		// FuzzCheck, 2026-11-22: a String method without a body made the
+		// checker walk a nil body.
+		{"print bodiless String", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string\nfunc main() { fmt.Println(K(1)) }\n", "printing a value whose String method may panic is not supported"},
 		{"s of int", "package main\nimport \"fmt\"\nfunc main() { x := 1; fmt.Printf(\"%s\", x) }\n", "the format %s with a value of type int is not supported"},
 		{"sharp d", "package main\nimport \"fmt\"\nfunc main() { x := 1; fmt.Printf(\"%#d\", x) }\n", "the format %#d with a value of type int is not supported"},
 		{"print String plus", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return \"k\" }\nfunc main() { fmt.Printf(\"%+v\", K(1)) }\n", "the format %+v with a value of type main.K is not supported"},
@@ -208,8 +211,8 @@ func TestRejected(t *testing.T) {
 		{"pointer result", "package main\ntype S struct{}\nfunc p() *S { return &S{} }\nfunc main() {}\n", "a pointer result (phase 1 supports pointers only as borrows) is not supported"},
 		{"error param", "package main\nfunc e(err error) {}\nfunc main() {}\n", "a parameter of type error"},
 		{"pointer pointer param", "package main\nfunc e(p **int) {}\nfunc main() {}\n", "a pointer to a pointer is not supported"},
-		{"uint", "package main\nfunc main() { var x uint; _ = x }\n", "type uint is not supported"},
-		{"float32", "package main\nfunc f(x float32) {}\nfunc main() {}\n", "type float32 is not supported"},
+		{"complex", "package main\nfunc main() { var x complex128; _ = x }\n", "type complex128 is not supported"},
+		{"complex64", "package main\nfunc f(x complex64) {}\nfunc main() {}\n", "type complex64 is not supported"},
 		{"chan", "package main\nfunc main() { var c chan int; _ = c }\n", "a channel type (goroutines and channels are planned, RFC 0002) is not supported"},
 		{"interface", "package main\nfunc f(x interface{ M() }) {}\nfunc main() {}\n", "an interface type is not supported"},
 		{"func type", "package main\nfunc f(g func()) {}\nfunc main() {}\n", "a function type is not supported"},

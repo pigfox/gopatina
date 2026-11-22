@@ -139,7 +139,13 @@ fn shortest(x: f64) -> String {
     } else {
         e
     };
-    let (mantissa, exp) = e.split_once('e').unwrap_or((&e, "0"));
+    layout(&e)
+}
+
+/// Lays out Rust's {:e} digits the way Go's %v does: an exponent below
+/// 1e-4 and from 1e+06 up, plain digits between.
+fn layout(e: &str) -> String {
+    let (mantissa, exp) = e.split_once('e').unwrap_or((e, "0"));
     let exp: i32 = exp.parse().unwrap_or(0);
     let (sign, mantissa) = match mantissa.strip_prefix('-') {
         Some(m) => ("-", m),

@@ -281,7 +281,9 @@ func unsupportedType(t types.Type, constOK bool) string {
 		return unsupportedType(types.Unalias(t), constOK)
 	case *types.Basic:
 		switch t.Kind() {
-		case types.Int, types.Int64, types.Int32, types.Uint8, types.Float64, types.Bool, types.String:
+		case types.Int, types.Int8, types.Int16, types.Int32, types.Int64,
+			types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64, types.Uintptr,
+			types.Float32, types.Float64, types.Bool, types.String: // RFC 0008
 			return ""
 		case types.UntypedInt, types.UntypedFloat, types.UntypedRune, types.UntypedString, types.UntypedBool:
 			if constOK {
@@ -1001,7 +1003,8 @@ func (c *checker) methodPrintProblem(m *types.Func) string {
 	for _, f := range c.pkg.Files {
 		for _, d := range f.Decls {
 			if fd, ok := d.(*ast.FuncDecl); ok && c.pkg.Info.Defs[fd.Name] == m {
-				if c.cannotPanic(fd.Body) {
+				// A method without a body is reported where it is declared.
+				if fd.Body != nil && c.cannotPanic(fd.Body) {
 					return ""
 				}
 			}

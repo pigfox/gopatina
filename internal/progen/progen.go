@@ -185,7 +185,8 @@ func (g *gen) program(b *strings.Builder) {
 // namedDecls writes the program's named types and their methods.
 func (g *gen) namedDecls(b *strings.Builder) {
 	k := g.k
-	g.under = []string{"int", "int64", "int32", "uint8"}[g.nr.IntN(4)]
+	unders := []string{"int", "int64", "int32", "uint8", "int8", "int16", "uint", "uint16", "uint32", "uint64", "uintptr"}
+	g.under = unders[g.nr.IntN(len(unders))]
 	g.alias = g.nr.IntN(2) == 0
 	fmt.Fprintf(b, "\ntype N%d %s\n", k, g.under)
 	// String cannot panic, so fmt may call it (the subset requires that).
@@ -201,7 +202,8 @@ func (g *gen) namedDecls(b *strings.Builder) {
 
 // width is the bit width of the named integer type.
 func (g *gen) width() int {
-	return map[string]int{"int": 64, "int64": 64, "int32": 32, "uint8": 8}[g.under]
+	return map[string]int{"int": 64, "int64": 64, "int32": 32, "uint8": 8, "int8": 8, "int16": 16,
+		"uint": 64, "uint16": 16, "uint32": 32, "uint64": 64, "uintptr": 64}[g.under]
 }
 
 // nexpr is an expression of the named type over x and y, of at most the
@@ -267,6 +269,11 @@ func (g *gen) floatUses() {
 	g.line("fmt.Println(f, int(f), int32(f), uint8(f), int(f*%s))", scale[g.fr.IntN(len(scale))])
 	g.depth--
 	g.line("}")
+	// float32 (RFC 0008), drawn after the float64 part, which is unchanged.
+	scale32 := []string{"1", "0.37", "1e3", "3e9", "1e-3", "-7.5"}
+	g.line("f32 := float32(fs[%d]) * %s", g.fr.IntN(2), scale32[g.fr.IntN(len(scale32))])
+	g.line("fmt.Println(f32, f32*f32, f32/3, -f32, f32+0.1, float64(f32), []float32{f32, 0.1})")
+	g.line("fmt.Println(int(f32), int8(f32), int16(f32), uint16(f32), uint32(f32), uint64(f32), uint(fs[0]), uint32(fs[1]), uint64(fs[%d]))", 2+g.fr.IntN(3))
 }
 
 // namedUses converts the program's values to its named type, calls the

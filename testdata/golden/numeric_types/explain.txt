@@ -1,0 +1,1 @@
+./main.go:9:12: parameter s is a shared borrow: fnv32 only reads it
