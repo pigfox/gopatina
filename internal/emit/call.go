@@ -48,6 +48,13 @@ func (g *gen) call(e *ast.CallExpr) node {
 		}
 		obj := g.info.Selections[f].Obj().(*types.Func)
 		fn := g.res.Funcs[obj]
+		if helper, _ := subset.ProvidedMethod(obj); helper != "" {
+			var args []node
+			for _, a := range e.Args {
+				args = append(args, g.value(a))
+			}
+			return g.methodCall(f.X, obj, args)
+		}
 		if fn == nil { // err.Error()
 			return &call{recv: g.place(f.X), head: ".to_string", open: "(", close: ")"}
 		}
@@ -59,6 +66,10 @@ func (g *gen) call(e *ast.CallExpr) node {
 // arguments: x.m(args) for a struct type, m(x, args) for the functions of
 // other named types (RFC 0007).
 func (g *gen) methodCall(x ast.Expr, m *types.Func, args []node) node {
+	if helper, _ := subset.ProvidedMethod(m); helper != "" {
+		g.rt[helper] = true
+		return &call{head: "rt::" + helper, open: "(", close: ")", args: append([]node{g.value(x)}, args...)}
+	}
 	fn := g.res.Funcs[m]
 	if g.freeMethods(g.recvTypeName(m)) {
 		return &call{head: g.qual(m.Pkg(), g.funcs[m]), open: "(", close: ")", args: append([]node{g.recvArg(x, fn.Recv)}, args...)}
@@ -618,6 +629,10 @@ func hexPadSpec(v subset.Verb) string {
 // nothing that moves the receiver (were it owned, the crate would not
 // compile, never print something else).
 func (g *gen) elemPrinter(m *types.Func) string {
+	if helper, _ := subset.ProvidedMethod(m); helper != "" {
+		g.rt[helper] = true
+		return "|e| rt::" + helper + "(*e)"
+	}
 	switch {
 	case !g.freeMethods(g.recvTypeName(m)):
 		return "|e| e." + g.funcs[m] + "()"

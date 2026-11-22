@@ -96,6 +96,7 @@ var (
 
 var allowedImports = map[string]bool{
 	"bytes": true, "errors": true, "fmt": true, "io": true, "os": true, "slices": true, "strings": true,
+	"time": true, // RFC 0011: Duration (ProvidedTypes)
 }
 
 func (c *checker) file(f *ast.File) {
@@ -346,6 +347,9 @@ func unsupportedType(t types.Type, constOK bool) string {
 		}
 		return unsupportedType(t.Elem(), false)
 	case *types.Named:
+		if providedName(t) != "" {
+			return "" // RFC 0011: its methods are checked where they are called
+		}
 		if t.Obj().Pkg() == nil || !localPkgs[t.Obj().Pkg()] {
 			return fmt.Sprintf("type %s", t)
 		}
@@ -728,6 +732,9 @@ func (c *checker) selector(e *ast.SelectorExpr, called bool) {
 		if !called {
 			c.unsupported(e, "a method value")
 		}
+		if fn, name := ProvidedMethod(sel.Obj().(*types.Func)); name != "" && fn == "" {
+			c.unsupported(e, name)
+		}
 		if isWriter(sel.Recv()) {
 			c.unsupported(e, "calling methods on an io.Writer (use fmt.Fprint, Fprintln or Fprintf)")
 		}
@@ -1053,6 +1060,9 @@ func PrintMethod(t types.Type) *types.Func {
 // yet: Go's fmt recovers a panic in it and prints %!v(PANIC=...), which
 // patina mode does not reproduce yet, so m must be unable to panic.
 func (c *checker) methodPrintProblem(m *types.Func) string {
+	if fn, _ := ProvidedMethod(m); fn != "" {
+		return "" // a provided method cannot panic
+	}
 	for _, f := range c.pkg.Files {
 		for _, d := range f.Decls {
 			if fd, ok := d.(*ast.FuncDecl); ok && c.pkg.Info.Defs[fd.Name] == m {

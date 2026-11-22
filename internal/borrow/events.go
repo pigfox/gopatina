@@ -286,8 +286,11 @@ func (w *walker) call(e *ast.CallExpr) {
 		method, _ := info.Selections[f].Obj().(*types.Func)
 		callee := w.a.funcs[method]
 		name := exprString(f.X) + "." + f.Sel.Name
-		if callee == nil { // err.Error()
+		if callee == nil { // err.Error(), or a provided method (RFC 0011)
 			w.read(f.X)
+			for _, a := range e.Args {
+				w.read(a)
+			}
 			return
 		}
 		ops := w.operands()

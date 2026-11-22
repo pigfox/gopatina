@@ -1,11 +1,10 @@
 # Draft upstream issue: cmd/compile drops 2^32 when folding two SUBQconst [-1<<31] (amd64)
 
-**Status: draft, not filed.** Filing it is outward-facing and waits for the
-project lead's decision (relayed by the coordinator, 2026-11-22). Nothing
-here has been sent anywhere.
+**Status: filed** on the project lead's word, 2026-11-22, as
+[golang/go#83292](https://github.com/golang/go/issues/83292). Replies are
+watched by the coordinator and relayed.
 
-The text below is what would be filed at https://github.com/golang/go/issues,
-following Go's issue template.
+The text below is what was filed, following Go's issue template.
 
 ---
 

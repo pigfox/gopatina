@@ -137,7 +137,8 @@ func program(dir, cwd string) (*Package, error) {
 	}
 	main := all[len(all)-1] // go list -deps lists the named package last
 	// The packages to translate: the main package and, from it, every import
-	// that is not bridged (or unsafe, which the subset checker rejects).
+	// that is not provided (RFC 0011; or unsafe, which the subset checker
+	// rejects).
 	translated := map[string]bool{}
 	var mark func(l *listed)
 	mark = func(l *listed) {
@@ -149,7 +150,7 @@ func program(dir, cwd string) (*Package, error) {
 			if to, ok := l.ImportMap[imp]; ok {
 				imp = to
 			}
-			if Bridged[imp] || imp == "unsafe" || byPath[imp] == nil {
+			if Provided(imp) || imp == "unsafe" || byPath[imp] == nil {
 				continue
 			}
 			mark(byPath[imp])
