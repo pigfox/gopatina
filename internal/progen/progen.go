@@ -16,6 +16,16 @@
 // bitwise operators, min and max, slices and append, switch, string
 // building and formatted printing. The same seed always gives the same
 // source.
+//
+// After the n programs, each batch ends with one more, its panic case,
+// numbered first+n: a program of the same kind that then, in most batches,
+// panics at run time, by an index out of range (positive or negative, of a
+// slice or a string), an integer division or remainder by zero, a make
+// length or capacity out of range, or an explicit panic. A panic ends the
+// binary, so only the last program can test one; comparing its output, the
+// first line of standard error and the exit status tests Go's panic
+// behaviour once per batch. The panic case depends on the seed and on
+// first+n.
 package progen
 
 import (
@@ -37,8 +47,11 @@ func Batch(seed uint64, first, n int) string {
 		g := &gen{r: rand.New(rand.NewPCG(seed, uint64(k))), k: k}
 		g.program(&b)
 	}
+	last := first + n
+	g := &gen{r: rand.New(rand.NewPCG(seed, 1<<63|uint64(last))), k: last, finale: true}
+	g.program(&b)
 	b.WriteString("\nfunc main() {\n")
-	for k := first; k < first+n; k++ {
+	for k := first; k <= last; k++ {
 		fmt.Fprintf(&b, "\tfmt.Println(%q)\n\tp%d()\n", fmt.Sprintf("%s%d", Marker, k), k)
 	}
 	b.WriteString("}\n")
@@ -46,14 +59,15 @@ func Batch(seed uint64, first, n int) string {
 }
 
 type gen struct {
-	r     *rand.Rand
-	k     int
-	vars  []string // int variables that may be assigned
-	reads []string // loop variables in scope, read but never assigned
-	loops int      // loop variables made so far
-	depth int      // statement nesting
-	sl    int      // the fixed length of s
-	out   *strings.Builder
+	r      *rand.Rand
+	finale bool // the batch's panic case
+	k      int
+	vars   []string // int variables that may be assigned
+	reads  []string // loop variables in scope, read but never assigned
+	loops  int      // loop variables made so far
+	depth  int      // statement nesting
+	sl     int      // the fixed length of s
+	out    *strings.Builder
 }
 
 // interesting are literals near the edges where Go and Rust differ.
@@ -101,6 +115,9 @@ func (g *gen) program(b *strings.Builder) {
 	g.line("v0 = h%d(v0, %s)", g.k, g.vars[1])
 	for range 4 + g.r.IntN(8) {
 		g.stmt()
+	}
+	if g.finale {
+		g.panicking()
 	}
 	g.line("sum := 0")
 	g.line("for _, x := range s {")
@@ -234,5 +251,34 @@ func (g *gen) expr(depth int, local bool) string {
 		return fmt.Sprintf("(%s ^ %s)", leaf, x())
 	default:
 		return fmt.Sprintf("(%s + %s)", x(), leaf)
+	}
+}
+
+// panicking writes the panic case's failing statement, chosen at random;
+// one choice in eight panics nowhere. Values are computed at run time (z is
+// 0 but not a constant), so the Go compiler cannot reject them.
+func (g *gen) panicking() {
+	g.line("z := %s - %s", g.vars[0], g.vars[0])
+	k := g.r.IntN(5)
+	switch g.r.IntN(8) {
+	case 0:
+		g.line("fmt.Println(s[len(s)+z+%d])", k)
+	case 1:
+		g.line("fmt.Println(s[z-%d])", k+1)
+	case 2:
+		op := []string{"/", "%"}[g.r.IntN(2)]
+		g.line("fmt.Println(%s %s z)", g.vars[1], op)
+	case 3:
+		g.line("u := make([]int, z-%d)", k+1)
+		g.line("fmt.Println(len(u))")
+	case 4:
+		g.line("u := make([]int, len(s)+%d, len(s)+z)", k+1)
+		g.line("fmt.Println(len(u))")
+	case 5:
+		g.line(`panic("generated panic " + fmt.Sprint(%s+z))`, g.vars[1])
+	case 6:
+		g.line("fmt.Println(str[len(str)+z+%d])", k)
+	default:
+		g.line("fmt.Println(z)")
 	}
 }

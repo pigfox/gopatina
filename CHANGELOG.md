@@ -70,6 +70,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Every generated batch for `cmd/gopatina-difftest` ends with a panic case,
+  a program that usually panics at run time (index out of range, division
+  by zero, `make` out of range, explicit `panic`). It must match Go's
+  output, first stderr line and exit status, so the defect-rate run now
+  also tests Go's panic behaviour; the report counts panic cases and tests.
 - `bench/run.sh --equiv` and `cmd/gopatina-bench` test whether GoPatina and
   hand-written Rust run at the same speed: interleaved ABBA runs and a two
   one-sided tests (TOST) equivalence test on the paired log ratios, at a

@@ -62,10 +62,15 @@ the seed and k, so a failure is reproducible and a run can be split across
 machines with `-start`.
 
 Programs are built many to a batch, one Go package and one crate, and
-compared program by program through marker lines. With no defect among N
-programs, the 95% upper bound on the defect rate is -ln(0.05) / N; 881,098
-defect-free programs bound it at 3.4 defects per million, the Six Sigma
-level. A long run belongs on the test server, not a workstation:
+compared program by program through marker lines. Each batch ends with one
+more program, its panic case. In most batches it panics at run time: an
+index out of range (of a slice or a string, positive or negative), an
+integer division or remainder by zero, a `make` length or capacity out of
+range, or an explicit `panic`. It must match Go's output, the first line of
+Go's standard error and Go's exit status. Programs and panic cases together
+are the tests. With no defect among N tests, the 95% upper bound on the
+defect rate is -ln(0.05) / N; 881,098 defect-free tests bound it at 3.4
+defects per million, the Six Sigma level. A long run belongs on the test server, not a workstation:
 
 ```sh
 go build -o gopatina ./cmd/gopatina && go build -o gopatina-difftest ./cmd/gopatina-difftest
@@ -73,8 +78,8 @@ go build -o gopatina ./cmd/gopatina && go build -o gopatina-difftest ./cmd/gopat
   -gopatina ./gopatina -failures difftest-failures >difftest.json 2>difftest.log
 ```
 
-The report (`difftest.json`) gives programs, defects, defects per million
-and the bound; `difftest.log` lists each batch as it finishes, and failing
+The report (`difftest.json`) gives programs, panic cases, tests, defects,
+defects per million tests and the bound; `difftest.log` lists each batch as it finishes, and failing
 batches are kept with both outputs under `difftest-failures`.
 
 | Phase | Required test layers (in addition to 100% unit coverage) |
