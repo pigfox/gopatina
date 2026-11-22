@@ -658,3 +658,18 @@ func TestSponsorPage(t *testing.T) {
 		t.Error("/sponsor does not link to GitHub Sponsors once it is set")
 	}
 }
+
+// TestNavOneRow checks the navigation kept to one row on wide screens:
+// no Overview item (the logo links home), and GitHub by its mark with its
+// name kept for screen readers.
+func TestNavOneRow(t *testing.T) {
+	b := body(t, handler(t), "/faq")
+	nav := b[strings.Index(b, `<nav aria-label="Site"`):]
+	nav = nav[:strings.Index(nav, "</nav>")]
+	if strings.Contains(nav, `href="/"`) || !strings.Contains(nav, `<span class="gh-label">GitHub</span>`) || !strings.Contains(nav, `aria-hidden="true"`) {
+		t.Errorf("site nav:\n%s", nav)
+	}
+	if !strings.Contains(b, `<p class="brand"><a href="/">`) {
+		t.Error("the logo does not link home")
+	}
+}

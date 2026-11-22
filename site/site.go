@@ -135,7 +135,7 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 	}
 	var nav []navItem
 	for _, q := range append(append([]page{}, pages...), blog) {
-		if !q.NoIndex {
+		if !q.NoIndex && q.Path != "/" { // the logo links home on every page
 			n := navItem{Path: q.Path, Name: q.Crumb}
 			if q.Path == "/sponsor" {
 				n.Class = "sponsor"
