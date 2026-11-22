@@ -127,6 +127,9 @@ func (g *gen) isPlace(e ast.Expr) bool {
 func (g *gen) place(e ast.Expr) node {
 	switch x := ast.Unparen(e).(type) {
 	case *ast.Ident:
+		if v := g.localVar(x); g.fastVar(v) {
+			return g.usizeAsI64(v)
+		}
 		return text(g.varName(g.localVar(x)))
 	case *ast.SelectorExpr:
 		base := ast.Unparen(x.X)
@@ -166,6 +169,9 @@ func (g *gen) index(e ast.Expr) string {
 	if name, ok := g.hoistedIdx[e]; ok {
 		return name + " as usize"
 	}
+	if g.fast != nil && g.fast.raw[e] {
+		return g.uNode(e).flat()
+	}
 	return paren(g.value(e), precCast) + " as usize"
 }
 
@@ -184,6 +190,9 @@ func (g *gen) value(e ast.Expr) node {
 			return text("Vec::<" + g.rustType(g.nils[e].Underlying().(*types.Slice).Elem()) + ">::new()")
 		}
 		v := g.localVar(x)
+		if g.fastVar(v) {
+			return g.usizeAsI64(v)
+		}
 		if g.bindingOf(v) != bOwned && borrow.KindOf(t) != borrow.Copy && !isPointerType(v.Type()) {
 			return g.owned(e)
 		}
@@ -467,6 +476,9 @@ func (g *gen) receiverValue(e ast.Expr) node {
 
 // compare renders a comparison.
 func (g *gen) compare(e *ast.BinaryExpr) node {
+	if n, ok := g.fastCompare(e); ok {
+		return n
+	}
 	op := binOps[e.Op]
 	xt := g.typeOf(e.X)
 	if isStringType(xt) && (e.Op == token.EQL || e.Op == token.NEQ) {

@@ -46,7 +46,7 @@ Raw results:
 - **`sieve`** executes 1.302 times the instructions and is about 7% slower,
   at 5σ on all three metrics, and so at either margin. The cause is the extra
   bounds check that keeps Go's integer semantics in the generated inner loop.
-  Closing it is being worked on.
+  Since then, RFC 0006's loop specialization removes it (see below).
 
 
 ## Local wall-clock run and machine code, 2026-11-21 (not official)
@@ -86,6 +86,22 @@ compile to the same hot loops as the hand-written Rust. `sieve` does not: Go's
 `int` becomes a signed `i64` indexed as `j as usize`, where the hand-written
 Rust uses `usize`, so the generated inner loop keeps a bounds check the
 hand-written one does not. That is the next gap to close.
+
+## Machine code after RFC 0006 (2026-11-21, not a speed measurement)
+
+`bench/asm-check.sh` on the branch that implements
+[RFC 0006](docs/rfcs/0006-proven-ranges.md), rustc 1.93.0:
+
+| Benchmark | Function | GoPatina | Hand-written Rust | Difference |
+| --- | --- | --- | --- | --- |
+| `fib` | `main::fib` | 30 instructions | 30 instructions | identical |
+| `sieve` | `main::main` | 58 instructions | 56 instructions | the 3-instruction startup panic-hook setup, and one alignment no-op |
+| `suffix-sum` | `main::main` | 128 instructions | 125 instructions | the 3-instruction startup panic-hook setup |
+
+`sieve`'s inner loop no longer has the extra bounds check: the nest is
+specialized for `n <= 3037000500`, where `i*i` cannot wrap, and its hot loop
+is the same instructions as the hand-written Rust. This compares code, not
+speed; the equivalence run on the test server is pending.
 
 ## Earlier local verification runs (not official)
 

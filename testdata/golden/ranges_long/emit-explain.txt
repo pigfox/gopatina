@@ -1,0 +1,1 @@
+main.go:10:2: loop not specialized: its fast copy would be 64 lines, over the limit of 60

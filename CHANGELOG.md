@@ -70,6 +70,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- RFC 0006 loop specialization: when the emitter proves a loop nest's
+  integer arithmetic cannot wrap, its induction variables are written as
+  `usize`, as hand-written Rust would; when the proof needs one bound, such
+  as `n <= 3037000500` for the sieve, the nest is written twice, a fast copy
+  under that condition and the general copy otherwise (at most 60 lines, one
+  condition). Go semantics are unchanged in both copies. `-explain` reports
+  every specialization and refusal; eight golden programs cover the cases,
+  including both sides of a threshold. The sieve benchmark's hot loop now
+  compiles to the same instructions as the hand-written Rust.
 - Every generated batch for `cmd/gopatina-difftest` ends with a panic case,
   a program that usually panics at run time (index out of range, division
   by zero, `make` out of range, explicit `panic`). It must match Go's

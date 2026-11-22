@@ -1,0 +1,1 @@
+main.go:9:2: loop not specialized: no single condition proves that its index arithmetic cannot wrap

@@ -46,14 +46,17 @@ type Crate struct {
 	Name   string // the package and binary name
 	Target string // the Rust target triple it builds for
 	Files  []File // sorted by path, without the manifest
+	// Notes are the emitter's own decisions (loop specialization), in
+	// source order, for -explain.
+	Notes []Note
 }
 
 // Emit translates pkg, already checked by subset and borrow, into a crate.
 func Emit(pkg *load.Package, res *borrow.Result, opt Options) *Crate {
 	errs, _ := subset.Errors(pkg)
-	mainRS, rtRS := source(pkg, res, errs)
+	mainRS, rtRS, notes := source(pkg, res, errs)
 	name := CrateName(pkg.Dir)
-	c := &Crate{Name: name, Target: opt.Target}
+	c := &Crate{Name: name, Target: opt.Target, Notes: notes}
 	c.add("Cargo.toml", cargoToml(name, opt))
 	c.add("Cargo.lock", cargoLock(name))
 	c.add("rust-toolchain.toml", toolchainToml(opt.Target))

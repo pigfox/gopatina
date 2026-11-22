@@ -50,6 +50,14 @@ type gen struct {
 	// labels for loops and switches, innermost last.
 	labels []label
 	tmp    int
+
+	// Loop specialization (RFC 0006, ranges.go).
+	fnBody      *ast.BlockStmt // the current function's body
+	fast        *nestPlan      // set while writing a fast copy
+	noPlan      bool           // set while writing a general copy
+	quiet       bool           // write no Go comments (the fast copy of a versioned nest)
+	specialized bool           // some nest was specialized
+	notes       []Note         // decisions for -explain
 }
 
 // A label is an enclosing loop or switch, for break and continue.
@@ -61,7 +69,7 @@ type label struct {
 }
 
 // source translates pkg to the text of src/main.rs and src/rt.rs.
-func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS, rtRS string) {
+func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS, rtRS string, notes []Note) {
 	g := &gen{
 		pkg: pkg, info: pkg.Info, res: res, errs: errs,
 		rt:         map[string]bool{},
@@ -142,6 +150,11 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	head.WriteString("#![allow(clippy::manual_unwrap_or)] // Go's error patterns map to match\n")
 	head.WriteString("#![allow(clippy::manual_unwrap_or_default)] // Go's error patterns map to match\n")
 	head.WriteString("#![allow(clippy::mut_range_bound)] // Go allows changing a range bound\n")
+	if g.specialized {
+		// A specialized loop (RFC 0006) indexes by position, as the Go
+		// source does.
+		head.WriteString("#![allow(clippy::needless_range_loop)] // the Go source indexes by position\n")
+	}
 	head.WriteString("#![allow(clippy::needless_return)] // the Go source controls the returns\n")
 	head.WriteString("#![allow(clippy::only_used_in_recursion)] // Go functions may recurse\n")
 	head.WriteString("#![allow(clippy::reversed_empty_ranges)] // the Go source controls the range\n")
@@ -153,7 +166,7 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	if rtRS != "" {
 		head.WriteString("mod rt;\n\n")
 	}
-	return head.String() + strings.Join(items, "\n"), rtRS
+	return head.String() + strings.Join(items, "\n"), rtRS, g.notes
 }
 
 func (g *gen) fileNames() []string {

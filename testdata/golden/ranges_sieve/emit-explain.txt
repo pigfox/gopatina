@@ -1,0 +1,2 @@
+main.go:10:2: loop specialized for n <= 3037000500: usize for i, j (proven non-negative; the arithmetic cannot wrap)
+main.go:10:2: loop kept general otherwise: indexes keep Go's checks
