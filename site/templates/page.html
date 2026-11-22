@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<meta name="description" content="{{.Description}}">
+{{- if .NoIndex}}
+<meta name="robots" content="noindex">
+{{- end}}
+<link rel="canonical" href="{{.URL}}">
+{{- if .Markdown}}
+<link rel="alternate" type="text/markdown" href="{{.Markdown}}" title="This page as Markdown">
+{{- end}}
+<link rel="icon" type="image/svg+xml" href="{{.Favicon}}">
+<link rel="stylesheet" href="{{.CSS}}">
+{{- if .Script}}
+<script src="{{.Script}}" defer></script>
+{{- end}}
+<meta name="theme-color" content="#1f6658">
+<meta name="author" content="Peter Sjolin">
+<meta property="og:type" content="{{.OGType}}">
+<meta property="og:site_name" content="GoPatina">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Description}}">
+<meta property="og:url" content="{{.URL}}">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{{.Title}}">
+<meta name="twitter:description" content="{{.Description}}">
+<script type="application/ld+json">
+{{.JSONLD}}
+</script>
+</head>
+<body>
+<header class="wrap">
+  <p class="brand"><a href="/">Go<span class="accent">Patina</span></a></p>
+  <nav aria-label="Site">
+    <ul>
+{{- range .Nav}}
+      <li><a href="{{.Path}}"{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a></li>
+{{- end}}
+      <li><a href="https://github.com/pigfox/gopatina">GitHub</a></li>
+    </ul>
+  </nav>
+</header>
+<main class="wrap">
+{{- if .Crumb}}
+  <nav aria-label="Breadcrumb" class="crumbs"><a href="/">GoPatina</a> <span aria-hidden="true">›</span> <span aria-current="page">{{.Crumb}}</span></nav>
+{{- end}}
+  <h1>{{.H1}}</h1>
+{{.Body}}
+</main>
+<footer class="wrap">
+  <p class="meta">Last updated <time datetime="{{.Updated}}">{{.Updated}}</time>. {{if .Markdown}}<a href="{{.Markdown}}">This page as Markdown</a>. {{end}}<a href="/llms.txt">The site for language models</a>.</p>
+  <p>GoPatina is an experiment by <a href="https://pigfox.com">Pigfox</a>, started by Peter Sjolin, and open source under MIT OR Apache-2.0. This site's server is a Go program built with gopatina's default mode; it uses <code>net/http</code> and <code>embed</code>, which are outside the phase 1 subset.</p>
+</footer>
+</body>
+</html>

@@ -1,10 +1,19 @@
 # gopatina.org
 
-The server for [gopatina.org](https://gopatina.org): one responsive page
-plus `/index.md` (the page as Markdown), `/llms.txt`, `/robots.txt`,
-`/sitemap.xml` and `/healthz`. Everything is embedded in the binary. It is
-plain Go (`net/http`, `html/template`, `embed`; no third-party modules), with
-no JavaScript on the page.
+The server for [gopatina.org](https://gopatina.org): a few responsive pages,
+each at its own address (`/`, `/how-it-works`, `/get-started`, `/evidence`,
+`/benchmarks`, `/correctness`, `/roadmap`, `/faq`, and `/sponsor`, kept out
+of search engines until it has content), each also served as Markdown
+(`/index.md` for the home page, `/faq.md` and so on), a 404 page,
+`/llms.txt`, `/robots.txt`, `/sitemap.xml` and `/healthz`. Everything is
+embedded in the binary. It is plain Go (`net/http`, `html/template`,
+`embed`; no third-party modules).
+
+There is one script, on the home page only: `static/anchors.js`, a few lines
+of vanilla JavaScript that send the old one-page links (`/#faq` and the
+like) to their new pages, since a server never sees the part after `#`.
+Addresses have no trailing slash; `/faq/` and `/index.html` answer with a
+301 to `/faq` and `/`.
 
 The server is a Go program **built with gopatina's default mode**
 (`gopatina build`, which runs `go build`). It uses `net/http` and `embed`,
@@ -48,14 +57,28 @@ with a read-only filesystem, no capabilities, and a built-in health check
 
 ```sh
 go test -race -cover ./site       # 100% coverage, enforced by CI
-site-check http://127.0.0.1:8590/
-npx -y lighthouse@13.5.0 http://127.0.0.1:8590/ --quiet --chrome-flags="--headless=new"
+for p in / /how-it-works /get-started /evidence /benchmarks /correctness /roadmap /faq; do
+  site-check http://127.0.0.1:8590$p
+  npx -y lighthouse@13.5.0 http://127.0.0.1:8590$p --quiet --chrome-flags="--headless=new"
+  node scripts/site-overflow.mjs "$(command -v google-chrome)" http://127.0.0.1:8590$p
+done
 ```
 
-## Editing the page
+The tests check every page: its own title (30 to 60 characters) and
+description (70 to 160), one h1, headings in order, its canonical URL, Open
+Graph and Twitter tags, structured data (with a BreadcrumbList on inner
+pages), that every link within the site leads to a page, and that every
+sitemap URL returns 200 and names itself as canonical. CI also loads every
+page in Chrome at phone widths and fails if one scrolls sideways.
 
-The page is `templates/index.html`; its Markdown twin is `content/index.md`.
-Keep them in step: the tests check that every FAQ question and answer in the
-page's FAQPage structured data appears, word for word, on the page and in
-`index.md`. Update `lastUpdated` in `site.go` and `dateModified` in the
-JSON-LD together (also tested).
+## Editing the pages
+
+Each page is written once, in Markdown, in `content/pages/<name>.md`: the
+server renders it to HTML (`markdown.go`, a small renderer for exactly what
+the pages use) inside `templates/page.html`, and serves the source as the
+page's Markdown version. The list of pages, with each one's address, title,
+description and kind, is in `pages.go`; the structured data is built from it
+and from the page itself: the FAQ page's questions are its `###` headings
+and its answers the paragraphs under them, and the get-started page's
+HowTo steps are its numbered list. When a page changes, update its
+`Updated` date in `pages.go`; the sitemap and the structured data use it.
