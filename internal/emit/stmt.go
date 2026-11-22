@@ -885,6 +885,13 @@ func (g *gen) countedLoop(s *ast.ForStmt) {
 
 // rangeStmt writes a range loop.
 func (g *gen) rangeStmt(s *ast.RangeStmt) {
+	if _, _, ok := g.heapRoot(s.X); ok {
+		// A slice in a cell: range over a copy of it (RFC 0013; the
+		// borrow checker allows it only where that is Go's range).
+		name := g.lnames.name("", func(string) string { return "items" })
+		g.stmtLine("let "+name+" = ", g.owned(s.X), ";")
+		g.temps[ast.Unparen(s.X)] = name
+	}
 	t := g.typeOf(s.X)
 	key := g.rangeVar(s.Key)
 	value := g.rangeVar(s.Value)

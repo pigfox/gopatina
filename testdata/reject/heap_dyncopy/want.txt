@@ -1,0 +1,2 @@
+./main.go:14:16: converting *main.Bag to an interface, where main.Bag holds a slice and has value methods (a copy would not share its elements) is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports

@@ -27,7 +27,7 @@ Status values: **supported** (implemented and tested), **partial**
 | `if`, `for`, `switch` | Go 1.0 | supported | 1 | Not `fallthrough`, labels, or a `break` before the end of a case |
 | Constants, `iota` | Go 1.0 | supported | 1 | Typed by named types too |
 | Named types, type aliases | Go 1.0, Go 1.9 | partial | 1 | Of the basic and slice types and of structs, with methods, conversions and `fmt`'s `String` and `Error` (RFC 0007); not of maps, functions, channels, interfaces, pointers or arrays, and not declared inside a function |
-| Pointers | Go 1.0 | partial | 1, 2 | Borrows (`&x`, `&T{}`, parameters, receivers), and pointers that escape (RFC 0013: returned, stored in fields, reassigned, compared, `nil`) as shared cells; not yet slices of pointers, pointers in interfaces, escaping `&x.f`/`&s[i]`; cycles are not reclaimed |
+| Pointers | Go 1.0 | partial | 1, 2 | Borrows (`&x`, `&T{}`, parameters, receivers), and pointers that escape (RFC 0013: returned, stored in fields, reassigned, compared, `nil`) as shared cells; slices of pointers; `*T` as an interface's dynamic type; printing through `String`/`Error` (Go's `<nil>` for a nil pointer); not yet escaping `&x.f`/`&s[i]`, or printing a pointer without such a method (Go prints its address); cycles are not reclaimed |
 | Slices | Go 1.0 | partial | 1, 2 | `make`, `append`, `len`, indexing, range, and [read-only `s[i:]` arguments](patina-subset.md#read-only-slice-suffix-arguments); not general slicing or `cap` |
 | Arrays | Go 1.0 | planned | 2 | |
 | Maps | Go 1.0 | planned | 2 | |

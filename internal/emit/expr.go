@@ -115,6 +115,9 @@ func (g *gen) isPlace(e ast.Expr) bool {
 	if _, ok := g.cellRoot[e]; ok {
 		return true // a cell's contents, while an access to it is written
 	}
+	if _, ok := g.temps[e]; ok {
+		return true // computed into a local first
+	}
 	if _, _, ok := g.heapRoot(e); ok {
 		return false // read with heapValue
 	}
@@ -151,6 +154,9 @@ func (g *gen) place(e ast.Expr) node {
 	}
 	if n, ok := g.cellRoot[ast.Unparen(e)]; ok {
 		return atom{"*" + n, precUnary} // a cell's contents
+	}
+	if name, ok := g.temps[ast.Unparen(e)]; ok {
+		return text(name)
 	}
 	switch x := ast.Unparen(e).(type) {
 	case *ast.Ident:
@@ -796,6 +802,16 @@ func (g *gen) needsElemSuffix(t types.Type, elts []ast.Expr) bool {
 // composite renders a composite literal.
 func (g *gen) composite(e *ast.CompositeLit) node {
 	t := g.typeOf(e)
+	if p, ok := t.(*types.Pointer); ok {
+		// {...} for &T{...}, in a literal of pointers (RFC 0013).
+		g.rt["Ptr"] = true
+		return &call{head: "rt::Ptr::new", open: "(", close: ")", args: []node{g.compositeOf(e, p.Elem())}}
+	}
+	return g.compositeOf(e, t)
+}
+
+// compositeOf renders composite literal e of type t.
+func (g *gen) compositeOf(e *ast.CompositeLit, t types.Type) node {
 	if _, ok := t.Underlying().(*types.Slice); ok {
 		if len(e.Elts) == 0 {
 			return text("Vec::new()")

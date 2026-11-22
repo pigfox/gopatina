@@ -923,9 +923,13 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\ntype Lb%d string\n", k)
 	fmt.Fprintf(b, "\nfunc lab%d(s Lb%d) *Lb%d { return &s }\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc cell%d(x int) *Ct%d {\n\tc := Ct%d{n: x}\n\tc.n++\n\treturn &c\n}\n", k, k, k)
-	fmt.Fprintf(b, "\ntype Nd%d struct {\n\tV     int\n\tName  string\n\tItems []int\n\tNext  *Nd%d\n\tin    Cn%d\n}\n", k, k, k)
+	fmt.Fprintf(b, "\ntype Nd%d struct {\n\tV     int\n\tName  string\n\tItems []int\n\tNext  *Nd%d\n\tKids  []*Nd%d\n\tin    Cn%d\n}\n", k, k, k, k)
 	fmt.Fprintf(b, "\nfunc newNd%d(v int, next *Nd%d) *Nd%d {\n\treturn &Nd%d{V: v, Next: next, Name: \"n\" + fmt.Sprint(v)}\n}\n", k, k, k, k)
 	fmt.Fprintf(b, "\nfunc (n *Nd%d) Push(x int) { n.Items = append(n.Items, x) }\n", k)
+	// Printed through String; for a nil pointer it panics, which fmt prints
+	// as <nil>.
+	fmt.Fprintf(b, "\nfunc (n *Nd%d) String() string { return \"nd:\" + n.Name }\n", k)
+	fmt.Fprintf(b, "\ntype Sz%d interface{ Sum() int }\n", k)
 	fmt.Fprintf(b, "\nfunc (n *Nd%d) Sum() int {\n\tt := n.V\n\tfor i := 0; i < len(n.Items); i++ {\n\t\tt = t %s n.Items[i]\n\t}\n\treturn t\n}\n", k, op())
 	fmt.Fprintf(b, "\nfunc ndLen%d(n *Nd%d) int {\n\tc := 0\n\tfor p := n; p != nil; p = p.Next {\n\t\tc++\n\t}\n\treturn c\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc fill%d(s []int, x int) {\n\tfor i := range s {\n\t\ts[i] = s[i]%sx + i\n\t}\n}\n", k, op())
@@ -974,4 +978,26 @@ func (g *gen) ptrUses() {
 	g.depth--
 	g.line("}")
 	g.line("fmt.Println(ndLen%d(ptrL), ptrN == nil, ptrN != ptrL, ptrA == ptrL, ptrL.Next.Next == nil, ptrL.in.Get())", k)
+	// Slices of pointers, and pointers in interfaces (RFC 0013, step 2).
+	g.line("ptrL.Kids = append(ptrL.Kids, ptrA, newNd%d(%s, nil), ptrL.Next)", k, v())
+	g.line("ptrK := []*Nd%d{ptrL.Next, nil, ptrN}", k)
+	g.line("ptrK = append(ptrK, ptrL.Kids[%d])", g.qr.IntN(3))
+	g.line("ptrT := 0")
+	g.line("for _, kd := range ptrL.Kids {")
+	g.depth++
+	g.line("kd.V %s= %s", op(), v())
+	g.line("ptrT += kd.V")
+	g.depth--
+	g.line("}")
+	g.line("fmt.Println(ptrT, len(ptrL.Kids), ptrK, ptrK[1] == nil, ptrK[0] == ptrL.Next)")
+	g.line("var ptrS Sz%d = ptrL", k)
+	g.line("var ptrZ2 *Nd%d", k)
+	g.line("ptrS2 := []Sz%d{ptrS, ptrL.Next, ptrZ2}", k)
+	g.line("fmt.Println(ptrS.Sum(), ptrS, ptrS2[2] != nil, ptrS == Sz%d(ptrL), ptrS2[1] == ptrS)", k)
+	g.line("fmt.Printf(\"%%T %%v\\n\", ptrS, ptrS2[2])")
+	g.line("if ptrQ, ok := ptrS2[%d].(*Nd%d); ok {", g.qr.IntN(3), k)
+	g.depth++
+	g.line("fmt.Println(\"nd\", ptrQ == nil, ptrQ == ptrL)")
+	g.depth--
+	g.line("}")
 }

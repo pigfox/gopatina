@@ -22,6 +22,9 @@ type analyzer struct {
 	fixes    map[token.Pos]Fix
 	// Suffix calls encountered while walking evaluated expressions.
 	suffixes map[*ast.CallExpr]*Func
+	// heapWritten are the slice types whose elements the program changes
+	// through a heap pointer (heap.go).
+	heapWritten []types.Type
 	// final is set for the last pass, which records decisions.
 	final bool
 }

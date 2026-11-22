@@ -1,0 +1,4 @@
+./main.go:10:7: receiver c is a shared borrow: Inc only reads it
+./main.go:15:7: receiver n is a shared borrow: Up only reads it
+./main.go:21:7: receiver r is owned: Self keeps it
+./main.go:37:14: parameter n is a shared borrow: newName only reads it

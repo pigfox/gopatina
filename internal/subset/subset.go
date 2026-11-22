@@ -35,6 +35,9 @@ type checker struct {
 	selfAppend map[*ast.CallExpr]bool
 	// ifacePlan is the program's interface analysis (RFC 0012), made once.
 	ifacePlan *IfacePlan
+	// nilRecv is the pointer receiver of the print method being checked
+	// (RFC 0013), or nil.
+	nilRecv *types.Var
 }
 
 // Check returns every construct in pkg that patina mode does not support,
@@ -332,10 +335,8 @@ func unsupportedType(t types.Type, constOK bool) string {
 		if isWriter(t.Elem()) {
 			return fmt.Sprintf("type %s", t)
 		}
-		if _, ok := t.Elem().(*types.Pointer); ok {
-			return "a slice of pointers"
-		}
-		return unsupportedType(t.Elem(), false)
+		// A slice of pointers holds heap pointers (RFC 0013).
+		return unsupportedType(pointee(t.Elem()), false)
 	case *types.Named:
 		if isError(t) {
 			return "" // an interface value (RFC 0012)
@@ -732,7 +733,7 @@ func (c *checker) selector(e *ast.SelectorExpr, called bool) {
 }
 
 func (c *checker) compositeLit(e *ast.CompositeLit) {
-	t := c.pkg.Info.Types[e].Type
+	t := pointee(c.pkg.Info.Types[e].Type) // {...} for &T{...} in a literal of pointers
 	switch t.Underlying().(type) {
 	case *types.Struct:
 		if _, ok := types.Unalias(t).(*types.Named); !ok {
@@ -1003,7 +1004,13 @@ func (c *checker) fmtCall(e *ast.CallExpr, name string) {
 // printProblem says why a value of type t cannot be printed with %v.
 func (c *checker) printProblem(t types.Type) string {
 	if IsIface(t) {
-		return "" // through its dynamic type (RFC 0012)
+		return c.dynPointerPrintProblem(t) // through its dynamic type (RFC 0012)
+	}
+	if isPointer(t) {
+		return c.ptrPrintProblem(t)
+	}
+	if s, ok := t.Underlying().(*types.Slice); ok && isPointer(s.Elem()) {
+		return c.ptrPrintProblem(s.Elem()) // each element through its method
 	}
 	if m := PrintMethod(t); m != nil {
 		return c.methodPrintProblem(m)
@@ -1044,6 +1051,59 @@ func PrintMethod(t types.Type) *types.Func {
 		}
 	}
 	return nil
+}
+
+// PtrPrintMethod returns the method fmt calls to print a pointer of type
+// t, *T for a named type T of the program: Error() string, else String()
+// string, from *T's method set, which holds T's methods too; or nil.
+func PtrPrintMethod(t types.Type) *types.Func {
+	p := types.Unalias(t).(*types.Pointer) // the callers pass only pointers
+	n, ok := types.Unalias(p.Elem()).(*types.Named)
+	if !ok || n.Obj().Pkg() == nil {
+		return nil
+	}
+	ms := types.NewMethodSet(p)
+	for _, name := range []string{"Error", "String"} {
+		if sel := ms.Lookup(n.Obj().Pkg(), name); sel != nil {
+			f := sel.Obj().(*types.Func)
+			sig := f.Signature()
+			if sig.Params().Len() == 0 && sig.Results().Len() == 1 && isString(sig.Results().At(0).Type()) {
+				return f
+			}
+		}
+	}
+	return nil
+}
+
+// dynPointerPrintProblem says why a value of interface type t cannot be
+// printed in this program: a dynamic type it can hold is a pointer fmt
+// would print by its address, or prints through a method that may panic.
+func (c *checker) dynPointerPrintProblem(t types.Type) string {
+	if c.ifacePlan == nil {
+		c.ifacePlan = Ifaces(c.pkg)
+	}
+	for _, d := range c.ifacePlan.Dyn {
+		if isPointer(d) && types.AssignableTo(d, t) { // a value of t can hold it
+			if what := c.ptrPrintProblem(d); what != "" {
+				return "printing an interface value in a program that converts " + d.String() + " to one: " + what
+			}
+		}
+	}
+	return ""
+}
+
+// ptrPrintProblem says why a pointer of type t cannot be printed: only
+// through its print method, which may dereference the pointer (fmt prints
+// <nil> when that panics for a nil pointer, as patina mode does too).
+func (c *checker) ptrPrintProblem(t types.Type) string {
+	m := PtrPrintMethod(t)
+	if m == nil {
+		return fmt.Sprintf("printing a pointer of type %s, which has no String or Error method (fmt prints its address)", t)
+	}
+	saved := c.nilRecv
+	c.nilRecv = m.Signature().Recv()
+	defer func() { c.nilRecv = saved }()
+	return c.methodPrintProblem(m)
 }
 
 // methodPrintProblem says why printing through method m is not supported
@@ -1088,7 +1148,7 @@ func (c *checker) cannotPanic(n ast.Node) bool {
 			// Reading a field of a value cannot panic; through a pointer
 			// it could.
 			sel := c.pkg.Info.Selections[n]
-			ok = sel != nil && sel.Kind() == types.FieldVal && !isPointer(c.pkg.Info.Types[n.X].Type)
+			ok = sel != nil && sel.Kind() == types.FieldVal && (!isPointer(c.pkg.Info.Types[n.X].Type) || c.isNilRecv(n.X))
 			return ok
 		case *ast.CallExpr:
 			// The callee is a type, a built-in or fmt's function, not a
@@ -1103,6 +1163,13 @@ func (c *checker) cannotPanic(n ast.Node) bool {
 		return false
 	})
 	return ok
+}
+
+// isNilRecv reports whether e is the pointer receiver of the print method
+// being checked, whose nil dereference fmt prints as <nil>.
+func (c *checker) isNilRecv(e ast.Expr) bool {
+	id, ok := ast.Unparen(e).(*ast.Ident)
+	return ok && c.nilRecv != nil && c.pkg.Info.Uses[id] == c.nilRecv
 }
 
 func (c *checker) cannotPanicCall(e *ast.CallExpr) bool {

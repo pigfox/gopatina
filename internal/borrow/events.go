@@ -70,9 +70,6 @@ type walker struct {
 func (w *walker) info() *types.Info { return w.a.pkg.Info }
 
 func (w *walker) add(ev event) {
-	if ev.kind == evMut && ev.whole && ev.v != nil && heapPtrType(ev.v.Type()) {
-		ev.heap = true // a change to what a heap pointer points at, not to it
-	}
 	if ev.heap && (ev.kind == evMut || ev.kind == evConsume || ev.kind == evBorrow) {
 		ev.kind = evRead // through the cell: the variable itself is only read
 	}
@@ -334,12 +331,16 @@ func (w *walker) call(e *ast.CallExpr) {
 // receiver walks the receiver of a method call.
 func (w *walker) receiver(ops *operands, x ast.Expr, callee *Func) {
 	r := callee.Recv
-	switch r.Mode {
-	case RefMut:
+	switch {
+	case r.Mode == RefMut && heapPtrType(w.info().TypeOf(x)):
+		// A value method changing *p, inside p's cell (RFC 0013): p itself
+		// is only read.
+		ops.add(x, true, false, false, func() { w.read(x) })
+	case r.Mode == RefMut:
 		ops.add(x, true, true, false, func() { w.expr(x, evMut) })
-	case Owned:
+	case r.Mode == Owned:
 		ops.add(x, false, false, false, func() { w.consume(x, exprString(x)+"'s method "+callee.Obj.Name(), r) })
-	case Ref:
+	case r.Mode == Ref:
 		ops.add(x, true, false, false, func() { w.read(x) })
 	default:
 		ops.add(x, false, false, false, func() { w.read(x) })
