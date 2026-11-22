@@ -1,9 +1,10 @@
 # RFC 0006: Proven integer ranges and loop specialization
 
-- **Status:** Draft, for the project lead's decision
+- **Status:** Accepted by the project lead on 2026-11-21 ("Approve RFC 0006
+  with 60 and 1."); not implemented yet
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-21
-- **Discussion:** the pull request that adds this file
+- **Discussion:** https://github.com/pigfox/gopatina/pull/37
 - **Supersedes / superseded by:** none
 
 ## Summary
@@ -147,8 +148,9 @@ With no side condition, the nest is emitted once, with the proven
 induction variables as `usize`. With a side condition, it is emitted as
 `if cond { fast } else { general }`. At most one side condition is used per
 nest; a nest that would need two is not specialized. The fast copy is
-emitted only if it is at most 60 lines (a setting the implementation fixes
-and the golden tests pin), so code growth stays bounded.
+emitted only if it is at most 60 lines, so code growth stays bounded; the
+golden tests pin the limit. Both limits are the project lead's decision of
+2026-11-21 ("Approve RFC 0006 with 60 and 1.").
 
 ### What the fast copy may change
 
@@ -246,11 +248,16 @@ loops the analysis proves. Emitted crates stay deterministic.
 - Java HotSpot's range check elimination does the same with pre- and
   post-loops.
 
+## Decisions
+
+- **Size limit:** a fast copy is at most 60 lines of emitted Rust.
+- **Side conditions:** at most 1 per loop nest.
+
+Both were decided by the project lead on 2026-11-21: "Approve RFC 0006 with
+60 and 1."
+
 ## Unresolved questions
 
-- The size limit for a fast copy (60 lines proposed).
-- Whether one side condition per nest is enough in practice, or two should
-  be allowed.
 - 32-bit targets: `isize::MAX` and Go's `maxAlloc` are smaller there, so
   thresholds are computed per target from `go/types` sizes. Are 32-bit
   targets tested in CI?
