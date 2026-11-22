@@ -1,0 +1,14 @@
+{
+  "note": "TOST equivalence of GoPatina against hand-written Rust (cmd/gopatina-bench); ratios and intervals only",
+  "runs": 100,
+  "gopatina_commit": "0af9da87949b1e710ec7a00c4b3a24a79e9d7b49",
+  "go": "go version go1.27.1 linux/amd64",
+  "rust_stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)",
+  "rust_pinned_for_gopatina": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "os": "Linux 6.8.0-147-generic x86_64",
+  "results": [
+    {"case": "fib", "primary": "wall", "warmup": 2, "results": {"wall": {"pairs": 100, "margin": 0.005, "sigma": 5, "alpha_one_sided": 2.866515718791946e-7, "mean_log_ratio": -0.016570690898716843, "sd_log_ratio": 0.06928394667148186, "ratio": 0.9835658477793486, "ratio_low": 0.9477896329324825, "ratio_high": 1.0206925073919049, "verdict": "inconclusive"}}},
+    {"case": "sieve", "primary": "wall", "warmup": 2, "results": {"wall": {"pairs": 100, "margin": 0.005, "sigma": 5, "alpha_one_sided": 2.866515718791946e-7, "mean_log_ratio": -0.025615723676460388, "sd_log_ratio": 0.20414531256055374, "ratio": 0.9747095754632952, "ratio_low": 0.8738997798595687, "ratio_high": 1.08714841037322, "verdict": "inconclusive"}}},
+    {"case": "suffix-sum", "primary": "wall", "warmup": 2, "results": {"wall": {"pairs": 100, "margin": 0.005, "sigma": 5, "alpha_one_sided": 2.866515718791946e-7, "mean_log_ratio": 0.007409218474574691, "sd_log_ratio": 0.08747935953318738, "ratio": 1.0074367346495805, "ratio_low": 0.9613916273635753, "ratio_high": 1.0556871366819045, "verdict": "inconclusive"}}}
+  ]
+}

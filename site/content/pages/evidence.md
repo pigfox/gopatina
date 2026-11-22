@@ -40,6 +40,7 @@ GoPatina makes two measurable claims, and this page reports them the way a scien
 | `sieve` speed | instructions 1.302; cycles 1.073 [1.055, 1.092]; wall time 1.067 [1.025, 1.110]: slower on all three | same run | not official; the cause has since been removed (next row) |
 | `suffix-sum` speed | instructions 1.0000020 [1.0000015, 1.0000026]: equivalent; cycles 0.992 [0.962, 1.022] and wall time 0.977 [0.880, 1.084]: inconclusive | same run | not official |
 | Machine code after RFC 0006 | the hot loops of all three benchmarks are the same instructions as the hand-written Rust's; what remains is a 3-instruction panic-hook setup at startup (and one alignment no-op in `sieve`) | 2026-11-21, rustc 1.93.0 | compiles only; not a speed measurement |
+| Test-server pilot, wall time | `fib` 0.984 [0.948, 1.021], `sieve` 0.975 [0.874, 1.087], `suffix-sum` 1.007 [0.961, 1.056]: all inconclusive; the standard deviation of the log ratios was 7% to 20% | 2026-11-22, test server, commit `0af9da8`, 100 runs per binary, 5σ | the noise is far wider than ±0.5%: wall time on this machine cannot decide the bar |
 | **The speed bar** (±0.5%, 5σ) | pending | test server, with CPU counters or a quieter machine | pending |
 | Golden programs | 93 of 93 match Go's output, first stderr line and exit status | every change, in CI | passing |
 | Development smoke runs | 1,318 generated tests, 0 defects | 2026-11-21, laptop, three generator versions | far below 881,098: not evidence for the bar |
@@ -53,7 +54,7 @@ Brackets are 5σ intervals of the ratio GoPatina / hand-written Rust; below 1 is
 
 - **Scope.** Everything here holds for the phase 1 subset only: no goroutines, maps, interfaces, generics or most of the standard library.
 - **The benchmarks.** Three small programs, with one author's hand-written Rust. They may not represent real workloads.
-- **Machines.** The local results come from a busy laptop. The test server is one rented virtual machine of one kind.
+- **Machines.** The local results come from a busy laptop. The test server is one rented virtual machine of one kind, whose wall-time noise (7% to 20% in the pilot) is far above the speed margin.
 - **Measurement.** A wall-time run includes process start-up, which dilutes a difference in a short benchmark. Instruction counts are not time.
 - **Toolchains.** Emitted crates pin rustc 1.93.0, while the baseline uses the latest stable Rust, so a compiler change can move a ratio either way.
 - **The generator.** The correctness bound holds for programs the generator produces. A kind of bug the generator never triggers is invisible to it, and its tests are not independent draws from real programs. Only the first line of standard error is compared, not Go's stack trace.

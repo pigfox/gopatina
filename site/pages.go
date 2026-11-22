@@ -37,12 +37,12 @@ var pages = []page{
 		Description: "Install GoPatina and build a Go program three ways: as plain Go, as a readable Rust crate, and as a native binary built by rustc with no GC.",
 	},
 	{
-		Path: "/evidence", File: "evidence", Kind: "article", Crumb: "Evidence", Updated: lastUpdated,
+		Path: "/evidence", File: "evidence", Kind: "article", Crumb: "Evidence", Updated: "2026-11-22",
 		Title:       "GoPatina evidence: speed and correctness against Rust",
 		Description: "GoPatina's evidence as a scientific report: hypotheses, method, apparatus, TOST equivalence at 5σ, a Six Sigma defect bound at 6σ, every result.",
 	},
 	{
-		Path: "/benchmarks", File: "benchmarks", Kind: "article", Crumb: "Benchmarks", Updated: lastUpdated,
+		Path: "/benchmarks", File: "benchmarks", Kind: "article", Crumb: "Benchmarks", Updated: "2026-11-22",
 		Title:       "GoPatina benchmarks: Go vs Rust performance, measured",
 		Description: "How fast is Go compiled through Rust? GoPatina's benchmarks against hand-written Rust and plain Go: the method, measured ratios and caveats.",
 	},
