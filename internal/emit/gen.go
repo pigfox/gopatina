@@ -437,10 +437,22 @@ func (g *gen) rustType(t types.Type) string {
 		switch t.Kind() {
 		case types.Int, types.Int64, types.UntypedInt:
 			return "i64"
+		case types.Int8:
+			return "i8"
+		case types.Int16:
+			return "i16"
 		case types.Int32, types.UntypedRune:
 			return "i32"
 		case types.Uint8:
 			return "u8"
+		case types.Uint16:
+			return "u16"
+		case types.Uint32:
+			return "u32"
+		case types.Uint, types.Uint64, types.Uintptr: // every target is 64-bit
+			return "u64"
+		case types.Float32:
+			return "f32"
 		case types.Float64, types.UntypedFloat:
 			return "f64"
 		case types.Bool, types.UntypedBool:

@@ -83,7 +83,7 @@ const (
 
 var (
 	declPrefixRE  = regexp.MustCompile(`^type [^ ]+: (an alias of )?`)
-	printTypeRE   = regexp.MustCompile(`^(?:printing a value|the format (%\S*)) (?:of|with a value of) type (.+?)(?: is not supported|$)`)
+	printTypeRE   = regexp.MustCompile(`^(?:printing a value|the format (%.*?)) (?:of|with a value of) type (.+?)(?: is not supported|$)`)
 	ifaceTypeRE   = regexp.MustCompile(`^(\[\])*(interface \{\}|any)$`)
 	foreignTypeRE = regexp.MustCompile(`^[*\[\]]*[a-z][a-z0-9_./-]*\.[A-Za-z_]`)
 )
@@ -133,10 +133,10 @@ var rules = func() []rule {
 		{"defer", `^defer`},
 		{"package-level variables", `package-level variable`},
 		{"imports of other packages", `^package [^ ]+ is not supported|renamed or dot import`},
-		{"standard library (calls and variables)", `^[a-z][a-z0-9_]*(/[a-z0-9_]+)*\.[A-Za-z_][A-Za-z0-9_]* is not supported`},
+		{"standard library (calls and variables)", `^[a-z][a-z0-9_]*(/[a-z0-9_.]+)*\.[A-Za-z_][A-Za-z0-9_]* is not supported|^vendor/`},
 		{"calls into other modules", `^[a-z0-9.-]+\.[a-z]+/[^ ]*\.[A-Za-z_][A-Za-z0-9_]* is not supported`},
 		{"other integer and float types", `^type (\[\])*(u?int(8|16)?|uint32|uint64|uintptr|float32|complex(64|128))\b|complex number`},
-		{"types from other packages", `^type (\[\])*\*?[a-z][^ ]*\.[A-Za-z_]`},
+		{"types from other packages", `^type (\[\])*\*?[a-z][^ ]*\.[A-Za-z_]|struct type from another package`},
 		{"pointers", `pointer|address of|passing nil`},
 		{"slicing", `slice expression|s\[i:j\]`},
 		{"arrays", `array type|range over \[[0-9]`},

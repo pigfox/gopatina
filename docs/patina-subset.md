@@ -37,7 +37,7 @@ the exact error committed beside it.
 | --- | --- |
 | Packages | `package main` with `func main()`, in one directory, any number of files |
 | Imports | `fmt`, `strings`, `errors`, `os`, `io`, `slices`, `bytes` (only the functions below) |
-| Types | `int`, `int64`, `int32` (`rune`), `uint8` (`byte`), `float64`, `bool`, `string`, slices of supported types, named struct types, named types of the basic and slice types (`type Op int`, `type Path []int`, [RFC 0007](rfcs/0007-named-types-and-aliases.md)) and type aliases, `error` (as a result), `io.Writer` (as a parameter) |
+| Types | every integer type (`int`, `int8` to `int64`, `uint`, `uint8` (`byte`) to `uint64`, `uintptr`, `rune`), `float32`, `float64` ([RFC 0008](rfcs/0008-integer-and-float-types.md)), `bool`, `string`, slices of supported types, named struct types, named types of the basic and slice types (`type Op int`, `type Path []int`, [RFC 0007](rfcs/0007-named-types-and-aliases.md)) and type aliases, `error` (as a result), `io.Writer` (as a parameter) |
 | Declarations | functions and methods (on structs and on named non-struct types), struct types, named types, type aliases, constants (typed, untyped, `iota`), local variables |
 | Statements | assignment (`=`, `:=`, `op=`, tuple assignment), `++`/`--`, `if`/`else` with an init statement, `for` (3-clause, condition, infinite), `for range` over slices, strings and integers, `switch` (with and without a tag, several values per case, `default` anywhere), `break`, `continue`, `return` |
 | Expressions | arithmetic, comparison, logical and bitwise operators, shifts by a constant, string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, method calls, `&x` and `*p`; Phase 2 adds [read-only slice suffix arguments](#read-only-slice-suffix-arguments) |
@@ -52,14 +52,15 @@ than `error` and `io.Writer`, generics, `defer`, labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,
 general slicing (`s[i:j]`), arrays, package-level variables, `init`, embedded fields,
 type switches and assertions, variadic functions, the other built-ins
-(`cap`, `copy`, `new`, `clear`, ...), `min`/`max` with float arguments, and the other integer and
-float types.
+(`cap`, `copy`, `new`, `clear`, ...), `min`/`max` with float arguments, shifts by a variable
+count, and complex numbers.
 
 ## How Go values become Rust values
 
 | Go | Rust |
 | --- | --- |
-| `int`, `int64` / `int32` / `uint8` / `float64` / `bool` | `i64` / `i32` / `u8` / `f64` / `bool` |
+| `int`, `int64` / `int8` / `int16` / `int32` / `uint8` / `uint16` / `uint32` / `uint`, `uint64`, `uintptr` | `i64` / `i8` / `i16` / `i32` / `u8` / `u16` / `u32` / `u64` |
+| `float32` / `float64` / `bool` | `f32` / `f64` / `bool` |
 | `string` | `String` (owned), `&str` (a borrowed parameter) |
 | `[]T` | `Vec<T>` (owned), `&[T]` or `&mut [T]` (a borrowed parameter) |
 | `struct` | a `struct` deriving `Clone, Default, PartialEq` (and `Copy` when every field is) |

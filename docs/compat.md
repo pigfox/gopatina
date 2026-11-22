@@ -21,8 +21,8 @@ Status values: **supported** (implemented and tested), **partial**
 | Feature | Introduced | Status | Planned phase | Notes |
 | --- | --- | --- | --- | --- |
 | Functions, multiple return values, named results | Go 1.0 | supported | 1 | Not variadic functions |
-| Integers, booleans, strings | Go 1.0 | partial | 1 | `int`, `int64`, `int32`/`rune`, `uint8`/`byte`, wrapping on overflow as in Go; the other widths are planned |
-| Floating point | Go 1.0 | partial | 1 | `float64`, printed as Go prints it; `float32` is planned |
+| Integers, booleans, strings | Go 1.0 | supported | 1 | Every integer type (RFC 0008), wrapping on overflow as in Go; shifts by a variable count are planned |
+| Floating point | Go 1.0 | partial | 1 | `float64` and `float32`, printed as Go prints them; float-to-integer conversions as gc does them (measured on amd64; arm64 untested); `complex64`/`complex128` are planned |
 | Structs, methods | Go 1.0 | supported | 1 | Value and pointer receivers; not embedded fields |
 | `if`, `for`, `switch` | Go 1.0 | supported | 1 | Not `fallthrough`, labels, or a `break` before the end of a case |
 | Constants, `iota` | Go 1.0 | supported | 1 | Typed by named types too |

@@ -421,7 +421,7 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
 - **Rust**: overflow panics in debug builds; shifts by >= width are
   errors; `as` saturates; float `Display` differs from Go's.
 - **Recommendation**: wrapping arithmetic and Go's panics (done in phase 1
-  for `int`, `int64`, `int32`, `uint8`, `float64`); shifts by a variable
+  for every integer type, `float32` and `float64`, RFC 0008); shifts by a variable
   count emitted with Go's rules (phase 1 accepts only constant counts so
   far); float-to-integer conversions follow what Go's compiler does on the
   same target (`rt::f64_to_i64`, `rt::f64_to_i32`: on x86-64, gc's

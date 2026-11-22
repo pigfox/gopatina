@@ -10,6 +10,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A slice literal without a type from its context (`fmt.Println([]int{1 <<
+  40})`, `len([]int{-1 << 63})`) did not compile: its constants became
+  Rust's default `i32`. The first constant element now carries its type when
+  that default would be wrong (and for `float32`, which would be `f64`).
 - A width on a slice (`%6v`, `%-5v`) pads each element, as Go does; the
   whole slice was padded. Golden program `fmt_verbs`.
 - Float-to-integer conversions follow Go's compiler, not Rust's saturating
@@ -135,6 +139,19 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Every integer type and `float32` in patina mode (RFC 0008): `int8`,
+  `int16`, `uint`, `uint16`, `uint32`, `uint64`, `uintptr`, `float32`, as
+  the Rust primitive of the same width, with wrapping arithmetic, signed
+  division, shifts by constants up to past the width, and printing.
+  Float-to-integer conversions as gc does them on amd64 (`rt::f64_to_u64`
+  for 64-bit unsigned types); `float32` printed with Go's shortest 32-bit
+  digits (`rt::Float32`); an out-of-range index of a 64-bit unsigned type
+  panics with the index printed unsigned, as Go prints it (`rt::uindex`).
+  Golden program `numeric_types`; the generator's named types take every
+  integer width, and its float part adds `float32`.
+- Coverage measurement: calls into the standard library's vendored packages,
+  `%` verbs with the space flag, and struct types from another package are
+  classified (they were "other").
 - fmt: `%x` and `%X` of strings and `[]byte`; the `#` and `0` flags of `%x`
   and `%X` (Go zero-pads the digits, sign included, prefix not, for an
   integer, and the whole text for a string); slices printed through their
