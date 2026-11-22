@@ -50,7 +50,7 @@ fn double(xs: &mut [i64]) {
 }
 
 fn squares(n: i64) -> Vec<i64> {
-    let mut out: Vec<i64> = Vec::with_capacity(n as usize);
+    let mut out: Vec<i64> = Vec::with_capacity(rt::make_cap(n, 8));
     for i in 1..=n {
         out.push(i * i);
     }

@@ -71,7 +71,7 @@ fn scale(p: &mut Point, k: i64) {
 }
 
 fn squares(n: i64) -> Vec<i64> {
-    let mut out: Vec<i64> = vec![0_i64; n as usize];
+    let mut out: Vec<i64> = vec![0_i64; rt::make_len(n, 8)];
     for i in 0..n {
         out[i as usize] = i * i;
     }

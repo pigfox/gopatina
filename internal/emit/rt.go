@@ -87,6 +87,60 @@ pub fn slice_suffix(s: &[i64], low: i64) -> &[i64] {
 `,
 	},
 	{
+		name: "make_check",
+		code: `/// Go's largest allocation, in bytes (runtime.maxAlloc).
+#[cfg(target_pointer_width = "64")]
+const MAX_ALLOC: u64 = 1 << 48;
+#[cfg(not(target_pointer_width = "64"))]
+const MAX_ALLOC: u64 = u32::MAX as u64;
+
+/// Go's makeslice check for make([]T, len, cap) with elements of size
+/// bytes: the same tests in the same order, and the same panics.
+fn make_check(len: i64, cap: i64, size: u64) {
+    let too_big = |n: i64| {
+        let (mem, overflow) = (n as u64).overflowing_mul(size);
+        overflow || mem > MAX_ALLOC
+    };
+    if too_big(cap) || len < 0 || len > cap {
+        if too_big(len) || len < 0 {
+            panic!("runtime error: makeslice: len out of range");
+        }
+        panic!("runtime error: makeslice: cap out of range");
+    }
+}
+`,
+	},
+	{
+		name: "make_len",
+		deps: []string{"make_check"},
+		code: `/// The length of make([]T, n), after Go's checks.
+pub fn make_len(n: i64, size: u64) -> usize {
+    make_check(n, n, size);
+    n as usize
+}
+`,
+	},
+	{
+		name: "make_len_cap",
+		deps: []string{"make_check"},
+		code: `/// The length of make([]T, len, cap), after Go's checks.
+pub fn make_len_cap(len: i64, cap: i64, size: u64) -> usize {
+    make_check(len, cap, size);
+    len as usize
+}
+`,
+	},
+	{
+		name: "make_cap",
+		deps: []string{"make_check"},
+		code: `/// The capacity of make([]T, 0, cap), after Go's checks.
+pub fn make_cap(cap: i64, size: u64) -> usize {
+    make_check(0, cap, size);
+    cap as usize
+}
+`,
+	},
+	{
 		name: "Float",
 		uses: []string{"fmt"},
 		code: `/// A float64 printed the way Go's fmt prints it: %v uses the shortest

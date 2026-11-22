@@ -10,6 +10,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- `make` with a length or capacity known only at run time now panics the
+  way Go's makeslice does: "runtime error: makeslice: len out of range" for
+  a negative length or one whose elements exceed Go's largest allocation,
+  and "makeslice: cap out of range" for a negative or too-large capacity or
+  a length above the capacity. Before, a negative length panicked with
+  Rust's "capacity overflow", and a three-argument `make` with a run-time
+  capacity ignored the capacity. Five golden programs cover the cases.
 - Patina mode preserves writes to a slice forwarded through wrapper
   functions by borrowing the original backing array instead of copying it.
 - Loops bounded by `len(s)` recheck the length on each iteration when a
