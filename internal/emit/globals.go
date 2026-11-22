@@ -255,8 +255,10 @@ func (g *gen) globalStmt(s ast.Stmt, lhs []ast.Expr, write func()) bool {
 		return true
 	}
 	// A changed variable is read before the statement, so every call of
-	// it, the outermost ones too, comes first.
-	g.hoistCalls(s, len(roots) > 0)
+	// it, the outermost ones too, comes first; so does every call of a
+	// statement of several values, which Rust would make in turn with the
+	// reads beside them.
+	g.hoistCalls(s, len(roots) > 0 || severalValues(s))
 	for _, v := range roots {
 		a := g.lnames.name(v.Name(), snake)
 		g.stmtLine("let mut "+a+" = ", g.globalValue(v), ";")
@@ -268,6 +270,18 @@ func (g *gen) globalStmt(s ast.Stmt, lhs []ast.Expr, write func()) bool {
 		delete(g.galias, v)
 	}
 	return true
+}
+
+// severalValues reports whether s returns or assigns several values, each
+// its own expression: return a, f() or a, b = x, f().
+func severalValues(s ast.Stmt) bool {
+	switch s := s.(type) {
+	case *ast.ReturnStmt:
+		return len(s.Results) > 1
+	case *ast.AssignStmt:
+		return len(s.Rhs) > 1
+	}
+	return false
 }
 
 // hoistCalls computes the calls of the program in statement s into locals
