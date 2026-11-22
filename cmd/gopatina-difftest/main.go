@@ -107,6 +107,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "usage: gopatina-difftest [flags]; -programs, -per and -jobs must be positive")
 		return 2
 	}
+	// Builds run in each batch's directory, so a relative path to a tool
+	// would not be found there; a bare name is looked up in PATH.
+	for _, tool := range []*string{&c.gopatina, &c.goCmd} {
+		if strings.ContainsRune(*tool, filepath.Separator) {
+			abs, _ := filepath.Abs(*tool)
+			*tool = abs
+		}
+	}
 	begin := now()
 	if c.work == "" {
 		dir, err := os.MkdirTemp("", "gopatina-difftest-")
@@ -215,6 +223,9 @@ func batch(c config, worker, first, n int) (outcome, error) {
 	}
 	cache := "GOPATINA_CACHE=" + filepath.Join(c.work, "cache-"+strconv.Itoa(worker))
 	pOut, err := build(dir, []string{cache}, c.gopatina, "build", "-patina", "-o", pBin, ".")
+	if _, ran := err.(*exec.ExitError); err != nil && !ran {
+		return o, fmt.Errorf("batch %d: %s could not run: %v", first, c.gopatina, err)
+	}
 	if err != nil {
 		o.buildFailed = true
 		keep(c, first, src, map[string][]byte{"patina-build.txt": pOut})

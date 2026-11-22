@@ -10,6 +10,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A left operand of <, <= or << that ends with a cast, such as
+  i as i64 * i as i64 << 27, is parenthesized, so rustc no longer reads it
+  as generic arguments; the defect-rate run found the case on the test
+  server. -(-x) is no longer written as --x. The generator writes such
+  shifts and comparisons in every loop nest, and gopatina-difftest makes
+  tool paths absolute and stops when a tool cannot run.
 - gopatina.org no longer scrolls sideways on phones: a Markdown link left in
   the evidence report showed a raw URL that could not wrap. Long words now
   wrap everywhere, a site test rejects Markdown links in the page, and CI

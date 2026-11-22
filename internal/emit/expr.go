@@ -6,6 +6,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -410,7 +411,11 @@ func (g *gen) unary(e *ast.UnaryExpr) node {
 		if isUnsigned(g.typeOf(e.X)) {
 			return &call{recv: g.value(e.X), head: ".wrapping_neg", open: "(", close: ")"}
 		}
-		return atom{"-" + paren(g.value(e.X), precUnary), precUnary}
+		x := paren(g.value(e.X), precUnary)
+		if strings.HasPrefix(x, "-") {
+			x = "(" + x + ")" // --x reads as a double negation, which Rust lints
+		}
+		return atom{"-" + x, precUnary}
 	case token.NOT, token.XOR:
 		return atom{"!" + paren(g.value(e.X), precUnary), precUnary}
 	case token.AND:
@@ -451,10 +456,23 @@ func (g *gen) binary(e *ast.BinaryExpr) node {
 	}
 	op := binOps[e.Op]
 	l := g.value(e.X)
-	if (e.Op == token.SHL || e.Op == token.SHR) && l.prec() == precCast {
-		l = atom{"(" + l.flat() + ")", precAtom}
+	if e.Op == token.SHL || e.Op == token.SHR {
+		l = parenCastTail(l)
 	}
 	return &binary{op: op.op, l: l, r: g.value(e.Y), p: op.prec}
+}
+
+// castTail matches text that ends with a cast to a Rust number type.
+var castTail = regexp.MustCompile(`\bas (i8|i16|i32|i64|i128|isize|u8|u16|u32|u64|u128|usize|f32|f64)$`)
+
+// parenCastTail parenthesizes a left operand of <, <= or << that ends with
+// a cast: Rust reads a as i64 < b, and a * b as i64 << 3, as the start of
+// generic arguments (i64<...>).
+func parenCastTail(n node) node {
+	if castTail.MatchString(n.flat()) {
+		return atom{"(" + n.flat() + ")", precAtom}
+	}
+	return n
 }
 
 // safeDivisor reports whether dividing by e can neither overflow nor need
@@ -495,9 +513,8 @@ func (g *gen) compare(e *ast.BinaryExpr) node {
 	default:
 		l, r = g.value(e.X), g.value(e.Y)
 	}
-	if l.prec() == precCast && (e.Op == token.LSS || e.Op == token.LEQ) {
-		// x as i64 < y would read as the start of generic arguments.
-		l = atom{"(" + l.flat() + ")", precAtom}
+	if e.Op == token.LSS || e.Op == token.LEQ {
+		l = parenCastTail(l)
 	}
 	return &binary{op: op.op, l: l, r: r, p: op.prec, nonAssoc: true}
 }
