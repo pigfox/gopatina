@@ -32,28 +32,28 @@
 
 mod rt;
 
-fn level3(n: i64) -> Result<i64, rt::Error> {
+fn level3(n: i64) -> Result<i64, Iface> {
     if n % 7 == 0 {
-        return Err(rt::Error::new("multiple of seven"));
+        return Err(go_error("multiple of seven"));
     }
     Ok(n * 2)
 }
 
-fn level2(n: i64) -> Result<i64, rt::Error> {
+fn level2(n: i64) -> Result<i64, Iface> {
     let v = match level3(n + 1) {
         Ok(value) => value,
         Err(err) => {
-            return Err(rt::Error::new(format!("level2({}): {}", n, err)));
+            return Err(go_error(format!("level2({}): {}", n, iface_show(&err))));
         }
     };
     Ok(v + 1)
 }
 
-fn level1(n: i64) -> Result<String, rt::Error> {
+fn level1(n: i64) -> Result<String, Iface> {
     let v = match level2(n * 3) {
         Ok(value) => value,
         Err(err) => {
-            return Err(rt::Error::new(format!("level1: {}", err)));
+            return Err(go_error(format!("level1: {}", iface_show(&err))));
         }
     };
     Ok(format!("<{}>", v))
@@ -65,19 +65,104 @@ fn main() {
         let s = match level1(i) {
             Ok(value) => value,
             Err(err) => {
-                println!("error: {}", err);
+                println!("error: {}", iface_show(&err));
                 continue;
             }
         };
         println!("{}", s);
     }
     if let Err(err) = run() {
-        eprintln!("{}", err);
+        eprintln!("{}", iface_show(&err));
         std::process::exit(1);
     }
 }
 
-fn run() -> Result<(), rt::Error> {
+fn run() -> Result<(), Iface> {
     level1(2)?;
     Ok(())
+}
+
+/// The dynamic types of the program's interface values (RFC 0012).
+pub enum Dyn {
+    ErrorsErrorString(rt::Error),
+}
+
+/// An interface value: its dynamic value, or None for a nil interface. The
+/// value cannot be changed through the interface, so copies share it.
+pub type Iface = Option<std::rc::Rc<Dyn>>;
+
+/// Converts a value to an interface value.
+pub fn boxed(d: Dyn) -> Iface {
+    Some(std::rc::Rc::new(d))
+}
+
+/// Go's == on two dynamic values: the same type and equal values; a type
+/// that is not comparable panics.
+impl PartialEq for Dyn {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => std::ptr::eq(a, b),
+        }
+    }
+}
+
+/// The Go name of a dynamic type, as %T prints it.
+pub fn iface_name(d: Option<&Dyn>) -> &'static str {
+    match d {
+        None => "<nil>",
+        Some(Dyn::ErrorsErrorString(_)) => "*errors.errorString",
+    }
+}
+
+/// %T of an interface value.
+pub fn iface_type(x: &Iface) -> &'static str {
+    iface_name(x.as_deref())
+}
+
+/// %v of an interface value.
+pub fn iface_show(x: &Iface) -> String {
+    match x.as_deref() {
+        None => String::from("<nil>"),
+        Some(Dyn::ErrorsErrorString(v)) => v.to_string(),
+    }
+}
+
+/// The panic of a failed x.(T) to a concrete type T.
+pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
+    match d {
+        None => panic!("gopatina-user-panic:interface conversion: {iface} is nil, not {want}"),
+        Some(_) => panic!(
+            "gopatina-user-panic:interface conversion: {iface} is {}, not {want}",
+            iface_name(d)
+        ),
+    }
+}
+
+/// x.(I) to an interface type I: x, or Go's panic.
+pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
+    match x.as_deref() {
+        None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
+        Some(d) => {
+            if let Some(m) = missing(d) {
+                panic!(
+                    "gopatina-user-panic:interface conversion: {} is not {want}: missing method {m}",
+                    iface_name(Some(d))
+                )
+            }
+        }
+    }
+    x
+}
+
+/// v, ok := x.(I) to an interface type I.
+pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
+    match x.as_deref() {
+        Some(d) if missing(d).is_none() => (x.clone(), true),
+        _ => (None, false),
+    }
+}
+
+/// errors.New: a new error with the message, equal only to itself.
+pub fn go_error(message: impl Into<String>) -> Iface {
+    boxed(Dyn::ErrorsErrorString(rt::Error::new(message)))
 }

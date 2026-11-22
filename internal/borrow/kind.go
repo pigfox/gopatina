@@ -46,7 +46,7 @@ func KindOf(t types.Type) Kind {
 		return PointerKind
 	case *types.Named:
 		if t.Obj().Pkg() == nil {
-			return Error
+			return Value // error, an interface value (RFC 0012)
 		}
 		if t.Obj().Pkg().Path() == "io" {
 			return Writer

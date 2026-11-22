@@ -32,19 +32,16 @@
 
 mod rt;
 
-fn parse_digit(c: u8) -> Result<i64, rt::Error> {
+fn parse_digit(c: u8) -> Result<i64, Iface> {
     if c < b'0' || c > b'9' {
-        return Err(rt::Error::new(format!(
-            "not a digit: {}",
-            rt::rune(c as i64),
-        )));
+        return Err(go_error(format!("not a digit: {}", rt::rune(c as i64))));
     }
     Ok((c - b'0') as i64)
 }
 
-fn parse(s: &str) -> Result<i64, rt::Error> {
+fn parse(s: &str) -> Result<i64, Iface> {
     if s.len() as i64 == 0 {
-        return Err(rt::Error::new("empty input"));
+        return Err(go_error("empty input"));
     }
     let mut n: i64 = 0;
     for i in 0..s.len() as i64 {
@@ -54,21 +51,21 @@ fn parse(s: &str) -> Result<i64, rt::Error> {
     Ok(n)
 }
 
-fn check(n: i64) -> Result<(), rt::Error> {
+fn check(n: i64) -> Result<(), Iface> {
     if n > 100 {
-        return Err(rt::Error::new("too big"));
+        return Err(go_error("too big"));
     }
     Ok(())
 }
 
-fn half(n: i64) -> Result<(i64, String), rt::Error> {
+fn half(n: i64) -> Result<(i64, String), Iface> {
     if n % 2 != 0 {
-        return Err(rt::Error::new(format!("{} is odd", n)));
+        return Err(go_error(format!("{} is odd", n)));
     }
     Ok((n / 2, String::from("ok")))
 }
 
-fn both(s: &str) -> Result<i64, rt::Error> {
+fn both(s: &str) -> Result<i64, Iface> {
     parse(s)
 }
 
@@ -83,14 +80,14 @@ fn main() {
         let n = match parse(&r#in) {
             Ok(value) => value,
             Err(err) => {
-                println!("error: {}", err);
+                println!("error: {}", iface_show(&err));
                 continue;
             }
         };
         println!("parsed {}", n);
         match check(n) {
             Err(err) => {
-                println!("check: {}", err);
+                println!("check: {}", dyn_error(&err));
             }
             Ok(_) => {
                 println!("check ok");
@@ -100,14 +97,14 @@ fn main() {
     let (h, msg) = match half(10) {
         Ok(value) => value,
         Err(err) => {
-            println!("unexpected {}", err);
+            println!("unexpected {}", iface_show(&err));
             (0, String::new())
         }
     };
     println!("{} {}", h, msg);
     match half(7) {
         Err(err) => {
-            println!("{}", err);
+            println!("{}", iface_show(&err));
         }
         Ok((v, _)) => {
             println!("{}", v);
@@ -124,7 +121,102 @@ fn main() {
     };
     println!("{}", n);
     if let Err(err) = both("bad") {
-        println!("fatal: {}", err);
+        println!("fatal: {}", iface_show(&err));
         std::process::exit(3);
     }
+}
+
+/// The dynamic types of the program's interface values (RFC 0012).
+pub enum Dyn {
+    ErrorsErrorString(rt::Error),
+}
+
+/// An interface value: its dynamic value, or None for a nil interface. The
+/// value cannot be changed through the interface, so copies share it.
+pub type Iface = Option<std::rc::Rc<Dyn>>;
+
+/// Converts a value to an interface value.
+pub fn boxed(d: Dyn) -> Iface {
+    Some(std::rc::Rc::new(d))
+}
+
+/// Go's == on two dynamic values: the same type and equal values; a type
+/// that is not comparable panics.
+impl PartialEq for Dyn {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => std::ptr::eq(a, b),
+        }
+    }
+}
+
+/// The Go name of a dynamic type, as %T prints it.
+pub fn iface_name(d: Option<&Dyn>) -> &'static str {
+    match d {
+        None => "<nil>",
+        Some(Dyn::ErrorsErrorString(_)) => "*errors.errorString",
+    }
+}
+
+/// %T of an interface value.
+pub fn iface_type(x: &Iface) -> &'static str {
+    iface_name(x.as_deref())
+}
+
+/// %v of an interface value.
+pub fn iface_show(x: &Iface) -> String {
+    match x.as_deref() {
+        None => String::from("<nil>"),
+        Some(Dyn::ErrorsErrorString(v)) => v.to_string(),
+    }
+}
+
+/// The panic of a failed x.(T) to a concrete type T.
+pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
+    match d {
+        None => panic!("gopatina-user-panic:interface conversion: {iface} is nil, not {want}"),
+        Some(_) => panic!(
+            "gopatina-user-panic:interface conversion: {iface} is {}, not {want}",
+            iface_name(d)
+        ),
+    }
+}
+
+/// x.(I) to an interface type I: x, or Go's panic.
+pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
+    match x.as_deref() {
+        None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
+        Some(d) => {
+            if let Some(m) = missing(d) {
+                panic!(
+                    "gopatina-user-panic:interface conversion: {} is not {want}: missing method {m}",
+                    iface_name(Some(d))
+                )
+            }
+        }
+    }
+    x
+}
+
+/// v, ok := x.(I) to an interface type I.
+pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
+    match x.as_deref() {
+        Some(d) if missing(d).is_none() => (x.clone(), true),
+        _ => (None, false),
+    }
+}
+
+/// Calls Error on an interface value's dynamic value.
+pub fn dyn_error(x: &Iface) -> String {
+    match x.as_deref() {
+        None => panic!(
+            "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
+        ),
+        Some(Dyn::ErrorsErrorString(v)) => v.to_string(),
+    }
+}
+
+/// errors.New: a new error with the message, equal only to itself.
+pub fn go_error(message: impl Into<String>) -> Iface {
+    boxed(Dyn::ErrorsErrorString(rt::Error::new(message)))
 }

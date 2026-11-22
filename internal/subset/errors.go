@@ -11,10 +11,13 @@ import (
 )
 
 // Errors are lowered to Rust's Result: a function whose last result is
-// error returns Result<T, Error>, every return is Ok(...) or Err(...), and
-// every call checks its error at once with if err != nil. This is exact
-// only for the patterns below; anything else is rejected, so Go's meaning
-// is never changed.
+// error returns Result<T, error>, every return is Ok(...) or Err(...), and
+// a call whose error is checked at once with if err != nil becomes a
+// match or Rust's ?. Every other use of an error is an ordinary interface
+// value (RFC 0012): a call whose error is kept is split into its values and
+// the error (General), and a return of an error that may be nil checks it
+// (ReturnValue). Both are exact because a function of the program returns
+// zero values with a non-nil error, which the checker requires.
 
 // An ErrCall is a call of a function that returns an error, and what the
 // caller does with the error.
@@ -31,6 +34,10 @@ type ErrCall struct {
 	// Propagate: Check's body is exactly return <zero values>, err in a
 	// function that also returns an error, so it becomes Rust's ? operator.
 	Propagate bool
+	// General: the error is kept as an interface value (RFC 0012), not
+	// checked at once: the call is split into its values, zero when the
+	// error is not nil, and the error. Check is nil then.
+	General bool
 }
 
 // An ErrPlan says how every error in a package is lowered.
@@ -51,9 +58,10 @@ type ErrPlan struct {
 type ReturnKind int
 
 const (
-	ReturnOk   ReturnKind = iota + 1 // return v..., nil: Ok(v...)
-	ReturnErr                        // return zero..., err: Err(err)
-	ReturnCall                       // return f(...): f's Result as it is
+	ReturnOk    ReturnKind = iota + 1 // return v..., nil: Ok(v...)
+	ReturnErr                         // return zero..., err: Err(err)
+	ReturnCall                        // return f(...): f's Result as it is
+	ReturnValue                       // return zero..., err: Ok or Err by err (RFC 0012)
 )
 
 type errChecker struct {
@@ -64,6 +72,10 @@ type errChecker struct {
 	allowed map[ast.Node]bool   // error variables and calls in a supported place
 	errs    []*types.Var        // the error variables of the enclosing checks
 	values  map[*types.Var]bool // values that hold nothing in a check's body
+	// byErr maps each error variable a lowered call defines to the call,
+	// which becomes General if the error is used outside its check.
+	byErr map[*types.Var]*ErrCall
+	keys  map[*ErrCall]ast.Stmt // each call's key in plan.Calls
 }
 
 // Errors plans the lowering of every error value in pkg, and reports the
@@ -74,7 +86,8 @@ func Errors(pkg *load.Package) (*ErrPlan, []diag.Diagnostic) {
 		Calls:   map[ast.Stmt]*ErrCall{},
 		Checks:  map[*ast.IfStmt]bool{},
 		Returns: map[*ast.ReturnStmt]ReturnKind{},
-	}, allowed: map[ast.Node]bool{}, values: map[*types.Var]bool{}}
+	}, allowed: map[ast.Node]bool{}, values: map[*types.Var]bool{},
+		byErr: map[*types.Var]*ErrCall{}, keys: map[*ErrCall]ast.Stmt{}}
 	for _, f := range pkg.Files {
 		for _, d := range f.Decls {
 			if fd, ok := d.(*ast.FuncDecl); ok {
@@ -93,32 +106,48 @@ func Errors(pkg *load.Package) (*ErrPlan, []diag.Diagnostic) {
 			}
 		}
 	}
-	// Every other use of an error value is outside the patterns.
+	// Every other use of an error value is an ordinary interface value: a
+	// lowered call whose error is used elsewhere keeps it as one.
 	for _, f := range pkg.Files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch n := n.(type) {
 			case *ast.Ident:
 				v, ok := pkg.Info.Uses[n].(*types.Var)
-				if !ok {
-					v, ok = pkg.Info.Defs[n].(*types.Var)
-				}
-				if ok && n.Name != "_" && isError(v.Type()) && !c.allowed[n] {
-					c.errorf(n, "error %s is used here outside an if %s != nil check", n.Name, n.Name)
+				if ok && !c.allowed[n] && c.byErr[v] != nil {
+					c.general(c.byErr[v])
 				}
 			case *ast.CallExpr:
-				if c.allowed[n] {
-					return true
-				}
-				if fn := c.calledFunc(n); fn != nil {
-					c.errorf(n, "the error from %s is not checked right after the call", fn.Name())
-				} else if name := c.stdName(n); name == "errors.New" || name == "fmt.Errorf" {
-					c.errorf(n, "%s is used outside a return statement", name)
+				if fn := c.calledFunc(n); fn != nil && !c.allowed[n] && fn.Signature().Results().Len() > 1 {
+					c.errorf(n, "the results of %s used here other than as v..., err := %s(...) or return %s(...)", fn.Name(), fn.Name(), fn.Name())
 				}
 			}
 			return true
 		})
 	}
 	return c.plan, c.diags
+}
+
+// general makes ec keep its error as an interface value: its check, if it
+// has one, is an ordinary if statement.
+func (c *errChecker) general(ec *ErrCall) {
+	if ec.General {
+		return
+	}
+	ec.General = true
+	if ec.Check != nil {
+		delete(c.plan.Checks, ec.Check)
+	}
+	if ec.Init {
+		// The if statement's init holds the call now.
+		key := c.keys[ec]
+		delete(c.plan.Calls, key)
+		init := key.(*ast.IfStmt).Init.(*ast.AssignStmt)
+		ec.Init = false
+		c.plan.Calls[init] = ec
+		c.keys[ec] = init
+	}
+	ec.Check = nil
+	ec.Propagate = false
 }
 
 func returnsError(sig *types.Signature) bool {
@@ -224,20 +253,27 @@ func (c *errChecker) assignCall(s *ast.AssignStmt, call *ast.CallExpr, next ast.
 	c.allowed[call] = true
 	ec := &ErrCall{Call: call, Values: s.Lhs[:len(s.Lhs)-1], Define: s.Tok == token.DEFINE}
 	c.plan.Calls[s] = ec
+	c.keys[ec] = s
 	errID, _ := s.Lhs[len(s.Lhs)-1].(*ast.Ident)
 	if errID == nil || errID.Name == "_" {
 		return false // the error is ignored
 	}
-	c.allowed[errID] = true
 	ec.Err = errID
+	if v, ok := c.obj(errID).(*types.Var); ok {
+		c.byErr[v] = ec
+	}
 	check, ok := next.(*ast.IfStmt)
 	if !ok || !c.isCheck(check, errID) || check.Init != nil || check.Else != nil {
-		c.errorf(errID, "error %s is not checked right after the call (if %s != nil { ... } with no else)", errID.Name, errID.Name)
+		ec.General = true // kept, not checked at once
 		return false
 	}
+	c.allowed[errID] = true
 	ec.Check = check
 	c.plan.Checks[check] = true
-	c.checkBody(ec, check.Body)
+	if !c.checkBody(ec, check.Body) {
+		c.general(ec)
+		return false // the check is an ordinary if statement
+	}
 	return true
 }
 
@@ -263,8 +299,10 @@ func (c *errChecker) obj(id *ast.Ident) types.Object {
 }
 
 // checkBody checks the body of if err != nil, where err is non-nil and the
-// values hold nothing.
-func (c *errChecker) checkBody(ec *ErrCall, body *ast.BlockStmt) {
+// values hold nothing. It reports false if the body reads a value, which
+// a match on the Result would not have: the call is General then.
+func (c *errChecker) checkBody(ec *ErrCall, body *ast.BlockStmt) bool {
+	readsValue := false
 	errVar := c.obj(ec.Err).(*types.Var)
 	for _, v := range ec.Values {
 		if id, ok := v.(*ast.Ident); ok {
@@ -278,7 +316,7 @@ func (c *errChecker) checkBody(ec *ErrCall, body *ast.BlockStmt) {
 		switch n := n.(type) {
 		case *ast.Ident:
 			if v, ok := c.pkg.Info.Uses[n].(*types.Var); ok && c.values[v] {
-				c.errorf(n, "%s holds no value when %s != nil", n.Name, ec.Err.Name)
+				readsValue = true // the zero value, in Go
 			}
 		case *ast.CallExpr:
 			c.errArgs(n, errVar)
@@ -299,6 +337,7 @@ func (c *errChecker) checkBody(ec *ErrCall, body *ast.BlockStmt) {
 			}
 		}
 	}
+	return !readsValue
 }
 
 func (c *errChecker) fnReturnsError() bool { return c.plan.Funcs[c.fn] }
@@ -326,16 +365,30 @@ func (c *errChecker) ifStmt(s *ast.IfStmt) {
 			c.allowed[call] = true
 			ec := &ErrCall{Call: call, Values: init.Lhs[:len(init.Lhs)-1], Define: init.Tok == token.DEFINE, Init: true}
 			c.plan.Calls[s] = ec
+			c.keys[ec] = s
 			errID, _ := init.Lhs[len(init.Lhs)-1].(*ast.Ident)
 			if errID == nil || errID.Name == "_" || !c.isCheck(s, errID) || init.Tok != token.DEFINE {
-				c.errorf(init, "an if statement that calls a function returning an error must check it: if v, err := f(); err != nil")
+				ec.Err = errID
+				if errID != nil && errID.Name == "_" {
+					ec.Err = nil
+				}
+				c.general(ec) // an ordinary if statement after the call
+				c.block(s.Body.List)
+				if s.Else != nil {
+					c.stmt(s.Else, nil)
+				}
 				return
 			}
-			c.allowed[errID] = true
 			ec.Err = errID
+			if v, ok := c.obj(errID).(*types.Var); ok {
+				c.byErr[v] = ec
+			}
+			c.allowed[errID] = true
 			ec.Check = s
 			c.plan.Checks[s] = true
-			c.checkBody(ec, s.Body)
+			if !c.checkBody(ec, s.Body) {
+				c.general(ec)
+			}
 			if s.Else != nil {
 				c.stmt(s.Else, nil)
 			}
@@ -391,15 +444,22 @@ func (c *errChecker) ret(s *ast.ReturnStmt) {
 			}
 		}
 	}
-	if !ok {
-		c.errorf(last, "this error may be nil; return nil, or a non-nil error such as errors.New(...) or the err of an if err != nil check")
-		return
+	if !ok && !types.IsInterface(c.pkg.Info.TypeOf(last)) {
+		ok = true // a value of a concrete type converted to error: not nil
 	}
 	for _, r := range s.Results[:n-1] {
 		if !c.isZero(r) {
-			c.errorf(r, "a value returned together with a non-nil error must be the zero value")
+			if ok {
+				c.errorf(r, "a value returned together with a non-nil error must be the zero value")
+			} else {
+				c.errorf(r, "a value returned together with an error that may be non-nil must be the zero value")
+			}
 			return
 		}
+	}
+	if !ok {
+		c.plan.Returns[s] = ReturnValue // Ok or Err by the error's value
+		return
 	}
 	c.plan.Returns[s] = ReturnErr
 }

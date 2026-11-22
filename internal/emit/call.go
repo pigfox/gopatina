@@ -58,9 +58,6 @@ func (g *gen) call(e *ast.CallExpr) node {
 			}
 			return g.methodCall(f.X, obj, args)
 		}
-		if fn == nil { // err.Error()
-			return &call{recv: g.place(f.X), head: ".to_string", open: "(", close: ")"}
-		}
 		return g.methodCall(f.X, obj, g.args(e, fn))
 	}
 }
@@ -309,11 +306,12 @@ func (g *gen) std(e *ast.CallExpr, name string) node {
 	case "strings.Join":
 		return method(g.sliceRef(a[0]), "join", g.strArg(a[1]))
 	case "errors.New":
-		g.rt["Error"] = true
-		return &call{head: "rt::Error::new", open: "(", close: ")", args: []node{g.strArg(a[0])}}
+		if g.info.Types[a[0]].Value != nil {
+			return g.goError(g.strArg(a[0])) // RFC 0012
+		}
+		return g.goError(g.owned(a[0]))
 	case "fmt.Errorf":
-		g.rt["Error"] = true
-		return &call{head: "rt::Error::new", open: "(", close: ")", args: []node{g.fmtCall(e, name)}}
+		return g.goError(g.fmtCall(e, name))
 	case "os.Exit":
 		code := text(g.index(a[0]))
 		if tv := g.info.Types[a[0]]; tv.Value != nil {
@@ -463,8 +461,31 @@ func (g *gen) formatVerbs(macro string, writer ast.Expr, verbs []subset.Verb, op
 func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string) {
 	t := g.typeOf(e)
 	tv := g.info.Types[e]
-	if subset.IsIface(t) {
+	if subset.IsIface(t) && !isErrorType(t) {
 		return "{}", g.ifaceVerb(v.Verb, e), "" // RFC 0012: plain %v and %T
+	}
+	if isErrorType(t) && v.Verb == 's' {
+		// %s of a nil error is %!s(<nil>), which Go does not pad.
+		width := 0
+		if v.Width >= 0 {
+			width = v.Width
+		}
+		return "{}", &call{head: g.helper("iface_s"), open: "(", close: ")", args: []node{g.ref(e), text(itoa(width)), text(boolLit(v.Minus))}}, ""
+	}
+	if isErrorType(t) && v.Verb == 'v' {
+		// An error prints its Error(), or <nil>, padded as a string.
+		spec := "{}"
+		if v.Width >= 0 {
+			align := ">"
+			if v.Minus {
+				align = "<"
+			}
+			spec = "{:" + align + itoa(v.Width) + "}"
+		}
+		return spec, g.ifaceVerb('v', e), ""
+	}
+	if isErrorType(t) {
+		return "{}", g.ifaceVerb('T', e), ""
 	}
 	plain := v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero
 	if m := subset.PrintMethod(t); m != nil && (v.Verb == 'v' || v.Verb == 's') {
@@ -682,13 +703,6 @@ func (g *gen) asI64(e ast.Expr) node {
 // rt::Error implements Display with exactly the text Go's Error() returns, so
 // passing the error itself avoids a redundant to_string() in the arguments.
 func (g *gen) formatDisplay(e ast.Expr) node {
-	if call, ok := ast.Unparen(e).(*ast.CallExpr); ok {
-		if sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr); ok && sel.Sel.Name == "Error" {
-			if obj, ok := g.info.Selections[sel].Obj().(*types.Func); ok && g.res.Funcs[obj] == nil {
-				return g.place(sel.X)
-			}
-		}
-	}
 	return g.display(e)
 }
 

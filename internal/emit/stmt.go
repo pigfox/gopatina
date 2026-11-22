@@ -141,8 +141,7 @@ func (g *gen) resultType(fn *types.Func) string {
 		t = "(" + t + ")"
 	}
 	if lowered {
-		g.rt["Error"] = true
-		return "Result<" + t + ", rt::Error>"
+		return "Result<" + t + ", " + g.root("Iface") + ">"
 	}
 	if len(ts) == 0 {
 		return ""
@@ -292,6 +291,10 @@ func (g *gen) block(b *ast.BlockStmt) {
 }
 
 func (g *gen) stmt(s ast.Stmt) {
+	if ec := g.errs.Calls[s]; ec != nil && ec.General {
+		g.generalCall(ec) // an if statement's init (RFC 0012)
+		return
+	}
 	// A simple statement that reads or changes a changed package-level
 	// variable is written in gc's order (RFC 0010).
 	switch x := s.(type) {
@@ -380,7 +383,9 @@ func (g *gen) returnValue(r *ast.ReturnStmt) node {
 	}
 	switch g.errs.Returns[r] {
 	case subset.ReturnCall:
-		return g.value(results[0])
+		return g.rawCall(results[0].(*ast.CallExpr))
+	case subset.ReturnValue:
+		return g.errResult(r) // RFC 0012
 	case subset.ReturnOk:
 		vals := g.ownedAll(results[:len(results)-1])
 		if len(vals) == 0 {
@@ -390,10 +395,10 @@ func (g *gen) returnValue(r *ast.ReturnStmt) node {
 	case subset.ReturnErr:
 		last := results[len(results)-1]
 		var errNode node
-		if id, ok := ast.Unparen(last).(*ast.Ident); ok {
+		if id, ok := ast.Unparen(last).(*ast.Ident); ok && g.localVar(id) != nil && !g.boxedExpr(last) {
 			errNode = text(g.varName(g.localVar(id)))
 		} else {
-			errNode = g.value(last)
+			errNode = g.owned(last) // errors.New, or a value converted to error
 		}
 		return &call{head: "Err", open: "(", close: ")", args: []node{errNode}}
 	}
@@ -1193,7 +1198,11 @@ func (g *gen) switchBody(body []ast.Stmt) {
 // errCall writes a call of a function that returns an error, with its
 // check, as Rust's ?, a match, or if let Err.
 func (g *gen) errCall(s ast.Stmt, ec *subset.ErrCall) {
-	callN := g.value(ec.Call)
+	if ec.General {
+		g.generalCall(ec) // RFC 0012
+		return
+	}
+	callN := g.rawCall(ec.Call)
 	var vals []string
 	allBlank := true
 	for _, v := range ec.Values {

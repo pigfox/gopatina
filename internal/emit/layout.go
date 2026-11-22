@@ -255,6 +255,9 @@ func fits(n node, f string, col, suffix int) bool {
 		return len(n.fieldsFlat()) <= structLitWidth
 	case *addrOf:
 		return fits(n.x, n.x.flat(), col+len(n.prefix), suffix)
+	case *binary:
+		// Each operand keeps its own width (a struct literal compared).
+		return fits(n.l, n.l.flat(), 0, 0) && fits(n.r, n.r.flat(), 0, 0)
 	}
 	return true
 }

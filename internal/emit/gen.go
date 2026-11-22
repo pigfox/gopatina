@@ -50,6 +50,9 @@ type gen struct {
 	inGlobalStmt bool
 	modules      []Module    // the other packages' Rust modules, once written
 	ifc          *ifaceState // interface values (RFC 0012, iface.go)
+	// rawCalls are calls of functions lowered to Result being rendered as
+	// the Result (errvals.go).
+	rawCalls map[*ast.CallExpr]bool
 	// Per function.
 	fn         *borrow.Func
 	locals     map[types.Object]string
@@ -102,6 +105,7 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 		refElem:    res.RefElems,
 		hoisted:    map[ast.Expr]string{},
 		hoistedIdx: map[ast.Expr]string{},
+		rawCalls:   map[*ast.CallExpr]bool{},
 	}
 	g.globals = subset.Globals(pkg)
 	g.gnames, g.initVarsName = map[*types.Var]string{}, map[*types.Package]string{}

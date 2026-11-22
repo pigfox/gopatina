@@ -33,6 +33,8 @@ type checker struct {
 	trailing map[*ast.BranchStmt]bool
 	// selfAppend holds the calls of append in s = append(s, ...).
 	selfAppend map[*ast.CallExpr]bool
+	// ifacePlan is the program's interface analysis (RFC 0012), made once.
+	ifacePlan *IfacePlan
 }
 
 // Check returns every construct in pkg that patina mode does not support,
@@ -215,8 +217,7 @@ func (c *checker) typeSpec(s *ast.TypeSpec, top bool) {
 		}
 		t := c.pkg.Info.Types[f.Type].Type
 		if isError(t) {
-			c.unsupported(f, "a struct field of type error")
-			continue
+			continue // an interface value (RFC 0012)
 		}
 		if isWriter(t) {
 			c.unsupported(f, "a struct field of type io.Writer")
@@ -299,8 +300,7 @@ func (c *checker) signature(d *ast.FuncDecl, sig *types.Signature) {
 func (c *checker) paramType(n ast.Node, t types.Type) {
 	switch {
 	case isWriter(t):
-	case isError(t):
-		c.unsupported(n, "a parameter of type error (phase 1 supports error as the last result)")
+	case isError(t): // an interface value (RFC 0012)
 	default:
 		if p, ok := t.(*types.Pointer); ok {
 			if _, ok := p.Elem().(*types.Pointer); ok {
@@ -340,7 +340,7 @@ func unsupportedType(t types.Type, constOK bool) string {
 		}
 		return fmt.Sprintf("type %s", t) // unsafe.Pointer by its full name
 	case *types.Slice:
-		if isError(t.Elem()) || isWriter(t.Elem()) {
+		if isWriter(t.Elem()) {
 			return fmt.Sprintf("type %s", t)
 		}
 		if _, ok := t.Elem().(*types.Pointer); ok {
@@ -348,6 +348,9 @@ func unsupportedType(t types.Type, constOK bool) string {
 		}
 		return unsupportedType(t.Elem(), false)
 	case *types.Named:
+		if isError(t) {
+			return "" // an interface value (RFC 0012)
+		}
 		if providedName(t) != "" {
 			return "" // RFC 0011: its methods are checked where they are called
 		}
@@ -814,14 +817,8 @@ func (c *checker) binary(e *ast.BinaryExpr) {
 				return
 			}
 		}
-		if isError(xt) && !isNil(c.pkg.Info, e.Y) && !isNil(c.pkg.Info, e.X) {
-			c.unsupported(e, "comparing two error values (only err == nil and err != nil are supported)")
-		}
-	}
-}
 
-func isNil(info *types.Info, e ast.Expr) bool {
-	return info.Types[e].IsNil()
+	}
 }
 
 func (c *checker) call(e *ast.CallExpr, standalone bool) {
@@ -1017,7 +1014,7 @@ func (c *checker) fmtCall(e *ast.CallExpr, name string) {
 	for _, a := range args {
 		if what := c.printProblem(info.Types[a].Type); what != "" {
 			c.unsupported(a, what)
-		} else if IsIface(info.Types[a].Type) && !strings.HasSuffix(name, "ln") {
+		} else if t := info.Types[a].Type; IsIface(t) && !strings.HasSuffix(name, "ln") && (!isError(t) || c.stringErrors()) {
 			// Print and Sprint put a space between operands unless one is a
 			// string, which for an interface depends on its dynamic type.
 			c.unsupported(a, "an interface value printed with "+name+" (use "+name+"ln or Printf)")
@@ -1166,7 +1163,14 @@ func isPrintableBasic(t types.Type) bool {
 // verbProblem says why verb v cannot format a value of type t, or returns
 // "". fn is the fmt function being called.
 func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
-	if IsIface(t) {
+	if isError(t) && v.Verb == 'T' && v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero && !v.Space && !v.Sharp {
+		return ""
+	}
+	if isError(t) && v.Prec >= 0 {
+		// Go truncates an error's text but not <nil>.
+		return fmt.Sprintf("the format %s with an error value", v.Spec)
+	}
+	if IsIface(t) && !isError(t) {
 		if (v.Verb == 'v' || v.Verb == 'T') && v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero && !v.Space && !v.Sharp {
 			return ""
 		}

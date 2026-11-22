@@ -96,20 +96,32 @@ func TestErrorPatterns(t *testing.T) {
 			t.Errorf("rejected:\n%s\n%s", src, got)
 		}
 	}
+	// RFC 0012: an error kept as an interface value.
+	accepted = append(accepted,
+		"func main() { f() ; x := 1; _ = x; v, err := f(); fmt.Println(v, err) }",
+		"func main() { v, err := f(); if err != nil { fmt.Println(v) } }",
+		"func main() { if v, err := f(); err == nil { fmt.Println(v) } }",
+		"func main() { fmt.Println(g()) }",
+		"func main() { err := errors.New(\"x\"); _ = err }",
+		"func h() (int, error) { var e error; return 0, e }\nfunc main() { h() }",
+		"func main() { v, err := f(); if err != nil { } else { fmt.Println(v) } }",
+		"func main() { _, err := f(); if !(err == nil) { } }",
+		"func main() { _, err := f(); if nil != err { } }",
+		"func main() { var err error; _ = err }",
+		"func main() { _, err := f(); for err != nil { break } }",
+		"func main() { if _, err := f(); err == nil { } }",
+		"func main() { if v, _ := f(); v > 0 { } }",
+	)
+	for _, src := range accepted[len(accepted)-13:] {
+		if got := check(t, head+src+"\n"); got != "" {
+			t.Errorf("rejected:\n%s\n%s", src, got)
+		}
+	}
 	rejected := map[string]string{
-		"func main() { f() ; x := 1; _ = x; v, err := f(); fmt.Println(v, err) }":    "error err is not checked right after the call",
-		"func main() { v, err := f(); if err != nil { fmt.Println(v) } }":            "v holds no value when err != nil",
-		"func main() { if v, err := f(); err == nil { fmt.Println(v) } }":            "must check it",
-		"func main() { fmt.Println(g()) }":                                           "the error from g is not checked",
-		"func main() { err := errors.New(\"x\"); _ = err }":                          "errors.New is used outside a return statement",
-		"func h() (int, error) { var e error; return 0, e }\nfunc main() { h() }":    "this error may be nil",
 		"func h() (int, error) { return 1, errors.New(\"x\") }\nfunc main() { h() }": "must be the zero value",
+		"func h() (int, error) { var e error; return 1, e }\nfunc main() { h() }":    "a value returned together with an error that may be non-nil must be the zero value",
 		"func h() (n int, err error) { return }\nfunc main() { h() }":                "a bare return in a function that returns an error",
-		"func main() { v, err := f(); if err != nil { } else { fmt.Println(v) } }":   "is not checked right after the call",
-		"func main() { _, err := f(); if !(err == nil) { } }":                        "is not checked right after the call",
-		"func main() { _, err := f(); if nil != err { } }":                           "is not checked right after the call",
-		"func main() { var err error; _ = err }":                                     "error err is used here",
-		"func main() { _, err := f(); for err != nil { break } }":                    "is not checked right after the call",
+		"func k(int, error) {}\nfunc main() { k(f()) }":                              "the results of f used here other than as v..., err := f(...)",
 	}
 	for src, want := range rejected {
 		if got := check(t, head+src+"\n"); !strings.Contains(got, want) {

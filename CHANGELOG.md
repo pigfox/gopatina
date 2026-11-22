@@ -162,6 +162,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- `error` as an ordinary interface value (RFC 0012): errors can be kept,
+  stored in variables, fields and slices, passed, compared (`errors.New`'s
+  values are equal only to themselves), printed, switched on and asserted;
+  any type with an `Error() string` method is an error. Functions still
+  return `Result<T, Iface>`; a call whose error is not checked at once is
+  split into its values (zero when the error is not nil) and the error, and
+  a return of an error that may be nil checks it. `%s` of a nil error
+  prints `%!s(<nil>)` as Go does. Golden `errors_values`; the generator
+  gives every program an error type and keeps its errors as values.
 - Interfaces (RFC 0012): interface types (named, literal, embedded,
   `any`), conversions to them, method calls through them, `==` and `!=`,
   type assertions (`x.(T)` and `v, ok := x.(T)`), type switches, and

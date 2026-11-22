@@ -93,21 +93,21 @@ fn report(w: &mut dyn std::io::Write, b: &[u8], n: i64) {
     );
 }
 
-fn find(xs: &[i64], want: i64) -> Result<i64, rt::Error> {
+fn find(xs: &[i64], want: i64) -> Result<i64, Iface> {
     for (i, x) in xs.iter().copied().enumerate() {
         let i = i as i64;
         if x == want {
             return Ok(i);
         }
     }
-    Err(rt::Error::new("not found"))
+    Err(go_error("not found"))
 }
 
-fn lookup(xs: &[i64], want: i64) -> Result<i64, rt::Error> {
+fn lookup(xs: &[i64], want: i64) -> Result<i64, Iface> {
     let i = match find(xs, want) {
         Ok(value) => value,
         Err(err) => {
-            println!("lookup failed: {}", err);
+            println!("lookup failed: {}", iface_show(&err));
             return Err(err);
         }
     };
@@ -299,7 +299,7 @@ fn main() {
     }
     match lookup(&vec![5], 6) {
         Err(err) => {
-            println!("missing: {}", err);
+            println!("missing: {}", iface_show(&err));
         }
         Ok(_) => {
             if names.len() as i64 > 1 {
@@ -312,4 +312,89 @@ fn main() {
         code = 3;
     }
     std::process::exit(code as i32);
+}
+
+/// The dynamic types of the program's interface values (RFC 0012).
+pub enum Dyn {
+    ErrorsErrorString(rt::Error),
+}
+
+/// An interface value: its dynamic value, or None for a nil interface. The
+/// value cannot be changed through the interface, so copies share it.
+pub type Iface = Option<std::rc::Rc<Dyn>>;
+
+/// Converts a value to an interface value.
+pub fn boxed(d: Dyn) -> Iface {
+    Some(std::rc::Rc::new(d))
+}
+
+/// Go's == on two dynamic values: the same type and equal values; a type
+/// that is not comparable panics.
+impl PartialEq for Dyn {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => std::ptr::eq(a, b),
+        }
+    }
+}
+
+/// The Go name of a dynamic type, as %T prints it.
+pub fn iface_name(d: Option<&Dyn>) -> &'static str {
+    match d {
+        None => "<nil>",
+        Some(Dyn::ErrorsErrorString(_)) => "*errors.errorString",
+    }
+}
+
+/// %T of an interface value.
+pub fn iface_type(x: &Iface) -> &'static str {
+    iface_name(x.as_deref())
+}
+
+/// %v of an interface value.
+pub fn iface_show(x: &Iface) -> String {
+    match x.as_deref() {
+        None => String::from("<nil>"),
+        Some(Dyn::ErrorsErrorString(v)) => v.to_string(),
+    }
+}
+
+/// The panic of a failed x.(T) to a concrete type T.
+pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
+    match d {
+        None => panic!("gopatina-user-panic:interface conversion: {iface} is nil, not {want}"),
+        Some(_) => panic!(
+            "gopatina-user-panic:interface conversion: {iface} is {}, not {want}",
+            iface_name(d)
+        ),
+    }
+}
+
+/// x.(I) to an interface type I: x, or Go's panic.
+pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
+    match x.as_deref() {
+        None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
+        Some(d) => {
+            if let Some(m) = missing(d) {
+                panic!(
+                    "gopatina-user-panic:interface conversion: {} is not {want}: missing method {m}",
+                    iface_name(Some(d))
+                )
+            }
+        }
+    }
+    x
+}
+
+/// v, ok := x.(I) to an interface type I.
+pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
+    match x.as_deref() {
+        Some(d) if missing(d).is_none() => (x.clone(), true),
+        _ => (None, false),
+    }
+}
+
+/// errors.New: a new error with the message, equal only to itself.
+pub fn go_error(message: impl Into<String>) -> Iface {
+    boxed(Dyn::ErrorsErrorString(rt::Error::new(message)))
 }
