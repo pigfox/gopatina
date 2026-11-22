@@ -43,7 +43,7 @@ the exact error committed beside it.
 | Expressions | arithmetic, comparison, logical and bitwise operators, shifts by a constant, string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, method calls, `&x` and `*p`; Phase 2 adds [read-only slice suffix arguments](#read-only-slice-suffix-arguments) |
 | Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string, `min` and `max` (Go 1.21, integers only) |
 | Pointers | only as borrows: `p := &x`, `p := &T{...}`, pointer parameters and receivers |
-| `fmt` | `Print`, `Println`, `Printf`, `Sprint`, `Sprintln`, `Sprintf`, `Fprint`, `Fprintln`, `Fprintf` (to an `io.Writer` parameter, `os.Stdout` or `os.Stderr`), `Errorf`; verbs `%v %d %s %t %f %x %X %c %%` with the `-`, `+` and `0` flags, a width and a precision |
+| `fmt` | `Print`, `Println`, `Printf`, `Sprint`, `Sprintln`, `Sprintf`, `Fprint`, `Fprintln`, `Fprintf` (to an `io.Writer` parameter, `os.Stdout` or `os.Stderr`), `Errorf`; verbs `%v %d %s %t %f %x %X %c %%` with the `-`, `+` and `0` flags, a width and a precision; `%x` and `%X` also of strings and `[]byte` and with the `#` flag; values and slices of a named type printed through its `String` or `Error` method (where the method cannot panic); a width on a slice pads each element, as in Go |
 | Other functions | `strings.Contains`, `HasPrefix`, `HasSuffix`, `Index`, `Join`, `Repeat`, `TrimSpace`; `errors.New`; `os.Exit`; `slices.Clone`, `bytes.Clone` |
 
 Not supported yet, each with its own error: goroutines, channels and

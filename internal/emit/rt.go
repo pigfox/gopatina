@@ -261,6 +261,51 @@ pub fn hex(x: i64, upper: bool) -> String {
 `,
 	},
 	{
+		name: "hex_int",
+		code: `/// An integer in hexadecimal with Go's # and 0 flags: a minus sign, then
+/// 0x (0X) for #, then the digits of the absolute value padded with zeros
+/// to zero_width, of which the sign takes one place and the prefix none.
+pub fn hex_int(x: i128, upper: bool, sharp: bool, zero_width: usize) -> String {
+    let mut digits = if upper {
+        format!("{:X}", x.unsigned_abs())
+    } else {
+        format!("{:x}", x.unsigned_abs())
+    };
+    let want = zero_width.saturating_sub(usize::from(x < 0));
+    if digits.len() < want {
+        digits = "0".repeat(want - digits.len()) + &digits;
+    }
+    let prefix = match (sharp, upper) {
+        (false, _) => "",
+        (true, false) => "0x",
+        (true, true) => "0X",
+    };
+    let sign = if x < 0 { "-" } else { "" };
+    format!("{sign}{prefix}{digits}")
+}
+`,
+	},
+	{
+		name: "hex_bytes",
+		code: `/// Bytes in hexadecimal the way Go's %x prints a string or []byte: two
+/// digits a byte, after 0x (0X) for the # flag unless there are none.
+pub fn hex_bytes(b: &[u8], upper: bool, sharp: bool) -> String {
+    let mut s = String::new();
+    if sharp && !b.is_empty() {
+        s.push_str(if upper { "0X" } else { "0x" });
+    }
+    for x in b {
+        if upper {
+            s.push_str(&format!("{x:02X}"));
+        } else {
+            s.push_str(&format!("{x:02x}"));
+        }
+    }
+    s
+}
+`,
+	},
+	{
 		name: "rune",
 		code: `/// The character with code point x, as Go's %c prints it: U+FFFD for a
 /// value that is not a valid code point.
@@ -312,22 +357,64 @@ fn is_space(c: char) -> bool {
 	{
 		name: "Slice",
 		uses: []string{"fmt"},
-		deps: []string{"Show"},
+		deps: []string{"Show", "slice_fmt"},
 		code: `/// A slice printed the way Go's fmt prints one: [a b c].
 pub struct Slice<'a, T>(pub &'a [T]);
 
 impl<T: Show> fmt::Display for Slice<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut s = String::from("[");
-        for (i, x) in self.0.iter().enumerate() {
-            if i > 0 {
-                s.push(' ');
-            }
-            x.show(&mut s);
-        }
-        s.push(']');
-        f.pad(&s)
+        slice_fmt(
+            f,
+            self.0.iter().map(|x| {
+                let mut e = String::new();
+                x.show(&mut e);
+                e
+            }),
+        )
     }
+}
+`,
+	},
+	{
+		name: "SliceMap",
+		uses: []string{"fmt"},
+		deps: []string{"slice_fmt"},
+		code: `/// A slice printed the way Go's fmt prints one, each element through its
+/// String or Error method.
+pub struct SliceMap<'a, T, F: Fn(&T) -> String>(pub &'a [T], pub F);
+
+impl<T, F: Fn(&T) -> String> fmt::Display for SliceMap<'_, T, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        slice_fmt(f, self.0.iter().map(&self.1))
+    }
+}
+`,
+	},
+	{
+		name: "slice_fmt",
+		uses: []string{"fmt"},
+		code: `/// Writes [a b c]. Go applies a width to each element, not to the whole
+/// slice.
+fn slice_fmt(f: &mut fmt::Formatter<'_>, elems: impl Iterator<Item = String>) -> fmt::Result {
+    let mut s = String::from("[");
+    for (i, e) in elems.enumerate() {
+        if i > 0 {
+            s.push(' ');
+        }
+        let fill = " ".repeat(f.width().unwrap_or(0).saturating_sub(e.chars().count()));
+        match f.align() {
+            Some(fmt::Alignment::Left) => {
+                s.push_str(&e);
+                s.push_str(&fill);
+            }
+            _ => {
+                s.push_str(&fill);
+                s.push_str(&e);
+            }
+        }
+    }
+    s.push(']');
+    f.write_str(&s)
 }
 `,
 	},

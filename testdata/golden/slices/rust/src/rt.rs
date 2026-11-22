@@ -157,16 +157,39 @@ pub struct Slice<'a, T>(pub &'a [T]);
 
 impl<T: Show> fmt::Display for Slice<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut s = String::from("[");
-        for (i, x) in self.0.iter().enumerate() {
-            if i > 0 {
-                s.push(' ');
-            }
-            x.show(&mut s);
-        }
-        s.push(']');
-        f.pad(&s)
+        slice_fmt(
+            f,
+            self.0.iter().map(|x| {
+                let mut e = String::new();
+                x.show(&mut e);
+                e
+            }),
+        )
     }
+}
+
+/// Writes [a b c]. Go applies a width to each element, not to the whole
+/// slice.
+fn slice_fmt(f: &mut fmt::Formatter<'_>, elems: impl Iterator<Item = String>) -> fmt::Result {
+    let mut s = String::from("[");
+    for (i, e) in elems.enumerate() {
+        if i > 0 {
+            s.push(' ');
+        }
+        let fill = " ".repeat(f.width().unwrap_or(0).saturating_sub(e.chars().count()));
+        match f.align() {
+            Some(fmt::Alignment::Left) => {
+                s.push_str(&e);
+                s.push_str(&fill);
+            }
+            _ => {
+                s.push_str(&fill);
+                s.push_str(&e);
+            }
+        }
+    }
+    s.push(']');
+    f.write_str(&s)
 }
 
 /// A value printed with Go's %v.
