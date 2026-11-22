@@ -1,0 +1,8 @@
+./main.go:50:7: receiver n is a shared borrow: Greet only reads it
+./main.go:50:21: parameter other is a shared borrow: Greet only reads it
+./main.go:53:7: receiver n is owned: Shout keeps it
+./main.go:61:7: receiver p is an exclusive borrow: Push changes it, and the caller sees the change
+./main.go:63:7: receiver p is a shared borrow: Sum only reads it
+./main.go:80:7: receiver l is a shared borrow: String only reads it
+./main.go:97:12: parameter p is a shared borrow: total only reads it
+./main.go:146:18: moved q into ints: q is not used afterwards

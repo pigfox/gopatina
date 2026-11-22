@@ -118,7 +118,7 @@ func TestEmitExplainNotes(t *testing.T) {
 func TestCheckErrors(t *testing.T) {
 	tests := []struct{ dir, want string }{
 		{reject("ownership"), "./testdata/reject/ownership/main.go:33:2: m.Body is changed after m was handed to out.Queue on line 32"},
-		{reject("iota_consts"), "a named type that is not a struct"},
+		{reject("switch_misc"), "is not supported in patina mode yet"},
 	}
 	for _, tt := range tests {
 		s, _, stderr := session(t, "")

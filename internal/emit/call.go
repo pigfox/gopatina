@@ -42,8 +42,40 @@ func (g *gen) call(e *ast.CallExpr) node {
 		if fn == nil { // err.Error()
 			return &call{recv: g.place(f.X), head: ".to_string", open: "(", close: ")"}
 		}
-		return &call{recv: g.receiver(f.X, fn.Recv), head: "." + g.funcs[obj], open: "(", close: ")", args: g.args(e, fn)}
+		return g.methodCall(f.X, obj, g.args(e, fn))
 	}
+}
+
+// methodCall renders a call of method m on receiver x with the rendered
+// arguments: x.m(args) for a struct type, m(x, args) for the functions of
+// other named types (RFC 0007).
+func (g *gen) methodCall(x ast.Expr, m *types.Func, args []node) node {
+	fn := g.res.Funcs[m]
+	if g.freeMethods(g.recvTypeName(m)) {
+		return &call{head: g.funcs[m], open: "(", close: ")", args: append([]node{g.recvArg(x, fn.Recv)}, args...)}
+	}
+	return &call{recv: g.receiver(x, fn.Recv), head: "." + g.funcs[m], open: "(", close: ")", args: args}
+}
+
+// recvArg renders receiver x as the first argument of a method function,
+// in the receiver's mode. Go takes &x for a pointer receiver and *x for a
+// value receiver called through a pointer, implicitly; Rust needs both
+// spelled out.
+func (g *gen) recvArg(x ast.Expr, p *borrow.Param) node {
+	x = ast.Unparen(x)
+	if u, ok := x.(*ast.UnaryExpr); ok && !isPointerType(p.Var.Type()) {
+		x = u.X // (&v).M() with a value receiver
+	}
+	if isPointerType(g.typeOf(x)) && !isPointerType(p.Var.Type()) {
+		switch p.Mode {
+		case borrow.Ref, borrow.RefMut:
+			return g.value(x) // the pointer is the borrow
+		case borrow.Owned:
+			return &call{recv: atom{"(*" + g.value(x).flat() + ")", precAtom}, head: ".clone", open: "(", close: ")"}
+		}
+		return atom{"*" + paren(g.value(x), precUnary), precUnary}
+	}
+	return g.arg(x, p)
 }
 
 // receiver renders the receiver of a method call.
@@ -132,11 +164,25 @@ func (g *gen) builtin(e *ast.CallExpr, name string) node {
 	return g.format("panic!", nil, userPanicMarker+"{}", []ast.Expr{e.Args[0]})
 }
 
+// identityConversion returns x when e is a conversion T(x) whose Rust type
+// is x's own, such as string(n) for a named string type n (RFC 0007).
+func (g *gen) identityConversion(e ast.Expr) (ast.Expr, bool) {
+	c, ok := ast.Unparen(e).(*ast.CallExpr)
+	if !ok || !g.info.Types[c.Fun].IsType() {
+		return nil, false
+	}
+	x := c.Args[0]
+	if isSlice(g.typeOf(e)) && isStringType(g.typeOf(x)) {
+		return nil, false // []byte(s)
+	}
+	return x, g.rustType(g.typeOf(e)) == g.rustType(g.typeOf(x))
+}
+
 // conversion renders T(x).
 func (g *gen) conversion(e *ast.CallExpr, to types.Type) node {
 	x := e.Args[0]
 	from := g.typeOf(x)
-	if isSlice(to) { // []byte(s)
+	if isSlice(to) && isStringType(from) { // []byte(s)
 		if tv := g.info.Types[x]; tv.Value != nil {
 			s := constant.StringVal(tv.Value)
 			if isASCII(s) {
@@ -338,6 +384,29 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 	t := g.typeOf(e)
 	tv := g.info.Types[e]
 	plain := v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero
+	if m := subset.PrintMethod(t); m != nil && (v.Verb == 'v' || v.Verb == 's') {
+		// fmt prints the result of Error or String (RFC 0007); the subset
+		// checker has made sure the method cannot panic.
+		var b strings.Builder
+		b.WriteString("{")
+		if v.Width >= 0 {
+			b.WriteString(":")
+			if v.Minus {
+				b.WriteString("<")
+			} else {
+				b.WriteString(">")
+			}
+			b.WriteString(itoa(v.Width))
+		}
+		if v.Prec >= 0 {
+			if v.Width < 0 {
+				b.WriteString(":")
+			}
+			b.WriteString("." + itoa(v.Prec))
+		}
+		b.WriteString("}")
+		return b.String(), g.methodCall(e, m, nil), ""
+	}
 	if tv.Value != nil && plain && (v.Verb == 'v' || v.Verb == 'd' || v.Verb == 's' || v.Verb == 't') {
 		return "", nil, goConstText(tv.Value, t)
 	}

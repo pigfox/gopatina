@@ -300,6 +300,9 @@ func (g *gen) strRef(e ast.Expr) node {
 	if tv.Value != nil {
 		return g.constant(tv.Value, tv.Type)
 	}
+	if x, ok := g.identityConversion(e); ok {
+		return g.strRef(x) // string(n) for a named string n (RFC 0007)
+	}
 	if g.isPlace(e) {
 		return g.place(e)
 	}
@@ -458,8 +461,32 @@ func (g *gen) binary(e *ast.BinaryExpr) node {
 	l := g.value(e.X)
 	if e.Op == token.SHL || e.Op == token.SHR {
 		l = parenCastTail(l)
+		if w, ok := g.wideShift(xt, e.Y); ok {
+			return wideShift(e.Op, isUnsigned(xt), w, l)
+		}
 	}
 	return &binary{op: op.op, l: l, r: g.value(e.Y), p: op.prec}
+}
+
+// wideShift reports whether shift count y is a constant at least the bit
+// width of integer type t, and returns the width. Go defines such a shift
+// (x << s and unsigned x >> s are 0, signed x >> s is 0 or -1); Rust's
+// shift operators do not accept such a count. The subset checker allows
+// only constant counts, on the integer types below.
+func (g *gen) wideShift(t types.Type, y ast.Expr) (int, bool) {
+	w := map[string]int{"i64": 64, "i32": 32, "u8": 8}[g.rustType(t)]
+	return w, constant.Compare(g.info.Types[y].Value, token.GEQ, constant.MakeInt64(int64(w)))
+}
+
+// wideShift renders x << s or x >> s for a constant s at least width w, as
+// Go defines it: x is still evaluated, then shifted by w-1, and once more
+// by 1 where Go's result is 0.
+func wideShift(op token.Token, unsigned bool, w int, x node) node {
+	n := node(&binary{op: binOps[op].op, l: x, r: text(strconv.Itoa(w - 1)), p: precShift})
+	if op == token.SHR && !unsigned {
+		return n // the sign fills every bit
+	}
+	return &binary{op: binOps[op].op, l: atom{"(" + n.flat() + ")", precAtom}, r: text("1"), p: precShift}
 }
 
 // castTail matches text that ends with a cast to a Rust number type.
@@ -621,7 +648,7 @@ func (g *gen) composite(e *ast.CompositeLit) node {
 		return &call{head: "vec!", open: "[", close: "]", args: elems, array: true}
 	}
 	u := t.Underlying().(*types.Struct)
-	lit := &structLit{name: g.types[t.(*types.Named).Obj()]}
+	lit := &structLit{name: g.rustType(t)}
 	set := map[int]bool{}
 	for i, el := range e.Elts {
 		idx := i

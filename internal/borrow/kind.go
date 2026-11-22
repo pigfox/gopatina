@@ -39,7 +39,7 @@ const (
 
 // KindOf returns the ownership kind of t, a type inside the subset.
 func KindOf(t types.Type) Kind {
-	switch t := t.(type) {
+	switch t := types.Unalias(t).(type) {
 	case *types.Slice:
 		return Shared
 	case *types.Pointer:
@@ -51,7 +51,12 @@ func KindOf(t types.Type) Kind {
 		if t.Obj().Pkg().Path() == "io" {
 			return Writer
 		}
-		st := t.Underlying().(*types.Struct)
+		st, ok := t.Underlying().(*types.Struct)
+		if !ok {
+			// A named non-struct type (RFC 0007) is held as its
+			// underlying type.
+			return KindOf(t.Underlying())
+		}
 		k := Copy
 		for i := 0; i < st.NumFields(); i++ {
 			k = max(k, KindOf(st.Field(i).Type()))

@@ -37,8 +37,8 @@ the exact error committed beside it.
 | --- | --- |
 | Packages | `package main` with `func main()`, in one directory, any number of files |
 | Imports | `fmt`, `strings`, `errors`, `os`, `io`, `slices`, `bytes` (only the functions below) |
-| Types | `int`, `int64`, `int32` (`rune`), `uint8` (`byte`), `float64`, `bool`, `string`, slices of supported types, named struct types, `error` (as a result), `io.Writer` (as a parameter) |
-| Declarations | functions and methods, struct types, constants (typed, untyped, `iota`), local variables |
+| Types | `int`, `int64`, `int32` (`rune`), `uint8` (`byte`), `float64`, `bool`, `string`, slices of supported types, named struct types, named types of the basic and slice types (`type Op int`, `type Path []int`, [RFC 0007](rfcs/0007-named-types-and-aliases.md)) and type aliases, `error` (as a result), `io.Writer` (as a parameter) |
+| Declarations | functions and methods (on structs and on named non-struct types), struct types, named types, type aliases, constants (typed, untyped, `iota`), local variables |
 | Statements | assignment (`=`, `:=`, `op=`, tuple assignment), `++`/`--`, `if`/`else` with an init statement, `for` (3-clause, condition, infinite), `for range` over slices, strings and integers, `switch` (with and without a tag, several values per case, `default` anywhere), `break`, `continue`, `return` |
 | Expressions | arithmetic, comparison, logical and bitwise operators, shifts by a constant, string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, method calls, `&x` and `*p`; Phase 2 adds [read-only slice suffix arguments](#read-only-slice-suffix-arguments) |
 | Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string, `min` and `max` (Go 1.21, integers only) |
@@ -63,6 +63,7 @@ float types.
 | `string` | `String` (owned), `&str` (a borrowed parameter) |
 | `[]T` | `Vec<T>` (owned), `&[T]` or `&mut [T]` (a borrowed parameter) |
 | `struct` | a `struct` deriving `Clone, Default, PartialEq` (and `Copy` when every field is) |
+| `type T U` (U not a struct), `type A = B` | `type T = R;`, the underlying type's Rust type; methods of `T` are functions `t_m(recv, ...)` taking the receiver first (RFC 0007) |
 | `*T` | `&T` or `&mut T`; `p := &T{...}` owns the value |
 | `(T, error)` | `Result<T, rt::Error>` |
 | `io.Writer` | `&mut dyn std::io::Write` |

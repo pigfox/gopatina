@@ -131,11 +131,14 @@ planned.
 The golden programs are written by hand, so they test what their authors
 thought of. `cmd/gopatina-difftest` measures a defect rate instead. It builds
 random programs inside the phase 1 subset, made by `internal/progen`, with
-`go build` and with `gopatina build -patina`, runs both, and counts every
-program whose output differs, or that patina mode fails to build, as a
+Go's reference build and with `gopatina build -patina`, runs both, and counts
+every program whose output differs, or that patina mode fails to build, as a
 defect. The programs exercise wrapping integer arithmetic (including
 `MinInt64 / -1`), shifts, bitwise operators, `min` and `max`, slices and
-`append`, `switch`, helper calls, string building and formatted printing;
+`append`, `switch`, helper calls, string building and formatted printing,
+and a named integer type of a random width (RFC 0007) with a `String`
+method, wrapping arithmetic in that width (shifts up to past the width), and
+a named slice of it with pointer-receiver methods;
 each is valid Go that terminates without a panic. They also contain the
 loop nests RFC 0006 specializes (counted, sieve-like and cube nests over a
 slice made with a variable length), now and then at exactly a

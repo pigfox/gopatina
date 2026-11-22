@@ -10,6 +10,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A shift by a constant at least the operand's width (`x << 70`, `b >> 8` for
+  a byte, `x <<= 64`) is Go's result, 0 or −1, with the operand still
+  evaluated; it was Rust's shift, which does not implement it. Found by the
+  new generator cases; golden program `shift_wide`.
 - A match arm whose only statement is a `match` or a `loop`, or a switch with
   an init statement, is written the way rustfmt writes it, so the emitted
   crate stays rustfmt-clean. Crates allow `clippy::manual_rem_euclid` and
@@ -119,6 +123,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Named types and type aliases in patina mode (RFC 0007): `type T U` where
+  `U` is a supported basic or slice type, or a struct of the package, and
+  `type A = B`, as Rust type aliases of the underlying type; methods of named
+  non-struct types as functions taking the receiver first; conversions
+  between types with the same underlying type; `fmt` printing through
+  `String` and `Error` (`Error` first, value method set only) where the
+  method cannot panic. Golden programs `named_types` and `iota_consts`
+  (formerly a rejection fixture); the generator adds a named integer type of
+  a random width to every program, from its own random stream, so the rest
+  of each program is unchanged.
 - `cmd/gopatina-coverage` and `internal/coverage` measure how much real Go
   the patina subset accepts, with GoPatina's own subset checker: functions,
   lines, files and packages accepted over a pinned corpus (the standard

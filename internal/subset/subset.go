@@ -119,22 +119,56 @@ func (c *checker) constValue(n ast.Node, obj *types.Const) {
 	}
 }
 
+// aliasSpec checks type A = B (RFC 0007): B must be a supported type, and
+// not a pointer, error or io.Writer, whose uses the subset checks by their
+// syntax.
+func (c *checker) aliasSpec(s *ast.TypeSpec) {
+	t := types.Unalias(c.pkg.Info.Defs[s.Name].Type())
+	switch {
+	case isError(t) || isWriter(t):
+		c.unsupported(s, "a type alias of error or io.Writer")
+	case isPointer(t):
+		c.unsupported(s, "a type alias of a pointer type")
+	default:
+		if what := unsupportedType(t, false); what != "" {
+			c.unsupported(s, fmt.Sprintf("type %s: an alias of %s", s.Name.Name, what))
+		}
+	}
+}
+
+// namedSpec checks type T U where U is not a struct literal (RFC 0007): U's
+// underlying type must be a supported basic or slice type, or a struct of
+// this package (type B A, A a struct, whose fields A's declaration checks).
+func (c *checker) namedSpec(s *ast.TypeSpec) {
+	t := c.pkg.Info.Defs[s.Name].Type()
+	if _, ok := t.Underlying().(*types.Struct); ok {
+		from, ok := types.Unalias(c.pkg.Info.Types[s.Type].Type).(*types.Named)
+		if !ok || from.Obj().Pkg() != c.pkg.Types {
+			c.unsupported(s, fmt.Sprintf("type %s: a struct type from another package", s.Name.Name))
+		}
+		return
+	}
+	if what := unsupportedType(t.Underlying(), false); what != "" {
+		c.unsupported(s, fmt.Sprintf("type %s: %s", s.Name.Name, what))
+	}
+}
+
 func (c *checker) typeSpec(s *ast.TypeSpec, top bool) {
 	if s.TypeParams != nil {
 		c.unsupported(s, "a generic type (Go 1.18)")
-		return
-	}
-	if s.Assign.IsValid() {
-		c.unsupported(s, "a type alias")
 		return
 	}
 	if !top {
 		c.unsupported(s, "a type declared inside a function")
 		return
 	}
+	if s.Assign.IsValid() {
+		c.aliasSpec(s)
+		return
+	}
 	st, ok := s.Type.(*ast.StructType)
 	if !ok {
-		c.unsupported(s, fmt.Sprintf("type %s: a named type that is not a struct", s.Name.Name))
+		c.namedSpec(s)
 		return
 	}
 	for _, f := range st.Fields.List {
@@ -178,7 +212,7 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 		if p, ok := t.(*types.Pointer); ok {
 			t = p.Elem()
 		}
-		if n, ok := t.(*types.Named); ok && n.TypeArgs().Len() > 0 {
+		if n, ok := types.Unalias(t).(*types.Named); ok && n.TypeArgs().Len() > 0 {
 			c.unsupported(d.Name, "a method on a generic type (Go 1.18)")
 			return
 		}
@@ -243,6 +277,8 @@ func (c *checker) typ(n ast.Node, t types.Type, constOK bool) {
 // unsupportedType describes why t is outside the subset, or returns "".
 func unsupportedType(t types.Type, constOK bool) string {
 	switch t := t.(type) {
+	case *types.Alias:
+		return unsupportedType(types.Unalias(t), constOK)
 	case *types.Basic:
 		switch t.Kind() {
 		case types.Int, types.Int64, types.Int32, types.Uint8, types.Float64, types.Bool, types.String:
@@ -292,7 +328,7 @@ func isError(t types.Type) bool {
 }
 
 func isWriter(t types.Type) bool {
-	n, ok := t.(*types.Named)
+	n, ok := types.Unalias(t).(*types.Named)
 	return ok && n.Obj().Pkg() != nil && n.Obj().Pkg().Path() == "io" && n.Obj().Name() == "Writer"
 }
 
@@ -649,7 +685,7 @@ func (c *checker) compositeLit(e *ast.CompositeLit) {
 	t := c.pkg.Info.Types[e].Type
 	switch t.Underlying().(type) {
 	case *types.Struct:
-		if _, ok := t.(*types.Named); !ok {
+		if _, ok := types.Unalias(t).(*types.Named); !ok {
 			c.unsupported(e, "an anonymous struct type")
 			return
 		}
@@ -795,7 +831,9 @@ func (c *checker) conversion(e *ast.CallExpr, to types.Type) {
 		c.unsupported(e, "converting a []byte to a string (patina strings must be valid UTF-8)")
 	case isString(to) && isNumeric(from):
 		c.unsupported(e, "converting an integer to a string")
-	case types.Identical(to, from):
+	case types.IdenticalIgnoreTags(to.Underlying(), from.Underlying()):
+		// Between a named type and its underlying type, or two named types
+		// with the same underlying type (RFC 0007): the same value.
 	default:
 		c.unsupported(e, fmt.Sprintf("converting %s to %s", from, to))
 	}
@@ -892,7 +930,7 @@ func (c *checker) fmtCall(e *ast.CallExpr, name string) {
 				c.errorf(e, "format string: %%%c has no operand", v.Verb)
 				return
 			}
-			if what := verbProblem(v, info.Types[args[n]].Type, name); what != "" {
+			if what := c.verbProblem(v, info.Types[args[n]].Type, name); what != "" {
 				c.unsupported(args[n], what)
 			}
 			n++
@@ -903,21 +941,128 @@ func (c *checker) fmtCall(e *ast.CallExpr, name string) {
 		return
 	}
 	for _, a := range args {
-		if what := printProblem(info.Types[a].Type); what != "" {
+		if what := c.printProblem(info.Types[a].Type); what != "" {
 			c.unsupported(a, what)
 		}
 	}
 }
 
 // printProblem says why a value of type t cannot be printed with %v.
-func printProblem(t types.Type) string {
+func (c *checker) printProblem(t types.Type) string {
+	if m := PrintMethod(t); m != nil {
+		return c.methodPrintProblem(m)
+	}
 	if isError(t) || isPrintableBasic(t) {
 		return ""
 	}
 	if s, ok := t.Underlying().(*types.Slice); ok && isPrintableBasic(s.Elem()) {
+		if PrintMethod(s.Elem()) != nil {
+			return "printing a slice of a type with a String or Error method"
+		}
 		return ""
 	}
 	return fmt.Sprintf("printing a value of type %s", t)
+}
+
+// PrintMethod returns the method fmt calls to print a value of type t with
+// %v or %s: Error() string, else String() string, from the value's method
+// set (fmt receives a copy, so a pointer-receiver method is not used), or
+// nil. Only named types of the package have methods in the subset.
+func PrintMethod(t types.Type) *types.Func {
+	n, ok := types.Unalias(t).(*types.Named)
+	if !ok || n.Obj().Pkg() == nil || n.Obj().Pkg().Name() != "main" {
+		return nil
+	}
+	ms := types.NewMethodSet(n)
+	for _, name := range []string{"Error", "String"} {
+		sel := ms.Lookup(n.Obj().Pkg(), name)
+		if sel == nil {
+			continue
+		}
+		f := sel.Obj().(*types.Func)
+		sig := f.Signature()
+		if sig.Params().Len() == 0 && sig.Results().Len() == 1 && isString(sig.Results().At(0).Type()) {
+			return f
+		}
+	}
+	return nil
+}
+
+// methodPrintProblem says why printing through method m is not supported
+// yet: Go's fmt recovers a panic in it and prints %!v(PANIC=...), which
+// patina mode does not reproduce yet, so m must be unable to panic.
+func (c *checker) methodPrintProblem(m *types.Func) string {
+	for _, f := range c.pkg.Files {
+		for _, d := range f.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok && c.pkg.Info.Defs[fd.Name] == m {
+				if c.cannotPanic(fd.Body) {
+					return ""
+				}
+			}
+		}
+	}
+	return fmt.Sprintf("printing a value whose %s method may panic", m.Name())
+}
+
+// cannotPanic reports whether n is built only from constructs that cannot
+// panic: if, switch, return and blocks; constants, variables, conversions
+// between basic types, len, and operators other than / and %; and
+// fmt.Sprint, Sprintf and Sprintln of such values, none of which has a
+// String or Error method itself. It is deliberately narrow.
+func (c *checker) cannotPanic(n ast.Node) bool {
+	ok := true
+	ast.Inspect(n, func(n ast.Node) bool {
+		if !ok || n == nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *ast.BlockStmt, *ast.ReturnStmt, *ast.IfStmt, *ast.SwitchStmt, *ast.CaseClause,
+			*ast.ExprStmt, *ast.BasicLit, *ast.Ident, *ast.ParenExpr, *ast.UnaryExpr:
+			return true
+		case *ast.BinaryExpr:
+			ok = n.Op != token.QUO && n.Op != token.REM && n.Op != token.SHL && n.Op != token.SHR
+			return ok
+		case *ast.CallExpr:
+			// The callee is a type, a built-in or fmt's function, not a
+			// value; only the arguments are visited.
+			ok = c.cannotPanicCall(n)
+			for _, a := range n.Args {
+				ok = ok && c.cannotPanic(a)
+			}
+			return false
+		}
+		ok = false
+		return false
+	})
+	return ok
+}
+
+func (c *checker) cannotPanicCall(e *ast.CallExpr) bool {
+	info := c.pkg.Info
+	if tv := info.Types[e.Fun]; tv.IsType() {
+		_, basic := tv.Type.Underlying().(*types.Basic)
+		_, fromBasic := info.Types[e.Args[0]].Type.Underlying().(*types.Basic)
+		return basic && fromBasic
+	}
+	switch f := ast.Unparen(e.Fun).(type) {
+	case *ast.Ident:
+		if b, ok := info.Uses[f].(*types.Builtin); ok && b.Name() == "len" {
+			return true
+		}
+	case *ast.SelectorExpr:
+		if pn, ok := f.X.(*ast.Ident); ok {
+			if p, ok := info.Uses[pn].(*types.PkgName); ok && p.Imported().Path() == "fmt" &&
+				(f.Sel.Name == "Sprint" || f.Sel.Name == "Sprintf" || f.Sel.Name == "Sprintln") {
+				for _, a := range e.Args {
+					if PrintMethod(info.Types[a].Type) != nil {
+						return false
+					}
+				}
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func isPrintableBasic(t types.Type) bool {
@@ -927,13 +1072,25 @@ func isPrintableBasic(t types.Type) bool {
 
 // verbProblem says why verb v cannot format a value of type t, or returns
 // "". fn is the fmt function being called.
-func verbProblem(v Verb, t types.Type, fn string) string {
+func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
+	if m := PrintMethod(t); m != nil {
+		switch v.Verb {
+		case 'v', 's':
+			if v.Plus || v.Zero || v.Space || v.Sharp {
+				return fmt.Sprintf("the format %s with a value of type %s", v.Spec, t)
+			}
+			return c.methodPrintProblem(m)
+		case 'x', 'X':
+			// fmt formats the method's result in hex.
+			return fmt.Sprintf("the format %s with a value of type %s", v.Spec, t)
+		}
+	}
 	b, _ := t.Underlying().(*types.Basic)
 	kind := func(mask types.BasicInfo) bool { return b != nil && b.Info()&mask != 0 }
 	ok := false
 	switch v.Verb {
 	case 'v':
-		ok = printProblem(t) == "" && !v.Zero && v.Prec < 0
+		ok = c.printProblem(t) == "" && !v.Zero && v.Prec < 0
 	case 'd':
 		ok = kind(types.IsInteger) && v.Prec < 0
 	case 'x', 'X':
