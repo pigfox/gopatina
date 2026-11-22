@@ -82,7 +82,8 @@
 // Programs also have package-level variables (RFC 0010): in lib, a
 // counter changed by a function, a read-only table read through one, a
 // changed string and a struct changed field by field from main; in main, a
-// changed counter. Statements mix their reads with calls that change them,
+// changed counter. A function returns the counter beside a call that
+// changes it. Statements mix their reads with calls that change them,
 // so the tests hold GoPatina to gc's order (calls first). Declarations and
 // uses each come from a random stream of their own.
 //
@@ -397,6 +398,9 @@ func (g *gen) globalDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc Look%d(i int) int { return T%d[(i%%len(T%d)+len(T%d))%%len(T%d)] }\n", k, k, k, k, k)
 	// A return that reads C and calls what changes it: gc calls first.
 	fmt.Fprintf(b, "\nfunc Next%d() int { return C%d + Bump%d(1) }\n", k, k, k)
+	// A return of two values, one reading C, the other changing it: gc
+	// makes the call first here too.
+	fmt.Fprintf(b, "\nfunc Pair%d() (int, int) { return C%d, Bump%d(1) }\n", k, k, k)
 }
 
 // globalUses reads and changes program k's package-level variables.
@@ -410,6 +414,8 @@ func (g *gen) globalUses() {
 	g.line("lib.Q%d.B++", k)
 	g.line("M%d -= uint8(%s)", k, v())
 	g.line("fmt.Println(lib.C%d, lib.S%d, len(lib.S%d), lib.Q%d.A, lib.Q%d.B, M%d, lib.Q%d.Sum(), lib.Next%d())", k, k, k, k, k, k, k, k)
+	g.line("gpa, gpb := lib.Pair%d()", k)
+	g.line("fmt.Println(gpa, gpb)")
 }
 
 // libUses uses program k's declarations in lib.

@@ -212,7 +212,7 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 			}
 		case isReturn(s) && fnBody && i == len(list)-1:
 			if subset.ReadsChangedGlobal(g.pkg, s, g.globals) {
-				g.hoistCalls(s, false) // gc's order (RFC 0010)
+				g.hoistCalls(s, severalValues(s)) // gc's order (RFC 0010)
 			}
 			if e := g.returnValue(s.(*ast.ReturnStmt)); e != nil {
 				g.stmtLine("", e, "")
