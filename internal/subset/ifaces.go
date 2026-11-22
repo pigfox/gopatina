@@ -25,10 +25,10 @@ type IfacePlan struct {
 }
 
 // IsIface reports whether t is an interface type handled as an interface
-// value (RFC 0012): not error or io.Writer, which phase 1 lowers on their
-// own.
+// value (RFC 0012): error too, except where it is lowered to Result; not
+// io.Writer, which phase 1 lowers on its own.
 func IsIface(t types.Type) bool {
-	return t != nil && types.IsInterface(t) && !isError(t) && !isWriter(t)
+	return t != nil && types.IsInterface(t) && !isWriter(t)
 }
 
 // Ifaces analyses pkg, every package of the program, for RFC 0012.
@@ -191,8 +191,8 @@ func interfaceProblem(t *types.Interface) string {
 		for j := 0; j < sig.Params().Len(); j++ {
 			pt := sig.Params().At(j).Type()
 			switch {
-			case isError(pt) || isWriter(pt):
-				return "an interface method with an error or io.Writer parameter"
+			case isWriter(pt):
+				return "an interface method with an io.Writer parameter"
 			case isPointer(pt):
 				return "an interface method with a pointer parameter"
 			}
@@ -227,8 +227,8 @@ func (c *checker) dynamicProblem(t types.Type) string {
 	switch {
 	case isPointer(t):
 		return "converting a pointer to an interface (pointers as dynamic types come with the pointers RFC)"
-	case isError(t) || isWriter(t): // a type switch case or an assertion
-		return "an error or io.Writer as a type switch case or assertion type"
+	case isWriter(t): // a type switch case or an assertion
+		return "io.Writer as a type switch case or assertion type"
 	case providedName(t) != "":
 		return "converting a value of type " + t.String() + " to an interface"
 	}
@@ -251,7 +251,10 @@ func (c *checker) dynamicProblem(t types.Type) string {
 // cannot represent; each type is reported once, where it is first
 // converted.
 func (c *checker) checkIfaces() {
-	plan := Ifaces(c.pkg)
+	if c.ifacePlan == nil {
+		c.ifacePlan = Ifaces(c.pkg)
+	}
+	plan := c.ifacePlan
 	var es []ast.Expr
 	for e := range plan.Boxed {
 		es = append(es, e)
@@ -350,6 +353,20 @@ func holdsIface(t types.Type) bool {
 			if holdsIface(u.Field(i).Type()) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// stringErrors reports whether the program converts a type of string kind
+// to an interface: fmt.Print would space such an error as a string.
+func (c *checker) stringErrors() bool {
+	if c.ifacePlan == nil {
+		c.ifacePlan = Ifaces(c.pkg)
+	}
+	for _, t := range c.ifacePlan.Dyn {
+		if b, ok := t.Underlying().(*types.Basic); ok && b.Info()&types.IsString != 0 {
+			return true
 		}
 	}
 	return false

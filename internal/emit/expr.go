@@ -243,7 +243,7 @@ func (g *gen) value(e ast.Expr) node {
 		}
 		return g.place(e) // a Copy value; others are handed over with owned
 	case *ast.CallExpr:
-		return g.call(x)
+		return g.errValue(x, g.call(x))
 	case *ast.BinaryExpr:
 		return g.binary(x)
 	case *ast.UnaryExpr:

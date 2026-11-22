@@ -30,7 +30,9 @@ type ifaceState struct {
 	missKeys []string
 	gets     map[string]types.Type // x.(T) and v, ok := x.(T) helpers by name
 	getKeys  []string
-	slices   bool // iface_slice is used
+	slices   bool            // iface_slice is used
+	goError  bool            // errors.New or fmt.Errorf is used
+	helpers  map[string]bool // error helpers used (errvals.go)
 }
 
 // dispatch is one dispatcher: a method called through an interface.
@@ -41,11 +43,12 @@ type dispatch struct {
 
 func (g *gen) initIfaces() {
 	g.ifc = &ifaceState{
-		plan:   subset.Ifaces(g.pkg),
-		inBox:  map[ast.Expr]bool{},
-		calls:  map[string]dispatch{},
-		misses: map[string]types.Type{},
-		gets:   map[string]types.Type{},
+		plan:    subset.Ifaces(g.pkg),
+		inBox:   map[ast.Expr]bool{},
+		calls:   map[string]dispatch{},
+		misses:  map[string]types.Type{},
+		gets:    map[string]types.Type{},
+		helpers: map[string]bool{},
 	}
 	seen := map[string]int{}
 	for _, t := range g.ifc.plan.Dyn {
@@ -367,13 +370,20 @@ func (g *gen) ifaceItems() {
 	}
 	dyn := g.ifc.plan.Dyn
 	vs := g.ifc.variants
+	n := len(dyn) // variants, with errors.New's
+	if g.ifc.goError {
+		n++
+	}
 	g.line("/// The dynamic types of the program's interface values (RFC 0012).")
-	if len(dyn) == 0 {
+	if n == 0 {
 		g.line("pub enum Dyn {}")
 	} else {
 		g.line("pub enum Dyn {")
 		for i, t := range dyn {
 			g.line("    " + vs[i] + "(" + g.rustType(t) + "),")
+		}
+		if g.ifc.goError {
+			g.line("    " + goErrorVariant + "(rt::Error),")
 		}
 		g.line("}")
 	}
@@ -391,7 +401,7 @@ func (g *gen) ifaceItems() {
 	g.line("/// that is not comparable panics.")
 	g.line("impl PartialEq for Dyn {")
 	g.line("    fn eq(&self, other: &Self) -> bool {")
-	if len(dyn) == 0 {
+	if n == 0 {
 		g.line("        match *self {}")
 	} else {
 		g.line("        match (self, other) {")
@@ -404,7 +414,11 @@ func (g *gen) ifaceItems() {
 				g.line("            }")
 			}
 		}
-		if len(dyn) > 1 {
+		if g.ifc.goError {
+			// Go compares the pointers errors.New returns.
+			g.line("            (Dyn::" + goErrorVariant + "(a), Dyn::" + goErrorVariant + "(b)) => std::ptr::eq(a, b),")
+		}
+		if n > 1 {
 			g.line("            _ => false,")
 		}
 		g.line("        }")
@@ -418,6 +432,9 @@ func (g *gen) ifaceItems() {
 	g.line("        None => \"<nil>\",")
 	for i, t := range dyn {
 		g.line("        Some(Dyn::" + vs[i] + "(_)) => " + strLit(goTypeName(t)) + ",")
+	}
+	if g.ifc.goError {
+		g.line("        Some(Dyn::" + goErrorVariant + "(_)) => \"*errors.errorString\",")
 	}
 	g.noDyn("        ")
 	g.line("    }")
@@ -434,6 +451,9 @@ func (g *gen) ifaceItems() {
 	g.line("        None => String::from(\"<nil>\"),")
 	for i, t := range dyn {
 		g.line("        Some(Dyn::" + vs[i] + "(v)) => " + g.show(t, "v") + ",")
+	}
+	if g.ifc.goError {
+		g.line("        Some(Dyn::" + goErrorVariant + "(v)) => v.to_string(),")
 	}
 	g.noDyn("        ")
 	g.line("    }")
@@ -490,6 +510,7 @@ func (g *gen) ifaceItems() {
 	for _, key := range g.ifc.callKeys {
 		g.dispatcher(g.ifc.calls[key])
 	}
+	g.errHelpers()
 }
 
 // missingFn writes the function telling which method of interface it a
@@ -507,6 +528,13 @@ func (g *gen) missingFn(name string, t types.Type) {
 			order = append(order, m)
 		}
 		byMissing[m] = append(byMissing[m], "Dyn::"+g.ifc.variants[i]+"(_)")
+	}
+	if g.ifc.goError {
+		m := goErrorMissing(it)
+		if _, ok := byMissing[m]; !ok {
+			order = append(order, m)
+		}
+		byMissing[m] = append(byMissing[m], "Dyn::"+goErrorVariant+"(_)")
 	}
 	g.line("")
 	g.line("/// The first method of " + goTypeName(t) + " a dynamic value lacks, if any.")
@@ -595,6 +623,13 @@ func (g *gen) dispatcher(d dispatch) {
 	g.line("        None => panic!(")
 	g.line("            \"gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference\"")
 	g.line("        ),")
+	if g.ifc.goError {
+		if isGoErrorMethod(d.m) {
+			g.line("        Some(Dyn::" + goErrorVariant + "(v)) => v.to_string(),")
+		} else {
+			all = false
+		}
+	}
 	if !all {
 		g.line("        _ => unreachable!(\"only values whose type has the method are converted\"),")
 	}
@@ -711,7 +746,7 @@ func (g *gen) patArm(indent string, pats []string, rest string) {
 // noDyn writes the arm a match on Option<&Dyn> needs when the program
 // converts no value to an interface, and Dyn has no variants.
 func (g *gen) noDyn(indent string) {
-	if len(g.ifc.plan.Dyn) == 0 {
+	if len(g.ifc.plan.Dyn) == 0 && !g.ifc.goError {
 		g.line(indent + "Some(d) => match *d {},")
 	}
 }

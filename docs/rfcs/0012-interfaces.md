@@ -304,3 +304,25 @@ strings, `Vec`s and structs of them, and nested interface values, which are
 else changes: dispatchers, comparisons and assertions take `&Iface`.
 Until then, package-level variables holding an interface value are
 rejected, since a static must be `Sync`.
+
+## Amendment: error as an interface value (2026-11-22)
+
+- `error` is an `Iface`. The `Result` lowering stays, with `Iface` as its
+  error: `Result<T, Iface>`.
+- `errors.New` and `fmt.Errorf` return `go_error(...)`, a `Dyn` variant
+  holding `rt::Error`, Go's `*errors.errorString`: `%T` prints that name,
+  and `==` compares identity (`std::ptr::eq`), as Go compares the pointers.
+- Uses outside the `Result` patterns, which phase 1 rejected, are lowered
+  generally and exactly: a call whose error is kept becomes
+  `iface_split(f(...), zero)` (or `iface_err` for a function returning only
+  an error), and `return zero..., err` with an error that may be nil becomes
+  `iface_result(zero, err)`. Both rely on the rule, still enforced, that a
+  function returns zero values with a non-nil error.
+- `%s` of a nil error prints `%!s(<nil>)` without padding, as Go does
+  (`iface_s`); a precision on an error is rejected, since Go truncates an
+  error's text but not `<nil>`.
+- `fmt.Print` of an error is rejected only in a program that converts a
+  type of string kind to an interface, since Print spaces operands by their
+  dynamic kinds.
+- Package-level variables holding an error stay rejected until RFC 0002's
+  shareable form (a static must be `Sync`).

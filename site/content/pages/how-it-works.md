@@ -39,10 +39,10 @@ The patina modes accept a defined subset of Go, specified in [docs/patina-subset
 - interfaces: interface types and `any`, method calls through them, comparisons, type assertions and type switches, with Go's panics; an interface value is one Rust enum of the program's dynamic types, so a call is a `match`, with no trait objects
 - `time.Duration`, with its constants, arithmetic and methods (`String`, `Seconds`, `Round`, `Truncate` and the rest), written in Rust with Go's exact behaviour
 - `if`, `for` (including `for range` over slices, strings and integers), `switch`, constants and `iota`
-- `error` results with `errors.New` and `fmt.Errorf`, and pointers used as borrows
+- errors as Go values: `errors.New`, `fmt.Errorf` and custom error types, kept, compared, printed and switched on, with functions returning Rust's `Result`; and pointers used as borrows
 - `fmt` printing (`Println`, `Printf`, `Sprintf`, `Fprintf` and the rest), the common functions of `strings` (`Split`, `Cut`, `ToLower`, `ToUpper`, `EqualFold`, `ReplaceAll`, `TrimPrefix`, `TrimSuffix` and more, with case mapping by Go's own Unicode tables), and a few functions from `slices`, `bytes` and `os`
 
-**Not supported yet:** goroutines and channels, maps, closures and function values, `error` as an ordinary interface value, pointers inside interfaces, generics, `defer`, general slicing (`s[i:j]`), slices with an explicit high or max bound, saved slice views, and most of the standard library. Every unsupported construct is rejected with a Go-style error that names the construct; nothing is translated approximately. See the [feature matrix](https://github.com/pigfox/gopatina/blob/main/docs/compat.md) and [every known place where Go and Rust semantics differ](https://github.com/pigfox/gopatina/blob/main/docs/go-rust-disconnects.md).
+**Not supported yet:** goroutines and channels, maps, closures and function values, `errors.Is` and `errors.As`, pointers inside interfaces, generics, `defer`, general slicing (`s[i:j]`), slices with an explicit high or max bound, saved slice views, and most of the standard library. Every unsupported construct is rejected with a Go-style error that names the construct; nothing is translated approximately. See the [feature matrix](https://github.com/pigfox/gopatina/blob/main/docs/compat.md) and [every known place where Go and Rust semantics differ](https://github.com/pigfox/gopatina/blob/main/docs/go-rust-disconnects.md).
 
 ## Goroutines {#goroutines}
 

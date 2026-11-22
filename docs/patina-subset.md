@@ -37,7 +37,7 @@ the exact error committed beside it.
 | --- | --- |
 | Packages | `package main` with `func main()`, any number of files, and the packages it imports: of its own module, of other modules and of the standard library, translated from their Go source; only what `main` and the `init` functions reach is translated ([RFC 0009](rfcs/0009-packages.md)); `math/bits` intrinsics give gc's results |
 | Imports | `fmt`, `strings`, `errors`, `os`, `io`, `slices`, `bytes`, `time` (only the functions and types below) |
-| Types | every integer type (`int`, `int8` to `int64`, `uint`, `uint8` (`byte`) to `uint64`, `uintptr`, `rune`), `float32`, `float64` ([RFC 0008](rfcs/0008-integer-and-float-types.md)), `bool`, `string`, slices of supported types, named struct types, named types of the basic and slice types (`type Op int`, `type Path []int`, [RFC 0007](rfcs/0007-named-types-and-aliases.md)) and type aliases, `error` (as a result), `io.Writer` (as a parameter), interface types: named and literal, embedded, `any` ([RFC 0012](rfcs/0012-interfaces.md); see [Interfaces](#interfaces)), `time.Duration` with its constants and its methods `String`, `Nanoseconds`, `Microseconds`, `Milliseconds`, `Seconds`, `Minutes`, `Hours`, `Truncate`, `Round` and `Abs` (RFC 0011: a provided type, its methods in Rust with Go's behaviour) |
+| Types | every integer type (`int`, `int8` to `int64`, `uint`, `uint8` (`byte`) to `uint64`, `uintptr`, `rune`), `float32`, `float64` ([RFC 0008](rfcs/0008-integer-and-float-types.md)), `bool`, `string`, slices of supported types, named struct types, named types of the basic and slice types (`type Op int`, `type Path []int`, [RFC 0007](rfcs/0007-named-types-and-aliases.md)) and type aliases, `error` (an interface value, see [Errors](#errors)), `io.Writer` (as a parameter), interface types: named and literal, embedded, `any` ([RFC 0012](rfcs/0012-interfaces.md); see [Interfaces](#interfaces)), `time.Duration` with its constants and its methods `String`, `Nanoseconds`, `Microseconds`, `Milliseconds`, `Seconds`, `Minutes`, `Hours`, `Truncate`, `Round` and `Abs` (RFC 0011: a provided type, its methods in Rust with Go's behaviour) |
 | Declarations | functions and methods, `init` functions (run in source order before `main`), package-level variables in Go's initialization order ([RFC 0010](rfcs/0010-package-variables.md)) (on structs and on named non-struct types), struct types, named types, type aliases, constants (typed, untyped, `iota`), local variables |
 | Statements | assignment (`=`, `:=`, `op=`, tuple assignment), `++`/`--`, `if`/`else` with an init statement, `for` (3-clause, condition, infinite), `for range` over slices, strings and integers, `switch` (with and without a tag, several values per case, `default` anywhere), type switches (`switch v := x.(type)`, with `nil`, concrete and interface cases and several types per case), `break`, `continue`, `return` |
 | Expressions | arithmetic, comparison, logical and bitwise operators, shifts (by a constant or a run-time count: Go's 0 or −1 at and past the width, and Go's panic for a negative count), string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, conversions to interfaces (`any(x)`, implicit ones), method calls (also through an interface), type assertions (`x.(T)` and `v, ok := x.(T)`), `&x` and `*p`; Phase 2 adds [read-only slice suffix arguments](#read-only-slice-suffix-arguments) |
@@ -67,7 +67,7 @@ a body (assembly), and complex numbers.
 | `struct` | a `struct` deriving `Clone, Default, PartialEq` (and `Copy` when every field is) |
 | `type T U` (U not a struct), `type A = B` | `type T = R;`, the underlying type's Rust type; methods of `T` are functions `t_m(recv, ...)` taking the receiver first (RFC 0007) |
 | `*T` | `&T` or `&mut T`; `p := &T{...}` owns the value |
-| `(T, error)` | `Result<T, rt::Error>` |
+| `(T, error)` | `Result<T, Iface>` (see [Errors](#errors)) |
 | `io.Writer` | `&mut dyn std::io::Write` |
 
 Go's integers wrap on overflow, so emitted crates turn Rust's overflow checks
@@ -166,19 +166,31 @@ decision: each parameter's mode with the reason, each move and each copy.
 
 ## Errors
 
-A function whose last result is `error` returns `Result<T, rt::Error>`. This
-is exact only for these patterns, which are all the subset accepts:
+`error` is an interface ([RFC 0012](rfcs/0012-interfaces.md)): an error value
+is an `Iface` like any other, so it can be stored, passed, compared, kept in
+fields and slices, printed, switched on and asserted, and any type with an
+`Error() string` method can be one. `errors.New` and `fmt.Errorf` make
+values of Go's `*errors.errorString`, each equal only to itself.
 
-- every `return` is `return v..., nil`, `return zero values..., err` with a
-  non-nil error (`errors.New`, `fmt.Errorf`, or the `err` of the enclosing
-  check), or `return f(...)` of a function with the same results;
-- every call checks its error at once: `v, err := f()` followed by
-  `if err != nil { ... }`, or `if v, err := f(); err != nil { ... } else
-  { ... }`; or ignores it (`v, _ := f()`, or `f()` alone).
+A function whose last result is `error` returns `Result<T, Iface>`:
 
-`if err != nil { return ..., err }` becomes Rust's `?`; other checks become a
-`match`. Inside a check, `err` may be printed, returned, or read with
-`err.Error()`.
+- `return v..., nil` is `Ok(...)`; `return zero values..., e` with an error
+  that cannot be nil (`errors.New`, `fmt.Errorf`, a value of a concrete
+  type, or the `err` of the enclosing check) is `Err(e)`; `return zero
+  values..., err` with an error that may be nil is `Ok` or `Err` by its
+  value; `return f(...)` passes `f`'s `Result` on. A value returned with an
+  error that is or may be non-nil must be the zero value, so a caller sees
+  exactly what Go's caller sees.
+- A call whose error is checked at once (`v, err := f()` followed by
+  `if err != nil { ... }`, or `if v, err := f(); err != nil { ... }`) is a
+  `match`, and `if err != nil { return ..., err }` is Rust's `?`.
+- Any other call keeps its error as a value: its results are split into
+  the values, zero when the error is not nil, and the error.
+
+Not supported yet: `%w`, `errors.Is`, `errors.As` and `errors.Unwrap` (the
+provided `errors` package's next API), package-level variables holding an
+error (sentinel errors, with RFC 0002's shareable form), a precision on an
+error printed with `%v` or `%s`, and an error result that is not the last.
 
 ## The crate
 
@@ -225,8 +237,6 @@ fields and slices; `Println` and plain `%v` and `%T` of them.
 
 Not supported yet, each with its own error:
 
-- `error` as an ordinary interface value (`errors.New` stored or compared,
-  custom error types): the next step of RFC 0012;
 - pointers as dynamic types (with the pointers RFC);
 - interface methods with a parameter that holds a slice (in Go the callee
   shares it), or with `error`, `io.Writer` or pointer parameters or results;
