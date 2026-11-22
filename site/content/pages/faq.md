@@ -26,7 +26,7 @@ No. You write Go. Without a garbage collector a few ownership rules remain, but 
 
 ### How fast is GoPatina?
 
-The bar is equivalence with equivalent hand-written Rust within ±0.5%, shown by a two one-sided tests (TOST) equivalence test at 5σ; the test-server run that would show it is pending. In local measurements, fib and suffix-sum execute the same instructions as the hand-written Rust to within 0.0003%. The third benchmark, sieve, measured 1.30 times the instructions and about 7% slower, because of one extra bounds check per inner-loop pass; RFC 0006's loop specialization has since removed that check, so all three hot loops now compile to the same machine code as the hand-written Rust.
+The bar is equivalence with equivalent hand-written Rust within ±0.5%, shown by a two one-sided tests (TOST) equivalence test at 5σ. On the test server, on 2026-11-22, with one rustc for both, GoPatina executed the same user instructions as the hand-written Rust to within 0.001% on all three benchmarks, at 5σ and at 6σ: the bar is met on its primary metric. Run time, measured under load, is not yet decided and needs a quiet machine. Earlier, the sieve benchmark had run 1.30 times the instructions because of one extra bounds check, which RFC 0006's loop specialization removed.
 
 ### How is GoPatina's correctness measured?
 

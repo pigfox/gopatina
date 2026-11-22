@@ -6,10 +6,14 @@ maintainer's test server. How the numbers are produced is described in
 [docs/QUALITY.md](docs/QUALITY.md#performance-shadow-rust-and-keep-up) and
 [bench/README.md](bench/README.md).
 
-> **No official run has happened yet.** The dedicated test server is being
-> set up. The local verification runs below are evidence from the
-> maintainer's workstation, published with their raw JSON, but they are not
-> official results, and their wall-clock ratios are noisy.
+> **First test-server results, 2026-11-22.** The speed bar is met on its
+> primary metric, user instructions, at 5σ and at 6σ: with one rustc
+> (1.100.0) for both, GoPatina executes the same instructions as hand-written
+> Rust to within 0.001% on every benchmark. On run time (cycles and wall
+> time), measured while the correctness run loaded the machine, the result is
+> not decided; a quiet run is pending. The correctness bar is pending. The
+> local runs further down are earlier evidence from the maintainer's
+> workstation, not official results.
 
 ## Latest official run
 
@@ -22,12 +26,42 @@ with the latest stable Rust. That is a goal, not a claim.
 
 | Bar | Definition | Test | Status |
 | --- | --- | --- | --- |
-| Speed | Equivalent to hand-written Rust within ±0.5% (ratio in (1/1.005, 1.005)) | TOST on paired log ratios at 5σ, one-sided α = Φ(−5) ≈ 2.87 × 10⁻⁷ per bound | Target; the test-server run is pending |
+| Speed | Equivalent to hand-written Rust within ±0.5% (ratio in (1/1.005, 1.005)) | TOST on paired log ratios at 5σ, one-sided α = Φ(−5) ≈ 2.87 × 10⁻⁷ per bound | **Met on user instructions, the primary metric, at 5σ and 6σ** (2026-11-22, test server); on run time pending a quiet run |
 | Correctness (Six Sigma) | At most 3.4 defects per million tests (4.5σ, after the conventional 1.5σ shift), shown at 6σ confidence | 0 defects in ≥ 6,099,050 differential tests against Go: one-sided upper bound 1 − α^(1/N) < −ln(α) / N with α = Φ(−6) ≈ 9.87 × 10⁻¹⁰. Milestone: 0 defects in ≥ 881,098 tests, the same bound at 95% | Target; both the milestone and the bar are pending on the test server |
 
 Hypotheses, formulas and their limits are in
 [docs/QUALITY.md](docs/QUALITY.md#the-two-bars). "Identical" means equivalent within ±0.5% at 5σ: in a two one-sided tests (TOST) equivalence test on paired, interleaved runs, the whole 5σ interval of the ratio lies inside ±0.5%.
 How the test works is in [bench/README.md](bench/README.md).
+
+## The speed bar on the test server (2026-11-22): met on user instructions
+
+Two runs with CPU counters (enabled for them by the project lead), both
+Rust binaries built by rustc 1.100.0 (`--toolchain same`, the official
+comparison; the rustc is read from each binary), 100 runs of each binary in
+ABBA order, GoPatina commit `bfed1e17ebec1a43e7acc09c833986bda5d3e031`, on
+the same Xeon Gold 6152 virtual server as the pilot below. Notes, load and
+the asm check are in the [run notes](bench/results/2026-11-22-server-bfed1e1-same.md);
+raw results: [5σ](bench/results/2026-11-22-server-bfed1e1-same-5sigma.json),
+[6σ](bench/results/2026-11-22-server-bfed1e1-same-6sigma.json).
+
+| Benchmark | User instructions, 5σ | User instructions, 6σ | Verdict |
+| --- | --- | --- | --- |
+| `fib` | 1.0000083 [1.0000077, 1.0000089] | 1.0000082 [1.0000074, 1.0000090] | equivalent |
+| `sieve` | 1.0000064 [1.0000058, 1.0000069] | 1.0000062 [1.0000056, 1.0000069] | equivalent |
+| `suffix-sum` | 1.0000072 [1.0000066, 1.0000078] | 1.0000071 [1.0000061, 1.0000082] | equivalent |
+
+Every interval lies far inside ±0.5%: on its primary metric the speed bar is
+met, at 5σ and at 6σ. The excess of 6 to 8 millionths is a fixed cost,
+consistent with the startup panic-hook setup, the only difference in the
+machine code (`bench/asm-check.sh --toolchain stable`).
+
+**Run time is not decided yet.** The bar's hypotheses are stated for run
+time, and user instructions count work, not time. Cycles and wall time were
+measured too, but beside the long correctness run (load average 7.6 to 9.8),
+which disturbs them: all were inconclusive except `fib`'s cycles, which read
+about 9% fewer for GoPatina although both binaries execute the same
+instructions; that is taken as an effect of the conditions, not as a
+result. Deciding run time needs the same runs on a quiet machine.
 
 ## Test-server pilot (2026-11-22): inconclusive, from noise
 
@@ -169,6 +203,7 @@ When the dedicated test server exists, results will be shown in this form:
 
 ## History
 
+- 2026-11-22: the speed bar met on user instructions at 5σ and 6σ (test server, one rustc for both); run time pending.
 - 2026-11-22: the test-server pilot, wall time, inconclusive from noise.
 - 2026-11-21: a local equivalence run with CPU counters, a wall-clock run and a machine-code comparison (not official).
 - 2026-11-18: two local verification runs (not official).

@@ -1,6 +1,6 @@
 # The evidence: GoPatina's speed and correctness, as a study
 
-GoPatina makes two measurable claims, and this page reports them the way a scientific paper would: what is tested, how, on which machines, with which statistics, what has been measured so far, and what could make the results wrong. **No official test-server run has happened yet.** Both bars are targets until the test server's runs meet them, and both results are pending. Nothing here claims more than was measured. Summaries are on the [benchmarks](/benchmarks) and [correctness](/correctness) pages.
+GoPatina makes two measurable claims, and this page reports them the way a scientific paper would: what is tested, how, on which machines, with which statistics, what has been measured so far, and what could make the results wrong. **The speed bar is met on its primary metric, user instructions, at 5σ and at 6σ (test server, 2026-11-22); on run time it is not yet decided, and the correctness bar is pending.** Nothing here claims more than was measured. Summaries are on the [benchmarks](/benchmarks) and [correctness](/correctness) pages.
 
 ## 1. Hypotheses {#hypotheses}
 
@@ -23,7 +23,7 @@ GoPatina makes two measurable claims, and this page reports them the way a scien
 | Machine | Intel Core i7-8650U, 8 logical CPUs, 60 GiB RAM (a laptop) | Intel Xeon Gold 6152 at 2.10 GHz, 7 vCPUs, 7 GB RAM (a rented virtual server) |
 | Operating system | Linux 7.0.0-43 x86_64 | Ubuntu 24.04, Linux 6.8.0 |
 | Toolchains | Go 1.27.1; rustc 1.93.0 (latest stable on the machine, and the version emitted crates pin) | Go 1.27.1; Rust 1.100.0 stable, and 1.93.0 for emitted crates |
-| Load | in normal use: load average 2 to 37 on 8 CPUs | quiet: no other job runs during a timed run |
+| Load | in normal use: load average 2 to 37 on 8 CPUs | the pilot: load average 0.2 to 2.3; the counter runs: 7.6 to 9.8, beside the long correctness run, which leaves instruction counts unchanged but disturbs cycles and wall time |
 | Recorded with each result | commit, versions, date, load | commit, versions, CPU model, date, load |
 
 ## 4. Statistical analysis {#statistics}
@@ -41,7 +41,10 @@ GoPatina makes two measurable claims, and this page reports them the way a scien
 | `suffix-sum` speed | instructions 1.0000020 [1.0000015, 1.0000026]: equivalent; cycles 0.992 [0.962, 1.022] and wall time 0.977 [0.880, 1.084]: inconclusive | same run | not official |
 | Machine code after RFC 0006 | the hot loops of all three benchmarks are the same instructions as the hand-written Rust's; what remains is a 3-instruction panic-hook setup at startup (and one alignment no-op in `sieve`) | 2026-11-21, rustc 1.93.0 | compiles only; not a speed measurement |
 | Test-server pilot, wall time | `fib` 0.984 [0.948, 1.021], `sieve` 0.975 [0.874, 1.087], `suffix-sum` 1.007 [0.961, 1.056]: all inconclusive; the standard deviation of the log ratios was 7% to 20% | 2026-11-22, test server, commit `0af9da8`, 100 runs per binary, 5σ | the noise is far wider than ±0.5%: wall time on this machine cannot decide the bar |
-| **The speed bar** (±0.5%, 5σ) | pending | test server, with CPU counters or a quieter machine | pending |
+| Test server, user instructions (the primary metric), one rustc (1.100.0) for both | `fib` 1.0000082 [1.0000074, 1.0000090], `sieve` 1.0000062 [1.0000056, 1.0000069], `suffix-sum` 1.0000071 [1.0000061, 1.0000082] at 6σ: all equivalent; the 5σ run agrees | 2026-11-22, test server, commit `bfed1e1`, CPU counters, 100 runs per binary | the speed bar met on its primary metric |
+| Test server, cycles and wall time, the same runs | all inconclusive, except `fib`'s cycles at 0.903 [0.881, 0.926], although both binaries execute the same instructions | the same runs, under load | not taken as a result: these metrics need a quiet machine |
+| Machine code, rustc 1.100.0 | `fib`'s hot function identical; each `main` differs only by the startup panic-hook setup | 2026-11-22, test server | compiles only; not a speed measurement |
+| **The speed bar** (±0.5%, at 5σ and 6σ) | met on user instructions; on run time not yet decided | test server | **met on the primary metric**; run time pending a quiet run |
 | Golden programs | 93 of 93 match Go's output, first stderr line and exit status | every change, in CI | passing |
 | Development smoke runs | 1,318 generated tests, 0 defects | 2026-11-21, laptop, three generator versions | far below 881,098: not evidence for the bar |
 | Defects found by the generated tests | 1: a shift after a type conversion did not compile (fixed, with a golden program) | 2026-11-22, test server, programs 150 to 299 | the run restarts with the fixed compiler |
@@ -55,7 +58,7 @@ Brackets are 5σ intervals of the ratio GoPatina / hand-written Rust; below 1 is
 - **Scope.** Everything here holds for the phase 1 subset only: no goroutines, maps, interfaces, generics or most of the standard library.
 - **The benchmarks.** Three small programs, with one author's hand-written Rust. They may not represent real workloads.
 - **Machines.** The local results come from a busy laptop. The test server is one rented virtual machine of one kind, whose wall-time noise (7% to 20% in the pilot) is far above the speed margin.
-- **Measurement.** A wall-time run includes process start-up, which dilutes a difference in a short benchmark. Instruction counts are not time.
+- **Measurement.** A wall-time run includes process start-up, which dilutes a difference in a short benchmark. Instruction counts are not time: the hypotheses are stated for run time, so the speed bar is met on its primary metric, not yet on time.
 - **Toolchains.** Different rustc releases compile the same source differently, so the official comparison builds GoPatina's crate and the hand-written Rust with the same rustc, the latest stable; GoPatina's crates otherwise pin rustc 1.93.0. A comparison across releases measures the compilers, not GoPatina.
 - **The generator.** The correctness bound holds for programs the generator produces. A kind of bug the generator never triggers is invisible to it, and its tests are not independent draws from real programs. Only the first line of standard error is compared, not Go's stack trace.
 
