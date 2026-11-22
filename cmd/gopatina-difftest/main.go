@@ -1,7 +1,9 @@
 // Command gopatina-difftest measures how often GoPatina miscompiles: it
 // builds random programs from internal/progen with the Go toolchain and with
 // gopatina build -patina, runs both, and counts each program whose output
-// differs, or that patina mode fails to build, as a defect.
+// differs, or that patina mode fails to build, as a defect. Each batch also
+// ends with a panic case (internal/progen), which must match Go's output,
+// the first line of Go's standard error and Go's exit status.
 //
 // usage: gopatina-difftest [-seed S] [-start K] [-programs N] [-per P]
 //
@@ -12,9 +14,10 @@
 // seed and k, so a run can be split across machines by -start and resumed.
 // They are built P to a batch (one Go package, one crate), J batches at a
 // time. Failing batches are kept under -failures with both outputs. The
-// report on standard output is JSON: programs, defects, defects per million,
-// and, with no defects, the 95% upper bound on the defect rate,
-// -ln(0.05) / N. 881,098 defect-free programs bound it at 3.4 per million.
+// report on standard output is JSON: programs, panic cases, tests (the two
+// together), defects, defects per million tests, and, with no defects, the
+// 95% upper bound on the defect rate, -ln(0.05) / tests. 881,098
+// defect-free tests bound it at 3.4 per million.
 // The exit status is 0 with no defects, 3 with defects, 1 on an error (such
 // as a program the Go toolchain itself does not build or run cleanly, which
 // is a generator bug) and 2 on bad usage. See docs/QUALITY.md.
@@ -61,15 +64,19 @@ type outcome struct {
 	first, n    int
 	mismatched  []int // programs whose output differs
 	buildFailed bool  // patina mode did not build the batch
+	panicBad    bool  // the panic case (program first+n) differs
 }
 
 type report struct {
 	Seed              uint64   `json:"seed"`
 	Start             int      `json:"start"`
 	Programs          int      `json:"programs"`
+	PanicCases        int      `json:"panic_cases"`
+	Tests             int      `json:"tests"`
 	PerBatch          int      `json:"per_batch"`
 	Defects           int      `json:"defects"`
 	Mismatched        int      `json:"mismatched"`
+	PanicMismatched   int      `json:"panic_mismatched"`
 	BuildFailed       int      `json:"build_failed"`
 	DefectsPerMillion float64  `json:"defects_per_million"`
 	Upper95           *float64 `json:"upper_bound_95_per_million,omitempty"`
@@ -155,23 +162,29 @@ func run(args []string, stdout, stderr io.Writer) int {
 func summarize(c config, results []outcome) report {
 	r := report{Seed: c.seed, Start: c.start, Programs: c.programs, PerBatch: c.per}
 	for _, o := range results {
+		r.PanicCases++
 		if o.buildFailed {
-			r.BuildFailed += o.n
-			for k := o.first; k < o.first+o.n; k++ {
+			r.BuildFailed += o.n + 1
+			for k := o.first; k <= o.first+o.n; k++ {
 				r.FailedPrograms = append(r.FailedPrograms, k)
 			}
 			continue
 		}
 		r.Mismatched += len(o.mismatched)
 		r.FailedPrograms = append(r.FailedPrograms, o.mismatched...)
+		if o.panicBad {
+			r.PanicMismatched++
+			r.FailedPrograms = append(r.FailedPrograms, o.first+o.n)
+		}
 	}
-	r.Defects = r.Mismatched + r.BuildFailed
+	r.Tests = r.Programs + r.PanicCases
+	r.Defects = r.Mismatched + r.PanicMismatched + r.BuildFailed
 	if len(r.FailedPrograms) > 100 {
 		r.FailedPrograms = r.FailedPrograms[:100]
 	}
-	r.DefectsPerMillion = float64(r.Defects) / float64(r.Programs) * 1e6
+	r.DefectsPerMillion = float64(r.Defects) / float64(r.Tests) * 1e6
 	if r.Defects == 0 {
-		u := -math.Log(0.05) / float64(r.Programs) * 1e6
+		u := -math.Log(0.05) / float64(r.Tests) * 1e6
 		r.Upper95 = &u
 	}
 	return r
@@ -203,15 +216,17 @@ func batch(c config, worker, first, n int) (outcome, error) {
 		return o, nil
 	}
 	goStdout, goStderr, goCode := execute(goBin, c.timeout)
-	if goCode != 0 || len(goStderr) > 0 {
+	// Only the panic case may fail, and only with a Go panic (status 2).
+	if !(goCode == 0 && len(goStderr) == 0 || goCode == 2 && bytes.HasPrefix(goStderr, []byte("panic: "))) {
 		return o, fmt.Errorf("batch %d: the Go binary exited %d: %s", first, goCode, goStderr)
 	}
 	pStdout, pStderr, pCode := execute(pBin, c.timeout)
-	o.mismatched = compare(goStdout, pStdout, first, n)
-	if (pCode != 0 || len(pStderr) > 0) && len(o.mismatched) == 0 {
-		o.mismatched = []int{first + n - 1}
-	}
-	if len(o.mismatched) > 0 {
+	w, g := segments(goStdout), segments(pStdout)
+	o.mismatched = compare(w, g, first, n)
+	last := first + n
+	o.panicBad = len(compare(w, g, last, 1)) > 0 || pCode != goCode ||
+		firstLine(pStderr) != firstLine(goStderr)
+	if len(o.mismatched) > 0 || o.panicBad {
 		keep(c, first, src, map[string][]byte{
 			"go.out": goStdout, "patina.out": pStdout, "patina.err": pStderr,
 			"patina.exit": []byte(strconv.Itoa(pCode) + "\n"),
@@ -245,43 +260,45 @@ func execute(bin string, limit time.Duration) (stdout, stderr []byte, code int) 
 }
 
 // compare returns the programs among first..first+n-1 whose output
-// segments differ between want and got. If the outputs differ but no
-// segment does (say, in a final newline), the last program is counted.
-func compare(want, got []byte, first, n int) []int {
-	if bytes.Equal(want, got) {
-		return nil
-	}
-	w, g := segments(want), segments(got)
+// segments differ between want and got, or are missing from either.
+func compare(want, got map[int]string, first, n int) []int {
 	var bad []int
 	for k := first; k < first+n; k++ {
-		ws, wok := w[k]
-		gs, gok := g[k]
+		ws, wok := want[k]
+		gs, gok := got[k]
 		if !wok || !gok || ws != gs {
 			bad = append(bad, k)
 		}
 	}
-	if len(bad) == 0 {
-		bad = []int{first + n - 1}
-	}
 	return bad
 }
 
-// segments splits output into each program's lines, keyed by the number on
-// the marker line before them.
+// segments splits output into each program's output, keyed by the number
+// on the marker line before it. Each segment keeps its text exactly,
+// newlines included.
 func segments(out []byte) map[int]string {
 	seg := map[int]string{}
 	cur := -1
-	for line := range strings.SplitSeq(strings.TrimSuffix(string(out), "\n"), "\n") {
-		if k, err := strconv.Atoi(strings.TrimPrefix(line, progen.Marker)); err == nil && strings.HasPrefix(line, progen.Marker) {
-			cur = k
-			seg[k] = ""
-			continue
+	for line := range strings.SplitAfterSeq(string(out), "\n") {
+		if rest, ok := strings.CutPrefix(line, progen.Marker); ok {
+			if k, err := strconv.Atoi(strings.TrimSuffix(rest, "\n")); err == nil {
+				cur = k
+				seg[k] = ""
+				continue
+			}
 		}
 		if cur >= 0 {
-			seg[cur] += line + "\n"
+			seg[cur] += line
 		}
 	}
 	return seg
+}
+
+// firstLine is the first line of standard error, the part of a panic that
+// GoPatina reproduces (Go's stack trace after it is not).
+func firstLine(b []byte) string {
+	line, _, _ := strings.Cut(string(b), "\n")
+	return line
 }
 
 // keep saves a failing batch's source and outputs under the failures

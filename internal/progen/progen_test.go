@@ -16,8 +16,8 @@ import (
 // and emit a crate. Building and running them is cmd/gopatina-difftest's
 // job.
 func TestBatchesAreAccepted(t *testing.T) {
-	for seed := range uint64(20) {
-		src := Batch(seed, int(seed)*10, 10)
+	for seed := range uint64(64) {
+		src := Batch(seed, int(seed)*4, 3)
 		pkg, err := load.Source("/gen", "main.go", src, "go1.25")
 		if err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)

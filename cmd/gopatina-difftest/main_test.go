@@ -58,8 +58,28 @@ func TestRunClean(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &r); err != nil {
 		t.Fatal(err)
 	}
-	if r.Programs != 7 || r.Defects != 0 || r.Upper95 == nil || strings.Count(errs, "0 mismatched") != 3 {
+	if r.Programs != 7 || r.PanicCases != 3 || r.Tests != 10 || r.Defects != 0 || r.Upper95 == nil ||
+		strings.Count(errs, "0 mismatched") != 3 {
 		t.Errorf("report %s, stderr %s", out, errs)
+	}
+}
+
+// TestRunGoPanics: a Go panic in the panic case is expected; patina must
+// match its status and first stderr line.
+func TestRunGoPanics(t *testing.T) {
+	tail := "echo panic: boom >&2; echo trace >&2; exit 2"
+	g := fakeTool(t, "go", false, "x", tail)
+	same := fakeTool(t, "gopatina", false, "x", "echo panic: boom >&2; exit 2")
+	code, out, errs := difftest("-programs", "2", "-go", g, "-gopatina", same)
+	if code != 0 {
+		t.Errorf("same panic: code %d, %s %s", code, out, errs)
+	}
+	other := fakeTool(t, "gopatina", false, "x", "echo panic: other >&2; exit 2")
+	code, out, _ = difftest("-programs", "2", "-go", g, "-gopatina", other, "-failures", t.TempDir())
+	var r report
+	json.Unmarshal([]byte(out), &r)
+	if code != 3 || r.PanicMismatched != 1 || r.Mismatched != 0 || r.FailedPrograms[0] != 2 {
+		t.Errorf("other panic: code %d, %s", code, out)
 	}
 }
 
@@ -71,9 +91,9 @@ func TestRunDefects(t *testing.T) {
 		patina  string
 		defects int
 	}{
-		{"wrong output", fakeTool(t, "gopatina", false, "y", "true"), 4},
+		{"wrong output", fakeTool(t, "gopatina", false, "y", "true"), 6},
 		{"bad exit", fakeTool(t, "gopatina", false, "x", "exit 2"), 2},
-		{"build fails", fakeTool(t, "gopatina", true, "", ""), 4},
+		{"build fails", fakeTool(t, "gopatina", true, "", ""), 6},
 	} {
 		code, out, errs := difftest("-programs", "4", "-per", "2", "-go", g, "-gopatina", tc.patina,
 			"-work", t.TempDir(), "-failures", fail)
@@ -101,6 +121,7 @@ func TestRunErrors(t *testing.T) {
 		{"zero", []string{"-programs", "0"}, 2, "usage"},
 		{"go build", []string{"-programs", "1", "-go", fakeTool(t, "go", true, "", "")}, 1, "go build"},
 		{"go stderr", []string{"-programs", "1", "-go", fakeTool(t, "go", false, "x", "echo oops >&2"), "-gopatina", ok}, 1, "oops"},
+		{"go fails", []string{"-programs", "1", "-go", fakeTool(t, "go", false, "x", "echo fatal >&2; exit 2"), "-gopatina", ok}, 1, "fatal"},
 		{"work is a file", []string{"-programs", "1", "-work", "/dev/null"}, 1, "not a directory"},
 	} {
 		code, _, errs := difftest(tc.args...)
@@ -134,18 +155,21 @@ func TestExecuteMissing(t *testing.T) {
 }
 
 func TestCompare(t *testing.T) {
-	want := []byte("pre\n#3\na\n#4\nb\n")
+	want := segments([]byte("pre\n#3\na\n#4\nb\n"))
 	if got := compare(want, want, 3, 2); len(got) != 0 {
 		t.Errorf("same output: %v", got)
 	}
-	if got := compare(want, []byte("#3\na\n#4\nc\n"), 3, 2); !slices.Equal(got, []int{4}) {
+	if got := compare(want, segments([]byte("#3\na\n#4\nc\n")), 3, 2); !slices.Equal(got, []int{4}) {
 		t.Errorf("one differs: %v", got)
 	}
-	if got := compare(want, []byte("#3\na\n"), 3, 2); !slices.Equal(got, []int{4}) {
+	if got := compare(want, segments([]byte("#3\na\n")), 3, 2); !slices.Equal(got, []int{4}) {
 		t.Errorf("one missing: %v", got)
 	}
-	if got := compare(want, []byte("pre\n#3\na\n#4\nb"), 3, 2); !slices.Equal(got, []int{4}) {
+	if got := compare(want, segments([]byte("pre\n#3\na\n#4\nb")), 3, 2); !slices.Equal(got, []int{4}) {
 		t.Errorf("final newline: %v", got)
+	}
+	if got := segments([]byte("#x\n#5\n#y\n")); got[5] != "#y\n" || len(got) != 1 {
+		t.Errorf("non-numeric markers are output: %q", got)
 	}
 }
 
@@ -154,8 +178,8 @@ func TestSummarizeTruncates(t *testing.T) {
 	for k := range 150 {
 		bad = append(bad, k)
 	}
-	r := summarize(config{programs: 1000}, []outcome{{first: 0, n: 150, mismatched: bad}})
-	if r.Defects != 150 || len(r.FailedPrograms) != 100 || r.DefectsPerMillion != 150000 {
+	r := summarize(config{programs: 999}, []outcome{{first: 0, n: 150, mismatched: bad}})
+	if r.Defects != 150 || r.Tests != 1000 || len(r.FailedPrograms) != 100 || r.DefectsPerMillion != 150000 {
 		t.Errorf("%+v", r)
 	}
 }
