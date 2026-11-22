@@ -200,8 +200,20 @@ func TestCheckerPanic(t *testing.T) {
 	check = func(*load.Package) []diag.Diagnostic { panic("boom") }
 	fakeGo(t, map[string]string{"env": "go1\n", "list": listJSON(t)}, "")
 	code, out, _ := cov("measure", "-boot", "1", write(t, "lock", "a.org/m v1.0.0\n"))
-	if code != 0 || !strings.Contains(out, "subset checker panicked: boom") {
+	if code != 0 || !strings.Contains(out, "subset checker or measurement panicked at ") || !strings.Contains(out, ": boom") {
 		t.Errorf("code %d, out %s", code, out)
+	}
+}
+
+func TestPanicSite(t *testing.T) {
+	stack := "goroutine 1 [running]:\nruntime/debug.Stack()\n\t/go/src/runtime/debug/stack.go:26 +0x5e\n" +
+		"github.com/pigfox/gopatina/internal/subset.(*checker).stmt(0xc0, {0x1})\n\t/src/gopatina/internal/subset/subset.go:501 +0x2a\n" +
+		"github.com/pigfox/gopatina/internal/subset.Check(0x1)\n\t/src/gopatina/internal/subset/subset.go:40 +0x2a\n"
+	if got := panicSite([]byte(stack)); got != "github.com/pigfox/gopatina/internal/subset.(*checker).stmt subset.go:501" {
+		t.Errorf("panicSite = %q", got)
+	}
+	if got := panicSite([]byte("goroutine 1 [running]:\nmain.f()\n\t/x/main.go:3 +0x1\n")); got != "unknown" {
+		t.Errorf("panicSite = %q", got)
 	}
 }
 

@@ -37,6 +37,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -374,10 +375,28 @@ func one(p listed, module string, exports map[string]string) (res coverage.Packa
 	}
 	defer func() {
 		if v := recover(); v != nil {
-			why = fmt.Sprintf("subset checker panicked: %v", v)
+			why = fmt.Sprintf("subset checker or measurement panicked at %s: %v", panicSite(debug.Stack()), v)
 		}
 	}()
 	return coverage.Measure(pkg, p.ImportPath, module, check(pkg)), ""
+}
+
+// panicSite returns file:line of the innermost GoPatina frame of a panic's
+// stack (from debug.Stack inside the deferred recover), or "unknown".
+func panicSite(stack []byte) string {
+	lines := strings.Split(string(stack), "\n")
+	for i, l := range lines {
+		if !strings.HasPrefix(l, "\t") || i == 0 {
+			continue
+		}
+		fn := lines[i-1]
+		if !strings.Contains(fn, "gopatina/internal/") {
+			continue
+		}
+		loc := strings.Fields(strings.TrimSpace(l))[0]
+		return fn[:strings.LastIndex(fn, "(")] + " " + filepath.Base(loc)
+	}
+	return "unknown"
 }
 
 // mapped resolves import paths through go list's ImportMap (vendored
