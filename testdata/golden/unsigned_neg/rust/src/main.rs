@@ -50,5 +50,10 @@ fn main() {
     let neg: i64 = -1;
     println!("{} {} {} {}", neg as u8, neg as i32, neg, neg as u8 + 1);
     let f: f64 = -1.5;
-    println!("{} {} {}", f as i64, (f * 2.0) as i32, (f * 1000.0) as i64);
+    println!(
+        "{} {} {}",
+        rt::f64_to_i64(f),
+        rt::f64_to_i32(f * 2.0),
+        rt::f64_to_i64(f * 1000.0),
+    );
 }

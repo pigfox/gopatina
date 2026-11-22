@@ -194,6 +194,20 @@ func (g *gen) conversion(e *ast.CallExpr, to types.Type) node {
 	if g.rustType(to) == g.rustType(from) {
 		return g.value(x)
 	}
+	if isFloat(from) && isInt(to) {
+		// Go's compiler, not Rust's saturating as, decides an out-of-range
+		// conversion; types narrower than 32 bits go through int32.
+		helper := "f64_to_i32"
+		if g.rustType(to) == "i64" {
+			helper = "f64_to_i64"
+		}
+		g.rt[helper] = true
+		n := node(&call{head: "rt::" + helper, open: "(", close: ")", args: []node{g.value(x)}})
+		if r := g.rustType(to); r != "i64" && r != "i32" {
+			n = atom{n.flat() + " as " + r, precCast}
+		}
+		return n
+	}
 	return atom{paren(g.value(x), precCast) + " as " + g.rustType(to), precCast}
 }
 

@@ -108,7 +108,7 @@ fn main() {
         c.tags.len() as i64,
         c.tags[0],
         c.tags[(c.tags.len() as i64 - 1) as usize],
-        c.retries * c.timeout as i64 + c.name.len() as i64 + c.description.len() as i64,
+        c.retries * rt::f64_to_i64(c.timeout) + c.name.len() as i64 + c.description.len() as i64,
     );
     let nums: Vec<i64> = vec![
         1000001, 2000002, 3000003, 4000004, 5000005, 6000006, 7000007, 8000008, 9000009, 10000010,

@@ -51,3 +51,28 @@ fn go_panic_message(msg: &str) -> String {
     }
     msg.to_string()
 }
+
+/// A float64 converted to an int64 the way Go's compiler converts it on
+/// this target. Go leaves an out-of-range value implementation-specific: on
+/// x86-64 gc truncates with CVTTSD2SQ, which gives i64::MIN for NaN and for
+/// any value that does not fit; elsewhere (arm64) it truncates with
+/// saturation and gives 0 for NaN, which is Rust's own conversion.
+pub fn f64_to_i64(x: f64) -> i64 {
+    #[cfg(target_arch = "x86_64")]
+    if !(-9223372036854775808.0..9223372036854775808.0).contains(&x) {
+        return i64::MIN;
+    }
+    x as i64
+}
+
+/// A float64 converted to an int32 the way Go's compiler converts it on
+/// this target: i32::MIN for NaN and for a value whose truncation does not
+/// fit, on x86-64 (CVTTSD2SL); Rust's saturating conversion elsewhere. Go
+/// converts to the narrower integer types through this, then truncates.
+pub fn f64_to_i32(x: f64) -> i32 {
+    #[cfg(target_arch = "x86_64")]
+    if !(x > -2147483649.0 && x < 2147483648.0) {
+        return i32::MIN;
+    }
+    x as i32
+}

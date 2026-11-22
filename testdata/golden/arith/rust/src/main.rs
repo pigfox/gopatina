@@ -76,7 +76,7 @@ fn main() {
         rt::Float(-f),
     );
     let ff: f64 = 3.99;
-    println!("6.28318 3.5 {} {}", ff as i64, -ff as i64);
+    println!("6.28318 3.5 {} {}", rt::f64_to_i64(ff), rt::f64_to_i64(-ff));
     println!("1e+06 123456 1.234567e+06 0.0001 1e-05 1e+21");
 
     let g: f64 = 0.0;
