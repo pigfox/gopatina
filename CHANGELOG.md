@@ -79,6 +79,10 @@ Until 1.0.0, minor versions may contain breaking changes.
   every specialization and refusal; eight golden programs cover the cases,
   including both sides of a threshold. The sieve benchmark's hot loop now
   compiles to the same instructions as the hand-written Rust.
+- `internal/progen` generates the loop nests RFC 0006 specializes (counted,
+  sieve-like and cube nests), now and then at exactly a threshold, and a
+  panic case one past the cube threshold, so the defect-rate run tests both
+  copies of a specialized nest.
 - Every generated batch for `cmd/gopatina-difftest` ends with a panic case,
   a program that usually panics at run time (index out of range, division
   by zero, `make` out of range, explicit `panic`). It must match Go's
