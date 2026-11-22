@@ -24,6 +24,19 @@ const (
 	lastUpdated = "2026-11-21"
 )
 
+// githubSponsorsURL is GoPatina's GitHub Sponsors page, or "" until it is
+// active: /sponsor links to it, or says it is coming soon. Set it to
+// "https://github.com/sponsors/pigfox" once GitHub Sponsors is active.
+var githubSponsorsURL = ""
+
+// sponsorLine is the /sponsor line {{github-sponsors}} stands for.
+func sponsorLine() string {
+	if githubSponsorsURL == "" {
+		return "GitHub Sponsors: coming soon."
+	}
+	return "Sponsor through [GitHub Sponsors](" + githubSponsorsURL + ")."
+}
+
 // resource is a response prepared once at startup: the body, its gzip
 // encoding, and its headers.
 type resource struct {
@@ -81,6 +94,7 @@ type pageData struct {
 type navItem struct {
 	Path, Name string
 	Current    bool
+	Class      string // "sponsor" for the Sponsor item, which stands out
 }
 
 // newHandler builds every response from the embedded files and returns the
@@ -122,7 +136,11 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 	var nav []navItem
 	for _, q := range append(append([]page{}, pages...), blog) {
 		if !q.NoIndex {
-			nav = append(nav, navItem{Path: q.Path, Name: q.Crumb})
+			n := navItem{Path: q.Path, Name: q.Crumb}
+			if q.Path == "/sponsor" {
+				n.Class = "sponsor"
+			}
+			nav = append(nav, n)
 		}
 	}
 	bodies := map[string]string{} // each post's HTML, for the feed
@@ -173,6 +191,7 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 		if err != nil {
 			return nil, err
 		}
+		src = []byte(strings.ReplaceAll(string(src), "{{github-sponsors}}", sponsorLine()))
 		all = append(all, source{p, src})
 	}
 	all = append(all, source{blog, []byte(blogIndex(posts))})

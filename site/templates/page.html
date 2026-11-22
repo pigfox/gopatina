@@ -42,7 +42,7 @@
   <nav aria-label="Site" id="site-nav" class="site-nav">
     <ul>
 {{- range .Nav}}
-      <li><a href="{{.Path}}"{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a></li>
+      <li><a href="{{.Path}}"{{if .Class}} class="{{.Class}}"{{end}}{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a></li>
 {{- end}}
       <li><a href="https://github.com/pigfox/gopatina">GitHub</a></li>
     </ul>

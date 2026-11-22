@@ -33,4 +33,5 @@ A variant, `-patina=check`, runs the same checks and then builds with the Go com
 - [Correctness](/correctness): how every program is checked against Go itself.
 - [Roadmap](/roadmap): what is done and what comes next, from maps to goroutines.
 - [Frequently asked questions](/faq): short answers, from "does it work today?" to the license.
+- [Sponsor GoPatina](/sponsor): tiers for individuals and companies, and what they pay for.
 - [Source code on GitHub](https://github.com/pigfox/gopatina), with the [examples](https://github.com/pigfox/gopatina/blob/main/EXAMPLES.md) and the [design RFCs](https://github.com/pigfox/gopatina/tree/main/docs/rfcs).
