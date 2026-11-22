@@ -194,7 +194,7 @@ type decl struct {
 	features map[string]bool
 	uses     map[*decl]bool  // in its own package
 	foreign  map[string]bool // in other packages of the corpus, by key
-	module   string          // its package's module ("std" for the standard library)
+	pkgPath  string          // its package's import path
 	ok       bool
 	funcIdx  int // its index in Package.Funcs, or -1
 }
@@ -204,9 +204,9 @@ type decl struct {
 const Outside = "outside the measured corpus"
 
 // ViaDeps is the feature of a declaration that reaches reflect or unsafe
-// only through another module (the standard library included): out of
-// scope is a program that uses reflect or unsafe itself, so this is a
-// surface GoPatina has to provide, not an exclusion.
+// only through another package (of its module, another, or the standard
+// library): out of scope is code that uses reflect or unsafe itself, so
+// this is a surface GoPatina has to provide, not an exclusion.
 const ViaDeps = "reflect or unsafe inside dependencies"
 
 // Key names a package-level object across the corpus: path.Name, or
@@ -240,7 +240,7 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 		name := pkg.Fset.Position(f.Pos()).Filename
 		generated[f] = Generated(pkg.Src[name])
 		add := func(n ast.Node, fn *ast.FuncDecl, names ...*ast.Ident) {
-			d := &decl{node: n, fn: fn, features: map[string]bool{}, uses: map[*decl]bool{}, foreign: map[string]bool{}, module: module, funcIdx: -1}
+			d := &decl{node: n, fn: fn, features: map[string]bool{}, uses: map[*decl]bool{}, foreign: map[string]bool{}, pkgPath: path, funcIdx: -1}
 			decls = append(decls, d)
 			fileOf[d] = f
 			for _, id := range names {
@@ -422,8 +422,8 @@ func Resolve(pkgs []Package) {
 	inherit := func(d, u *decl) bool {
 		changed := false
 		for f := range u.features {
-			if f == Excluded && u.module != d.module {
-				f = ViaDeps // reflect or unsafe of another module
+			if f == Excluded && u.pkgPath != d.pkgPath {
+				f = ViaDeps // reflect or unsafe of another package
 			}
 			if !d.features[f] {
 				d.features[f] = true

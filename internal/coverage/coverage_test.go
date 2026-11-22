@@ -412,15 +412,15 @@ func TestResolve(t *testing.T) {
 }
 
 // TestExclusionScope checks that reflect or unsafe excludes a function only
-// when it, or code of its own module, uses them: through another module (the
-// standard library included) it is a feature to implement, ViaDeps.
+// when it, or code of its own package, uses them: through another package,
+// of its module or not, it is a feature to implement, ViaDeps.
 func TestExclusionScope(t *testing.T) {
 	for _, tc := range []struct {
 		bModule  string
 		excluded bool
 	}{
 		{"std", false},
-		{"example.com/m", true},
+		{"example.com/m", false},
 	} {
 		a, b := twoPackages(t,
 			"package b\n\nfunc R() int { return 1 }\n",
@@ -447,5 +447,23 @@ func TestExclusionScope(t *testing.T) {
 		if s.ThirdParty.ViaDeps != wantVia {
 			t.Errorf("b in %s: via dependencies %d, want %d", tc.bModule, s.ThirdParty.ViaDeps, wantVia)
 		}
+	}
+}
+
+// TestExclusionSamePackage checks that a function reaching reflect through
+// its own package is excluded.
+func TestExclusionSamePackage(t *testing.T) {
+	a, _ := twoPackages(t, "package b\n", "package c\n",
+		"package a\n\nfunc R() int { return 1 }\n\nfunc F() int { return R() }\n")
+	uses := diag.Diagnostic{Pos: a.Fset.Position(a.Files[0].Decls[0].Pos()), Msg: "reflect.ValueOf is not supported in patina mode yet"}
+	pkgs := []Package{Measure(a, "example.com/a", "example.com/m", []diag.Diagnostic{uses})}
+	Resolve(pkgs)
+	for _, f := range pkgs[0].Funcs {
+		if !f.Excluded {
+			t.Errorf("%s is not excluded: %v", f.Name, f.Features)
+		}
+	}
+	if s := Summarize(pkgs, 1, 1); s.ThirdParty.Excluded != 2 || s.ThirdParty.ViaDeps != 0 {
+		t.Errorf("excluded %d, via dependencies %d", s.ThirdParty.Excluded, s.ThirdParty.ViaDeps)
 	}
 }

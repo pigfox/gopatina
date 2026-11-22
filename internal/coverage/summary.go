@@ -38,9 +38,9 @@ type Step struct {
 type Group struct {
 	Packages int `json:"packages"`
 	// Excluded counts the functions that use reflect or unsafe themselves,
-	// or through code of their own module; they are left out of every share
+	// or through code of their own package; they are left out of every share
 	// below. ViaDeps counts those that reach reflect or unsafe only through
-	// another module: they stay in the shares, as rejected.
+	// another package: they stay in the shares, as rejected.
 	Excluded        int      `json:"functions_excluded_reflect_unsafe_direct"`
 	ViaDeps         int      `json:"functions_reaching_reflect_unsafe_via_dependencies"`
 	Functions       Rate     `json:"functions"`

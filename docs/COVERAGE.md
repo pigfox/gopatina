@@ -33,8 +33,8 @@ Rust, so the measurement is of the subset's rules, not of the translator.
   is the feature "outside the measured corpus". The bridged packages (`fmt`
   and the phase 1 functions of `strings`, `errors`, `os`, `io`, `slices`,
   `bytes`) and the `math/bits` intrinsics are decided by the checker's own
-  rules, and `reflect` and `unsafe` stay excluded, also when a function
-  reaches them through another package.
+  rules. A use of `reflect` or `unsafe` excludes only the functions of its
+  own package that reach it (see below).
 - **Lines in accepted functions**: lines from `func` to the closing brace,
   so long functions weigh more.
 - **Files accepted**: files with no diagnostic at all.
@@ -43,10 +43,11 @@ Rust, so the measurement is of the subset's rules, not of the translator.
 
 **Out of scope: reflect and unsafe.** Programs that use package `reflect`
 or `unsafe` themselves are out of scope (the project lead, 2026-11-21). A
-function that uses either, itself or through code of its own module that it
+function that uses either, itself or through code of its own package that it
 reaches, is counted apart, as "excluded", and left out of every share: 100%
 means 100% of the functions that do not. A function that reaches `reflect`
-or `unsafe` only through another module, the standard library included
+or `unsafe` only through another package, of its own module, another module
+or the standard library
 (`strings.Builder`, `strconv` and `sync` use `unsafe` inside), stays in the
 shares: what it uses is a surface GoPatina has to provide, by bridging or
 translation, so it is rejected with the feature "reflect or unsafe inside
