@@ -767,7 +767,9 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 		return
 	}
 	for i, a := range e.Args {
-		if info.Types[a].IsNil() && isPointer(sig.Params().At(i).Type()) {
+		// A variadic call can have more arguments than parameters; the
+		// variadic function itself is reported where it is declared.
+		if i < sig.Params().Len() && info.Types[a].IsNil() && isPointer(sig.Params().At(i).Type()) {
 			c.unsupported(a, "passing nil for a pointer (phase 1 supports pointers only as borrows)")
 		}
 	}

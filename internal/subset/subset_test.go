@@ -118,6 +118,9 @@ func TestRejected(t *testing.T) {
 		{"no body", "package main\nfunc f()\nfunc main() {}\n", "a function declared without a body is not supported"},
 		{"init", "package main\nfunc init() {}\nfunc main() {}\n", "func init is not supported"},
 		{"variadic", "package main\nfunc v(xs ...int) {}\nfunc main() {}\n", "a variadic function is not supported"},
+		// More arguments than parameters (google.golang.org/grpc/interop
+		// made the checker index past them, 2026-11-22).
+		{"variadic call", "package main\nfunc v(xs ...[]int) {}\nfunc main() { v(nil, nil, nil, nil) }\n", "a variadic function is not supported"},
 		{"error not last", "package main\nfunc e() (error, int) { return nil, 0 }\nfunc main() {}\n", "an error result that is not the last result is not supported"},
 		{"writer result", "package main\nimport (\"io\"; \"os\")\nfunc w() io.Writer { return os.Stdout }\nfunc main() {}\n", "an io.Writer result is not supported"},
 		{"pointer result", "package main\ntype S struct{}\nfunc p() *S { return &S{} }\nfunc main() {}\n", "a pointer result (phase 1 supports pointers only as borrows) is not supported"},
