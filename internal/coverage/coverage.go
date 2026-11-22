@@ -30,6 +30,7 @@ type Func struct {
 	File     string   `json:"file"`     // base name of its file
 	Lines    int      `json:"lines"`    // lines from func to the closing brace
 	Accepted bool     `json:"accepted"` // inside the subset, with what it uses
+	Excluded bool     `json:"excluded"` // uses reflect or unsafe, itself or through what it uses
 	Features []string `json:"features"` // what keeps it out, its own and inherited, sorted
 }
 
@@ -46,6 +47,11 @@ type Package struct {
 	// message, so the categories can be checked against real code.
 	Unclassified map[string]int `json:"unclassified,omitempty"`
 }
+
+// Excluded is the feature of code that uses package reflect or unsafe: out
+// of scope (the project lead, 2026-11-21), so such functions are counted
+// apart and left out of the shares.
+const Excluded = "reflect and unsafe (excluded)"
 
 // Feature names the construct a diagnostic is about, from its message.
 // Unknown messages fall into "other"; every message the checker can give
@@ -67,6 +73,7 @@ type rule struct {
 var rules = func() []rule {
 	list := [][2]string{
 		{"package-main rule", `only package main is supported|has no func main\(\)`},
+		{Excluded, `\b(reflect|unsafe)\.[A-Za-z_]|^package (reflect|unsafe) is not supported|\bunsafe\.Pointer\b`},
 		{"goroutines and channels", `go statement|^select|channel|\bchan\b`},
 		{"maps", `map type|range over map|make of map`},
 		{"interfaces", `interface type|type assertion|type switch|io\.Writer|^calling methods on|^type any\b`},
@@ -82,7 +89,11 @@ var rules = func() []rule {
 		{"pointers", `pointer|address of|passing nil`},
 		{"slicing", `slice expression|s\[i:j\]`},
 		{"arrays", `array type|range over \[[0-9]`},
-		{"struct features", `embedded field|promoted field|anonymous struct|struct field|named type that is not a struct|type declared inside a function|type alias`},
+		{"named non-struct types", `named type that is not a struct`},
+		{"type aliases", `type alias`},
+		{"embedded and promoted fields", `embedded field|promoted field`},
+		{"struct fields of type error", `struct field`},
+		{"anonymous structs and local types", `anonymous struct|type declared inside a function`},
 		{"error handling patterns", `error|err != nil|holds no value|used outside a return`},
 		{"variadic functions", `variadic|\.\.\. arguments`},
 		{"labels, goto and fallthrough", `label|fallthrough|break that leaves`},
@@ -238,7 +249,7 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 		sort.Strings(fs)
 		p.Funcs = append(p.Funcs, Func{
 			Name: funcName(d.fn), File: baseName(start.Filename), Lines: end.Line - start.Line + 1,
-			Accepted: d.ok, Features: fs,
+			Accepted: d.ok, Excluded: d.features[Excluded], Features: fs,
 		})
 	}
 	for _, f := range pkg.Files {

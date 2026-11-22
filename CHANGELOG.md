@@ -72,6 +72,11 @@ Until 1.0.0, minor versions may contain breaking changes.
   `gopatina-difftest` still builds each batch optimized too and reports
   programs whose two Go builds disagree as `go_disagreements`, kept for
   review and not counted as defects.
+- The coverage measurement counts functions that use `reflect` or `unsafe`
+  apart, as excluded (out of scope), and leaves them out of every share;
+  "struct features" is split into named non-struct types, type aliases,
+  embedded and promoted fields, struct fields of type error, and anonymous
+  structs and local types.
 - `bench/run.sh` builds GoPatina's crate and the hand-written Rust with the
   same rustc by default (`--toolchain same`, `--rust stable`), the official
   comparison, and records the rustc that built each binary, read from the
