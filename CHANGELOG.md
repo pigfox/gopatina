@@ -10,6 +10,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- Float-to-integer conversions follow Go's compiler, not Rust's saturating
+  `as`: on x86-64, NaN and values that do not fit give MinInt64 or MinInt32
+  (gc's CVTTSD2SQ/CVTTSD2SL, measured against gc on amd64), and `uint8(f)`
+  goes through int32 (`uint8(-2.5)` is 254); on arm64, Rust's conversion,
+  which is gc's lowering there (not yet tested on arm64 hardware). Golden
+  program `float_to_int`; the generator converts floats far out of range,
+  NaN and the infinities in every program, from a random stream of its own.
+- A float whose shortest digits have two equally close candidates prints
+  the even one, as Go does (`1.2848823997124482e+15`); Rust's shortest
+  digits took the upper one. Found by the new generator cases.
 - A shift by a constant at least the operand's width (`x << 70`, `b >> 8` for
   a byte, `x <<= 64`) is Go's result, 0 or −1, with the operand still
   evaluated; it was Rust's shift, which does not implement it. Found by the

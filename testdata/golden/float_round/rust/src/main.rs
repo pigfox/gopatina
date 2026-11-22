@@ -61,7 +61,7 @@ fn main() {
         "{} {} {}",
         rt::Float(f),
         rt::Float(f + 1.0),
-        rt::Float(f as i64 as f64),
+        rt::Float(rt::f64_to_i64(f) as f64),
     );
     let g: f64 = 1.0e15;
     println!(
@@ -73,8 +73,8 @@ fn main() {
     );
     println!("9.007199254740992e+15 9.007199254740992e+15");
     let ff: f64 = 3.99;
-    let i = ff as i64;
-    let j = -ff as i64;
+    let i = rt::f64_to_i64(ff);
+    let j = rt::f64_to_i64(-ff);
     println!("{} {} 1000000000000000000", i, j);
     let h: f64 = 0.3;
     println!("{} {}", rt::Float(h), h == 0.3);

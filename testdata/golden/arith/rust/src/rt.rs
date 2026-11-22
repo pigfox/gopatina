@@ -86,10 +86,20 @@ fn pad(f: &mut fmt::Formatter<'_>, s: &str) -> fmt::Result {
     }
 }
 
-/// Go's strconv.FormatFloat(x, 'g', -1, 64). Rust's {:e} gives the same
-/// shortest digits; only the layout differs.
+/// Go's strconv.FormatFloat(x, 'g', -1, 64). Rust's {:e} gives the
+/// shortest digit count, but where two strings of that length are equally
+/// close to x it takes the upper one; Go takes the closest, ties to even,
+/// which is x rounded to that many digits, whenever that reads back as x.
 fn shortest(x: f64) -> String {
     let e = format!("{x:e}");
+    let digits = e.split('e').next().unwrap_or("");
+    let n = digits.bytes().filter(u8::is_ascii_digit).count();
+    let rounded = format!("{x:.*e}", n.saturating_sub(1));
+    let e = if rounded.parse::<f64>() == Ok(x) {
+        rounded
+    } else {
+        e
+    };
     let (mantissa, exp) = e.split_once('e').unwrap_or((&e, "0"));
     let exp: i32 = exp.parse().unwrap_or(0);
     let (sign, mantissa) = match mantissa.strip_prefix('-') {
@@ -113,4 +123,17 @@ fn shortest(x: f64) -> String {
         }
     };
     format!("{sign}{body}")
+}
+
+/// A float64 converted to an int64 the way Go's compiler converts it on
+/// this target. Go leaves an out-of-range value implementation-specific: on
+/// x86-64 gc truncates with CVTTSD2SQ, which gives i64::MIN for NaN and for
+/// any value that does not fit; elsewhere (arm64) it truncates with
+/// saturation and gives 0 for NaN, which is Rust's own conversion.
+pub fn f64_to_i64(x: f64) -> i64 {
+    #[cfg(target_arch = "x86_64")]
+    if !(-9223372036854775808.0..9223372036854775808.0).contains(&x) {
+        return i64::MIN;
+    }
+    x as i64
 }

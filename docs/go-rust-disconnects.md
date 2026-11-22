@@ -424,9 +424,14 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   for `int`, `int64`, `int32`, `uint8`, `float64`); shifts by a variable
   count emitted with Go's rules (phase 1 accepts only constant counts so
   far); float-to-integer conversions follow what Go's compiler does on the
-  same target (amd64 and arm64 differ in Go; GoPatina should match the
-  target). Go's float formatting is in the runtime (`rt::Float`); full
-  `strconv` will be translated from Go.
+  same target (`rt::f64_to_i64`, `rt::f64_to_i32`: on x86-64, gc's
+  CVTTSD2SQ/CVTTSD2SL result, MinInt64 or MinInt32 for NaN and for values
+  that do not fit, measured against gc on amd64; narrower types through
+  int32, as gc does; elsewhere, Rust's saturating conversion, which is gc's
+  arm64 lowering, not yet tested on arm64 hardware). Go's float formatting
+  is in the runtime (`rt::Float`): the shortest digits, with an exact tie
+  between two candidates broken to even, as Go's Ryu does; full `strconv`
+  will be translated from Go.
 - **Blocks 100%?** No.
 
 ## 22. Strings and []byte
