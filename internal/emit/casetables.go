@@ -3,7 +3,8 @@
 package emit
 
 // UnicodeVersion is the Unicode version of the case tables the emitted
-// crates use (Go 1.27's, whatever toolchain runs GoPatina).
+// crates use (those of the Go release that generated them, whatever
+// toolchain runs GoPatina).
 const UnicodeVersion = "17.0.0"
 
 // caseTables is the Rust source of Go's case tables.
