@@ -39,6 +39,9 @@ type event struct {
 	intoLine int
 	param    *Param // the parameter it is handed to, if any
 	force    bool   // it is also borrowed earlier in the same call
+	// readBy names the call an earlier operand of which reads the
+	// consumed value, which is copied so the read keeps Go's meaning.
+	readBy string
 	// For evBorrow: the pointer variable being defined.
 	ptr *types.Var
 	// For evDef: the variable is being declared and initialised.

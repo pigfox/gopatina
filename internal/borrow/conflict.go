@@ -62,6 +62,14 @@ func (o *operands) check(call *ast.CallExpr, name string, pos token.Pos, stmtLev
 				if ev.v != top.v || !overlaps(ev.path, top.path) {
 					continue
 				}
+				if ev.kind == evConsume && !ev.force && KindOf(a.pkg.Info.Types[ev.e].Type) == Value {
+					// Handed by value to a call inside a later operand, as
+					// in f(s, g(s)): Go passes a copy, so the earlier read
+					// sees the same value, and so does a copy here.
+					w.evs[k].force = true
+					w.evs[k].readBy = name
+					continue
+				}
 				changes := ev.kind == evMut || ev.kind == evBorrow || (ev.kind == evConsume && !ev.force) || ev.kind == evDef
 				held := later.top == k && KindOf(a.pkg.Info.Types[ev.e].Type) != Copy
 				switch {

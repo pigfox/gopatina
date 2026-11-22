@@ -10,6 +10,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- The borrow checker no longer rejects reading a value in one operand and
+  handing it by value to a call in a later one, as in
+  `fmt.Println(k, pass(k))` or `s + pass(s)` ("another operand changes k"):
+  Go passes a copy, so the value is copied, with an `-explain` note.
+  Values that share a slice stay rejected, since a copy would not share it.
+  Golden `consume_copy`; the generator writes the pattern in every program.
 - The coverage measurement excludes a function for reflect or unsafe only
   when it, or code of its own package, uses them; through another package
   (of its module, another module or the standard library) that is the

@@ -277,6 +277,9 @@ func (g *gen) program(b *strings.Builder) {
 	g.vars = []string{"a", "b"}
 	fmt.Fprintf(b, "\treturn %s\n}\n", g.expr(2, false))
 	g.namedDecls(b)
+	// K takes a string by value and keeps it, for an operand that reads a
+	// string another operand hands to it (fmt.Println(s, K(s))).
+	fmt.Fprintf(b, "\nfunc K%d(s string) string {\n\ts += \".\"\n\treturn s\n}\n", g.k)
 	g.ifaceDecls(b)
 	g.errorDecls(b)
 
@@ -441,6 +444,7 @@ func (g *gen) stringsUses() {
 	g.line("cb, ca, cok := strings.Cut(cw, %s)", w())
 	g.line("fmt.Println(len(cp), cp, cb, ca, cok, strings.TrimPrefix(cw, %s), strings.TrimSuffix(cw, %s))", w(), w())
 	g.line("fmt.Println(strings.ReplaceAll(cw, %s, %s), strings.IndexByte(cw, %q))", w(), w(), "a-=,1"[g.xr.IntN(5)])
+	g.line("fmt.Println(cw, K%d(cw), cw+K%d(cw))", g.k, g.k)
 }
 
 // durationUses makes time.Duration values from the program's integers, in
