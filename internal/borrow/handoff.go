@@ -148,5 +148,5 @@ func copyExpr(x string, t types.Type) string {
 		}
 		fields = append(fields, f.Name()+": "+v)
 	}
-	return t.(*types.Named).Obj().Name() + "{" + strings.Join(fields, ", ") + "}"
+	return types.Unalias(t).(*types.Named).Obj().Name() + "{" + strings.Join(fields, ", ") + "}"
 }

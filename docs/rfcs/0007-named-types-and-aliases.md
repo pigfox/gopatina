@@ -2,7 +2,8 @@
 
 - **Status:** Approved for drafting by the coordinator on the project lead's
   authority (2026-11-22, merged in #52); amended 2026-11-22 before any code
-  (see "Amendment")
+  (see "Amendment", merged in #54); implemented 2026-11-22 (see
+  "Implementation notes")
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
@@ -333,11 +334,32 @@ before; every program it accepts today emits the same Rust.
 - Rust's newtype idiom is the usual way to give a primitive its own type and
   methods in hand-written Rust; see "Rationale and alternatives".
 
+## Implementation notes
+
+- **Printing through a method is accepted only where the method cannot
+  panic.** Reproducing `fmt`'s `%!v(PANIC=...)` exactly needs the panic hook
+  muted during the call and every panic message translated, so the checker
+  rejects printing through a `String` or `Error` method unless the method is
+  built only from constructs that cannot panic (`if`, `switch`, `return`,
+  constants, variables, conversions between basic types, `len`, operators
+  other than `/`, `%` and shifts, and `fmt.Sprint`, `Sprintf` and `Sprintln`
+  of such values without methods of their own). Enumeration-style `String`
+  methods pass. Calling such a method directly is always accepted.
+- **Not yet:** printing a slice whose element type has a `String` or `Error`
+  method, `%x` and `%X` of such a value (`fmt` prints the method's result in
+  hex), `%+v` and `%0v` of one, and printing a pointer through the method set
+  of `*T`. Each is rejected with its own message.
+- **Found while adding the generator cases:** the emitter wrote a shift by a
+  constant at least the operand's width (`x << 70`, `b >> 8` for a byte) with
+  Rust's operator, which does not implement Go's result. The bug predates
+  this RFC and affected `int`, `int32` and `uint8` alike; it is fixed (Go's
+  0 or −1, with the operand still evaluated) and tested with it
+  (`testdata/golden/shift_wide`).
+
 ## Unresolved questions
 
-- Whether the panicking-`String` case is emitted exactly or rejected, decided
-  during implementation by whether every panic message GoPatina emits can be
-  captured.
+- None for this RFC. Printing through a method that can panic waits for the
+  runtime work above.
 
 ## Future possibilities
 

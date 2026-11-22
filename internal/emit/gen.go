@@ -28,6 +28,9 @@ type gen struct {
 	funcs  map[*types.Func]string
 	consts map[*types.Const]string
 	fields map[*types.Var]string
+	// structOwner is the type declared with each struct literal; a named
+	// type with another type's struct (type B A) is an alias of it.
+	structOwner map[*types.Struct]*types.TypeName
 	// Per function.
 	fn         *borrow.Func
 	locals     map[types.Object]string
@@ -118,7 +121,9 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 					}
 				}
 			case *ast.FuncDecl:
-				if d.Recv == nil { // methods are written in their type's impl block
+				// Methods of struct types are written in their type's impl
+				// block; those of other named types are functions (RFC 0007).
+				if d.Recv == nil || g.freeMethods(g.recvTypeName(g.info.Defs[d.Name].(*types.Func))) {
 					item(func() { g.funcDecl(d) }, false)
 				}
 			}
@@ -182,6 +187,21 @@ func (g *gen) fileNames() []string {
 
 // nameDecls gives every package-level declaration its Rust name.
 func (g *gen) nameDecls() {
+	g.structOwner = map[*types.Struct]*types.TypeName{}
+	for _, f := range g.pkg.Files {
+		for _, d := range f.Decls {
+			if gd, ok := d.(*ast.GenDecl); ok {
+				for _, spec := range gd.Specs {
+					if ts, ok := spec.(*ast.TypeSpec); ok {
+						if _, ok := ts.Type.(*ast.StructType); ok && !ts.Assign.IsValid() {
+							obj := g.info.Defs[ts.Name].(*types.TypeName)
+							g.structOwner[obj.Type().Underlying().(*types.Struct)] = obj
+						}
+					}
+				}
+			}
+		}
+	}
 	typeNames := newNamer()
 	typeNames.sep = ""
 	for n := range reservedTypes {
@@ -194,6 +214,17 @@ func (g *gen) nameDecls() {
 		switch obj := scope.Lookup(name).(type) {
 		case *types.TypeName:
 			g.types[obj] = typeNames.name(name, camel)
+			if obj.IsAlias() {
+				continue
+			}
+			if g.freeMethods(obj) {
+				mset := types.NewMethodSet(types.NewPointer(obj.Type()))
+				for i := 0; i < mset.Len(); i++ {
+					m := mset.At(i).Obj().(*types.Func)
+					g.funcs[m] = valueNames.name(name+m.Name(), snake)
+				}
+				continue
+			}
 			st := obj.Type().Underlying().(*types.Struct)
 			fieldNames := newNamer()
 			for i := 0; i < st.NumFields(); i++ {
@@ -258,6 +289,24 @@ func (g *gen) docComment(cg *ast.CommentGroup) {
 	}
 }
 
+// freeMethods reports whether the methods of named type obj are written as
+// functions taking the receiver first (RFC 0007): every named type that is
+// not declared with a struct literal. Such a type, and an alias, is a Rust
+// type alias of its underlying type's Rust type.
+func (g *gen) freeMethods(obj *types.TypeName) bool {
+	st, ok := obj.Type().Underlying().(*types.Struct)
+	return !ok || g.structOwner[st] != obj
+}
+
+// recvTypeName returns the named type of method m's receiver.
+func (g *gen) recvTypeName(m *types.Func) *types.TypeName {
+	t := m.Signature().Recv().Type()
+	if p, ok := t.(*types.Pointer); ok {
+		t = p.Elem()
+	}
+	return types.Unalias(t).(*types.Named).Obj()
+}
+
 func (g *gen) typeDecl(d *ast.GenDecl, s *ast.TypeSpec) {
 	obj := g.info.Defs[s.Name].(*types.TypeName)
 	doc := s.Doc
@@ -265,6 +314,14 @@ func (g *gen) typeDecl(d *ast.GenDecl, s *ast.TypeSpec) {
 		doc = d.Doc
 	}
 	g.docComment(doc)
+	if obj.IsAlias() || g.freeMethods(obj) {
+		vis := ""
+		if obj.Exported() {
+			vis = "pub "
+		}
+		g.line(vis + "type " + g.types[obj] + " = " + g.rustType(obj.Type()) + ";")
+		return
+	}
 	st := obj.Type().Underlying().(*types.Struct)
 	derives := "Clone, Default, PartialEq"
 	if borrow.KindOf(obj.Type()) == borrow.Copy {
@@ -321,7 +378,7 @@ func (g *gen) methods(obj *types.TypeName) {
 			if p, ok := t.(*types.Pointer); ok {
 				t = p.Elem()
 			}
-			if t.(*types.Named).Obj() == obj {
+			if types.Unalias(t).(*types.Named).Obj() == obj {
 				decls = append(decls, fd)
 			}
 		}
@@ -375,7 +432,7 @@ func (g *gen) constName(c *types.Const) string {
 
 // rustType returns the Rust type for a Go value type.
 func (g *gen) rustType(t types.Type) string {
-	switch t := t.(type) {
+	switch t := types.Unalias(t).(type) {
 	case *types.Basic:
 		switch t.Kind() {
 		case types.Int, types.Int64, types.UntypedInt:
@@ -393,11 +450,15 @@ func (g *gen) rustType(t types.Type) string {
 	case *types.Slice:
 		return "Vec<" + g.rustType(t.Elem()) + ">"
 	}
-	n := t.(*types.Named)
+	n := types.Unalias(t).(*types.Named)
 	if n.Obj().Pkg().Path() == "io" {
 		return "dyn std::io::Write"
 	}
-	return g.types[n.Obj()]
+	if st, ok := n.Underlying().(*types.Struct); ok {
+		return g.types[g.structOwner[st]]
+	}
+	// A named non-struct type is its underlying type (RFC 0007).
+	return g.rustType(n.Underlying())
 }
 
 // paramType returns the Rust type of a parameter passed in mode m.

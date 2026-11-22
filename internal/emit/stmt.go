@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strconv"
 	"strings"
 
 	"github.com/pigfox/gopatina/internal/borrow"
@@ -17,7 +18,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	g.locals = map[types.Object]string{}
 	g.lnames = newNamer()
 	for f, n := range g.funcs {
-		if f.Signature().Recv() == nil {
+		if f.Signature().Recv() == nil || g.freeMethods(g.recvTypeName(f)) {
 			g.lnames.taken[n] = f.Name()
 		}
 	}
@@ -27,11 +28,17 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	g.docComment(fd.Doc)
 	sig := obj.Signature()
 	var params []string
+	ps := g.fn.Params
 	if g.fn.Recv != nil {
-		g.recv = g.fn.Recv.Var
-		params = append(params, g.selfParam(g.fn.Recv))
+		if g.freeMethods(g.recvTypeName(obj)) {
+			// The receiver is the function's first parameter (RFC 0007).
+			ps = append([]*borrow.Param{g.fn.Recv}, ps...)
+		} else {
+			g.recv = g.fn.Recv.Var
+			params = append(params, g.selfParam(g.fn.Recv))
+		}
 	}
-	for _, p := range g.fn.Params {
+	for _, p := range ps {
 		name := "_"
 		if p.Var.Name() != "_" && p.Var.Name() != "" {
 			name = g.varName(p.Var)
@@ -637,6 +644,17 @@ func (g *gen) opAssign(s *ast.AssignStmt) {
 		}
 		g.stmtLine(target+" = ", &call{recv: g.place(l), head: method, open: "(", close: ")", args: []node{g.value(r)}}, ";")
 		return
+	case s.Tok == token.SHL_ASSIGN || s.Tok == token.SHR_ASSIGN:
+		if w, ok := g.wideShift(lt, r); ok {
+			// A count at least the width (see wideShift): the place is
+			// evaluated once, as in Go.
+			if s.Tok == token.SHR_ASSIGN && !isUnsigned(lt) {
+				g.line(target + " >>= " + strconv.Itoa(w-1) + ";")
+			} else {
+				g.line(target + " = 0;")
+			}
+			return
+		}
 	}
 	g.stmtLine(target+" "+op+" ", g.value(r), ";")
 }

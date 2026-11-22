@@ -1,6 +1,7 @@
 package subset
 
 import (
+	"go/types"
 	"strings"
 	"testing"
 
@@ -20,6 +21,68 @@ func check(t *testing.T, src string) string {
 		return ""
 	}
 	return (&diag.Error{Dir: "/p", Diags: ds}).Error()
+}
+
+// TestNamedTypes checks the programs RFC 0007 accepts.
+func TestNamedTypes(t *testing.T) {
+	src := `package main
+
+import "fmt"
+
+type Op int
+
+const (
+	Add Op = iota
+	Sub
+)
+
+func (o Op) String() string {
+	switch o {
+	case Add:
+		return "+"
+	}
+	if o > Sub && len("x") == 1 {
+		return fmt.Sprintf("Op(%d)", int(o)+0*2)
+	}
+	return "-"
+}
+
+type E int
+
+func (e E) Error() string { return "e" }
+
+type P int
+
+func (p *P) String() string { return fmt.Sprint(10 / int(*p)) }
+
+type Path []int
+
+func (p *Path) Push(x int) { *p = append(*p, x) }
+
+type Name string
+
+type S struct{ X int }
+
+type S2 S
+
+type Count = int
+
+type Names = []Name
+
+func main() {
+	var p Path
+	p.Push(3)
+	var n Count = len(p)
+	var ns Names = []Name{"a"}
+	s := S2(S{X: 1})
+	q := P(2)
+	fmt.Println(Add, Sub, E(1), q, p, n, ns, s.X, Name("x"), Path([]int{1}))
+	fmt.Printf("%v %s %d %5v\n", Add, Add, Add, E(2))
+}
+`
+	if got := check(t, src); got != "" {
+		t.Errorf("unexpected diagnostics:\n%s", got)
+	}
 }
 
 func TestAccepted(t *testing.T) {
@@ -106,9 +169,21 @@ func TestRejected(t *testing.T) {
 		{"call func var", "package main\nfunc main() { var f func(); f() }\n", "calling a function value is not supported"},
 		{"call generic", "package main\nfunc g[T any](x T) {}\nfunc main() { g[int](1) }\n", "an instantiated generic function (Go 1.18) is not supported"},
 		{"call generic2", "package main\nfunc g[T, U any](x T, y U) {}\nfunc main() { g[int, int](1, 2) }\n", "an instantiated generic function (Go 1.18) is not supported"},
-		{"alias", "package main\ntype A = int\nfunc main() {}\n", "a type alias is not supported"},
+		{"alias pointer", "package main\ntype A = *int\nfunc main() {}\n", "a type alias of a pointer type is not supported"},
+		{"alias error", "package main\ntype E = error\nfunc main() {}\n", "a type alias of error or io.Writer is not supported"},
+		{"alias map", "package main\ntype M = map[int]int\nfunc main() {}\n", "type M: an alias of a map type is not supported"},
+		{"local alias", "package main\nfunc main() { type L = int; var x L; _ = x }\n", "a type declared inside a function is not supported"},
 		{"local type", "package main\nfunc main() { type L struct{}; _ = L{} }\n", "a type declared inside a function is not supported"},
-		{"named basic", "package main\ntype C int\nfunc main() {}\n", "type C: a named type that is not a struct is not supported"},
+		{"named map", "package main\ntype C map[string]int\nfunc main() {}\n", "type C: a map type is not supported"},
+		{"named foreign struct", "package main\nimport \"strings\"\ntype B strings.Builder\nfunc main() {}\n", "type B: a struct type from another package is not supported"},
+		{"print panicky String", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return fmt.Sprint(10 / int(k)) }\nfunc main() { fmt.Println(K(1)) }\n", "printing a value whose String method may panic is not supported"},
+		{"print panicky Error", "package main\nimport \"fmt\"\ntype K []int\nfunc (k K) Error() string { return fmt.Sprint(k[0]) }\nfunc main() { fmt.Printf(\"%v\\n\", K{1}) }\n", "printing a value whose Error method may panic is not supported"},
+		{"print String calls", "package main\nimport \"fmt\"\ntype K int\nfunc g() string { return \"\" }\nfunc (k K) String() string { return g() }\nfunc main() { fmt.Print(K(1)) }\n", "printing a value whose String method may panic is not supported"},
+		{"print String nested", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return fmt.Sprint(k + 1) }\nfunc main() { fmt.Print(K(1)) }\n", "printing a value whose String method may panic is not supported"},
+		{"print String loop", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { for { } }\nfunc main() { fmt.Print(K(1)) }\n", "printing a value whose String method may panic is not supported"},
+		{"print String slice", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return \"k\" }\nfunc main() { fmt.Println([]K{1}) }\n", "printing a slice of a type with a String or Error method is not supported"},
+		{"print String hex", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return \"k\" }\nfunc main() { fmt.Printf(\"%x\", K(1)) }\n", "the format %x with a value of type main.K is not supported"},
+		{"print String plus", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return \"k\" }\nfunc main() { fmt.Printf(\"%+v\", K(1)) }\n", "the format %+v with a value of type main.K is not supported"},
 		{"embedded", "package main\ntype E struct{}\ntype S struct{ E }\nfunc main() {}\n", "an embedded field is not supported"},
 		{"error field", "package main\ntype S struct{ e error }\nfunc main() {}\n", "a struct field of type error is not supported"},
 		{"writer field", "package main\nimport \"io\"\ntype S struct{ w io.Writer }\nfunc main() {}\n", "a struct field of type io.Writer is not supported"},
@@ -179,7 +254,7 @@ func TestRejected(t *testing.T) {
 		{"instantiate", "package main\nimport \"slices\"\nfunc main() { _ = slices.Clone[[]int] }\n", "an instantiated generic function (Go 1.18) is not supported"},
 		{"conversion string", "package main\nfunc main() { b := []byte(\"x\"); _ = string(b) }\n", "converting a []byte to a string (patina strings must be valid UTF-8) is not supported"},
 		{"conversion rune", "package main\nfunc main() { n := 65; _ = string(rune(n)) }\n", "converting an integer to a string is not supported"},
-		{"conversion other", "package main\ntype A struct{}\ntype B struct{}\nfunc main() { _ = B(A{}) }\n", "converting main.A to main.B is not supported"},
+		{"conversion other", "package main\nfunc main() { _ = []rune(\"x\") }\n", "converting string to []rune is not supported"},
 		{"make map", "package main\nfunc main() { _ = make(map[int]int) }\n", "make of map[int]int is not supported"},
 		{"panic value", "package main\nfunc main() { panic(1) }\n", "panic with a value that is not a string is not supported"},
 		{"min one arg", "package main\nfunc main() { x := 1; _ = min(x) }\n", "the min built-in with fewer than two arguments is not supported"},
@@ -206,5 +281,13 @@ func TestRejected(t *testing.T) {
 				t.Errorf("diagnostics do not point at the source:\n%s", got)
 			}
 		})
+	}
+}
+
+// TestUnsupportedTypeOther covers a type the subset never meets as a value
+// type (a tuple), which once reached it as a type alias.
+func TestUnsupportedTypeOther(t *testing.T) {
+	if got := unsupportedType(types.NewTuple(), false); got != "type ()" {
+		t.Errorf("unsupportedType(tuple) = %q", got)
 	}
 }

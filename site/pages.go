@@ -27,7 +27,7 @@ var pages = []page{
 		Description: "GoPatina is an open-source Go toolchain front end: write ordinary Go and, in an opt-in mode, compile it through Rust with no garbage collector.",
 	},
 	{
-		Path: "/how-it-works", File: "how-it-works", Kind: "article", Crumb: "How it works", Updated: lastUpdated,
+		Path: "/how-it-works", File: "how-it-works", Kind: "article", Crumb: "How it works", Updated: "2026-11-22",
 		Title:       "How GoPatina compiles Go to Rust, with a borrow checker",
 		Description: "How GoPatina turns Go into Rust: Go on top, a borrow checker that infers ownership in Go terms, rustc and LLVM underneath, and no garbage collector.",
 	},
