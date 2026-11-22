@@ -10,6 +10,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- The coverage measurement excludes a function for reflect or unsafe only
+  when it, or code of its own module, uses them; through another module
+  (the standard library included) that is the feature "reflect or unsafe
+  inside dependencies", and the function stays in the shares. With the
+  cross-package rule, the exclusion had also taken every function reaching
+  std internals that use unsafe, shrinking the denominator. The report gives
+  both counts. "init and functions without a body" is now "functions without
+  a body (assembly)".
 - The subset checker no longer panics on a `String` or `Error` method
   declared without a body when its type is printed (found by FuzzCheck in
   CI; the method is rejected where it is declared).
