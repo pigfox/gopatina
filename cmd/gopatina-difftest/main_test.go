@@ -139,6 +139,22 @@ func TestRunErrors(t *testing.T) {
 	}
 }
 
+// TestToolPaths checks that a relative tool path works although builds run
+// in other directories, and that a tool that cannot run stops the run
+// instead of counting every test as a defect.
+func TestToolPaths(t *testing.T) {
+	g := fakeTool(t, "go", false, "x", "true")
+	dir := filepath.Dir(g)
+	t.Chdir(dir)
+	if code, out, errs := difftest("-programs", "2", "-go", "./go", "-gopatina", "./go"); code != 0 {
+		t.Errorf("relative paths: code %d, %s %s", code, out, errs)
+	}
+	code, _, errs := difftest("-programs", "2", "-go", "./go", "-gopatina", "./missing")
+	if code != 1 || !strings.Contains(errs, "could not run") {
+		t.Errorf("missing gopatina: code %d, stderr %q", code, errs)
+	}
+}
+
 func TestUnwritableBatch(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("root can write anywhere")

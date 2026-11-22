@@ -20,7 +20,7 @@
 // Programs also contain the loop nests RFC 0006 specializes: counted loops
 // over a slice made with a length held in a variable, sieve-like and cube
 // nests (for b := a*a; b < m; b += a), whose bodies read the loop
-// variables; now and then the cube nest runs at exactly its threshold
+// variables, also as the left operand of << and <; now and then the cube nest runs at exactly its threshold
 // (m = 2097152, the largest the fast copy takes).
 //
 // After the n programs, each batch ends with one more, its panic case,
@@ -313,6 +313,7 @@ func (g *gen) nest() {
 		g.reads = append(g.reads, a)
 		g.depth++
 		g.line("%s[%s] += %s", w, a, g.expr(1, true))
+		g.castOps(w, a, a)
 		g.depth--
 		g.block()
 		g.reads = g.reads[:len(g.reads)-1]
@@ -329,6 +330,7 @@ func (g *gen) nest() {
 		g.reads = append(g.reads, b)
 		g.depth++
 		g.line("%s[%s] += %s", w, b, g.expr(1, true))
+		g.castOps(w, b, a)
 		g.depth--
 		g.reads = g.reads[:len(g.reads)-1]
 		g.line("}")
@@ -358,4 +360,15 @@ func (g *gen) cube(size, elem string) {
 	g.line("\t}")
 	g.line("}")
 	g.line("fmt.Println(len(%s))", w)
+}
+
+// castOps writes a shift and a comparison whose left operand is a product
+// of loop variables. In a specialized nest those are usize values used as
+// Go ints, written x as i64 * y as i64, which Rust misreads before << or <
+// unless the emitter adds parentheses.
+func (g *gen) castOps(w, x, y string) {
+	g.line("%s[%s] ^= %s * %s << %d", w, x, x, y, g.r.IntN(40))
+	g.line("if %s*%s < %s {", x, y, g.vars[g.r.IntN(len(g.vars))])
+	g.line("\t%s[%s]++", w, x)
+	g.line("}")
 }
