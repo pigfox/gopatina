@@ -59,7 +59,10 @@ program whose output differs, or that patina mode fails to build, as a
 defect. The programs exercise wrapping integer arithmetic (including
 `MinInt64 / -1`), shifts, bitwise operators, `min` and `max`, slices and
 `append`, `switch`, helper calls, string building and formatted printing;
-each is valid Go that terminates without a panic. Program k depends only on
+each is valid Go that terminates without a panic. They also contain the
+loop nests RFC 0006 specializes (counted, sieve-like and cube nests over a
+slice made with a variable length), now and then at exactly a
+specialization threshold. Program k depends only on
 the seed and k, so a failure is reproducible and a run can be split across
 machines with `-start`.
 
@@ -68,7 +71,9 @@ compared program by program through marker lines. Each batch ends with one
 more program, its panic case. In most batches it panics at run time: an
 index out of range (of a slice or a string, positive or negative), an
 integer division or remainder by zero, a `make` length or capacity out of
-range, or an explicit `panic`. It must match Go's output, the first line of
+range, an explicit `panic`, or a cube nest one past its RFC 0006
+threshold, where the general copy must reproduce Go's wrap-around and index
+panic. It must match Go's output, the first line of
 Go's standard error and Go's exit status. Programs and panic cases together
 are the tests. With no defect among N tests, the 95% upper bound on the
 defect rate is -ln(0.05) / N; 881,098 defect-free tests bound it at 3.4

@@ -17,11 +17,18 @@
 // building and formatted printing. The same seed always gives the same
 // source.
 //
+// Programs also contain the loop nests RFC 0006 specializes: counted loops
+// over a slice made with a length held in a variable, sieve-like and cube
+// nests (for b := a*a; b < m; b += a), whose bodies read the loop
+// variables; now and then the cube nest runs at exactly its threshold
+// (m = 2097152, the largest the fast copy takes).
+//
 // After the n programs, each batch ends with one more, its panic case,
 // numbered first+n: a program of the same kind that then, in most batches,
 // panics at run time, by an index out of range (positive or negative, of a
 // slice or a string), an integer division or remainder by zero, a make
-// length or capacity out of range, or an explicit panic. A panic ends the
+// length or capacity out of range, an explicit panic, or the cube nest one
+// past its threshold, where a*a*a wraps to a negative index. A panic ends the
 // binary, so only the last program can test one; comparing its output, the
 // first line of standard error and the exit status tests Go's panic
 // behaviour once per batch. The panic case depends on the seed and on
@@ -134,6 +141,8 @@ func (g *gen) stmt() {
 	v := g.vars[g.r.IntN(len(g.vars))]
 	nested := g.depth < 2
 	switch c := g.r.IntN(11); {
+	case c == 8 && g.depth == 0:
+		g.nest()
 	case c == 0 && nested:
 		g.line("if %s {", g.cond())
 		g.block()
@@ -260,7 +269,7 @@ func (g *gen) expr(depth int, local bool) string {
 func (g *gen) panicking() {
 	g.line("z := %s - %s", g.vars[0], g.vars[0])
 	k := g.r.IntN(5)
-	switch g.r.IntN(8) {
+	switch g.r.IntN(9) {
 	case 0:
 		g.line("fmt.Println(s[len(s)+z+%d])", k)
 	case 1:
@@ -278,7 +287,75 @@ func (g *gen) panicking() {
 		g.line(`panic("generated panic " + fmt.Sprint(%s+z))`, g.vars[1])
 	case 6:
 		g.line("fmt.Println(str[len(str)+z+%d])", k)
+	case 7:
+		g.cube("2097153 + z", "bool")
 	default:
 		g.line("fmt.Println(z)")
 	}
+}
+
+// nest writes a loop nest of the kind RFC 0006 specializes, over a fresh
+// slice whose length is held in a variable that never changes, so every
+// index stays in range.
+func (g *gen) nest() {
+	k := g.loops
+	g.loops++
+	m, w, a, b := fmt.Sprintf("m%d", k), fmt.Sprintf("w%d", k), fmt.Sprintf("a%d", k), fmt.Sprintf("b%d", k)
+	if g.r.IntN(64) == 0 {
+		g.cube("2097152", "int")
+		return
+	}
+	g.line("%s := %d", m, 1+g.r.IntN(40))
+	g.line("%s := make([]int, %s)", w, m)
+	switch g.r.IntN(3) {
+	case 0:
+		g.line("for %s := 0; %s < %s; %s++ {", a, a, m, a)
+		g.reads = append(g.reads, a)
+		g.depth++
+		g.line("%s[%s] += %s", w, a, g.expr(1, true))
+		g.depth--
+		g.block()
+		g.reads = g.reads[:len(g.reads)-1]
+		g.line("}")
+	default:
+		start := a + " * " + a
+		if g.r.IntN(2) == 0 {
+			start += " * " + a
+		}
+		g.line("for %s := 1; %s < %s; %s++ {", a, a, m, a)
+		g.reads = append(g.reads, a)
+		g.depth++
+		g.line("for %s := %s; %s < %s; %s += %s {", b, start, b, m, b, a)
+		g.reads = append(g.reads, b)
+		g.depth++
+		g.line("%s[%s] += %s", w, b, g.expr(1, true))
+		g.depth--
+		g.reads = g.reads[:len(g.reads)-1]
+		g.line("}")
+		g.depth--
+		g.reads = g.reads[:len(g.reads)-1]
+		g.line("}")
+	}
+	g.line("fmt.Println(%s[0], %s[%s-1], len(%s))", w, w, m, w)
+}
+
+// cube writes the cube nest over make([]T, m) for m = size: a*a*a fits in
+// an int for a <= 2097151, so it is specialized for m <= 2097152 and kept
+// general above.
+func (g *gen) cube(size, elem string) {
+	k := g.loops
+	g.loops++
+	m, w, a, b := fmt.Sprintf("m%d", k), fmt.Sprintf("w%d", k), fmt.Sprintf("a%d", k), fmt.Sprintf("b%d", k)
+	g.line("%s := %s", m, size)
+	g.line("%s := make([]%s, %s)", w, elem, m)
+	g.line("for %s := 1; %s < %s; %s++ {", a, a, m, a)
+	g.line("\tfor %s := %s * %s * %s; %s < %s; %s += %s {", b, a, a, a, b, m, b, a)
+	if elem == "bool" {
+		g.line("\t\t%s[%s] = true", w, b)
+	} else {
+		g.line("\t\t%s[%s]++", w, b)
+	}
+	g.line("\t}")
+	g.line("}")
+	g.line("fmt.Println(len(%s))", w)
 }
