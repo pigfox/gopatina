@@ -1,6 +1,9 @@
 # RFC 0009: Programs of many packages, compiled from source
 
-- **Status:** Draft
+- **Status:** Approved by the coordinator on the project lead's authority
+  (2026-11-22, merged in #63); implemented 2026-11-22 (see "Implementation
+  notes"), except the coverage measurement's cross-package rule, which is
+  its own change
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
@@ -82,12 +85,13 @@ It prints `3:0` (2^63 × 6 is 3 × 2^64), run with Go 1.27.1.
 `gopatina build -patina` translates both packages into one crate:
 
 ```
-src/main.rs            the main package, with mod num_0;
-src/num_0.rs           package example.com/calc/num
+src/main.rs            the main package, with mod num_1;
+src/num_1.rs           package example.com/calc/num
 src/rt.rs
 ```
 
-and `num.Mul(...)` becomes `crate::num_0::mul(...)`, with `bits.Mul64`
+and `num.Mul(...)` becomes `crate::num_1::mul(...)` (modules are numbered
+over the translated packages, here `math/bits` and then `num`), with `bits.Mul64`
 written as Rust's widening multiply.
 
 ## Reference-level explanation
@@ -126,8 +130,8 @@ uses a small, supported part of it.
   equal names apart; `mod` lines in `main.rs` declare them all.
 - Every item is `pub(crate)`: Go's exported/unexported rule has already been
   enforced by `go/types`, and the crate is one program.
-- References across packages are paths: `crate::num_0::mul`,
-  `crate::num_0::Wide`. Names inside a module follow the existing rules, per
+- References across packages are paths: `crate::num_1::mul`,
+  `crate::num_1::Wide`. Names inside a module follow the existing rules, per
   module.
 - **Initialization order** is Go's: packages initialize in dependency
   order, imported before importer, and among those ready, by import path
@@ -149,11 +153,18 @@ source's:
 
 | Function | Rust | Outside the documented domain |
 | --- | --- | --- |
-| `bits.Add64(x, y, c)`, `Add32` | `overflowing_add` twice | a carry other than 0 or 1 counts as 1 (ADC reads the carry flag set from `c != 0`), measured |
-| `bits.Sub64`, `Sub32` | `overflowing_sub` twice | likewise, as SBB |
-| `bits.Mul64`, `Mul32` | widening multiply (`u128`, `u64`) | none |
-| `bits.RotateLeft*` | `rotate_left` / `rotate_right` | a negative `k` rotates right, as documented |
-| `bits.LeadingZeros*`, `TrailingZeros*`, `OnesCount*`, `Len*`, `Reverse*`, `ReverseBytes*` | `leading_zeros`, `trailing_zeros`, `count_ones`, `BITS - leading_zeros`, `reverse_bits`, `swap_bytes` | `TrailingZeros(0)` is the width, as both define it |
+| `bits.Add64(x, y, c)`, `Add` | `overflowing_add` twice (`rt::add64`) | **Outside Go's documented behaviour** (Go: "The carry input must be 0 or 1; otherwise the behavior is undefined"): on x86-64 gc counts a carry as 1 exactly when its low 32 bits are not zero (it negates the carry as a 32-bit value to set the flag ADC reads), so `1<<32` and `1<<63` count as 0 and `2` as 1; measured. On arm64, any nonzero carry counts as 1 (from gc's lowering; untested) |
+| `bits.Sub64`, `Sub` | `overflowing_sub` twice (`rt::sub64`) | the same rule for the borrow, as SBB; measured |
+| `bits.Mul64`, `Mul` | widening multiply through `u128` (`rt::mul64`) | none |
+| `bits.RotateLeft*` | `rotate_left` by `k` mod the width | a negative `k` rotates right, as documented |
+| `bits.LeadingZeros*`, `TrailingZeros*`, `OnesCount*`, `Len*`, `ReverseBytes*` | `leading_zeros`, `trailing_zeros`, `count_ones`, width − `leading_zeros`, `swap_bytes` | none: defined for every input; the zero cases (`TrailingZeros(0)` is the width) agree |
+
+`Add32`, `Sub32` and `Mul32` are not in the table: gc does not intrinsify
+them on amd64, and with a carry of 2 they give what their Go source gives
+(measured), so they are translated from source like any other function.
+The generator keeps carries and borrows at 0 or 1; the golden program
+`multi_package` tests the cases outside the documented domain on
+purpose.
 
 Each row is checked against gc, in and out of its domain, by a golden
 program, and the table lists only functions gc intrinsifies on every target
@@ -239,11 +250,30 @@ package.
 - gc's `cmd/compile/internal/ssagen` intrinsics table is the list this RFC's
   table follows.
 
+## Implementation notes
+
+- The main package is still checked whole, as before: an unsupported
+  function in it is reported even if nothing calls it. Reachability applies
+  to the other packages.
+- Each other package's module is `<name>_<n>`, numbered over the translated
+  packages; a package with nothing reached (one whose calls are all
+  intrinsics) has no module. `mod` lines are sorted, as rustfmt sorts them.
+- With cgo off (as patina builds use it), go list leaves a cgo file out of a
+  package's files, so a package that needs one fails to type-check, as
+  `go build` without cgo does.
+- An unsupported declaration in another package is reported where it is,
+  with a note naming how main reaches it: `reached from main through:
+  main.main -> a.Count -> a.tally` (fixture `package_reach`).
+- The generator gives every batch a second package, `lib`, with each
+  program's struct type (value and pointer methods), constant, function and
+  named type with a String method. With everything the generator now
+  writes, a 150-program batch is about 39,000 lines of Rust, and its Rust
+  build dominates a batch's time (47 s on the laptop, 39 s without `lib`).
+
 ## Unresolved questions
 
-- The exact amd64 results of `Sub64`/`Sub32` for a borrow other than 0 or 1,
-  and of the 32-bit forms, measured during implementation before the table is
-  final.
+- None left from the draft: the borrow rule and the 32-bit forms were
+  measured during implementation (see the table).
 - Whether the coverage measurement should report the chain-of-uses
   diagnostics per package or per function; decided with the tool change.
 

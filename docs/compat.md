@@ -45,6 +45,7 @@ Status values: **supported** (implemented and tested), **partial**
 | Range over integers | Go 1.22 | supported | 1 | |
 | Range over functions (iterators) | Go 1.23 | open | | |
 | Generic type aliases | Go 1.24 | open | | |
+| Programs of several packages | Go 1.0 | supported | 1 | Every package translated from source, only what `main` reaches (RFC 0009) |
 | Standard library | Go 1.0 | partial | 1, 4 | `fmt` printing, a few `strings` functions, `errors.New`, `os.Exit`, `os.Stdout`, `os.Stderr`, `slices.Clone`, `bytes.Clone` |
 | `unsafe` | Go 1.0 | excluded | | RFC 0001 open question 7 |
 | `reflect` | Go 1.0 | excluded | | |

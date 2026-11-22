@@ -261,6 +261,13 @@ func (w *walker) call(e *ast.CallExpr) {
 		w.args(w.operands(), e, callee, f.Name)
 	case *ast.SelectorExpr:
 		if id, ok := f.X.(*ast.Ident); ok {
+			if pn, ok := info.Uses[id].(*types.PkgName); ok && w.a.pkg.Local[pn.Imported()] {
+				if fn, ok := info.Uses[f.Sel].(*types.Func); ok && w.a.funcs[fn] != nil {
+					// A function of another package of the program (RFC 0009).
+					w.args(w.operands(), e, w.a.funcs[fn], id.Name+"."+f.Sel.Name)
+					return
+				}
+			}
 			if _, ok := info.Uses[id].(*types.PkgName); ok {
 				name := id.Name + "." + f.Sel.Name
 				ops := w.operands()

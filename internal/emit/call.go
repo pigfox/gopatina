@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pigfox/gopatina/internal/borrow"
+	"github.com/pigfox/gopatina/internal/load"
 	"github.com/pigfox/gopatina/internal/subset"
 )
 
@@ -34,6 +35,14 @@ func (g *gen) call(e *ast.CallExpr) node {
 	{
 		if id, ok := f.X.(*ast.Ident); ok {
 			if pn, ok := g.info.Uses[id].(*types.PkgName); ok {
+				if obj, ok := g.info.Uses[f.Sel].(*types.Func); ok && g.pkg.Local[pn.Imported()] {
+					// A function of another package of the program (RFC 0009).
+					if load.IsIntrinsic(obj) {
+						return g.intrinsic(e, obj.Name())
+					}
+					fn := g.res.Funcs[obj]
+					return &call{head: g.qual(obj.Pkg(), g.funcs[obj]), open: "(", close: ")", args: g.args(e, fn)}
+				}
 				return g.std(e, pn.Imported().Path()+"."+f.Sel.Name)
 			}
 		}
@@ -52,7 +61,7 @@ func (g *gen) call(e *ast.CallExpr) node {
 func (g *gen) methodCall(x ast.Expr, m *types.Func, args []node) node {
 	fn := g.res.Funcs[m]
 	if g.freeMethods(g.recvTypeName(m)) {
-		return &call{head: g.funcs[m], open: "(", close: ")", args: append([]node{g.recvArg(x, fn.Recv)}, args...)}
+		return &call{head: g.qual(m.Pkg(), g.funcs[m]), open: "(", close: ")", args: append([]node{g.recvArg(x, fn.Recv)}, args...)}
 	}
 	return &call{recv: g.receiver(x, fn.Recv), head: "." + g.funcs[m], open: "(", close: ")", args: args}
 }
@@ -583,9 +592,9 @@ func (g *gen) elemPrinter(m *types.Func) string {
 	case !g.freeMethods(g.recvTypeName(m)):
 		return "|e| e." + g.funcs[m] + "()"
 	case g.res.Funcs[m].Recv.Mode == borrow.Ref:
-		return "|e| " + g.funcs[m] + "(e)"
+		return "|e| " + g.qual(m.Pkg(), g.funcs[m]) + "(e)"
 	}
-	return "|e| " + g.funcs[m] + "(*e)"
+	return "|e| " + g.qual(m.Pkg(), g.funcs[m]) + "(*e)"
 }
 
 // g32 reports whether t is float32.

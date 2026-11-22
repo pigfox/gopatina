@@ -306,6 +306,50 @@ shift_unsigned!(u8, u16, u32, u64);
 `,
 	},
 	{
+		name: "add64",
+		code: `/// math/bits.Add64 as gc computes it: sum and carry out of x + y +
+/// carry. Go defines it only for a carry of 0 or 1; outside that, gc on
+/// x86-64 counts the carry as 1 when its low 32 bits are not zero (it
+/// negates the carry as a 32-bit value to set the flag ADC reads), measured
+/// with Go 1.27.1; elsewhere any carry other than 0 counts as 1 (untested).
+pub fn add64(x: u64, y: u64, carry: u64) -> (u64, u64) {
+    let c = if cfg!(target_arch = "x86_64") {
+        u64::from(carry as u32 != 0)
+    } else {
+        u64::from(carry != 0)
+    };
+    let (s, o1) = x.overflowing_add(y);
+    let (s, o2) = s.overflowing_add(c);
+    (s, u64::from(o1 | o2))
+}
+`,
+	},
+	{
+		name: "sub64",
+		code: `/// math/bits.Sub64 as gc computes it: difference and borrow out of x - y -
+/// borrow, with the borrow outside 0 and 1 counted as for Add64.
+pub fn sub64(x: u64, y: u64, borrow: u64) -> (u64, u64) {
+    let b = if cfg!(target_arch = "x86_64") {
+        u64::from(borrow as u32 != 0)
+    } else {
+        u64::from(borrow != 0)
+    };
+    let (d, o1) = x.overflowing_sub(y);
+    let (d, o2) = d.overflowing_sub(b);
+    (d, u64::from(o1 | o2))
+}
+`,
+	},
+	{
+		name: "mul64",
+		code: `/// math/bits.Mul64: the high and low halves of the 128-bit product.
+pub fn mul64(x: u64, y: u64) -> (u64, u64) {
+    let p = u128::from(x) * u128::from(y);
+    ((p >> 64) as u64, p as u64)
+}
+`,
+	},
+	{
 		name: "uindex",
 		code: `/// An index of Go type uint64 (uint, uintptr): out of range, Go prints it
 /// as an unsigned number, which Rust's own message, read as Go's signed

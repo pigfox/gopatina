@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"sort"
 	"strings"
 
 	"github.com/pigfox/gopatina/internal/borrow"
@@ -31,9 +32,14 @@ type gen struct {
 	// structOwner is the type declared with each struct literal; a named
 	// type with another type's struct (type B A) is an alias of it.
 	structOwner map[*types.Struct]*types.TypeName
-	// inits are the package's init functions, in the order Go runs them:
-	// by file, then in source order.
+	// inits are the program's init functions, in the order Go runs them:
+	// by package, then file, then source order.
 	inits []*types.Func
+	// A program of several packages (RFC 0009): the package being written,
+	// and each other package's Rust module name.
+	cur     *types.Package
+	mods    map[*types.Package]string
+	modules []Module // the other packages' Rust modules, once written
 	// Per function.
 	fn         *borrow.Func
 	locals     map[types.Object]string
@@ -75,7 +81,7 @@ type label struct {
 }
 
 // source translates pkg to the text of src/main.rs and src/rt.rs.
-func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS, rtRS string, notes []Note) {
+func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS, rtRS string, notes []Note, modules []Module) {
 	g := &gen{
 		pkg: pkg, info: pkg.Info, res: res, errs: errs,
 		rt:         map[string]bool{},
@@ -95,7 +101,7 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	}
 	// Each top-level item is written on its own; items are separated by a
 	// blank line, except the constants of one const declaration.
-	var items []string
+	itemsOf := map[*types.Package][]string{}
 	item := func(f func(), joinPrev bool) {
 		var b strings.Builder
 		g.out = &b
@@ -103,13 +109,15 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 		if b.Len() == 0 {
 			return // a blank constant
 		}
+		items := itemsOf[g.cur]
 		if joinPrev && len(items) > 0 {
 			items[len(items)-1] += b.String()
 			return
 		}
-		items = append(items, b.String())
+		itemsOf[g.cur] = append(items, b.String())
 	}
 	for _, f := range pkg.Files {
+		g.cur = pkg.PkgOf[f]
 		for _, d := range f.Decls {
 			switch d := d.(type) {
 			case *ast.GenDecl:
@@ -176,12 +184,57 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	if rtRS != "" {
 		head.WriteString("mod rt;\n\n")
 	}
-	return head.String() + strings.Join(items, "\n"), rtRS, g.notes
+	var modLines []string // rustfmt orders mod items by name
+	for _, p := range pkg.Pkgs {
+		if p == pkg.Types || len(itemsOf[p]) == 0 {
+			continue
+		}
+		modLines = append(modLines, "mod "+g.mods[p]+";\n")
+		body := strings.Join(itemsOf[p], "\n")
+		text := "//! Package " + p.Path() + ", translated by GoPatina from its Go source.\n\n"
+		if strings.Contains(body, "rt::") {
+			text += "use crate::rt;\n\n"
+		}
+		g.modules = append(g.modules, Module{Path: "src/" + g.mods[p] + ".rs", Text: text + body})
+	}
+	sort.Strings(modLines)
+	head.WriteString(strings.Join(modLines, ""))
+	if len(g.modules) > 0 {
+		head.WriteString("\n")
+	}
+	return head.String() + strings.Join(itemsOf[pkg.Types], "\n"), rtRS, g.notes, g.modules
+}
+
+// A Module is the Rust source of one translated package other than main.
+type Module struct{ Path, Text string }
+
+// qual qualifies name, an item of package p, for the package being
+// written: crate::m::name for another package of the program.
+func (g *gen) qual(p *types.Package, name string) string {
+	if p == nil || p == g.cur || g.mods[p] == "" {
+		return name
+	}
+	return "crate::" + g.mods[p] + "::" + name
+}
+
+// vis is the visibility of an item: pub(crate) everywhere in a package
+// other than main (Go has checked who uses what), else pub when exported.
+func (g *gen) vis(exported bool) string {
+	switch {
+	case g.cur != nil && g.cur != g.pkg.Types:
+		return "pub(crate) "
+	case exported:
+		return "pub "
+	}
+	return ""
 }
 
 func (g *gen) fileNames() []string {
 	var names []string
 	for _, f := range g.pkg.Files {
+		if g.pkg.PkgOf[f] != g.pkg.Types {
+			continue
+		}
 		name := g.pkg.Fset.Position(f.Pos()).Filename
 		names = append(names, name[strings.LastIndexAny(name, `/\`)+1:])
 	}
@@ -205,6 +258,19 @@ func (g *gen) nameDecls() {
 			}
 		}
 	}
+	g.mods = map[*types.Package]string{}
+	modNames := newNamer("rt", "main", "crate", "self", "super", "std", "core")
+	for _, p := range g.pkg.Pkgs {
+		if p != g.pkg.Types {
+			g.mods[p] = modNames.name(p.Name()+"_"+fmt.Sprint(len(g.mods)), snake)
+		}
+		g.namePackage(p)
+	}
+}
+
+// namePackage gives every package-level declaration of p its Rust name,
+// in p's own Rust namespace.
+func (g *gen) namePackage(p *types.Package) {
 	typeNames := newNamer()
 	typeNames.sep = ""
 	for n := range reservedTypes {
@@ -212,7 +278,7 @@ func (g *gen) nameDecls() {
 	}
 	valueNames := newNamer("main")
 	constNames := newNamer()
-	scope := g.pkg.Types.Scope()
+	scope := p.Scope()
 	for _, name := range scope.Names() { // sorted
 		switch obj := scope.Lookup(name).(type) {
 		case *types.TypeName:
@@ -240,7 +306,7 @@ func (g *gen) nameDecls() {
 				g.funcs[m] = methodNames.name(m.Name(), snake)
 			}
 		case *types.Func:
-			if name == "main" {
+			if name == "main" && p == g.pkg.Types {
 				g.funcs[obj] = "main"
 				continue
 			}
@@ -251,6 +317,9 @@ func (g *gen) nameDecls() {
 	}
 	// init functions are in no scope: Go calls them, once each, before main.
 	for _, f := range g.pkg.Files {
+		if g.pkg.PkgOf[f] != p {
+			continue
+		}
 		for _, d := range f.Decls {
 			if fd, ok := d.(*ast.FuncDecl); ok && fd.Recv == nil && fd.Name.Name == "init" {
 				obj := g.info.Defs[fd.Name].(*types.Func)
@@ -328,10 +397,7 @@ func (g *gen) typeDecl(d *ast.GenDecl, s *ast.TypeSpec) {
 	}
 	g.docComment(doc)
 	if obj.IsAlias() || g.freeMethods(obj) {
-		vis := ""
-		if obj.Exported() {
-			vis = "pub "
-		}
+		vis := g.vis(obj.Exported())
 		g.line(vis + "type " + g.types[obj] + " = " + g.rustType(obj.Type()) + ";")
 		return
 	}
@@ -341,10 +407,7 @@ func (g *gen) typeDecl(d *ast.GenDecl, s *ast.TypeSpec) {
 		derives = "Clone, Copy, Default, PartialEq"
 	}
 	g.line("#[derive(" + derives + ")]")
-	vis := ""
-	if obj.Exported() {
-		vis = "pub "
-	}
+	vis := g.vis(obj.Exported())
 	if st.NumFields() == 0 {
 		g.line(vis + "struct " + g.types[obj] + " {}")
 	} else {
@@ -361,10 +424,7 @@ func (g *gen) typeDecl(d *ast.GenDecl, s *ast.TypeSpec) {
 		for i := 0; i < st.NumFields(); i++ {
 			f := st.Field(i)
 			g.docComment(fieldDocs[f.Name()])
-			fvis := ""
-			if f.Exported() {
-				fvis = "pub "
-			}
+			fvis := g.vis(f.Exported())
 			field := fvis + g.fields[f] + ": " + g.rustType(f.Type()) + ","
 			if c := fieldComments[f.Name()]; c != nil && len(c.List) == 1 {
 				field += " " + c.List[0].Text
@@ -480,7 +540,8 @@ func (g *gen) rustType(t types.Type) string {
 		return "dyn std::io::Write"
 	}
 	if st, ok := n.Underlying().(*types.Struct); ok {
-		return g.types[g.structOwner[st]]
+		owner := g.structOwner[st]
+		return g.qual(owner.Pkg(), g.types[owner])
 	}
 	// A named non-struct type is its underlying type (RFC 0007).
 	return g.rustType(n.Underlying())

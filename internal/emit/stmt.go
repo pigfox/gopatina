@@ -48,10 +48,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		}
 		params = append(params, name+": "+g.paramType(p.Var.Type(), p.Mode))
 	}
-	vis := ""
-	if obj.Exported() && obj.Name() != "main" {
-		vis = "pub "
-	}
+	vis := g.vis(obj.Exported() && obj.Name() != "main")
 	ret := g.resultType(obj)
 	if ret != "" {
 		ret = " -> " + ret
@@ -74,7 +71,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		g.rt["exit_on_panic"] = true
 		g.line("rt::exit_on_panic();")
 		for _, f := range g.inits {
-			g.line(g.funcs[f] + "();")
+			g.line(g.qual(f.Pkg(), g.funcs[f]) + "();")
 		}
 	}
 	res := sig.Results()
