@@ -112,6 +112,12 @@ func (g *gen) rootVar(e ast.Expr) *types.Var {
 // *p, rooted at a local variable.
 func (g *gen) isPlace(e ast.Expr) bool {
 	e = ast.Unparen(e)
+	if _, ok := g.cellRoot[e]; ok {
+		return true // a cell's contents, while an access to it is written
+	}
+	if _, _, ok := g.heapRoot(e); ok {
+		return false // read with heapValue
+	}
 	if v := g.globalOf(e); v != nil {
 		// A string read into a local is read as a copy (s += s), and
 		// written through place.
@@ -143,6 +149,9 @@ func (g *gen) place(e ast.Expr) node {
 		p, _ := g.globalPlace(v)
 		return p
 	}
+	if n, ok := g.cellRoot[ast.Unparen(e)]; ok {
+		return atom{"*" + n, precUnary} // a cell's contents
+	}
 	switch x := ast.Unparen(e).(type) {
 	case *ast.Ident:
 		if v := g.localVar(x); g.fastVar(v) {
@@ -151,6 +160,10 @@ func (g *gen) place(e ast.Expr) node {
 		return text(g.varName(g.localVar(x)))
 	case *ast.SelectorExpr:
 		base := ast.Unparen(x.X)
+		if n, ok := g.cellRoot[base]; ok {
+			field := g.fields[g.info.Selections[x].Obj().(*types.Var)]
+			return atom{n + "." + field, precPostfix}
+		}
 		if st, ok := base.(*ast.StarExpr); ok {
 			base = st.X
 		}
@@ -217,6 +230,12 @@ func (g *gen) value(e ast.Expr) node {
 	if c, ok := e.(*ast.CallExpr); ok && g.callTemps[c] != "" {
 		return text(g.callTemps[c])
 	}
+	if name, ok := g.temps[e]; ok {
+		return text(name)
+	}
+	if n, ok := g.heapValue(e); ok {
+		return n
+	}
 	if v := g.globalOf(e); v != nil {
 		return g.globalValue(v)
 	}
@@ -225,6 +244,10 @@ func (g *gen) value(e ast.Expr) node {
 		if tv.IsNil() {
 			if subset.IsIface(g.nils[e]) {
 				return text("None")
+			}
+			if g.heapPtr(g.nils[e]) {
+				g.rt["Ptr"] = true
+				return text("rt::Ptr::nil()")
 			}
 			return text("Vec::<" + g.rustType(g.nils[e].Underlying().(*types.Slice).Elem()) + ">::new()")
 		}
@@ -273,6 +296,12 @@ func (g *gen) owned(e ast.Expr) node {
 	if g.boxedExpr(e) {
 		return g.box(e)
 	}
+	if name, ok := g.temps[ast.Unparen(e)]; ok {
+		return text(name)
+	}
+	if n, ok := g.heapValue(e); ok {
+		return n
+	}
 	tv := g.info.Types[e]
 	if tv.Value != nil {
 		if tv.Value.Kind() == constant.String {
@@ -288,7 +317,7 @@ func (g *gen) owned(e ast.Expr) node {
 	if borrow.KindOf(tv.Type) == borrow.Copy {
 		return p
 	}
-	if g.res.Actions[e] == borrow.Move {
+	if g.res.Actions[e] == borrow.Move && !g.inCellRead && !g.inCellWrite {
 		return p
 	}
 	method := ".clone"
@@ -307,7 +336,16 @@ func (g *gen) ref(e ast.Expr) node {
 		return &addrOf{"&", g.box(e)}
 	}
 	e = ast.Unparen(e)
+	if name, ok := g.temps[e]; ok {
+		return text("&" + name)
+	}
+	if n, ok := g.heapValue(e); ok {
+		return &addrOf{"&", n}
+	}
 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
+		if g.heapPtr(g.typeOf(e)) {
+			return &addrOf{"&", g.heapAddr(u)}
+		}
 		return g.ref(u.X)
 	}
 	if v := g.globalOf(e); v != nil && g.globals[v] == subset.GlobalStatic && g.galias[v] == "" && !g.localStatic(v) {
@@ -352,6 +390,9 @@ func (g *gen) strRef(e ast.Expr) node {
 	}
 	if x, ok := g.identityConversion(e); ok {
 		return g.strRef(x) // string(n) for a named string n (RFC 0007)
+	}
+	if n, ok := g.heapValue(e); ok {
+		return n // a String copied out of its cell, as a place's String
 	}
 	if g.isPlace(e) {
 		return g.place(e)
@@ -458,6 +499,10 @@ func (g *gen) zero(t types.Type) node {
 	if subset.IsIface(t) {
 		return text("None")
 	}
+	if g.heapPtr(t) {
+		g.rt["Ptr"] = true
+		return text("rt::Ptr::nil()")
+	}
 	return text(g.rustType(t) + "::default()")
 }
 
@@ -484,6 +529,9 @@ func (g *gen) unary(e *ast.UnaryExpr) node {
 	case token.NOT, token.XOR:
 		return atom{"!" + paren(g.value(e.X), precUnary), precUnary}
 	case token.AND:
+		if g.heapPtr(g.typeOf(e)) {
+			return g.heapAddr(e)
+		}
 		return g.ref(e.X)
 	}
 	return g.value(e.X) // unary +
@@ -604,6 +652,9 @@ func (g *gen) compare(e *ast.BinaryExpr) node {
 	}
 	op := binOps[e.Op]
 	xt := g.typeOf(e.X)
+	if g.heapPtr(xt) || g.heapPtr(g.typeOf(e.Y)) {
+		return g.heapCompare(e) // RFC 0013
+	}
 	if subset.IsIface(xt) || subset.IsIface(g.typeOf(e.Y)) {
 		return g.ifaceCompare(e) // RFC 0012
 	}
@@ -657,6 +708,9 @@ func (g *gen) cmpOperand(e ast.Expr) node {
 	tv := g.info.Types[e]
 	if tv.Value != nil {
 		return g.constant(tv.Value, tv.Type)
+	}
+	if n, ok := g.heapValue(e); ok {
+		return n
 	}
 	if g.isPlace(e) {
 		if id, ok := ast.Unparen(e).(*ast.Ident); ok {

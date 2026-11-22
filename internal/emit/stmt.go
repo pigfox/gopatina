@@ -23,6 +23,8 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		}
 	}
 	g.recv = nil
+	g.cellName = ""
+	g.temps = map[ast.Expr]string{}
 	g.usedNames = map[string]int{}
 	g.countNames(fd)
 	g.docComment(fd.Doc)
@@ -30,8 +32,9 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	var params []string
 	ps := g.fn.Params
 	if g.fn.Recv != nil {
-		if g.freeMethods(g.recvTypeName(obj)) {
-			// The receiver is the function's first parameter (RFC 0007).
+		if g.freeMethods(g.recvTypeName(obj)) || g.heapRecv(obj) {
+			// The receiver is the function's first parameter (RFC 0007),
+			// or a heap pointer, which the method takes itself (RFC 0013).
 			ps = append([]*borrow.Param{g.fn.Recv}, ps...)
 		} else {
 			g.recv = g.fn.Recv.Var
@@ -43,7 +46,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		if p.Var.Name() != "_" && p.Var.Name() != "" {
 			name = g.varName(p.Var)
 		}
-		if p.Mut && (p.Mode == borrow.ByValue || p.Mode == borrow.Owned) {
+		if p.Mut && (p.Mode == borrow.ByValue || p.Mode == borrow.Owned) && !g.cellVar(p.Var) {
 			name = "mut " + name
 		}
 		params = append(params, name+": "+g.paramType(p.Var.Type(), p.Mode))
@@ -81,6 +84,11 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 					g.line(g.qual(f.Pkg(), g.funcs[f]) + "();")
 				}
 			}
+		}
+	}
+	for _, p := range ps {
+		if g.cellVar(p.Var) {
+			g.cellParamDecl(p)
 		}
 	}
 	res := sig.Results()
@@ -151,11 +159,15 @@ func (g *gen) resultType(fn *types.Func) string {
 
 // letZero declares v with its zero value.
 func (g *gen) letZero(v *types.Var) {
+	if g.cellVar(v) {
+		g.cellDecl(v, g.zero(v.Type()))
+		return
+	}
 	g.line("let " + g.mutPrefix(v) + g.varName(v) + ": " + g.rustType(v.Type()) + " = " + g.zero(v.Type()).flat() + ";")
 }
 
 func (g *gen) mutPrefix(v *types.Var) string {
-	if g.res.Mut[v] {
+	if g.res.Mut[v] && !g.cellVar(v) {
 		return "mut "
 	}
 	return ""
@@ -213,6 +225,8 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 		case isReturn(s) && fnBody && i == len(list)-1:
 			if subset.ReadsChangedGlobal(g.pkg, s, g.globals) {
 				g.hoistCalls(s, severalValues(s)) // gc's order (RFC 0010)
+			} else {
+				g.heapOrder(s) // and through heap pointers (RFC 0013)
 			}
 			if e := g.returnValue(s.(*ast.ReturnStmt)); e != nil {
 				g.stmtLine("", e, "")
@@ -311,7 +325,13 @@ func (g *gen) stmt(s ast.Stmt) {
 			return
 		}
 	}
-	g.hoist(s)
+	if !g.inCellWrite {
+		g.heapOrder(s)
+		if g.heapWrite(s) {
+			return
+		}
+		g.hoist(s)
+	}
 	switch s := s.(type) {
 	case *ast.ExprStmt:
 		g.exprStmt(s.X)
@@ -459,8 +479,12 @@ func identsOf(ids []*ast.Ident) []ast.Expr {
 
 // let declares v initialised to e.
 func (g *gen) let(v *types.Var, e ast.Expr, typed bool) {
-	if isPointerType(v.Type()) {
+	if isPointerType(v.Type()) && !g.heapPtr(v.Type()) {
 		g.letPointer(v, e)
+		return
+	}
+	if g.cellVar(v) {
+		g.cellDecl(v, g.owned(e))
 		return
 	}
 	prefix := "let " + g.mutPrefix(v) + g.varName(v)
@@ -546,10 +570,12 @@ func (g *gen) assign(s *ast.AssignStmt) {
 	if len(s.Rhs) == 1 {
 		// v1, v2 := f()
 		g.multiAssign(s.Lhs, s.Tok == token.DEFINE, g.value(s.Rhs[0]))
+		g.cellShadows(s)
 		return
 	}
 	if s.Tok == token.DEFINE {
 		g.multiLet(s.Lhs, s.Rhs)
+		g.cellShadows(s)
 		return
 	}
 	var ls []string
@@ -1420,6 +1446,9 @@ func (g *gen) hoistIndexes(lhs []ast.Expr, all bool) {
 			ix, ok := n.(*ast.IndexExpr)
 			if !ok || g.info.Types[ix.Index].Value != nil || !isSlice(g.typeOf(ix.X)) {
 				return true
+			}
+			if _, done := g.hoistedIdx[ix.Index]; done && g.inCellWrite {
+				return true // computed already, before this write through a pointer
 			}
 			root := g.rootVar(ix.X)
 			if !all && !g.mentions(ix.Index, root) {

@@ -37,12 +37,26 @@ const (
 	Error
 )
 
+// heapType reports whether a pointer type is a heap type of the program
+// being checked or written (RFC 0013); SetHeap sets it. Programs are
+// checked one at a time.
+var heapType func(types.Type) bool
+
+// SetHeap makes KindOf use the pointer plan of the program being checked
+// or written.
+func SetHeap(heap func(types.Type) bool) { heapType = heap }
+
 // KindOf returns the ownership kind of t, a type inside the subset.
 func KindOf(t types.Type) Kind {
 	switch t := types.Unalias(t).(type) {
 	case *types.Slice:
 		return Shared
 	case *types.Pointer:
+		if heapType != nil && heapType(t) {
+			// A heap pointer (RFC 0013): copying it copies a reference
+			// count, which is Go's copy of a pointer.
+			return Value
+		}
 		return PointerKind
 	case *types.Named:
 		if t.Obj().Pkg() == nil {

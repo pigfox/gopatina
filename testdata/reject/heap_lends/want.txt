@@ -1,0 +1,10 @@
+./main.go:59:2: lending two places held through pointers that escape to one call is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
+./main.go:60:8: lending a place held through a pointer that escapes to reach, which can reach pointers that escape is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
+./main.go:61:14: lending a place held through a pointer that escapes to withWrapper, which can reach pointers that escape is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
+./main.go:62:20: lending a place held through a pointer that escapes to Use, which can reach pointers that escape is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
+./main.go:64:19: an argument the call changes that reads through a pointer that escapes, next to a place lent from one is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports

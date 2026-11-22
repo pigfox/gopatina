@@ -142,7 +142,7 @@ func (w *walker) decl(d *ast.GenDecl) {
 func (w *walker) define(name *ast.Ident, value ast.Expr) {
 	v := w.localVar(name)
 	if u, ok := ast.Unparen(value).(*ast.UnaryExpr); ok && u.Op == token.AND && v != nil {
-		if _, isPtr := v.Type().(*types.Pointer); isPtr {
+		if _, isPtr := v.Type().(*types.Pointer); isPtr && KindOf(v.Type()) == PointerKind {
 			ptr := w.a.pointers[v]
 			if ptr == nil {
 				ptr = &Pointer{pos: u.Pos()}

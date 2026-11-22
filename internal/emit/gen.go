@@ -50,6 +50,16 @@ type gen struct {
 	inGlobalStmt bool
 	modules      []Module    // the other packages' Rust modules, once written
 	ifc          *ifaceState // interface values (RFC 0012, iface.go)
+	// Pointers that escape (RFC 0013, ptrs.go): the plan, the node standing
+	// for a cell's contents while an access to it is rendered, and the
+	// values of a write computed first.
+	ptrs        *subset.PtrPlan
+	cellRoot    map[ast.Expr]string
+	inCellRead  bool
+	inCellWrite bool
+	cellName    string
+	temps       map[ast.Expr]string
+	inCellCall  map[*ast.CallExpr]bool
 	// rawCalls are calls of functions lowered to Result being rendered as
 	// the Result (errvals.go).
 	rawCalls map[*ast.CallExpr]bool
@@ -108,6 +118,10 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 		rawCalls:   map[*ast.CallExpr]bool{},
 	}
 	g.globals = subset.Globals(pkg)
+	g.ptrs = subset.Ptrs(pkg)
+	borrow.SetHeap(g.ptrs.HeapType)
+	g.cellRoot, g.temps = map[ast.Expr]string{}, map[ast.Expr]string{}
+	g.inCellCall = map[*ast.CallExpr]bool{}
 	g.gnames, g.initVarsName = map[*types.Var]string{}, map[*types.Package]string{}
 	g.galias, g.callTemps = map[*types.Var]string{}, map[*ast.CallExpr]string{}
 	g.nameDecls()
@@ -570,6 +584,8 @@ func (g *gen) rustType(t types.Type) string {
 		return "String"
 	case *types.Slice:
 		return "Vec<" + g.rustType(t.Elem()) + ">"
+	case *types.Pointer:
+		return g.ptrType(t) // a heap pointer; a borrow is a parameter's type
 	}
 	if subset.IsIface(t) {
 		return g.root("Iface")
@@ -588,7 +604,7 @@ func (g *gen) rustType(t types.Type) string {
 
 // paramType returns the Rust type of a parameter passed in mode m.
 func (g *gen) paramType(t types.Type, m borrow.Mode) string {
-	if p, ok := t.(*types.Pointer); ok {
+	if p, ok := t.(*types.Pointer); ok && !g.heapPtr(t) {
 		// A pointer borrows the pointed-to value itself, so a slice can
 		// grow through it.
 		if m == borrow.RefMut {

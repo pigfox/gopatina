@@ -8,6 +8,7 @@ import (
 
 	"github.com/pigfox/gopatina/internal/diag"
 	"github.com/pigfox/gopatina/internal/load"
+	"github.com/pigfox/gopatina/internal/subset"
 )
 
 type analyzer struct {
@@ -29,6 +30,7 @@ type analyzer struct {
 // subset (see package subset). It returns the decisions, and the errors
 // for code that no safe fix can express.
 func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
+	SetHeap(subset.Ptrs(pkg).HeapType)
 	a := &analyzer{
 		pkg:      pkg,
 		funcs:    map[*types.Func]*Func{},
@@ -76,6 +78,7 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		a.liveness(a.funcs[pkg.Info.Defs[fd.Name].(*types.Func)])
 	}
 	a.checkSuffixes()
+	a.checkHeap(decls)
 	// A variable changed through a pointer to it is changed too.
 	for _, p := range a.pointers {
 		if p.Target != nil && p.Exclusive {
