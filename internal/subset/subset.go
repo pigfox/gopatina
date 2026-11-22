@@ -234,7 +234,9 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 		return
 	}
 	if d.Body == nil {
-		c.unsupported(d.Name, "a function declared without a body")
+		// Named, so the coverage measurement can say which assembly a
+		// program needs.
+		c.unsupported(d.Name, "a function declared without a body (assembly): "+funcPath(c.pkg.Info.Defs[d.Name].(*types.Func)))
 		return
 	}
 	if d.Recv != nil {
@@ -252,6 +254,19 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	c.signature(d, sig)
 	c.loops = nil
 	c.block(d.Body)
+}
+
+// funcPath names fn as path.Name, or path.Type.Name for a method.
+func funcPath(fn *types.Func) string {
+	name := fn.Name()
+	if r := fn.Signature().Recv(); r != nil {
+		t := r.Type()
+		if p, ok := t.(*types.Pointer); ok {
+			t = p.Elem()
+		}
+		name = types.Unalias(t).(*types.Named).Obj().Name() + "." + name
+	}
+	return fn.Pkg().Path() + "." + name
 }
 
 func (c *checker) signature(d *ast.FuncDecl, sig *types.Signature) {

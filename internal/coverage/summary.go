@@ -61,10 +61,59 @@ type Summary struct {
 	Modules    map[string]float64 `json:"function_rate_by_module"`
 	// TopMessages are the most frequent diagnostics of each feature.
 	TopMessages map[string][]MessageCount `json:"top_messages"`
+	// AssemblyNeeded ranks the functions without a Go body by the rejected
+	// functions that reach them, with how many each would let in alone.
+	AssemblyNeeded []AssemblyNeed `json:"assembly_needed"`
 	// ForeignTypes counts the diagnostics about a type from another package
 	// by where the type is declared: the measured package's own module,
 	// the standard library, or another module.
 	ForeignTypes map[string]int `json:"foreign_types_by_origin"`
+}
+
+// An AssemblyNeed is one function without a Go body: how many rejected
+// functions reach it, and how many have it as their only obstacle.
+type AssemblyNeed struct {
+	Function string `json:"function"`
+	Reaching int    `json:"reaching_functions"`
+	Alone    int    `json:"would_pass_with_only_this"`
+}
+
+// assemblyTop is how many functions AssemblyNeeded keeps.
+const assemblyTop = 50
+
+// assemblyNeeded computes AssemblyNeeded over pkgs.
+func assemblyNeeded(pkgs []Package) []AssemblyNeed {
+	byName := map[string]*AssemblyNeed{}
+	for _, p := range pkgs {
+		for _, f := range p.Funcs {
+			if f.Accepted || f.Excluded {
+				continue
+			}
+			alone := len(f.Assembly) == 1 && len(f.Features) == 1 && f.Features[0] == Assembly
+			for _, a := range f.Assembly {
+				n := byName[a]
+				if n == nil {
+					n = &AssemblyNeed{Function: a}
+					byName[a] = n
+				}
+				n.Reaching++
+				if alone {
+					n.Alone++
+				}
+			}
+		}
+	}
+	var out []AssemblyNeed
+	for _, n := range byName {
+		out = append(out, *n)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Reaching != out[j].Reaching {
+			return out[i].Reaching > out[j].Reaching
+		}
+		return out[i].Function < out[j].Function
+	})
+	return out[:min(len(out), assemblyTop)]
 }
 
 // A MessageCount is a diagnostic message and how often it was given.
@@ -142,6 +191,7 @@ func Summarize(pkgs []Package, boot int, seed uint64) Summary {
 		Modules: map[string]float64{},
 	}
 	s.TopMessages, s.ForeignTypes = messages(pkgs)
+	s.AssemblyNeeded = assemblyNeeded(pkgs)
 	for m, ps := range byModule(pkgs) {
 		c := count(ps)
 		s.Modules[m] = ratio(c.funcs[0], c.funcs[1])
