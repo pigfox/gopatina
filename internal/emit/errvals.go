@@ -98,9 +98,11 @@ func (g *gen) generalCall(ec *subset.ErrCall) {
 		return g.lhsPattern(e, define)
 	}
 	var vals, zeros []string
-	for _, v := range ec.Values {
+	for i, v := range ec.Values {
+		// The callee's result type: _ has none of its own.
+		t := g.info.TypeOf(ec.Call).(*types.Tuple).At(i).Type()
 		vals = append(vals, pattern(v))
-		zeros = append(zeros, g.zero(g.typeOf(v)).flat())
+		zeros = append(zeros, g.zero(t).flat())
 	}
 	errPat := "_"
 	if ec.Err != nil {

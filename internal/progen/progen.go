@@ -76,8 +76,8 @@
 // package lib (Lib), at LibPath in module Module, where each program has a
 // struct type with value and pointer methods, a constant, a function of
 // random wrapping arithmetic and a named integer type with a String
-// method, which the program uses across the package boundary. lib comes
-// from a random stream of its own.
+// method, and a function returning an error, which the program uses
+// across the package boundary. lib comes from a random stream of its own.
 //
 // Programs also have package-level variables (RFC 0010): in lib, a
 // counter changed by a function, a read-only table read through one, a
@@ -165,6 +165,8 @@ func (g *gen) libDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc F%d(x, y int) int { return %s / (y | 1) }\n", k, expr)
 	fmt.Fprintf(b, "\ntype N%d %s\n", k, ints[g.lr.IntN(len(ints))])
 	fmt.Fprintf(b, "\nfunc (n N%d) String() string { return fmt.Sprintf(\"n%%d\", int(n)) }\n", k)
+	// G returns an error to main, from another package of the program.
+	fmt.Fprintf(b, "\nfunc G%d(x int) (int, error) {\n\tif x%%2 != 0 {\n\t\treturn 0, fmt.Errorf(\"odd %%d\", x)\n\t}\n\treturn x / 2, nil\n}\n", k)
 }
 
 // Batch returns the source of a package main with n programs, numbered
@@ -414,6 +416,14 @@ func (g *gen) libUses() {
 	g.line("lp := lib.P%d{A: v0, B: v1}", k)
 	g.line("lp.Grow(v2)")
 	g.line("fmt.Println(lp.Sum(), lp.A, lib.F%d(v0, v1), lib.K%d, lib.N%d(v2), []lib.N%d{lib.N%d(v1)})", k, k, k, k, k)
+	g.line("lg, lgerr := lib.G%d(v0)", k)
+	g.line("if lgerr != nil {")
+	g.depth++
+	g.line("fmt.Println(\"lib error:\", lgerr)")
+	g.depth--
+	g.line("}")
+	g.line("_, lgerr2 := lib.G%d(v1)", k)
+	g.line("fmt.Println(lg, lgerr2)")
 }
 
 // shiftUses shifts a value of a random integer type by run-time counts.

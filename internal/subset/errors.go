@@ -174,8 +174,8 @@ func (c *errChecker) calledFunc(n *ast.CallExpr) *types.Func {
 		return nil
 	}
 	fn, ok := c.pkg.Info.Uses[id].(*types.Func)
-	if !ok || fn.Pkg() != c.pkg.Types || !returnsError(fn.Signature()) {
-		return nil
+	if !ok || !c.plan.Funcs[fn] {
+		return nil // not a function of the program returning an error
 	}
 	return fn
 }
