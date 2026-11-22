@@ -1,6 +1,8 @@
 # RFC 0007: Named non-struct types and type aliases
 
-- **Status:** Draft
+- **Status:** Approved for drafting by the coordinator on the project lead's
+  authority (2026-11-22, merged in #52); amended 2026-11-22 before any code
+  (see "Amendment")
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
@@ -12,9 +14,11 @@ Accept, in patina mode, named types whose underlying type is a supported
 basic type or a slice of a supported type (`type Kind int`,
 `type Celsius float64`, `type Name string`, `type Path []Point`), with their
 methods, constants, conversions and printing, and type aliases
-(`type A = B`) whose target is a supported type. A named type becomes a
-one-field Rust tuple struct (a newtype), which has the same layout and cost
-as its underlying type; an alias becomes a Rust `type` alias. Go semantics
+(`type A = B`) whose target is a supported type. A named type and an alias
+both become a Rust `type` alias of the underlying type's Rust type, as gc
+itself compiles a named type to its underlying machine type; the methods of
+a named non-struct type become functions that take the receiver as their
+first parameter. Go semantics
 are kept exactly, including `fmt`'s use of a `String` or `Error` method.
 
 ## Motivation
@@ -79,19 +83,49 @@ Op(2) - Op(7) 212 [3] 1
 + 0 +
 ```
 
-In `-emit-rust` mode the types become:
+In `-emit-rust` mode the types and methods become:
 
 ```rust
-#[derive(Clone, Copy, Default, PartialEq)]
-struct Op(i64);
+type Op = i64;
 
-const ADD: Op = Op(0);
+const ADD: Op = 0;
 
-#[derive(Clone, Default, PartialEq)]
-struct Path(Vec<i64>);
+fn op_string(o: Op) -> String { ... }
+
+type Path = Vec<i64>;
+
+fn path_push(p: &mut Path, x: i64) {
+    p.push(x);
+}
 
 type Count = i64;
+
+// p.Push(3) and fmt.Println(Mul) become:
+path_push(&mut p, 3);
+println!("{}", op_string(MUL));
 ```
+
+## Amendment (2026-11-22, before implementation)
+
+The draft merged in #52 made a named type a Rust newtype, `struct T(R)`, with
+`.0` added and removed at every operator, index, conversion, `len`,
+`append`, `range`, comparison, assignment and print. Planning the code showed
+that this touches every expression path of the emitter, and that a single
+missed site is a compile error at best and a wrong value at worst. This
+amendment represents a named type by its underlying type instead:
+
+- Go's distinction between `Op` and `int` is static. `go/types` has already
+  enforced it before GoPatina emits anything, and at run time the two are the
+  same: gc compiles both to the same machine type. Nothing in an accepted
+  program's behaviour depends on Rust keeping the types apart.
+- What does depend on the named type (method calls, `String` and `Error` in
+  `fmt`, conversions) is decided by the emitter from the Go types, which it
+  has for every expression.
+- Every existing, tested path for integers, floats, strings and slices
+  (wrapping arithmetic, Go's division and shift rules, ranges, appends, RFC
+  0006's proven ranges) then applies to named types unchanged.
+
+The newtype design is kept below under "Rationale and alternatives".
 
 ## Reference-level explanation
 
@@ -116,52 +150,40 @@ a function.
 
 ### Representation
 
-- `type T U` becomes `struct T(R);`, where `R` is `U`'s Rust type. It derives
-  `Clone`, `Default` and `PartialEq`, and `Copy` when `R` is `Copy`, by the
-  same rule as structs. A one-field tuple struct has the same size, alignment
-  and calling convention as its field, so there is no run-time cost.
-- `type A = B` becomes `type A = R;`.
+- `type T U` becomes `type T = R;`, where `R` is `U`'s Rust type, and
+  `type A = B` becomes `type A = R;` likewise. Signatures, variables and
+  fields use the underlying Rust type; the aliases name the types for the
+  reader.
 - Type names follow the existing rules for struct names, including the
   renaming of names Rust reserves (`String`, `Vec`, `Option` and so on).
+- A named type whose underlying type is a struct (`type B A`, `A` a struct)
+  is an alias of `A`'s Rust struct; `B`'s own methods are functions as
+  below, so `A`'s and `B`'s methods never mix, as in Go.
 
 ### Values and operators
 
-The emitter knows every expression's Go type, so it unwraps and rewraps
-explicitly instead of implementing Rust operator traits:
+Values of a named type are values of its underlying type, so operators,
+indexing, `len`, `append`, `range`, slice literals, zero values and
+constants (`const ADD: Op = 0;`) are emitted exactly as for the underlying
+type, with Go's wrapping, division, shift and float rules. Go's implicit
+conversions (assignability, untyped constants) need nothing.
 
-- Arithmetic, bitwise, shift and unary operators on `T` are the underlying
-  operation on `.0`, wrapped back: `a + b` is `T(a.0.wrapping_add(b.0))`,
-  with exactly the wrapping, division-by-zero, shift and float rules the
-  underlying type has today. `x++`, `x--` and `x op= y` act on `x.0`.
-- Comparisons are on `.0`: `a < b` is `a.0 < b.0`, so a NaN in a named float
-  type compares as Go does.
-- String concatenation, indexing (`s[i]`), `len`, `append`, `range` and
-  slice literals of a named string or slice type act on `.0`; a slice literal
-  `Path{1, 2}` is `Path(vec![1, 2])`.
-- Conversions: `T(x)` is `T(e)`, where `e` is `x` converted to `R` by the
-  existing numeric and string conversion rules (applied to `x.0` when `x` is
-  itself a named type), and `U(t)` is `t.0` converted. `string(k)` for an
-  integer `k` keeps Go's rune conversion.
-- **Assignability.** Go lets a value of an unnamed type be assigned to a named
-  type with the same underlying type without a conversion
-  (`var p Path = []int{1}`, passing `[]int` to a `Path` parameter, returning
-  it), and lets untyped constants take a named type (`var o Op = 2`,
-  `o == 2`). The emitter inserts the wrapping `T(...)`, or the unwrapping
-  `.0`, wherever `go/types` records such an implicit conversion: assignments,
-  arguments, results, composite-literal elements, comparisons and `switch`
-  cases.
-- **Constants.** A typed constant `const Add Op = iota` is
-  `const ADD: Op = Op(0);`, with the value computed by `go/types`, as today.
-- Zero values are `T::default()`, which is the underlying type's zero value.
+Conversions: `T(x)` and `U(t)` are the underlying conversion, and nothing at
+all when the Rust types are equal. A conversion to a named slice type from a
+slice (`Path(xs)`) is the value itself; only a conversion from a string to
+`[]byte` (or a named byte slice) is `as_bytes().to_vec()`.
 
 ### Methods
 
-Methods on `T` are emitted as `impl T { ... }`, under the rules for methods
-on struct types today: a value receiver is `self` or `&self`, a pointer
-receiver is `&mut self`, and method calls on addressable values and on
-pointers take the borrow they need. Inside a method, the receiver's
-underlying value is `self.0`; `*p = append(*p, x)` is
-`self.0.push(x)` through the existing `append` rules.
+A method `func (r T) M(params) results` of a named non-struct type becomes
+`fn t_m(r: R', params) results`, where `R'` is the receiver's Rust parameter
+type by the existing parameter rules (`i64`, `&str`, `&[T]`, `&mut Vec<T>`
+for a pointer receiver, and so on), and a call `x.M(args)` becomes
+`t_m(x', args)` with `x'` the receiver passed in that mode (`&mut x` for a
+pointer receiver). The names are made unique by the existing namer. Inside
+the method the receiver is an ordinary parameter, so `*p = append(*p, x)`
+is `p.push(x)` by the existing pointer and `append` rules. Methods of struct
+types are unchanged.
 
 ### Printing
 
@@ -193,6 +215,56 @@ underlying value is `self.0`; `*p = append(*p, x)` is
 
 A named type has its underlying type's ownership class (Copy, Value or
 owned slice, `docs/patina-subset.md`), so the borrow rules are unchanged.
+
+## Forward compatibility: interfaces
+
+With aliases, `type Celsius float64` and `type Fahrenheit float64` are the
+same Rust type, `f64`. Inside this RFC nothing needs them apart: every
+method call, conversion and `fmt` use is resolved from the static Go type.
+Interfaces (a later RFC) need the *dynamic* Go type: `var s fmt.Stringer =
+c`, `any(c)`, type switches and assertions, `%v` and `%T` through an
+interface. The plan, which the later RFC will settle:
+
+- **A value gets its Go type where it enters an interface, and only there.**
+  A conversion to an interface type is explicit in `go/types` (an
+  assignment, argument, result or composite element whose target is an
+  interface, or `any(x)`), so the emitter knows the static type at that
+  point. For each named type that is ever converted to an interface, the
+  crate gets a wrapper, `struct CelsiusIface(f64);` (named by the namer, so
+  it cannot collide), and the conversion wraps: `Box::new(CelsiusIface(c))`
+  or the interface RFC's chosen representation (a trait object or a tagged
+  enum of the types converted in the program). Code that never converts a
+  named type to an interface never sees the wrapper.
+- **Method sets attach to the wrapper.** The interface's trait is
+  implemented for `CelsiusIface` by calling the free functions this RFC
+  emits (`celsius_string(self.0)`), so each method exists once, and
+  `Celsius` and `Fahrenheit` get separate impls although both are `f64`.
+- **`%v`, `%s` and `%T` through an interface** dispatch on the wrapper:
+  `Error`, then `String`, by the same `handleMethods` rule as below, and
+  `%T` prints the Go name the wrapper records (`main.Celsius`).
+- **Assertions and type switches back** (`s.(Celsius)`, `case Fahrenheit:`)
+  test the wrapper's identity (`Any::downcast_ref::<CelsiusIface>()` or the
+  enum's variant) and unwrap `.0`, which is the alias representation again.
+
+Nothing in the alias representation makes this harder:
+
+- Each named type keeps a stable Rust identifier: its alias name (`Celsius`)
+  and the prefix of its method functions (`celsius_`) are given once by the
+  namer for the whole crate, so a later wrapper `CelsiusIface` and its impls
+  can be derived from them without renaming anything.
+- The boundary is the same either way: a newtype would also have to be boxed
+  or tagged to become an interface value, so the wrapper costs nothing this
+  RFC avoided. What changes is only where the distinct Rust type first
+  appears: at interface conversions instead of everywhere.
+- Values that never enter an interface keep the underlying representation,
+  so the arithmetic paths and RFC 0006's proven ranges stay as they are.
+
+**Readability.** The emitted Rust for these types uses aliases and calls
+like `celsius_fahrenheit(c)` rather than newtypes and `c.fahrenheit()`. The
+project's claims are about speed and behaviour (identical to hand-written
+Rust, equal to Go), not about the emitted code's style. On 2026-11-22 neither
+the README nor gopatina.org claims idiomatic method syntax for the emitted
+Rust, and pages describing this feature will show the actual output.
 
 ## Compatibility
 
@@ -227,32 +299,39 @@ before; every program it accepts today emits the same Rust.
 
 ## Drawbacks
 
-- Every use of a named type carries `.0` and a rewrap in the Rust, which is
-  noisier to read than Go. It is what a careful Rust programmer writes for a
-  newtype without operator traits, and it costs nothing at run time.
+- Rust does not keep `Op` and `i64` apart, so a reader of the emitted crate
+  sees aliases where Go has distinct types. Go's type checker has already
+  enforced the distinction, so this cannot change behaviour.
+- Methods of named non-struct types are free functions (`op_string(o)`), not
+  method calls (`o.string()`), in the emitted Rust.
 - Recovering a panicking `String` method needs `catch_unwind`, which only
   works with `panic = "unwind"`; emitted crates use that today.
 
 ## Rationale and alternatives
 
-- **Rust `type` aliases for named types** (`type Op = i64;`) would avoid the
-  `.0`, but cannot carry methods (Rust forbids inherent `impl` on `i64`) and
-  would make `Op` and `int` the same type, losing Go's distinction, which
-  matters for method sets and printing. Rejected.
-- **Operator traits** (`impl Add for Op`) would make the Rust read like Go,
-  but each type needs a dozen impls, and wrapping arithmetic still needs
-  explicit calls. The emitter already knows the types; explicit `.0` is
-  simpler and exact. It can be revisited for readability later without any
-  change in behaviour.
-- **Free functions for methods** (`fn op_string(o: i64)`) keep `type` aliases
-  but are not how Rust is written, and lose the method-call syntax.
+- **Newtypes** (`struct Op(i64)`, the draft merged in #52): keep the types
+  apart in Rust and allow `impl Op`, but need `.0` and a rewrap at every
+  operator, conversion, index, range, append, comparison and print, and
+  explicit wrapping and unwrapping wherever Go converts implicitly. Each site
+  is a chance of a wrong translation, for no change in behaviour. Not chosen
+  (see "Amendment"); it can be revisited for readability once the emitter
+  has a single place for value conversions.
+- **A trait per type** (`trait OpMethods { fn string(self) } impl OpMethods
+  for i64`) keeps method syntax on aliases, but two named types with the same
+  underlying type and a method of the same name make an unqualified call
+  ambiguous, so every call must be qualified anyway, and a `&self` receiver
+  of a named string is `&String`, not the `&str` the emitter's string paths
+  expect. Not chosen.
+- **Free functions** with the receiver as first parameter (chosen) reuse the
+  emitter's parameter modes, borrow analysis and calls as they are.
 
 ## Prior art
 
-- Rust's newtype idiom is the standard way to give a primitive its own type
-  and methods.
-- TinyGo and gccgo compile named types to their underlying representation; in
-  Go's own compiler a named type is the same machine type as its underlying.
+- Go's own compiler, gccgo and TinyGo compile a named type to its underlying
+  representation, and a method to a function whose first parameter is the
+  receiver; this design does the same.
+- Rust's newtype idiom is the usual way to give a primitive its own type and
+  methods in hand-written Rust; see "Rationale and alternatives".
 
 ## Unresolved questions
 
