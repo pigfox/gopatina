@@ -73,6 +73,9 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	if obj.Name() == "main" && g.fn.Recv == nil {
 		g.rt["exit_on_panic"] = true
 		g.line("rt::exit_on_panic();")
+		for _, f := range g.inits {
+			g.line(g.funcs[f] + "();")
+		}
 	}
 	res := sig.Results()
 	for i := 0; i < res.Len(); i++ {
@@ -480,7 +483,8 @@ func (g *gen) assign(s *ast.AssignStmt) {
 		}
 		return
 	}
-	g.hoistIndexes(s.Lhs, len(s.Lhs) > 1)
+	varShift := (s.Tok == token.SHL_ASSIGN || s.Tok == token.SHR_ASSIGN) && g.info.Types[s.Rhs[0]].Value == nil
+	g.hoistIndexes(s.Lhs, len(s.Lhs) > 1 || varShift)
 	switch s.Tok {
 	case token.DEFINE, token.ASSIGN:
 	default:
@@ -643,6 +647,16 @@ func (g *gen) opAssign(s *ast.AssignStmt) {
 			method = ".wrapping_rem"
 		}
 		g.stmtLine(target+" = ", &call{recv: g.place(l), head: method, open: "(", close: ")", args: []node{g.value(r)}}, ";")
+		return
+	case (s.Tok == token.SHL_ASSIGN || s.Tok == token.SHR_ASSIGN) && g.info.Types[r].Value == nil:
+		// x = rt::shl(x, s): assign has computed every index of the place
+		// once, first, as Go evaluates it before the count.
+		op := token.SHL
+		if s.Tok == token.SHR_ASSIGN {
+			op = token.SHR
+		}
+		target := g.place(l).flat()
+		g.stmtLine(target+" = ", g.varShift(op, g.place(l), r), ";")
 		return
 	case s.Tok == token.SHL_ASSIGN || s.Tok == token.SHR_ASSIGN:
 		if w, ok := g.wideShift(lt, r); ok {

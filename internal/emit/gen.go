@@ -31,6 +31,9 @@ type gen struct {
 	// structOwner is the type declared with each struct literal; a named
 	// type with another type's struct (type B A) is an alias of it.
 	structOwner map[*types.Struct]*types.TypeName
+	// inits are the package's init functions, in the order Go runs them:
+	// by file, then in source order.
+	inits []*types.Func
 	// Per function.
 	fn         *borrow.Func
 	locals     map[types.Object]string
@@ -244,6 +247,16 @@ func (g *gen) nameDecls() {
 			g.funcs[obj] = valueNames.name(name, snake)
 		case *types.Const:
 			g.consts[obj] = constNames.name(name, screaming)
+		}
+	}
+	// init functions are in no scope: Go calls them, once each, before main.
+	for _, f := range g.pkg.Files {
+		for _, d := range f.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok && fd.Recv == nil && fd.Name.Name == "init" {
+				obj := g.info.Defs[fd.Name].(*types.Func)
+				g.inits = append(g.inits, obj)
+				g.funcs[obj] = valueNames.name(fmt.Sprintf("init%d", len(g.inits)), snake)
+			}
 		}
 	}
 }

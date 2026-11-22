@@ -198,10 +198,6 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 		c.unsupported(d.Name, "a generic function (Go 1.18)")
 		return
 	}
-	if d.Name.Name == "init" && d.Recv == nil {
-		c.unsupported(d.Name, "func init")
-		return
-	}
 	if d.Body == nil {
 		c.unsupported(d.Name, "a function declared without a body")
 		return
@@ -545,12 +541,6 @@ func (c *checker) assign(s *ast.AssignStmt) {
 	for _, r := range s.Rhs {
 		c.expr(r)
 	}
-	switch s.Tok {
-	case token.SHL_ASSIGN, token.SHR_ASSIGN:
-		if c.pkg.Info.Types[s.Rhs[0]].Value == nil {
-			c.unsupported(s, "a shift by a non-constant count")
-		}
-	}
 }
 
 // lvalue checks the left side of an assignment.
@@ -740,10 +730,6 @@ func (c *checker) binary(e *ast.BinaryExpr) {
 	c.expr(e.X)
 	c.expr(e.Y)
 	switch e.Op {
-	case token.SHL, token.SHR:
-		if c.pkg.Info.Types[e.Y].Value == nil {
-			c.unsupported(e, "a shift by a non-constant count")
-		}
 	case token.EQL, token.NEQ:
 		xt, yt := c.pkg.Info.Types[e.X].Type, c.pkg.Info.Types[e.Y].Type
 		for _, t := range []types.Type{xt, yt} {
