@@ -6,8 +6,8 @@ maintainer's test server. How the numbers are produced is described in
 [docs/QUALITY.md](docs/QUALITY.md#performance-shadow-rust-and-keep-up) and
 [bench/README.md](bench/README.md).
 
-> **No official run has happened yet.** The dedicated, quiet test server does
-> not exist. The local verification runs below are evidence from the
+> **No official run has happened yet.** The dedicated test server is being
+> set up. The local verification runs below are evidence from the
 > maintainer's workstation, published with their raw JSON, but they are not
 > official results, and their wall-clock ratios are noisy.
 
@@ -18,9 +18,38 @@ None yet.
 ## The goal
 
 Identical speed to equivalent hand-written Rust on every benchmark, built
-with the latest stable Rust. That is a goal, not a claim.
+with the latest stable Rust. That is a goal, not a claim. "Identical" means equivalent within ±0.5% at 5σ: in a two one-sided tests (TOST) equivalence test on paired, interleaved runs, the whole 5σ interval of the ratio lies inside ±0.5%.
+How the test works is in [bench/README.md](bench/README.md).
 
-## Latest local verification run (not official)
+## Latest local equivalence run (not official)
+
+Measured on 2026-11-21 on the maintainer's laptop, at GoPatina commit
+`6cb858fff4bc8a1a659ba240a452d6d45ea6a5c0`, with **CPU performance counters**,
+which the project lead had enabled for that day. The laptop was in normal use,
+with a load average between 11 and 21. Each binary ran 300 times, interleaved
+in ABBA order, and each metric went through a TOST equivalence test at a **±1%
+margin** (the default at the time) and 5σ. Notes and the reading against ±0.5%
+are in the [run notes](bench/results/2026-11-21-local-6cb858f-equiv-counters.md).
+Raw results:
+[2026-11-21-local-6cb858f-equiv-counters.json](bench/results/2026-11-21-local-6cb858f-equiv-counters.json).
+
+| Benchmark | User instructions, GoPatina / Rust | User cycles | Wall time |
+| --- | --- | --- | --- |
+| `fib` | 1.0000024 [1.0000018, 1.0000029]: equivalent | 1.069 [1.001, 1.140]: inconclusive | 1.043 [0.977, 1.114]: inconclusive |
+| `sieve` | 1.302 [1.302, 1.302]: slower | 1.073 [1.055, 1.092]: slower | 1.067 [1.025, 1.110]: slower |
+| `suffix-sum` | 1.0000020 [1.0000015, 1.0000026]: equivalent | 0.992 [0.962, 1.022]: inconclusive | 0.977 [0.880, 1.084]: inconclusive |
+
+- **`fib` and `suffix-sum`** execute the same instructions as the
+  hand-written Rust to within 0.0003%. That is equivalent at ±0.5% too. On
+  this busy machine, their cycle and wall-time intervals are too wide to
+  decide at either margin.
+- **`sieve`** executes 1.302 times the instructions and is about 7% slower,
+  at 5σ on all three metrics, and so at either margin. The cause is the extra
+  bounds check that keeps Go's integer semantics in the generated inner loop.
+  Closing it is being worked on.
+
+
+## Local wall-clock run and machine code, 2026-11-21 (not official)
 
 One full run of `bench/run.sh --runs 11` on the maintainer's workstation on
 2026-11-21, GoPatina commit `6cb858fff4bc8a1a659ba240a452d6d45ea6a5c0`, plus a
@@ -94,7 +123,7 @@ When the dedicated test server exists, results will be shown in this form:
 
 ## History
 
-- 2026-11-21: one local verification run and a machine-code comparison (not official).
+- 2026-11-21: a local equivalence run with CPU counters, a wall-clock run and a machine-code comparison (not official).
 - 2026-11-18: two local verification runs (not official).
 
 Official runs: none yet.

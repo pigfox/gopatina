@@ -137,7 +137,7 @@ There are two kinds of run, and they are kept apart:
   machine, the Go and Rust versions, the commit and the date, and links to the
   raw results file.
 - **Target.** Identical speed to hand-written Rust on each benchmark, tracked over
-  time. This is a goal that guides the work, **not a claim**. A pull request
+  time. "Identical" means equivalent within ±0.5% at 5σ: in a two one-sided tests (TOST) equivalence test on paired, interleaved runs, the whole 5σ interval of the ratio lies inside ±0.5%. (`bench/run.sh --equiv`, [bench/README.md](../bench/README.md)). This is a goal that guides the work, **not a claim**. A pull request
   that makes a ratio worse beyond run-to-run noise must explain why in its
   description.
 
