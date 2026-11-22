@@ -1,4 +1,4 @@
-# Draft upstream issue: cmd/compile miscompiles int arithmetic after inlining (amd64)
+# Draft upstream issue: cmd/compile drops 2^32 when folding two SUBQconst [-1<<31] (amd64)
 
 **Status: draft, not filed.** Filing it is outward-facing and waits for the
 project lead's decision (relayed by the coordinator, 2026-11-22). Nothing
@@ -11,7 +11,7 @@ following Go's issue template.
 
 ### Title
 
-cmd/compile: wrong int result with inlining on amd64 (missing 2^32 carry)
+cmd/compile: amd64 rule (SUBQconst (SUBQconst x [d]) [c]) overflows for c == -1<<31, dropping 2^32
 
 ### Go version
 
@@ -19,20 +19,87 @@ go version go1.27.1 linux/amd64
 
 ### Does this issue reproduce with the latest release?
 
-Yes. Program 1 reproduces with Go 1.22.0, 1.23.0, 1.24.0, 1.25.0, 1.25.5,
-1.25.10, 1.26.0, 1.27.0 and 1.27.1, and not with 1.21.0. Program 2
-reproduces with 1.26.0, 1.27.0 and 1.27.1, and not with 1.25.10 or earlier.
+Yes. Program 4, the smallest, reproduces with every release tested: Go
+1.21.0, 1.22.0, 1.23.0, 1.24.0, 1.25.0, 1.26.0 and 1.27.1. Program 1
+reproduces with Go 1.22.0, 1.23.0, 1.24.0, 1.25.0, 1.25.5, 1.25.10, 1.26.0,
+1.27.0 and 1.27.1, and not with 1.21.0. Program 2 reproduces with 1.26.0,
+1.27.0 and 1.27.1, and not with 1.25.10 or earlier. The rule is the same in
+all of them; the releases differ in which programs reach it.
 
 ### What operating system and processor architecture are you using?
 
 linux/amd64. Other architectures not tested.
 
+### The cause
+
+`src/cmd/compile/internal/ssa/_gen/AMD64.rules` has
+
+```
+(SUBQconst (SUBQconst x [d]) [c]) && is32Bit(int64(-c)-int64(d)) => (ADDQconst [-c-d] x)
+```
+
+`c` and `d` are `int32`, and `-c` is computed in `int32` before the
+conversion. For `c == d == -1<<31` (each `SUBQconst` adds `2^31`), `-c`
+overflows to `-1<<31`, the condition checks `is32Bit(0)`, and the rule
+rewrites `x + 2^31 + 2^31` to `ADDQconst [0] x`: the sum loses `2^32`. The
+correct sum, `2^32`, does not fit a 32-bit immediate, so the rule must not
+fire. The neighbouring rule `(SUBQconst [c] x) && c != -(1<<31)` already
+guards this value. A fix is to compute the condition in 64 bits:
+
+```
+(SUBQconst (SUBQconst x [d]) [c]) && is32Bit(-int64(c)-int64(d)) => (ADDQconst [-c-d] x)
+```
+
+(When the condition holds, the 32-bit `-c-d` wraps to the same value.)
+With only the condition changed in `rewriteAMD64.go` (to
+`is32Bit(-int64(c) - int64(d))`) and `cmd/compile` rebuilt, Go 1.27.1 prints
+the right result for all four programs below.
+
 ### What did you do?
 
-Two programs found by differential testing against another compiler, each
-reduced automatically (statements deleted while the optimized and the
-unoptimized gc builds still disagreed). Further hand reduction made both
-disagreements disappear, so they are given at this size.
+Four programs found by differential testing against another compiler. The
+first three were reduced automatically (statements deleted while the
+optimized and the unoptimized gc builds still disagreed); program 4 was
+then reduced by hand, after the cause was found.
+
+Program 4 (`go run .` prints `2147483720 72`; the specification, and
+`go run -gcflags=all=-N -l .`, give `2147483720 4294967368`). The loop only
+keeps the compiler from knowing `x` until late in compilation:
+
+```go
+package main
+
+import "fmt"
+
+var C = 72
+
+func main() {
+	x := -2147483648
+	k := 478
+	y := -86
+	var t []int
+	for i := 0; i < 16; i++ {
+		switch k % 3 {
+		case 0:
+			t = append(t, len(t))
+		case 1, -1:
+			y |= len(t)
+		}
+	}
+	if y < x {
+		x = y
+	}
+	x = -x // 2147483648
+	C += x
+	a := C
+	C += x
+	fmt.Println(a, C)
+}
+```
+
+`go build -gcflags=-S` shows the first addition as `SUBQ $-2147483648, CX`
+and then stores the original `C` back: the second addition was folded
+into the first as `+0`.
 
 Program 1:
 
@@ -247,4 +314,6 @@ The second pair, which is what the specification gives:
 In all three, the inlined function is `h(a, b) = (a+b)+b` or `(b+a)+b` called with
 `b = -v` where `v == -2147483648`, and the wrong result is what you get if
 `2*b` lost its carry out of bit 31 (`2*2147483648 == 2^32`). Without
-inlining the result is right.
+inlining the result is right, because only inlining lets the compiler see
+the constant `2^31` twice; program 4 shows that no function call is
+needed, and the rule above is where the carry is lost.

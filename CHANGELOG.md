@@ -162,6 +162,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Golden `gc_subqconst`: a gc miscompile found by the gate (program 26733,
+  seed 1): optimized gc on amd64 (Go 1.21.0 to 1.27.1) drops `2^32` from
+  `x + 2^31 + 2^31`. The cause is the amd64 rule
+  `(SUBQconst (SUBQconst x [d]) [c])`, which negates `c` in 32 bits; a gc
+  with that condition computed in 64 bits gets this program and
+  `gc_inline_carry_1` to `_3` right, so all four are one bug.
+  `docs/upstream/gc-inline-carry.md` (still a draft, not filed) now names
+  the rule and a fix.
 - Patina mode supports more of package `strings` (RFC 0011's first provided
   API): `ToLower`, `ToUpper`, `EqualFold`, `Split`, `Cut`, `TrimPrefix`,
   `TrimSuffix`, `ReplaceAll` and `IndexByte`, with Go's semantics: case
