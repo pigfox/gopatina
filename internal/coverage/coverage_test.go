@@ -85,7 +85,7 @@ func TestFeature(t *testing.T) {
 		"the copy built-in is not supported in patina mode yet":                                               "built-ins",
 		"converting an integer to a string is not supported in patina mode yet":                               "strings and formatting",
 		"a shift by a non-constant count is not supported in patina mode yet":                                 "shifts by a variable count",
-		"func init is not supported in patina mode yet":                                                       "init and functions without a body",
+		"func init is not supported in patina mode yet":                                                       "functions without a body (assembly)",
 		"this expression statement is not supported in patina mode yet":                                       "statement forms",
 	} {
 		if got := Feature(msg); got != want {
@@ -408,5 +408,44 @@ func TestResolve(t *testing.T) {
 	}
 	if pkgs[0].Accepted || pkgs[1].Accepted {
 		t.Errorf("packages accepted: %v %v", pkgs[0].Accepted, pkgs[1].Accepted)
+	}
+}
+
+// TestExclusionScope checks that reflect or unsafe excludes a function only
+// when it, or code of its own module, uses them: through another module (the
+// standard library included) it is a feature to implement, ViaDeps.
+func TestExclusionScope(t *testing.T) {
+	for _, tc := range []struct {
+		bModule  string
+		excluded bool
+	}{
+		{"std", false},
+		{"example.com/m", true},
+	} {
+		a, b := twoPackages(t,
+			"package b\n\nfunc R() int { return 1 }\n",
+			"package c\n",
+			"package a\n\nimport \"example.com/b\"\n\nfunc F() int { return b.R() }\n")
+		uses := diag.Diagnostic{Pos: b.Fset.Position(b.Files[0].Decls[0].Pos()), Msg: "reflect.ValueOf is not supported in patina mode yet"}
+		pkgs := []Package{
+			Measure(b, "example.com/b", tc.bModule, []diag.Diagnostic{uses}),
+			Measure(a, "example.com/a", "example.com/m", nil),
+		}
+		Resolve(pkgs)
+		f := pkgs[1].Funcs[0]
+		if f.Excluded != tc.excluded || f.Accepted {
+			t.Errorf("b in %s: a.F excluded %v, accepted %v, features %v", tc.bModule, f.Excluded, f.Accepted, f.Features)
+		}
+		if !tc.excluded && (len(f.Features) != 1 || f.Features[0] != ViaDeps) {
+			t.Errorf("b in std: a.F features %v", f.Features)
+		}
+		s := Summarize(pkgs, 1, 1)
+		wantVia := 0
+		if !tc.excluded {
+			wantVia = 1
+		}
+		if s.ThirdParty.ViaDeps != wantVia {
+			t.Errorf("b in %s: via dependencies %d, want %d", tc.bModule, s.ThirdParty.ViaDeps, wantVia)
+		}
 	}
 }

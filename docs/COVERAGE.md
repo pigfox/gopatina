@@ -41,12 +41,22 @@ Rust, so the measurement is of the subset's rules, not of the translator.
 - **Packages wholly accepted**: every declaration, function and import
   accepted.
 
-**Out of scope: reflect and unsafe.** Code that uses package `reflect` or
-`unsafe` is out of scope (the project lead, 2026-11-21). A function that
-uses either, itself or through a declaration of its package that it uses,
-is counted apart, as "excluded", and left out of every share: 100% means
-100% of the functions that use neither. The report gives the number
-excluded beside every share.
+**Out of scope: reflect and unsafe.** Programs that use package `reflect`
+or `unsafe` themselves are out of scope (the project lead, 2026-11-21). A
+function that uses either, itself or through code of its own module that it
+reaches, is counted apart, as "excluded", and left out of every share: 100%
+means 100% of the functions that do not. A function that reaches `reflect`
+or `unsafe` only through another module, the standard library included
+(`strings.Builder`, `strconv` and `sync` use `unsafe` inside), stays in the
+shares: what it uses is a surface GoPatina has to provide, by bridging or
+translation, so it is rejected with the feature "reflect or unsafe inside
+dependencies", not excluded. The report gives both counts beside every
+share (`functions_excluded_reflect_unsafe_direct`,
+`functions_reaching_reflect_unsafe_via_dependencies`). Functions without a
+Go body (assembly, mostly in the standard library) are counted the same
+way: rejected, with the feature "functions without a body (assembly)", a
+surface to provide with Rust equivalents, as RFC 0009's intrinsics do for
+`math/bits`.
 
 **The reasons.** Each diagnostic is assigned a feature (maps, closures and
 function values, interfaces, goroutines and channels, defer, generics,
