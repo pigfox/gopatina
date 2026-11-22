@@ -101,6 +101,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- `cmd/gopatina-coverage` and `internal/coverage` measure how much real Go
+  the patina subset accepts, with GoPatina's own subset checker: functions,
+  lines, files and packages accepted over a pinned corpus (the standard
+  library and 51 widely used modules, `docs/coverage-corpus.txt`), the
+  features that keep code out, a roadmap ranking, 95% bootstrap intervals
+  over packages, a standard-library and third-party split, and leave-one-
+  module-out sensitivity. The method and its biases are in
+  docs/COVERAGE.md; no results are published yet.
 - The speed bar's first test-server results (2026-11-22) are published with
   their raw JSON: with one rustc (1.100.0) for both, GoPatina executes the
   same user instructions as hand-written Rust to within 0.001% on fib, sieve
