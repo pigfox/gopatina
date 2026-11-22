@@ -1,0 +1,7 @@
+./main.go:14:11: parameter s is owned: pass keeps it
+./main.go:19:11: parameter p is owned: bump keeps it
+./main.go:27:22: copied k into pass: k is also read by an earlier operand of fmt.Println; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:29:24: copied p into bump: p is also read by an earlier operand of fmt.Println; Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning
+./main.go:29:45: copied p into bump: p is also read by an earlier operand of fmt.Println; Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning
+./main.go:30:16: copied k into pass: k is also read by an earlier operand of the + operator; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:31:49: copied k into pass: k is also read by an earlier operand of fmt.Sprint; Go strings are immutable, so a copy keeps the program's meaning

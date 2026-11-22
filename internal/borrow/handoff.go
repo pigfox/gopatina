@@ -31,6 +31,8 @@ func (l *live) handOff(ev event, lv set) {
 	what := exprString(ev.e)
 	why := ""
 	switch {
+	case ev.readBy != "":
+		why = fmt.Sprintf("%s is also read by an earlier operand of %s", ev.v.Name(), ev.readBy)
 	case ev.force:
 		why = fmt.Sprintf("%s is also borrowed by an earlier argument of %s", ev.v.Name(), ev.into)
 	case ev.elem:
