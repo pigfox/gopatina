@@ -918,6 +918,10 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\ntype Cn%d struct{ n int }\n", k)
 	fmt.Fprintf(b, "\nfunc (c *Cn%d) Bump(x int) int {\n\tc.n = c.n %s x\n\treturn c.n\n}\n", k, op())
 	fmt.Fprintf(b, "\nfunc (c Cn%d) Get() int { return c.n %s %d }\n", k, op(), g.qr.IntN(100))
+	// A string parameter whose address escapes: a cell of the string it
+	// borrows.
+	fmt.Fprintf(b, "\ntype Lb%d string\n", k)
+	fmt.Fprintf(b, "\nfunc lab%d(s Lb%d) *Lb%d { return &s }\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc cell%d(x int) *Ct%d {\n\tc := Ct%d{n: x}\n\tc.n++\n\treturn &c\n}\n", k, k, k)
 	fmt.Fprintf(b, "\ntype Nd%d struct {\n\tV     int\n\tName  string\n\tItems []int\n\tNext  *Nd%d\n\tin    Cn%d\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc newNd%d(v int, next *Nd%d) *Nd%d {\n\treturn &Nd%d{V: v, Next: next, Name: \"n\" + fmt.Sprint(v)}\n}\n", k, k, k, k)
@@ -959,6 +963,10 @@ func (g *gen) ptrUses() {
 	g.line("ptrLp.Bump(%s)", v())
 	g.line("ptrLc.Bump(ptrC.n)")
 	g.line("fmt.Println(ptrC.n, ptrD.n, ptrC == ptrD, ptrC == ptrLp, ptrC.Get(), ptrLc.n, ptrLp.n, ptrLc.Get())")
+	g.line("ptrB := lab%d(Lb%d(%q))", k, k, words[g.qr.IntN(len(words))])
+	g.line("ptrB2 := ptrB")
+	g.line("*ptrB2 += Lb%d(ptrL.Name)", k)
+	g.line("fmt.Println(*ptrB, ptrB == ptrB2, len(*ptrB))")
 	g.line("var ptrN *Nd%d", k)
 	g.line("if %s%%2 == 0 {", v())
 	g.depth++
