@@ -93,6 +93,20 @@ and no true difference, that is about 100 runs; at sd = 2%, about 400;
 at sd = 5%, about 2,500. Measure sd with a short run first (say 100 runs),
 then size the real one.
 
+**One rustc for both.** Both Rust binaries are built by the same rustc,
+the toolchain `--rust` names (default `stable`): GoPatina's crate through a
+`RUSTUP_TOOLCHAIN` override of the rustc it pins. This is `--toolchain same`,
+the default and the official comparison. Different rustc releases compile the
+same source differently: on 2026-11-22, the hand-written `fib` and `sieve`
+compiled to different machine code under rustc 1.93.0 and 1.100.0, while
+GoPatina's hot loops matched the hand-written ones under each. A comparison
+across releases would measure the compilers. `--toolchain shipped` builds
+GoPatina's crate with its pinned rustc instead, what a user gets by default,
+and is reported only as a secondary comparison. The harness reads which
+rustc built each binary from its `.comment` section, records both, and in
+`same` mode stops if they differ. `bench/asm-check.sh --toolchain T`
+compares the machine code under toolchain T.
+
 The default metric is wall time. `--metric perf` also counts user
 instructions and user cycles with `perf stat`, each with its own test; it
 needs the kernel to allow performance counters (`kernel.perf_event_paranoid`

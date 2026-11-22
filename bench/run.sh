@@ -1,15 +1,30 @@
 #!/usr/bin/env bash
 # run.sh: the benchmark harness (bench/README.md).
 #
-# usage: bench/run.sh [--out results.json] [--runs N]
+# usage: bench/run.sh [--out results.json] [--runs N] [--toolchain same|shipped]
+#                     [--rust TOOLCHAIN]
 #        bench/run.sh --equiv [--out results.json] [--runs N] [--margin M]
-#                     [--sigma S] [--metric wall|perf]
+#                     [--sigma S] [--metric wall|perf] [--toolchain same|shipped]
+#                     [--rust TOOLCHAIN]
 #
 # For each case under bench/cases it builds three binaries: the Go program
-# with gopatina build -patina (the generated crate, built by rustc with its
-# pinned toolchain), the hand-written Rust crate with cargo build --release
-# (the latest stable Rust on the machine), and the Go program with plain go
-# build. It checks that all three print the case's expected output, runs the
+# with gopatina build -patina, the hand-written Rust crate with cargo build
+# --release, and the Go program with plain go build.
+#
+# Which rustc builds the two Rust binaries (--toolchain):
+#   same     (the default, and the official comparison) both are built by
+#            the same rustc, the toolchain --rust names (default stable,
+#            the latest stable Rust): GoPatina's crate through a
+#            RUSTUP_TOOLCHAIN override of its pinned toolchain. This
+#            compares GoPatina's Rust with hand-written Rust, and nothing
+#            else: different rustc releases generate different machine code
+#            for the same source.
+#   shipped  GoPatina's crate with the toolchain it pins (what a user gets
+#            by default), the hand-written crate with --rust. A secondary
+#            comparison, reported as such.
+# The rustc that built each binary is read from its .comment section and
+# recorded; in same mode a mismatch stops the run.
+# It checks that all three print the case's expected output, runs the
 # three N times, interleaved (after one warm-up run each), and reports the
 # ratios of the medians: GoPatina and plain Go to hand-written Rust, and
 # GoPatina to plain Go.
@@ -33,6 +48,8 @@ equiv=false
 margin=0.005
 sigma=5
 metric=wall
+toolchain=same
+rust_tc=stable
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --out) out="$2"; shift 2 ;;
@@ -41,9 +58,16 @@ while [ "$#" -gt 0 ]; do
     --margin) margin="$2"; shift 2 ;;
     --sigma) sigma="$2"; shift 2 ;;
     --metric) metric="$2"; shift 2 ;;
-    *) echo "usage: $0 [--equiv] [--out file] [--runs N] [--margin M] [--sigma S] [--metric wall|perf]" >&2; exit 2 ;;
+    --toolchain) toolchain="$2"; shift 2 ;;
+    --rust) rust_tc="$2"; shift 2 ;;
+    *) echo "usage: $0 [--equiv] [--out file] [--runs N] [--margin M] [--sigma S] [--metric wall|perf] [--toolchain same|shipped] [--rust TOOLCHAIN]" >&2; exit 2 ;;
   esac
 done
+case "$toolchain" in
+  same) gopatina_tc="$rust_tc" ;;
+  shipped) gopatina_tc="" ;; # the crate's own rust-toolchain.toml
+  *) echo "$0: --toolchain must be same or shipped" >&2; exit 2 ;;
+esac
 if [ -z "$runs" ]; then
   if $equiv; then runs=400; else runs=11; fi
 fi
@@ -70,14 +94,32 @@ median() { sort -n | sed -n "$(((runs + 1) / 2))p"; }
 
 ratio() { awk -v a="$1" -v b="$2" 'BEGIN { printf "%.3f", a / b }'; }
 
+# built_by <binary>: the rustc release recorded in the binary's .comment
+# section, or "unknown" without readelf.
+built_by() {
+  if ! command -v readelf >/dev/null; then echo unknown; return; fi
+  readelf -p .comment "$1" 2>/dev/null | grep -o 'rustc version [0-9][0-9.]*' | sort -u | head -1 | sed 's/rustc version //'
+}
+
 results=()
 for dir in "$root"/bench/cases/*/; do
   name="$(basename "$dir")"
   expected="$(cat "$dir/expected")"
-  "$work/gopatina" build -patina -o "$work/$name-patina" "$dir/go"
+  if [ -n "$gopatina_tc" ]; then
+    RUSTUP_TOOLCHAIN="$gopatina_tc" "$work/gopatina" build -patina -o "$work/$name-patina" "$dir/go"
+  else
+    "$work/gopatina" build -patina -o "$work/$name-patina" "$dir/go"
+  fi
   go build -o "$work/$name-go" "$dir/go"
-  (cd "$dir/rust" && cargo build --release --locked --quiet --target-dir "$work/target-$name")
+  (cd "$dir/rust" && RUSTUP_TOOLCHAIN="$rust_tc" cargo build --release --locked --quiet --target-dir "$work/target-$name")
   rust="$work/target-$name/release/$name"
+  rustc_gopatina="$(built_by "$work/$name-patina")"
+  rustc_rust="$(built_by "$rust")"
+  echo "$name: GoPatina's binary built by rustc $rustc_gopatina, the hand-written Rust by rustc $rustc_rust ($toolchain toolchain)" >&2
+  if [ "$toolchain" = same ] && [ "$rustc_gopatina" != "$rustc_rust" ]; then
+    echo "$name: --toolchain same, but the two binaries were built by different rustc releases" >&2
+    exit 1
+  fi
   for bin in "$work/$name-patina" "$work/$name-go" "$rust"; do
     if [ "$("$bin")" != "$expected" ]; then
       echo "$name: $bin does not print the expected output" >&2
@@ -121,7 +163,10 @@ commit="$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)"
   echo "  \"runs\": $runs,"
   echo "  \"gopatina_commit\": \"$commit\","
   echo "  \"go\": \"$(go version)\","
-  echo "  \"rust_stable\": \"$(rustc --version)\","
+  echo "  \"toolchain\": \"$toolchain\","
+  echo "  \"rustc_gopatina\": \"$rustc_gopatina\","
+  echo "  \"rustc_rust\": \"$rustc_rust\","
+  echo "  \"rust_stable\": \"$(RUSTUP_TOOLCHAIN="$rust_tc" rustc --version)\","
   echo "  \"rust_pinned_for_gopatina\": \"$(cd "$root/testdata/golden/hello/rust" && rustc --version)\","
   echo "  \"os\": \"$(uname -srm)\","
   echo "  \"results\": ["

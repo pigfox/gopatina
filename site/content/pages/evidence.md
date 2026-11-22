@@ -56,7 +56,7 @@ Brackets are 5σ intervals of the ratio GoPatina / hand-written Rust; below 1 is
 - **The benchmarks.** Three small programs, with one author's hand-written Rust. They may not represent real workloads.
 - **Machines.** The local results come from a busy laptop. The test server is one rented virtual machine of one kind, whose wall-time noise (7% to 20% in the pilot) is far above the speed margin.
 - **Measurement.** A wall-time run includes process start-up, which dilutes a difference in a short benchmark. Instruction counts are not time.
-- **Toolchains.** Emitted crates pin rustc 1.93.0, while the baseline uses the latest stable Rust, so a compiler change can move a ratio either way.
+- **Toolchains.** Different rustc releases compile the same source differently, so the official comparison builds GoPatina's crate and the hand-written Rust with the same rustc, the latest stable; GoPatina's crates otherwise pin rustc 1.93.0. A comparison across releases measures the compilers, not GoPatina.
 - **The generator.** The correctness bound holds for programs the generator produces. A kind of bug the generator never triggers is invisible to it, and its tests are not independent draws from real programs. Only the first line of standard error is compared, not Go's stack trace.
 
 ## 7. Reproducibility {#reproducibility}

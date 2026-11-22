@@ -59,6 +59,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- `bench/run.sh` builds GoPatina's crate and the hand-written Rust with the
+  same rustc by default (`--toolchain same`, `--rust stable`), the official
+  comparison, and records the rustc that built each binary, read from the
+  binary; `--toolchain shipped` keeps GoPatina's pinned rustc as a secondary
+  comparison. `bench/asm-check.sh --toolchain T` compares under one
+  toolchain. A test-server counter run had compared GoPatina built by rustc
+  1.93.0 with Rust built by 1.100.0, which differ in codegen.
 - gopatina.org is several pages, each at its own address, instead of one page
   of #anchors: overview, how it works, get started, evidence, benchmarks,
   correctness, roadmap and FAQ, each with its own title, description,

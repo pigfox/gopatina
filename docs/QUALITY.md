@@ -178,9 +178,16 @@ batches are kept with both outputs under `difftest-failures`.
   generated crate with rustc in release mode) and as equivalent, idiomatic,
   hand-written Rust.
 - **Against which Rust.** The latest stable Rust toolchain at the time of the
-  run (`rustup toolchain install stable`). The exact `rustc --version` is
-  recorded with every result, together with the Go version, the GoPatina
-  commit, the machine and the operating system.
+  run (`rustup toolchain install stable`). **Both** Rust binaries, GoPatina's
+  and the hand-written one, are built by that same rustc
+  (`bench/run.sh --toolchain same`, the default): GoPatina's crate pins an
+  older rustc for reproducible builds, and different rustc releases generate
+  different machine code for the same source, so comparing across releases
+  measures the compilers, not GoPatina. The comparison as shipped (GoPatina
+  with its pinned rustc, `--toolchain shipped`) may be reported beside it,
+  labelled as such, but is not the bar. The rustc that built each binary is
+  read from the binary itself and recorded with every result, together with
+  the Go version, the GoPatina commit, the machine and the operating system.
 - **What is reported.** For each benchmark, the ratio of GoPatina's time (and
   peak memory) to hand-written Rust's and to plain Go's, with the spread over
   repeated runs.
