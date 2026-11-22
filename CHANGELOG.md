@@ -96,6 +96,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- The coverage measurement applies RFC 0011's boundary: a use of a provided
+  package (bridged, `sync`, `sync/atomic`, `runtime`, `time`, `math/rand`,
+  `sort`, `syscall` and the runtime's internal packages) is decided by its
+  API, and nothing below it is reached; a use outside the supported API is
+  "provided package: P". The provided packages' own functions are counted
+  apart (`functions_provided`), outside the shares.
 - The coverage measurement decides acceptance across packages, as patina
   builds do (RFC 0009): a function is accepted when everything it uses, in
   any measured package, is accepted, and inherits the features of what it

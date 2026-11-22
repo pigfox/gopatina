@@ -166,3 +166,14 @@ func TestChain(t *testing.T) {
 		}
 	}
 }
+
+func TestProvided(t *testing.T) {
+	for path, want := range map[string]bool{
+		"fmt": true, "sync": true, "internal/runtime/atomic": true, "runtime/debug": true,
+		"internal/bytealg": true, "strconv": false, "unicode/utf8": false, "example.com/m": false,
+	} {
+		if Provided(path) != want {
+			t.Errorf("Provided(%q) = %v", path, !want)
+		}
+	}
+}

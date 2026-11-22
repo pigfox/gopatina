@@ -383,8 +383,9 @@ func one(p listed, module string, exports map[string]string) (res coverage.Packa
 	mark = func(t *types.Package) {
 		for _, imp := range t.Imports() {
 			// reflect and unsafe stay reported, so the functions that use
-			// them stay excluded.
-			if !pkg.Local[imp] && !load.Bridged[imp.Path()] && imp.Path() != "unsafe" && imp.Path() != "reflect" {
+			// them stay excluded; a provided package (RFC 0011) is decided
+			// by its API, and nothing below it is reached.
+			if !pkg.Local[imp] && !load.Provided(imp.Path()) && imp.Path() != "unsafe" && imp.Path() != "reflect" {
 				pkg.Local[imp] = true
 				mark(imp)
 			}
@@ -400,7 +401,9 @@ func one(p listed, module string, exports map[string]string) (res coverage.Packa
 			why = fmt.Sprintf("subset checker or measurement panicked at %s: %v", panicSite(debug.Stack()), v)
 		}
 	}()
-	return coverage.Measure(pkg, p.ImportPath, module, check(pkg)), ""
+	res = coverage.Measure(pkg, p.ImportPath, module, check(pkg))
+	res.Provided = load.Provided(p.ImportPath)
+	return res, ""
 }
 
 // panicSite returns file:line of the innermost GoPatina frame of a panic's

@@ -41,6 +41,18 @@ Rust, so the measurement is of the subset's rules, not of the translator.
 - **Packages wholly accepted**: every declaration, function and import
   accepted.
 
+**Provided packages (RFC 0011).** GoPatina provides some standard-library
+packages in Rust instead of translating them: the bridged ones (`fmt`,
+`strings`, `bytes`, `errors`, `io`, `os`), `sync`, `sync/atomic`, `runtime`,
+`time`, `math/rand`, `math/rand/v2`, `sort`, `syscall` and the runtime's
+internal packages below them (`load.Provided` lists them). The measurement
+applies that boundary: a use of a provided package is decided by its
+supported API, and nothing below the API is reached; a use outside it is the
+feature "provided package: P", so the report shows what each provided
+package would unlock. The provided packages' own functions are measured but
+counted apart (`functions_provided`) and left out of every share: they are
+not translated, so they are not Go that GoPatina compiles.
+
 **Out of scope: reflect and unsafe.** Programs that use package `reflect`
 or `unsafe` themselves are out of scope (the project lead, 2026-11-21). A
 function that uses either, itself or through code of its own package that it

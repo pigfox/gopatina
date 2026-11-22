@@ -41,8 +41,11 @@ type Group struct {
 	// or through code of their own package; they are left out of every share
 	// below. ViaDeps counts those that reach reflect or unsafe only through
 	// another package: they stay in the shares, as rejected.
-	Excluded        int      `json:"functions_excluded_reflect_unsafe_direct"`
-	ViaDeps         int      `json:"functions_reaching_reflect_unsafe_via_dependencies"`
+	Excluded int `json:"functions_excluded_reflect_unsafe_direct"`
+	ViaDeps  int `json:"functions_reaching_reflect_unsafe_via_dependencies"`
+	// Provided counts the functions of packages GoPatina provides in Rust
+	// (RFC 0011); they are left out of the shares, as not translated.
+	Provided        int      `json:"functions_provided"`
 	Functions       Rate     `json:"functions"`
 	Lines           Rate     `json:"lines_in_accepted_functions"`
 	Files           Rate     `json:"files"`
@@ -85,6 +88,9 @@ const assemblyTop = 50
 func assemblyNeeded(pkgs []Package) []AssemblyNeed {
 	byName := map[string]*AssemblyNeed{}
 	for _, p := range pkgs {
+		if p.Provided {
+			continue
+		}
 		for _, f := range p.Funcs {
 			if f.Accepted || f.Excluded {
 				continue
@@ -201,13 +207,17 @@ func Summarize(pkgs []Package, boot int, seed uint64) Summary {
 
 // counts holds numerator and denominator pairs.
 type counts struct {
-	funcs, lines, files, whole [2]int
-	excluded, viaDeps          int
+	funcs, lines, files, whole  [2]int
+	excluded, viaDeps, provided int
 }
 
 func count(pkgs []Package) counts {
 	var c counts
 	for _, p := range pkgs {
+		if p.Provided {
+			c.provided += len(p.Funcs)
+			continue
+		}
 		for _, f := range p.Funcs {
 			if f.Excluded {
 				c.excluded++
@@ -245,7 +255,7 @@ func ratio(a, b int) float64 {
 func group(pkgs []Package, boot int, seed uint64) Group {
 	g := Group{Packages: len(pkgs)}
 	c := count(pkgs)
-	g.Excluded, g.ViaDeps = c.excluded, c.viaDeps
+	g.Excluded, g.ViaDeps, g.Provided = c.excluded, c.viaDeps, c.provided
 	// Bootstrap: draw len(pkgs) packages with replacement, boot times.
 	r := rand.New(rand.NewPCG(seed, 1))
 	var draws [4][]float64
@@ -318,6 +328,9 @@ func reasons(pkgs []Package, total int) ([]Reason, []Step) {
 	var rejected [][]string
 	accepted := 0
 	for _, p := range pkgs {
+		if p.Provided {
+			continue
+		}
 		for _, f := range p.Funcs {
 			if f.Excluded {
 				continue
