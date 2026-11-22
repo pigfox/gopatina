@@ -1,0 +1,5 @@
+/* Without JavaScript the menu button cannot work: show the navigation
+   always, wrapping on narrow screens, and hide the button. */
+.menu-button { display: none; }
+.site-nav { display: block; }
+.site-nav ul { flex-direction: row; flex-wrap: wrap; border: 0; padding: 0; gap: 0 1rem; }

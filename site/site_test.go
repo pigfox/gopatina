@@ -92,7 +92,7 @@ func TestRoutes(t *testing.T) {
 func TestStaticAssetsAreHashedAndImmutable(t *testing.T) {
 	h := handler(t)
 	home := body(t, h, "/")
-	for _, re := range []string{`href="(/static/style\.[0-9a-f]{10}\.css)"`, `href="(/static/favicon\.[0-9a-f]{10}\.svg)"`, `src="(/static/anchors\.[0-9a-f]{10}\.js)"`} {
+	for _, re := range []string{`href="(/static/style\.[0-9a-f]{10}\.css)"`, `href="(/static/favicon\.[0-9a-f]{10}\.svg)"`, `src="(/static/anchors\.[0-9a-f]{10}\.js)"`, `src="(/static/nav\.[0-9a-f]{10}\.js)"`, `href="(/static/nojs\.[0-9a-f]{10}\.css)"`} {
 		m := regexp.MustCompile(re).FindStringSubmatch(home)
 		if m == nil {
 			t.Fatalf("home page has no link matching %s", re)
@@ -107,28 +107,34 @@ func TestStaticAssetsAreHashedAndImmutable(t *testing.T) {
 	}
 }
 
-// TestScripts checks the one script: on the home page only, from the
-// site itself, vanilla JavaScript, mapping each old #anchor to a page that
-// exists.
+// TestScripts checks the scripts: the menu's on every page and the old
+// #anchors' on the home page only, from the site itself, vanilla
+// JavaScript, the anchors mapped to pages that exist.
 func TestScripts(t *testing.T) {
 	h := handler(t)
 	for _, p := range pages {
 		b := body(t, h, p.Path)
 		n := strings.Count(b, "<script src=")
-		if want := map[bool]int{true: 1, false: 0}[p.Path == "/"]; n != want {
+		if want := map[bool]int{true: 2, false: 1}[p.Path == "/"]; n != want {
 			t.Errorf("%s has %d scripts, want %d", p.Path, n, want)
 		}
 		if strings.Contains(b, "<script>") {
 			t.Errorf("%s has an inline script", p.Path)
 		}
+		if !strings.Contains(b, `aria-controls="site-nav"`) || !strings.Contains(b, `id="site-nav"`) {
+			t.Errorf("%s has no menu button controlling the navigation", p.Path)
+		}
 	}
-	js, err := files.ReadFile("static/anchors.js")
-	if err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"anchors.js", "nav.js"} {
+		src, err := files.ReadFile("static/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(bytes.ToLower(src), []byte("jquery")) || bytes.Contains(src, []byte("$(")) {
+			t.Errorf("%s must be vanilla JavaScript", name)
+		}
 	}
-	if bytes.Contains(bytes.ToLower(js), []byte("jquery")) || bytes.Contains(js, []byte("$(")) {
-		t.Error("anchors.js must be vanilla JavaScript")
-	}
+	js, _ := files.ReadFile("static/anchors.js")
 	for _, m := range regexp.MustCompile(`"#[a-z]+": "(/[a-z-]*)`).FindAllStringSubmatch(string(js), -1) {
 		if rec := get(t, h, http.MethodGet, m[1], false); rec.Code != http.StatusOK {
 			t.Errorf("anchors.js sends a link to %s, which is %d", m[1], rec.Code)
