@@ -1,6 +1,8 @@
 //! Runtime support for this crate, written by GoPatina: the few pieces
 //! of Go behaviour that have no direct Rust spelling.
 
+use std::fmt;
+
 /// Ends the program on a panic the way Go does: the message on standard
 /// error, then exit status 2. (Rust's default status is 101.)
 pub fn exit_on_panic() {
@@ -50,4 +52,25 @@ fn go_panic_message(msg: &str) -> String {
         return format!("runtime error: index out of range [{index}] with length {len}");
     }
     msg.to_string()
+}
+
+/// A Go error value made by errors.New or fmt.Errorf. Functions that
+/// return (T, error) in Go return Result<T, Error> here.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Error {
+    message: String,
+}
+
+impl Error {
+    pub fn new(message: impl Into<String>) -> Error {
+        Error {
+            message: message.into(),
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad(&self.message)
+    }
 }

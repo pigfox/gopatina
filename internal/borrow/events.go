@@ -282,6 +282,11 @@ func (w *walker) call(e *ast.CallExpr) {
 						ops.add(a, false, false, false, func() { w.expr(a, evMut) })
 						continue
 					}
+					if i == 1 && name == "errors.As" {
+						target := stripAddr(a) // errors.As sets it (RFC 0012)
+						ops.add(target, false, false, false, func() { w.expr(target, evMut) })
+						continue
+					}
 					ops.add(a, true, false, false, func() { w.read(a) })
 				}
 				ops.check(nil, name, e.Pos(), false)

@@ -1,6 +1,7 @@
 package subset
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -156,7 +157,15 @@ func (p *IfacePlan) call(info *types.Info, e *ast.CallExpr, conv func(ast.Expr, 
 		if id, ok := sel.X.(*ast.Ident); ok {
 			if _, ok := info.Uses[id].(*types.PkgName); ok {
 				if fn, ok := info.Uses[sel.Sel].(*types.Func); ok && fn.Pkg() != nil && !localPkgs[fn.Pkg()] {
-					return // a function of a bridged or provided package
+					if fn.Pkg().Path() == "errors" && fn.Name() != "New" {
+						// errors.Is, As and Unwrap take errors (As's target
+						// is a pointer, not converted).
+						conv(e.Args[0], fn.Signature().Params().At(0).Type())
+						if fn.Name() == "Is" {
+							conv(e.Args[1], fn.Signature().Params().At(1).Type())
+						}
+					}
+					return // fmt and the others take their arguments as they are
 				}
 			}
 		}
@@ -237,7 +246,16 @@ func (c *checker) dynamicProblem(t types.Type) string {
 			return "converting to an interface a value whose " + m.Name() + " method may panic"
 		}
 	}
-	if st, ok := t.Underlying().(*types.Struct); ok {
+	if obj, _, _ := types.LookupFieldOrMethod(t, false, nil, "Unwrap"); obj != nil {
+		if f, ok := obj.(*types.Func); ok && f.Signature().Results().Len() == 1 {
+			if _, ok := f.Signature().Results().At(0).Type().(*types.Slice); ok {
+				return "an error type with Unwrap() []error (errors.Join's form)"
+			}
+		}
+	}
+	if st, ok := t.Underlying().(*types.Struct); ok && PrintMethod(t) == nil {
+		// Printed field by field (a type with its own String or Error is
+		// printed through it).
 		for i := 0; i < st.NumFields(); i++ {
 			if PrintMethod(st.Field(i).Type()) != nil || IsIface(st.Field(i).Type()) {
 				return "converting to an interface a struct with a field fmt prints through a method"
@@ -370,4 +388,60 @@ func (c *checker) stringErrors() bool {
 		}
 	}
 	return false
+}
+
+// wrapProblem says why %w at operand a of a call of fn is not supported,
+// or returns "": only in fmt.Errorf, once, plain, of a variable of type
+// error.
+func (c *checker) wrapProblem(v Verb, a ast.Expr, fn string, n int) string {
+	_, isVar := ast.Unparen(a).(*ast.Ident)
+	switch {
+	case fn != "fmt.Errorf":
+		return "%w outside fmt.Errorf"
+	case n > 1:
+		return "more than one %w in a format (errors.Join's form)"
+	case !isError(c.pkg.Info.TypeOf(a)):
+		return "%w of a value that is not of type error"
+	case v.Width >= 0 || v.Prec >= 0 || v.Plus || v.Minus || v.Zero || v.Space || v.Sharp:
+		return fmt.Sprintf("the format %s", v.Spec)
+	case !isVar:
+		return "%w of an expression other than a variable (compute it into one first)"
+	}
+	return ""
+}
+
+// errorsAs checks errors.As(err, &target): target a local variable whose
+// type is an interface or a type that implements error (Go panics on any
+// other), and no type of the program with an As method, which errors.As
+// would call.
+func (c *checker) errorsAs(e *ast.CallExpr) {
+	info := c.pkg.Info
+	u, ok := ast.Unparen(e.Args[1]).(*ast.UnaryExpr)
+	var id *ast.Ident
+	if ok && u.Op == token.AND {
+		id, _ = ast.Unparen(u.X).(*ast.Ident)
+	}
+	v, _ := info.Uses[id].(*types.Var)
+	if id == nil || v == nil || v.Parent() == v.Pkg().Scope() {
+		c.unsupported(e.Args[1], "an errors.As target other than &v for a local variable v")
+		return
+	}
+	t := v.Type()
+	if !types.IsInterface(t) && !types.Implements(t, types.Universe.Lookup("error").Type().Underlying().(*types.Interface)) {
+		c.unsupported(e.Args[1], "an errors.As target whose type is neither an interface nor an error type (Go panics)")
+		return
+	}
+	if what := c.assertProblem(t); what != "" {
+		c.unsupported(e.Args[1], what)
+		return
+	}
+	if c.ifacePlan == nil {
+		c.ifacePlan = Ifaces(c.pkg)
+	}
+	for _, d := range c.ifacePlan.Dyn {
+		if obj, _, _ := types.LookupFieldOrMethod(d, false, nil, "As"); obj != nil {
+			c.unsupported(e, "errors.As in a program with an error type that has an As method")
+			return
+		}
+	}
 }

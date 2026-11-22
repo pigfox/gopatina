@@ -168,6 +168,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- The provided `errors` API: `fmt.Errorf` with `%w` (Go's
+  `*fmt.wrapError`), `errors.Unwrap`, `errors.Is` and `errors.As`, as Go's
+  errors package defines them, through wrapped errors and the program's
+  `Unwrap() error` and `Is(error) bool` methods. Golden `errors_api`; the
+  generator wraps and walks every program's errors.
 - `error` as an ordinary interface value (RFC 0012): errors can be kept,
   stored in variables, fields and slices, passed, compared (`errors.New`'s
   values are equal only to themselves), printed, switched on and asserted;

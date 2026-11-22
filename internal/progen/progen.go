@@ -63,8 +63,9 @@
 //
 // Each program also has an error type and a function returning an error
 // of that type, one made by errors.New, or nil, and keeps its errors as
-// values: in a slice, compared, switched on, asserted and printed (RFC
-// 0012), from a random stream of its own.
+// values: in a slice, compared, switched on, asserted and printed, and
+// wrapped with %w and walked with errors.Unwrap, Is and As (RFC 0012),
+// from a random stream of its own.
 //
 // Each program also shifts values of a random integer type by counts of a
 // random integer type known only at run time, from 0 to far past the width
@@ -561,6 +562,11 @@ func (g *gen) errorUses() {
 	g.line("ec, eok := eerr2.(E%d)", k)
 	g.line("fmt.Println(ec.C, eok, eerrs[0] == eerrs[3], eerrs[0] == eerrs[1], eerrs[2] == nil)")
 	g.line("fmt.Printf(\"%%v|%%s|%%T|%%%dv|\\n\", eerr, eerr2, eerrs[2], eerr)", 1+g.er.IntN(15))
+	// The errors API: %w, Unwrap, Is and As through a chain.
+	g.line("ew := fmt.Errorf(\"w%d: %%w\", eerr)", g.er.IntN(100))
+	g.line("eww := fmt.Errorf(\"ww: %%w\", ew)")
+	g.line("var eas E%d", k)
+	g.line("fmt.Println(ew, eww, errors.Unwrap(eww) == ew, errors.Is(eww, eerr), errors.Is(eww, eerr2), errors.As(eww, &eas), eas.C)")
 }
 
 // printUses prints the program's values with fmt's widths and flags.
