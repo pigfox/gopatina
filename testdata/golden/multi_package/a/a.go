@@ -11,6 +11,9 @@ import (
 // Max is a typed constant used by another package.
 const Max = 10
 
+// Hits is a package-level variable that main changes and reads.
+var Hits int
+
 // A Point has a String method, which fmt calls in every package.
 type Point struct{ X, Y int }
 

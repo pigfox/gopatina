@@ -133,14 +133,21 @@ func (s *structLit) flat() string {
 
 func (s *structLit) prec() int { return precAtom }
 
-// addrOf is &x or &mut x of an expression that may need breaking.
+// addrOf is &x or &mut x of an expression that may need breaking, or a
+// closure without parameters, || x (a static's initializer, RFC 0010),
+// whose body needs no parentheses.
 type addrOf struct {
-	prefix string // "&" or "&mut "
+	prefix string // "&", "&mut " or "|| "
 	x      node
 }
 
-func (a *addrOf) flat() string { return a.prefix + paren(a.x, precUnary) }
-func (a *addrOf) prec() int    { return precUnary }
+func (a *addrOf) flat() string {
+	if a.prefix == "|| " {
+		return a.prefix + a.x.flat()
+	}
+	return a.prefix + paren(a.x, precUnary)
+}
+func (a *addrOf) prec() int { return precUnary }
 
 // binary is l op r.
 type binary struct {
@@ -152,10 +159,21 @@ type binary struct {
 
 func (b *binary) flat() string {
 	l := paren(b.l, b.p)
-	if b.nonAssoc && b.l.prec() == b.p {
+	if (b.nonAssoc && b.l.prec() == b.p) || unclear(b.p, b.l) {
 		l = "(" + b.l.flat() + ")"
 	}
-	return l + " " + b.op + " " + parenRight(b.r, b.p)
+	r := parenRight(b.r, b.p)
+	if unclear(b.p, b.r) {
+		r = "(" + b.r.flat() + ")"
+	}
+	return l + " " + b.op + " " + r
+}
+
+// unclear reports whether operand n of a bitwise or shift operator of
+// precedence p is arithmetic: Rust needs no parentheses there, but clippy's
+// precedence lint asks for them, and they say what the Go source said.
+func unclear(p int, n node) bool {
+	return p >= precBitOr && p <= precShift && (n.prec() == precAdd || n.prec() == precMul)
 }
 
 func (b *binary) prec() int { return b.p }
@@ -379,7 +397,7 @@ func (b *binary) broken(col, ind, suffix int) string {
 }
 
 func layOperand(n node, p, col, ind int, right bool) string {
-	if (right && n.prec() <= p) || (!right && n.prec() < p) {
+	if (right && n.prec() <= p) || (!right && n.prec() < p) || unclear(p, n) {
 		return "(" + lay(n, col+1, ind) + ")"
 	}
 	return lay(n, col, ind)

@@ -280,6 +280,8 @@ func mergeInfo(to, from *types.Info) {
 	for k, v := range from.Scopes {
 		to.Scopes[k] = v
 	}
+	// Package by package, in initialization order (RFC 0010).
+	to.InitOrder = append(to.InitOrder, from.InitOrder...)
 }
 
 // reach returns the declarations of packages other than main that the

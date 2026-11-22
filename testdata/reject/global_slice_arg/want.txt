@@ -1,0 +1,1 @@
+./main.go:25:9: double may change or keep its argument, a package-level variable of type []int (patina mode passes one only to a function that just reads it)

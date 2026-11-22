@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/pigfox/gopatina/internal/borrow"
+	"github.com/pigfox/gopatina/internal/subset"
 )
 
 // A binding is how a Go variable is held in Rust.
@@ -111,6 +112,15 @@ func (g *gen) rootVar(e ast.Expr) *types.Var {
 // *p, rooted at a local variable.
 func (g *gen) isPlace(e ast.Expr) bool {
 	e = ast.Unparen(e)
+	if v := g.globalOf(e); v != nil {
+		// A string read into a local is read as a copy (s += s), and
+		// written through place.
+		if _, aliased := g.galias[v]; aliased && borrow.KindOf(v.Type()) != borrow.Copy {
+			return false
+		}
+		_, ok := g.globalPlace(v)
+		return ok
+	}
 	switch x := e.(type) {
 	case *ast.Ident:
 		return g.localVar(x) != nil
@@ -127,6 +137,12 @@ func (g *gen) isPlace(e ast.Expr) bool {
 
 // place renders a place expression.
 func (g *gen) place(e ast.Expr) node {
+	if v := g.globalOf(e); v != nil {
+		// Only a static or a variable read into a local is a place
+		// (isPlace); a changed one's fields are read through value.
+		p, _ := g.globalPlace(v)
+		return p
+	}
 	switch x := ast.Unparen(e).(type) {
 	case *ast.Ident:
 		if v := g.localVar(x); g.fastVar(v) {
@@ -198,6 +214,12 @@ func (g *gen) value(e ast.Expr) node {
 	}
 	e = ast.Unparen(e)
 	t := tv.Type
+	if c, ok := e.(*ast.CallExpr); ok && g.callTemps[c] != "" {
+		return text(g.callTemps[c])
+	}
+	if v := g.globalOf(e); v != nil {
+		return g.globalValue(v)
+	}
 	switch x := e.(type) {
 	case *ast.Ident:
 		if tv.IsNil() {
@@ -276,6 +298,9 @@ func (g *gen) ref(e ast.Expr) node {
 	e = ast.Unparen(e)
 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
 		return g.ref(u.X)
+	}
+	if v := g.globalOf(e); v != nil && g.globals[v] == subset.GlobalStatic && g.galias[v] == "" {
+		return atom{"&" + g.globalName(v), precUnary} // deref coercion gives &[T], &str
 	}
 	if id, ok := e.(*ast.Ident); ok && g.localVar(id) != nil {
 		if b := g.bindingOf(g.localVar(id)); b != bOwned {

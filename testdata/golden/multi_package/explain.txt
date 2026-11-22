@@ -1,1 +1,1 @@
-./a/a.go:25:10: parameter ps is a shared borrow: Sum only reads it
+./a/a.go:28:10: parameter ps is a shared borrow: Sum only reads it

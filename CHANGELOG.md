@@ -156,6 +156,22 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Package-level variables (RFC 0010): read-only ones as static LazyLocks
+  forced in Go's initialization order (go/types' InitOrder, per package,
+  before the init functions); changed numbers, booleans and structs of them
+  as thread-local Cells; changed strings as thread-local RefCells. In a
+  simple statement that reads or changes one, calls run first, as gc runs
+  them (the Go specification leaves that order open). Rejected with their
+  own messages: changed slices, a variable's address, pointer-receiver
+  methods on one, multi-value initializers, a read-only slice passed to a
+  function that may change it, and conditions that read a changed variable
+  and call a function. Golden programs package_vars, package_var_panic and
+  gc_inline_carry_3 (the gc inline-carry bug across packages, found by the
+  gate); rejection fixture global_slice_arg; generator cases in every
+  program.
+- The emitter keeps parentheses around arithmetic inside bitwise and shift
+  operators (clippy's precedence lint), and crates allow
+  clippy::match_single_binding (a Go switch with only a default case).
 - Programs of several packages (RFC 0009): the packages a program imports,
   of its own module, other modules and the standard library, are translated
   from their Go source into Rust modules of the one crate (`pub(crate)`

@@ -19,6 +19,7 @@
 #![allow(clippy::manual_rem_euclid)] // the Go source computes the remainder as written
 #![allow(clippy::manual_unwrap_or)] // Go's error patterns map to match
 #![allow(clippy::manual_unwrap_or_default)] // Go's error patterns map to match
+#![allow(clippy::match_single_binding)] // a Go switch with only a default case
 #![allow(clippy::mut_range_bound)] // Go allows changing a range bound
 #![allow(clippy::needless_range_loop)] // the Go source indexes by position
 #![allow(clippy::needless_return)] // the Go source controls the returns

@@ -173,7 +173,7 @@ func TestMeasure(t *testing.T) {
 		"usesMap":        {false, "maps"},
 		"usesBadType":    {false, "maps"},
 		"callsBad":       {false, "maps"},
-		"usesVar":        {false, "package-level variables"},
+		"usesVar":        {true, ""}, // RFC 0010
 		"plain.Get":      {true, ""},
 		"withMap.Size":   {false, "maps"},
 		"callsMethod":    {true, ""},

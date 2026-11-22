@@ -1,0 +1,1 @@
+./main.go:14:10: parameter s is owned: say keeps it

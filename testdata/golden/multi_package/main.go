@@ -14,11 +14,13 @@ import (
 )
 
 func main() {
+	a.Hits += 2
+	a.Hits++
 	p := a.New(3, 4)
 	q := b.Scale(p, a.Max)
 	fmt.Println(p, q, a.Sum([]a.Point{p, q}), b.New(), c.New(), b.Kind(2))
 	var k b.Kind = b.Big
-	fmt.Printf("%v %d %s %d\n", k, k, k, b.Shift(3, a.Max))
+	fmt.Printf("%v %d %s %d %d\n", k, k, k, b.Shift(3, a.Max), a.Hits)
 	// Outside Go's documented domain (a carry other than 0 or 1): gc on
 	// amd64 counts a carry whose low 32 bits are not zero as 1.
 	m := uint64(1<<64 - 1)

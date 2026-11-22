@@ -38,7 +38,7 @@ the exact error committed beside it.
 | Packages | `package main` with `func main()`, any number of files, and the packages it imports: of its own module, of other modules and of the standard library, translated from their Go source; only what `main` and the `init` functions reach is translated ([RFC 0009](rfcs/0009-packages.md)); `math/bits` intrinsics give gc's results |
 | Imports | `fmt`, `strings`, `errors`, `os`, `io`, `slices`, `bytes` (only the functions below) |
 | Types | every integer type (`int`, `int8` to `int64`, `uint`, `uint8` (`byte`) to `uint64`, `uintptr`, `rune`), `float32`, `float64` ([RFC 0008](rfcs/0008-integer-and-float-types.md)), `bool`, `string`, slices of supported types, named struct types, named types of the basic and slice types (`type Op int`, `type Path []int`, [RFC 0007](rfcs/0007-named-types-and-aliases.md)) and type aliases, `error` (as a result), `io.Writer` (as a parameter) |
-| Declarations | functions and methods, `init` functions (run in source order before `main`) (on structs and on named non-struct types), struct types, named types, type aliases, constants (typed, untyped, `iota`), local variables |
+| Declarations | functions and methods, `init` functions (run in source order before `main`), package-level variables in Go's initialization order ([RFC 0010](rfcs/0010-package-variables.md)) (on structs and on named non-struct types), struct types, named types, type aliases, constants (typed, untyped, `iota`), local variables |
 | Statements | assignment (`=`, `:=`, `op=`, tuple assignment), `++`/`--`, `if`/`else` with an init statement, `for` (3-clause, condition, infinite), `for range` over slices, strings and integers, `switch` (with and without a tag, several values per case, `default` anywhere), `break`, `continue`, `return` |
 | Expressions | arithmetic, comparison, logical and bitwise operators, shifts (by a constant or a run-time count: Go's 0 or −1 at and past the width, and Go's panic for a negative count), string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, method calls, `&x` and `*p`; Phase 2 adds [read-only slice suffix arguments](#read-only-slice-suffix-arguments) |
 | Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string, `min` and `max` (Go 1.21, integers only) |
@@ -50,7 +50,8 @@ Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values, interfaces other
 than `error` and `io.Writer`, generics, `defer`, labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,
-general slicing (`s[i:j]`), arrays, package-level variables, embedded fields,
+general slicing (`s[i:j]`), arrays, package-level variables of slice type
+that the program changes (and the other cases RFC 0010 lists), embedded fields,
 type switches and assertions, variadic functions, the other built-ins
 (`cap`, `copy`, `new`, `clear`, ...), `min`/`max` with float arguments, functions without
 a body (assembly), and complex numbers.

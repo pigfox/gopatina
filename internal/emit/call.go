@@ -129,6 +129,18 @@ func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
 	if name, ok := g.hoisted[a]; ok {
 		return text(name)
 	}
+	if c, ok := ast.Unparen(a).(*ast.CallExpr); ok && g.callTemps[c] != "" {
+		// A call computed into a local first (RFC 0010's order).
+		switch p.Mode {
+		case borrow.Ref:
+			if borrow.KindOf(g.typeOf(a)) != borrow.Copy {
+				return text("&" + g.callTemps[c])
+			}
+		case borrow.RefMut:
+			return text("&mut " + g.callTemps[c])
+		}
+		return text(g.callTemps[c])
+	}
 	switch p.Mode {
 	case borrow.Ref:
 		if isStringType(g.typeOf(a)) {

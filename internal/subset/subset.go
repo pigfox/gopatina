@@ -53,6 +53,7 @@ func Check(pkg *load.Package) []diag.Diagnostic {
 	for _, f := range pkg.Files {
 		c.file(f)
 	}
+	c.checkGlobals()
 	_, errDiags := Errors(pkg)
 	c.diags = append(c.diags, errDiags...)
 	c.explainReach()
@@ -130,7 +131,7 @@ func (c *checker) genDecl(d *ast.GenDecl, top bool) {
 			c.typeSpec(s, top)
 		case *ast.ValueSpec:
 			if d.Tok == token.VAR && top {
-				c.unsupported(s, "a package-level variable")
+				c.globalSpec(s)
 				continue
 			}
 			for _, name := range s.Names {
@@ -658,16 +659,15 @@ func (c *checker) expr(e ast.Expr) {
 }
 
 func (c *checker) ident(id *ast.Ident) {
-	switch obj := c.pkg.Info.Uses[id].(type) {
+	switch c.pkg.Info.Uses[id].(type) {
 	case *types.Func:
 		c.unsupported(id, fmt.Sprintf("using function %s as a value", id.Name))
 	case *types.Nil:
 		// nil is a nil error or an empty slice: pointers are never nil,
 		// since they start as &x, and nil is never passed for one.
 	case *types.Var:
-		if obj.Pkg() != nil && obj.Parent() == obj.Pkg().Scope() {
-			c.unsupported(id, "a package-level variable")
-		}
+		// A package-level variable (RFC 0010): its uses are checked by
+		// checkGlobals, which knows what encloses them.
 	}
 }
 
@@ -680,8 +680,6 @@ func (c *checker) localSelector(e *ast.SelectorExpr, name string, called bool) {
 		if !called {
 			c.unsupported(e, fmt.Sprintf("using %s as a value", name))
 		}
-	case *types.Var:
-		c.unsupported(e, fmt.Sprintf("the package-level variable %s", name))
 	}
 }
 
