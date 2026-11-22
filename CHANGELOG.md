@@ -70,6 +70,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- The two bars are stated with their hypotheses and exact formulas in
+  docs/QUALITY.md, BENCHMARKS.md and the README: speed, equivalent to
+  hand-written Rust within ±0.5% by a TOST equivalence test at 5σ; and
+  correctness, the Six Sigma bar of at most 3.4 defects per million (4.5σ
+  after the conventional 1.5σ shift), shown by 0 defects in at least 881,098
+  differential tests. gopatina.org reports its evidence as a scientific
+  report (hypotheses, method, apparatus, statistical analysis, results,
+  threats to validity, reproducibility, references), with both results
+  pending until the test server's runs.
 - RFC 0006 loop specialization: when the emitter proves a loop nest's
   integer arithmetic cannot wrap, its induction variables are written as
   `usize`, as hand-written Rust would; when the proof needs one bound, such
