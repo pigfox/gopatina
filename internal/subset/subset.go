@@ -288,7 +288,7 @@ func unsupportedType(t types.Type, constOK bool) string {
 				return ""
 			}
 		}
-		return fmt.Sprintf("type %s", t.Name())
+		return fmt.Sprintf("type %s", t) // unsafe.Pointer by its full name
 	case *types.Slice:
 		if isError(t.Elem()) || isWriter(t.Elem()) {
 			return fmt.Sprintf("type %s", t)
@@ -345,7 +345,8 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.ExprStmt:
 		call, ok := ast.Unparen(s.X).(*ast.CallExpr)
 		if !ok {
-			c.unsupported(s, "this expression statement")
+			// go/types accepts no other expression statement.
+			c.unsupported(s, "a channel receive as a statement")
 			return
 		}
 		c.call(call, true)
@@ -473,7 +474,8 @@ func (c *checker) rangeStmt(s *ast.RangeStmt) {
 		c.unsupported(s.X, "range over a function (Go 1.23)")
 		return
 	default:
-		c.unsupported(s.X, "range over "+t.String())
+		kind := map[string]string{"*types.Map": "a map", "*types.Chan": "a channel", "*types.Array": "an array", "*types.Pointer": "a pointer to an array"}[fmt.Sprintf("%T", t.Underlying())]
+		c.unsupported(s.X, fmt.Sprintf("range over %s (%s)", kind, t))
 		return
 	}
 	if s.Tok == token.ASSIGN {
@@ -560,6 +562,8 @@ func (c *checker) lvalue(e ast.Expr) {
 		c.expr(e.Index)
 	case *ast.StarExpr:
 		c.expr(e.X)
+	case *ast.TypeAssertExpr:
+		c.unsupported(e, "a type assertion in an assignment target")
 	default:
 		c.unsupported(e, "this assignment target")
 	}

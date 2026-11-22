@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/pigfox/gopatina/internal/diag"
 	"github.com/pigfox/gopatina/internal/load"
@@ -57,12 +58,61 @@ const Excluded = "reflect and unsafe (excluded)"
 // Unknown messages fall into "other"; every message the checker can give
 // is covered by a test.
 func Feature(msg string) string {
+	// A named type or alias is rejected for what it is made of (RFC 0007):
+	// "type Code: type uint32 ..." needs uint32.
+	msg = declPrefixRE.ReplaceAllString(msg, "")
+	if f := fmtFeature(msg); f != "" {
+		return f
+	}
 	for _, r := range rules {
 		if r.re.MatchString(msg) {
 			return r.name
 		}
 	}
 	return "other"
+}
+
+// The fmt features: what a printing diagnostic needs, from the verb and the
+// type it names.
+const (
+	FmtVerbs       = "fmt verbs and flags"
+	FmtMayPanic    = "fmt: String or Error method that may panic"
+	interfacesName = "interfaces"
+	foreignName    = "types from other packages"
+)
+
+var (
+	declPrefixRE  = regexp.MustCompile(`^type [^ ]+: (an alias of )?`)
+	printTypeRE   = regexp.MustCompile(`^(?:printing a value|the format (%\S*)) (?:of|with a value of) type (.+?)(?: is not supported|$)`)
+	ifaceTypeRE   = regexp.MustCompile(`^(\[\])*(interface \{\}|any)$`)
+	foreignTypeRE = regexp.MustCompile(`^[*\[\]]*[a-z][a-z0-9_./-]*\.[A-Za-z_]`)
+)
+
+// fmtFeature classifies a diagnostic about printing, or returns "": a value
+// of an interface type needs interfaces; one of another package's type
+// needs that type; a %# verb, a flag or verb the type lacks, or printing a
+// struct or pointer of the package needs fmt work.
+func fmtFeature(msg string) string {
+	if strings.HasPrefix(msg, "printing a value whose ") {
+		return FmtMayPanic
+	}
+	if strings.HasPrefix(msg, "printing a slice of a type with") {
+		return FmtVerbs
+	}
+	m := printTypeRE.FindStringSubmatch(msg)
+	if m == nil {
+		return ""
+	}
+	verb, t := m[1], m[2]
+	switch {
+	case strings.Contains(verb, "#"):
+		return FmtVerbs
+	case ifaceTypeRE.MatchString(t):
+		return interfacesName
+	case foreignTypeRE.MatchString(t) && !strings.HasPrefix(strings.TrimLeft(t, "*[]"), "main."):
+		return foreignName
+	}
+	return FmtVerbs
 }
 
 type rule struct {
@@ -74,8 +124,9 @@ var rules = func() []rule {
 	list := [][2]string{
 		{"package-main rule", `only package main is supported|has no func main\(\)`},
 		{Excluded, `\b(reflect|unsafe)\.[A-Za-z_]|^package (reflect|unsafe) is not supported|\bunsafe\.Pointer\b`},
-		{"goroutines and channels", `go statement|^select|channel|\bchan\b`},
-		{"maps", `map type|range over map|make of map`},
+		{"arrays", `^range over (an array|a pointer to an array)`},
+		{"goroutines and channels", `go statement|^select|channel|\bchan\b|the <- operator`},
+		{"maps", `map type|range over (a )?map|make of map`},
 		{"interfaces", `interface type|type assertion|type switch|io\.Writer|^calling methods on|^type any\b`},
 		{"closures and function values", `function literal|function value|function type|as a value|method value|method expression|range over a function`},
 		{"generics", `generic|Go 1\.18`},
@@ -89,6 +140,8 @@ var rules = func() []rule {
 		{"pointers", `pointer|address of|passing nil`},
 		{"slicing", `slice expression|s\[i:j\]`},
 		{"arrays", `array type|range over \[[0-9]`},
+		{"interfaces", `^a type assertion in an assignment target`},
+		{"statement forms", `^this expression statement|^this assignment target|range loop that assigns to existing`},
 		{"named non-struct types", `named type that is not a struct`},
 		{"type aliases", `type alias`},
 		{"embedded and promoted fields", `embedded field|promoted field`},
