@@ -310,7 +310,7 @@ func (g *gen) ref(e ast.Expr) node {
 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
 		return g.ref(u.X)
 	}
-	if v := g.globalOf(e); v != nil && g.globals[v] == subset.GlobalStatic && g.galias[v] == "" {
+	if v := g.globalOf(e); v != nil && g.globals[v] == subset.GlobalStatic && g.galias[v] == "" && !g.localStatic(v) {
 		return atom{"&" + g.globalName(v), precUnary} // deref coercion gives &[T], &str
 	}
 	if id, ok := e.(*ast.Ident); ok && g.localVar(id) != nil {

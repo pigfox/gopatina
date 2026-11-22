@@ -141,15 +141,13 @@ func (c *checker) globalSpec(s *ast.ValueSpec) {
 	for _, n := range s.Names {
 		v := c.pkg.Info.Defs[n].(*types.Var) // _ too: go/types defines it
 		switch t := v.Type(); {
-		case isError(t):
-			c.unsupported(n, "a package-level variable of type error")
 		case isWriter(t):
 			c.unsupported(n, "a package-level variable of type io.Writer")
-		case holdsIface(t):
-			// A static must be shareable between threads, which the
-			// reference count of an interface value (RFC 0012) is not
-			// until goroutines choose the shareable form (RFC 0002).
-			c.unsupported(n, "a package-level variable holding an interface value")
+		case holdsIface(t) && !IsIface(t):
+			// An interface value itself is a thread-local (RFC 0012) until
+			// goroutines choose the shareable form (RFC 0002); inside a
+			// struct or slice it is not supported yet.
+			c.unsupported(n, "a package-level variable holding an interface value in a struct or slice")
 		default:
 			c.typ(n, t, false)
 		}
@@ -211,7 +209,7 @@ func (c *checker) checkGlobals() {
 					c.conditions(kinds, e)
 				}
 			}
-			if g := c.globalUse(n); g != nil && kinds[g] == GlobalStatic && !copyKind(g.Type()) && !isString(g.Type()) && !c.readUse(n, parent) {
+			if g := c.globalUse(n); g != nil && kinds[g] == GlobalStatic && !copyKind(g.Type()) && !isString(g.Type()) && !IsIface(g.Type()) && !c.readUse(n, parent) {
 				c.unsupported(n, fmt.Sprintf("using the package-level variable %s this way (a copy of a slice shares its elements)", g.Name()))
 			}
 			return true
