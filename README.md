@@ -23,8 +23,8 @@ existing Go program builds exactly as before.
 > borrow checker, the Rust code generator, `-emit-rust`, `-patina`,
 > `-patina=check` and `gopatina verify` are implemented and tested. Everything
 > else, goroutines and maps first among them, is planned and rejected with a
-> clear error today. No performance figures are published yet (see
-> [Quality and performance policy](#quality-and-performance-policy)).
+> clear error today. No official performance figures yet; local measurements
+> against hand-written Rust are in [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Why
 

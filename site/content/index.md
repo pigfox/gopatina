@@ -6,9 +6,9 @@
 
 **Mission: Go developers get Rust's performance and safety without the painful Rust learning curve.**
 
-**Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress.** Default mode works for all Go. For the subset, `-emit-rust`, `-patina`, `-patina=check`, `-explain` and `gopatina verify` are implemented and tested, including read-only `s[i:]` suffix arguments; everything else is rejected with a clear error. No performance figures are published yet.
+**Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress.** Default mode works for all Go. For the subset, `-emit-rust`, `-patina`, `-patina=check`, `-explain` and `gopatina verify` are implemented and tested, including read-only `s[i:]` suffix arguments; everything else is rejected with a clear error. No official performance figures yet; local measurements are under Benchmarks.
 
-Last updated 2026-11-18. Canonical page: https://gopatina.org/
+Last updated 2026-11-21. Canonical page: https://gopatina.org/
 
 ## Why GoPatina
 
@@ -108,7 +108,7 @@ Every Go package in the project has 100% unit-test coverage, enforced in CI, and
 
 ## Benchmarks
 
-**No official test-server run has happened yet.** Two local verification runs on the maintainer's workstation are published in [BENCHMARKS.md](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md) with raw JSON and environment details: all three cases, including the read-only `s[i:]` case, stayed within 10% of hand-written Rust (worst ratio 1.043 across both runs), but the `fib` ratio ranged from 0.890 to 1.039. Those are not official results. The goal is identical speed to equivalent hand-written Rust on every benchmark, built with the latest stable Rust. That is a goal, not a claim. Official numbers will come only from the maintainer's dedicated test server, run on the full suite.
+**No official test-server run has happened yet.** The goal is identical speed to equivalent hand-written Rust on every benchmark, built with the latest stable Rust. That is a goal, not a claim. The latest local run (2026-11-21, commit `6cb858f`, on the maintainer's workstation) measured GoPatina / hand-written Rust at 0.730 for `fib`, 1.123 for `sieve` and 1.010 for `suffix-sum`. These wall-clock numbers are noisy: the machine was in normal use, and the `fib` ratio alone has ranged from 0.730 to 1.039 across three runs, so they cannot show whether GoPatina is identical to, faster or slower than Rust. The machine code says more. Compiled with the same rustc and flags, the hot function of `fib` is instruction for instruction the same as the hand-written Rust, and `suffix-sum` is the same apart from a one-time panic-hook setup at startup. `sieve` is not: its inner loop does one extra bounds check on every pass, because Go's `int` becomes a signed `i64` where the hand-written Rust uses `usize`. That is the next gap to close. Raw results, caveats and the commands are in [BENCHMARKS.md](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md). Official numbers will come only from the maintainer's dedicated test server, run on the full suite.
 
 ## Frequently asked questions
 
@@ -125,7 +125,7 @@ Yes. Without a patina flag, gopatina runs go with the same arguments, so every G
 No. You write Go. Without a garbage collector a few ownership rules remain, but GoPatina's borrow checker infers ownership and borrows, fixes what it safely can, and explains the rest in Go terms.
 
 **How fast is GoPatina?**
-Two local verification runs have been published in BENCHMARKS.md: all three cases were within 10% of hand-written Rust, with a worst observed ratio of 1.043. These are not official results; official numbers will come from the maintainer's dedicated test server, measured against hand-written Rust and plain Go.
+The goal is identical speed to equivalent hand-written Rust; no official figures exist yet. In a local comparison of the machine code, two of the three benchmarks, fib and suffix-sum, compile to the same hot-loop instructions as the hand-written Rust. The third, sieve, does one extra bounds check per inner-loop pass, which is the next gap to close. Local wall-clock timings are too noisy to say more; they are published with their caveats in BENCHMARKS.md.
 
 **What does a machine need to run a patina binary?**
 Nothing extra. A patina binary is native machine code, so the target needs neither Go nor Rust installed, just like a Go binary. Phase 1 links against the platform's default C runtime; static binaries are planned.

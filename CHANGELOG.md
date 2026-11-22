@@ -75,6 +75,12 @@ Until 1.0.0, minor versions may contain breaking changes.
   JSON and environment metadata. All three cases stayed within the 1.10
   GoPatina/Rust target (worst 1.043); they are explicitly not official
   test-server results.
+- A 2026-11-21 local run on `6cb858f` and a machine-code comparison against
+  the hand-written Rust are published in BENCHMARKS.md: `fib` and
+  `suffix-sum` compile to the same hot loops, and `sieve` keeps one extra
+  bounds check per inner-loop pass. The wall-clock ratios are stated as noisy,
+  the goal is stated as identical speed, and the README and gopatina.org no
+  longer say that no figures are published.
 - docs/go-rust-disconnects.md lists every known place where Go's and Rust's
   semantics differ, with Go's exact behaviour, the options, a recommended fix
   and whether it blocks full compatibility; default mode is stated as a pure
