@@ -268,6 +268,24 @@ func (g *gen) std(e *ast.CallExpr, name string) node {
 		return method(g.strRef(a[0]), "ends_with", g.strArg(a[1]))
 	case "strings.Index":
 		return method(method(g.strRef(a[0]), "find", g.strArg(a[1])), "map_or", text("-1"), text("|i| i as i64"))
+	case "strings.ToLower", "strings.ToUpper", "strings.EqualFold", "strings.TrimPrefix",
+		"strings.TrimSuffix", "strings.Split", "strings.Cut":
+		helper := map[string]string{
+			"strings.ToLower": "to_lower", "strings.ToUpper": "to_upper", "strings.EqualFold": "equal_fold",
+			"strings.TrimPrefix": "trim_prefix", "strings.TrimSuffix": "trim_suffix",
+			"strings.Split": "split", "strings.Cut": "cut",
+		}[name]
+		g.rt[helper] = true
+		var args []node
+		for _, x := range a {
+			args = append(args, g.strArg(x))
+		}
+		return &call{head: "rt::" + helper, open: "(", close: ")", args: args}
+	case "strings.IndexByte":
+		g.rt["index_byte"] = true
+		return &call{head: "rt::index_byte", open: "(", close: ")", args: []node{g.strArg(a[0]), g.value(a[1])}}
+	case "strings.ReplaceAll":
+		return method(g.strRef(a[0]), "replace", g.strArg(a[1]), g.strArg(a[2]))
 	case "strings.Join":
 		return method(g.sliceRef(a[0]), "join", g.strArg(a[1]))
 	case "errors.New":

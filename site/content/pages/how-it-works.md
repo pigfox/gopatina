@@ -38,7 +38,7 @@ The patina modes accept a defined subset of Go, specified in [docs/patina-subset
 - package-level variables, initialized in Go's order
 - `if`, `for` (including `for range` over slices, strings and integers), `switch`, constants and `iota`
 - `error` results with `errors.New` and `fmt.Errorf`, and pointers used as borrows
-- `fmt` printing (`Println`, `Printf`, `Sprintf`, `Fprintf` and the rest) and a few functions from `strings`, `slices`, `bytes` and `os`
+- `fmt` printing (`Println`, `Printf`, `Sprintf`, `Fprintf` and the rest), the common functions of `strings` (`Split`, `Cut`, `ToLower`, `ToUpper`, `EqualFold`, `ReplaceAll`, `TrimPrefix`, `TrimSuffix` and more, with case mapping by Go's own Unicode tables), and a few functions from `slices`, `bytes` and `os`
 
 **Not supported yet:** goroutines and channels, maps, closures and function values, interfaces other than `error` and `io.Writer`, generics, `defer`, general slicing (`s[i:j]`), slices with an explicit high or max bound, saved slice views, and most of the standard library. Every unsupported construct is rejected with a Go-style error that names the construct; nothing is translated approximately. See the [feature matrix](https://github.com/pigfox/gopatina/blob/main/docs/compat.md) and [every known place where Go and Rust semantics differ](https://github.com/pigfox/gopatina/blob/main/docs/go-rust-disconnects.md).
 

@@ -1,5 +1,7 @@
 package emit
 
+//go:generate go run ./internal/gencase casetables.go
+
 import (
 	"sort"
 	"strings"
