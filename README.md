@@ -234,8 +234,10 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
     one-sided tests (TOST) equivalence test at 5σ (one-sided p ≈ 2.9 × 10⁻⁷
     per bound).
   - **Correctness, the Six Sigma bar:** at most 3.4 defects per million
-    (DPMO), shown by 0 defects in at least 881,098 generated differential
-    tests against Go (95% one-sided upper bound, the rule of three).
+    (DPMO), shown at 6σ confidence by 0 defects in at least 6,099,050
+    generated differential tests against Go (one-sided α ≈ 9.9 × 10⁻¹⁰). On
+    the way, 881,098 defect-free tests show the same rate at 95% confidence
+    (the rule of three).
 - **100% unit-test coverage**, enforced in CI, plus the integration, golden,
   differential and fuzz tests each phase requires.
 - **Shadow Rust and keep up.** Every release, and every pull request that

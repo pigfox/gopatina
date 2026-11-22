@@ -16,8 +16,9 @@
 // time. Failing batches are kept under -failures with both outputs. The
 // report on standard output is JSON: programs, panic cases, tests (the two
 // together), defects, defects per million tests, and, with no defects, the
-// 95% upper bound on the defect rate, -ln(0.05) / tests. 881,098
-// defect-free tests bound it at 3.4 per million.
+// upper bounds on the defect rate at 95% and at 6σ confidence,
+// -ln(alpha) / tests. Defect-free tests bound it at 3.4 per million from
+// 881,098 tests at 95% and from 6,099,050 at 6σ (docs/QUALITY.md).
 // The exit status is 0 with no defects, 3 with defects, 1 on an error (such
 // as a program the Go toolchain itself does not build or run cleanly, which
 // is a generator bug) and 2 on bad usage. See docs/QUALITY.md.
@@ -80,6 +81,7 @@ type report struct {
 	BuildFailed       int      `json:"build_failed"`
 	DefectsPerMillion float64  `json:"defects_per_million"`
 	Upper95           *float64 `json:"upper_bound_95_per_million,omitempty"`
+	Upper6Sigma       *float64 `json:"upper_bound_6sigma_per_million,omitempty"`
 	FailedPrograms    []int    `json:"failed_programs,omitempty"`
 	Seconds           float64  `json:"seconds"`
 }
@@ -186,6 +188,9 @@ func summarize(c config, results []outcome) report {
 	if r.Defects == 0 {
 		u := -math.Log(0.05) / float64(r.Tests) * 1e6
 		r.Upper95 = &u
+		// alpha = P(Z > 6), the one-sided normal tail at 6σ.
+		u6 := -math.Log(0.5*math.Erfc(6/math.Sqrt2)) / float64(r.Tests) * 1e6
+		r.Upper6Sigma = &u6
 	}
 	return r
 }

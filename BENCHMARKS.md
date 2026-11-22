@@ -23,7 +23,7 @@ with the latest stable Rust. That is a goal, not a claim.
 | Bar | Definition | Test | Status |
 | --- | --- | --- | --- |
 | Speed | Equivalent to hand-written Rust within ±0.5% (ratio in (1/1.005, 1.005)) | TOST on paired log ratios at 5σ, one-sided α = Φ(−5) ≈ 2.87 × 10⁻⁷ per bound | Target; the test-server run is pending |
-| Correctness (Six Sigma) | At most 3.4 defects per million tests (4.5σ, after the conventional 1.5σ shift) | 0 defects in ≥ 881,098 differential tests against Go: 95% one-sided upper bound 1 − 0.05^(1/N) < −ln(0.05) / N | Target; the test-server run is pending |
+| Correctness (Six Sigma) | At most 3.4 defects per million tests (4.5σ, after the conventional 1.5σ shift), shown at 6σ confidence | 0 defects in ≥ 6,099,050 differential tests against Go: one-sided upper bound 1 − α^(1/N) < −ln(α) / N with α = Φ(−6) ≈ 9.87 × 10⁻¹⁰. Milestone: 0 defects in ≥ 881,098 tests, the same bound at 95% | Target; both the milestone and the bar are pending on the test server |
 
 Hypotheses, formulas and their limits are in
 [docs/QUALITY.md](docs/QUALITY.md#the-two-bars). "Identical" means equivalent within ±0.5% at 5σ: in a two one-sided tests (TOST) equivalence test on paired, interleaved runs, the whole 5σ interval of the ratio lies inside ±0.5%.

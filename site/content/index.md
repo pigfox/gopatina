@@ -134,7 +134,7 @@ GoPatina makes two measurable claims, and this section reports them the way a sc
 
 **Speed: two one-sided tests (TOST).** The two binaries run alternately in ABBA order after warm-up runs, so slow drift affects both alike. From the N paired log ratios, with mean μ̂ and standard deviation s, the (1 − 2α) confidence interval is μ̂ ± t<sub>1−α, N−1</sub> · s / √N, with α = Φ(−5) ≈ 2.87 × 10⁻⁷ for each one-sided test. The benchmark is *equivalent* when the whole interval lies inside (−δ, δ), *slower* or *faster* when it lies wholly beyond, and *inconclusive* otherwise. N is chosen from a 100-run pilot as N ≈ (5 · s / (δ − |μ̂|))², so that the interval can fit inside the margin. Across the three benchmarks, the chance of any false "equivalent" is at most 3α ≈ 8.6 × 10⁻⁷ (Bonferroni).
 
-**Correctness: a zero-defect bound.** With 0 defects in N independent tests, the exact one-sided 95% upper bound on p is 1 − 0.05<sup>1/N</sup>, which is below −ln(0.05) / N ≈ 3 / N, the rule of three. H₀ is rejected at the 5% level when N ≥ −ln(0.05) / p₀ = **881,098**. The 3.4 per million comes from the Six Sigma convention: a mean 6σ from its limit, less the conventional 1.5σ long-term drift, leaves 4.5σ, and P(Z > 4.5) ≈ 3.4 × 10⁻⁶. The bar is at 95% confidence, the usual reading of Six Sigma. The same rate at the speed bar's confidence would need N ≥ −ln(α) / p₀: 4,430,882 defect-free tests at 5σ, or 6,099,050 at 6σ.
+**Correctness: a zero-defect bound at 6σ.** With 0 defects in N independent tests, the exact one-sided upper bound on p at confidence 1 − α is 1 − α<sup>1/N</sup>, which is below −ln(α) / N. H₀ is rejected at level α when N ≥ −ln(α) / p₀. The bar uses α = Φ(−6) ≈ 9.87 × 10⁻¹⁰, 6σ confidence, so it needs 0 defects in at least **6,099,050** tests. On the way there, 0 defects in 881,098 tests show the same rate at 95% confidence (α = 0.05, where −ln(α) / N ≈ 3 / N is the rule of three); that is reported as a milestone, not as the bar. The 3.4 per million comes from the Six Sigma convention: a mean 6σ from its limit, less the conventional 1.5σ long-term drift, leaves 4.5σ, and P(Z > 4.5) ≈ 3.4 × 10⁻⁶.
 
 ### 5. Results
 
@@ -147,7 +147,8 @@ GoPatina makes two measurable claims, and this section reports them the way a sc
 | **The speed bar** (±0.5%, 5σ) | pending | test server | pending |
 | Golden programs | 92 of 92 match Go's output, first stderr line and exit status | every change, in CI | passing |
 | Development smoke runs | 1,318 generated tests, 0 defects | 2026-11-21, laptop, three generator versions | far below 881,098: not evidence for the bar |
-| **The correctness bar** (≤ 3.4 DPMO) | pending: 0 defects needed in at least 881,098 tests | test server | pending |
+| Correctness milestone (≤ 3.4 DPMO at 95% confidence) | pending: 0 defects needed in at least 881,098 tests | test server | pending |
+| **The correctness bar** (≤ 3.4 DPMO at 6σ confidence) | pending: 0 defects needed in at least 6,099,050 tests | test server | pending |
 
 Brackets are 5σ intervals of the ratio GoPatina / hand-written Rust; below 1 is faster. One defect was found during this work by hand, not by the generator: a `make` with a negative length known only at run time panicked with Rust's message instead of Go's. It was fixed, with five golden programs, before the generator began testing panics. Raw results and run notes are in [BENCHMARKS.md](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md).
 
@@ -159,7 +160,6 @@ Brackets are 5σ intervals of the ratio GoPatina / hand-written Rust; below 1 is
 - **Measurement.** A wall-time run includes process start-up, which dilutes a difference in a short benchmark. Instruction counts are not time.
 - **Toolchains.** Emitted crates pin rustc 1.93.0, while the baseline uses the latest stable Rust, so a compiler change can move a ratio either way.
 - **The generator.** The correctness bound holds for programs the generator produces. A kind of bug the generator never triggers is invisible to it, and its tests are not independent draws from real programs. Only the first line of standard error is compared, not Go's stack trace.
-- **Confidence.** The correctness bar is at 95%, not 5σ (see above).
 
 ### 7. Reproducibility
 
@@ -170,7 +170,7 @@ bench/run.sh --equiv --runs 100 --out pilot.json          # pilot: read sd_log_r
 bench/run.sh --equiv --runs N --out equiv.json            # the TOST run, N from the pilot
 bench/asm-check.sh                                        # the machine-code comparison
 go build -o gopatina ./cmd/gopatina && go build -o gopatina-difftest ./cmd/gopatina-difftest
-./gopatina-difftest -seed 1 -programs 882000 -per 150 -jobs 6 -gopatina ./gopatina >difftest.json
+./gopatina-difftest -seed 1 -programs 6076000 -per 150 -jobs 6 -gopatina ./gopatina >difftest.json   # 6,116,548 tests
 ```
 
 Emitted Rust is byte-identical for the same input, and `gopatina verify` checks that a `-patina` binary has the same sha256 as a plain `cargo build --release --locked` of the emitted crate.
@@ -199,7 +199,7 @@ No. You write Go. Without a garbage collector a few ownership rules remain, but 
 The bar is equivalence with equivalent hand-written Rust within ±0.5%, shown by a two one-sided tests (TOST) equivalence test at 5σ; the test-server run that would show it is pending. In local measurements, fib and suffix-sum execute the same instructions as the hand-written Rust to within 0.0003% and compile to the same hot-loop machine code. The third benchmark, sieve, measured 1.30 times the instructions and about 7% slower, because of one extra bounds check per inner-loop pass; RFC 0006's loop specialization has since removed that check, so its hot loop now compiles to the same machine code too. The evidence section of this page reports the method, the statistics and every result.
 
 **How is GoPatina's correctness measured?**
-By differential testing against Go: a program built with gopatina build -patina must print the same standard output, the same first line of standard error and exit with the same status as the same program built with go build. The bar is Six Sigma: at most 3.4 defects per million tests, shown by 0 defects in at least 881,098 generated tests (a 95% one-sided upper bound). That run is pending on the test server; the 92 golden programs pass in CI on every change.
+By differential testing against Go: a program built with gopatina build -patina must print the same standard output, the same first line of standard error and exit with the same status as the same program built with go build. The bar is Six Sigma: at most 3.4 defects per million tests, shown at 6σ confidence by 0 defects in at least 6,099,050 generated tests; the first milestone, 881,098 tests, shows the same rate at 95% confidence. Both runs are pending on the test server; the 92 golden programs pass in CI on every change.
 
 **What does a machine need to run a patina binary?**
 Nothing extra. A patina binary is native machine code, so the target needs neither Go nor Rust installed, just like a Go binary. Phase 1 links against the platform's default C runtime; static binaries are planned.

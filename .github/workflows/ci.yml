@@ -63,6 +63,24 @@ jobs:
             exit 1
           fi
 
+  site-layout:
+    name: site never scrolls sideways on a phone
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: serve gopatina.org's page locally
+        run: |
+          go build -o /tmp/gopatina-site ./site
+          GOPATINA_SITE_ADDR=127.0.0.1:8590 /tmp/gopatina-site &
+          for i in $(seq 1 50); do curl -fs http://127.0.0.1:8590/healthz && break; sleep 0.2; done
+      - name: check widths 320 to 430 px (scripts/site-overflow.mjs)
+        # The runner image has Chrome and Node; the script uses neither
+        # packages nor the network beyond the local page.
+        run: node scripts/site-overflow.mjs "$(command -v google-chrome)" http://127.0.0.1:8590/
+
   fuzz:
     name: fuzz (parser, checker, emitter)
     runs-on: ubuntu-latest

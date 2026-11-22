@@ -10,6 +10,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- gopatina.org no longer scrolls sideways on phones: a Markdown link left in
+  the evidence report showed a raw URL that could not wrap. Long words now
+  wrap everywhere, a site test rejects Markdown links in the page, and CI
+  loads the page in Chrome at 320 to 430 px and fails if it is wider than
+  the screen (`scripts/site-overflow.mjs`).
 - `make` with a length or capacity known only at run time now panics the
   way Go's makeslice does: "runtime error: makeslice: len out of range" for
   a negative length or one whose elements exceed Go's largest allocation,
@@ -48,6 +53,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- The correctness bar is shown at 6σ confidence: 0 defects in at least
+  6,099,050 differential tests (α = Φ(−6) ≈ 9.87 × 10⁻¹⁰), with 881,098 tests
+  at 95% as the milestone on the way. `gopatina-difftest` reports both
+  bounds, and docs/QUALITY.md gives the 62-part command for the full run.
 - Documentation describes phase 1 as it is: docs/patina-subset.md specifies
   the subset and the ownership rules; README, EXAMPLES.md (real output for
   hello and ownership, counter still the design), the feature matrix,

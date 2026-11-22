@@ -58,6 +58,10 @@ func TestRunClean(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &r); err != nil {
 		t.Fatal(err)
 	}
+	// With 10 clean tests the 6σ bound is -ln(Φ(-6)) / 10 per test.
+	if r.Upper6Sigma == nil || *r.Upper6Sigma < 2.07e6 || *r.Upper6Sigma > 2.08e6 {
+		t.Errorf("6σ bound %v", r.Upper6Sigma)
+	}
 	if r.Programs != 7 || r.PanicCases != 3 || r.Tests != 10 || r.Defects != 0 || r.Upper95 == nil ||
 		strings.Count(errs, "0 mismatched") != 3 {
 		t.Errorf("report %s, stderr %s", out, errs)
@@ -99,7 +103,7 @@ func TestRunDefects(t *testing.T) {
 			"-work", t.TempDir(), "-failures", fail)
 		var r report
 		json.Unmarshal([]byte(out), &r)
-		if code != 3 || r.Defects != tc.defects || r.Upper95 != nil {
+		if code != 3 || r.Defects != tc.defects || r.Upper95 != nil || r.Upper6Sigma != nil {
 			t.Errorf("%s: code %d, report %s, stderr %s", tc.name, code, out, errs)
 		}
 	}
