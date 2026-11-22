@@ -223,6 +223,9 @@ func (g *gen) value(e ast.Expr) node {
 	switch x := e.(type) {
 	case *ast.Ident:
 		if tv.IsNil() {
+			if subset.IsIface(g.nils[e]) {
+				return text("None")
+			}
 			return text("Vec::<" + g.rustType(g.nils[e].Underlying().(*types.Slice).Elem()) + ">::new()")
 		}
 		v := g.localVar(x)
@@ -245,6 +248,8 @@ func (g *gen) value(e ast.Expr) node {
 		return g.binary(x)
 	case *ast.UnaryExpr:
 		return g.unary(x)
+	case *ast.TypeAssertExpr:
+		return g.typeAssert(x)
 	}
 	return g.composite(e.(*ast.CompositeLit))
 }
@@ -265,6 +270,9 @@ func (g *gen) stdValue(sel *ast.SelectorExpr) node {
 // owned renders e as a value handed to a new owner: moved when the borrow
 // checker found it is not used again, copied when it is.
 func (g *gen) owned(e ast.Expr) node {
+	if g.boxedExpr(e) {
+		return g.box(e)
+	}
 	tv := g.info.Types[e]
 	if tv.Value != nil {
 		if tv.Value.Kind() == constant.String {
@@ -295,6 +303,9 @@ func (g *gen) owned(e ast.Expr) node {
 
 // ref renders e as a shared borrow.
 func (g *gen) ref(e ast.Expr) node {
+	if g.boxedExpr(e) {
+		return &addrOf{"&", g.box(e)}
+	}
 	e = ast.Unparen(e)
 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
 		return g.ref(u.X)
@@ -444,6 +455,9 @@ func (g *gen) zero(t types.Type) node {
 	case *types.Slice:
 		return text("Vec::new()")
 	}
+	if subset.IsIface(t) {
+		return text("None")
+	}
 	return text(g.rustType(t) + "::default()")
 }
 
@@ -590,6 +604,9 @@ func (g *gen) compare(e *ast.BinaryExpr) node {
 	}
 	op := binOps[e.Op]
 	xt := g.typeOf(e.X)
+	if subset.IsIface(xt) || subset.IsIface(g.typeOf(e.Y)) {
+		return g.ifaceCompare(e) // RFC 0012
+	}
 	if isStringType(xt) && (e.Op == token.EQL || e.Op == token.NEQ) {
 		if n, ok := g.emptyStringCheck(e, e.Op == token.NEQ); ok {
 			return n

@@ -47,6 +47,9 @@ func (g *gen) call(e *ast.CallExpr) node {
 			}
 		}
 		obj := g.info.Selections[f].Obj().(*types.Func)
+		if subset.IsIface(g.info.Selections[f].Recv()) {
+			return g.ifaceCall(f, obj, e) // RFC 0012
+		}
 		fn := g.res.Funcs[obj]
 		if helper, _ := subset.ProvidedMethod(obj); helper != "" {
 			var args []node
@@ -154,7 +157,7 @@ func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
 	}
 	switch p.Mode {
 	case borrow.Ref:
-		if isStringType(g.typeOf(a)) {
+		if isStringType(g.typeOf(a)) && !g.boxedExpr(a) {
 			if tv := g.info.Types[a]; tv.Value != nil {
 				return g.constant(tv.Value, tv.Type)
 			}
@@ -213,6 +216,12 @@ func (g *gen) identityConversion(e ast.Expr) (ast.Expr, bool) {
 // conversion renders T(x).
 func (g *gen) conversion(e *ast.CallExpr, to types.Type) node {
 	x := e.Args[0]
+	if subset.IsIface(to) {
+		if g.info.Types[x].IsNil() {
+			return text("None")
+		}
+		return g.owned(x) // boxed, or already an interface (RFC 0012)
+	}
 	from := g.typeOf(x)
 	if isSlice(to) && isStringType(from) { // []byte(s)
 		if tv := g.info.Types[x]; tv.Value != nil {
@@ -454,6 +463,9 @@ func (g *gen) formatVerbs(macro string, writer ast.Expr, verbs []subset.Verb, op
 func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string) {
 	t := g.typeOf(e)
 	tv := g.info.Types[e]
+	if subset.IsIface(t) {
+		return "{}", g.ifaceVerb(v.Verb, e), "" // RFC 0012: plain %v and %T
+	}
 	plain := v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero
 	if m := subset.PrintMethod(t); m != nil && (v.Verb == 'v' || v.Verb == 's') {
 		// fmt prints the result of Error or String (RFC 0007); the subset

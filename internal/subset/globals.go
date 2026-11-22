@@ -145,6 +145,11 @@ func (c *checker) globalSpec(s *ast.ValueSpec) {
 			c.unsupported(n, "a package-level variable of type error")
 		case isWriter(t):
 			c.unsupported(n, "a package-level variable of type io.Writer")
+		case holdsIface(t):
+			// A static must be shareable between threads, which the
+			// reference count of an interface value (RFC 0012) is not
+			// until goroutines choose the shareable form (RFC 0002).
+			c.unsupported(n, "a package-level variable holding an interface value")
 		default:
 			c.typ(n, t, false)
 		}

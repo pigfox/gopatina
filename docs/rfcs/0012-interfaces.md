@@ -270,3 +270,37 @@ error patterns already lowered to `Result` stay as they are.
 - `*T` dynamic types with the pointers RFC; `io.Reader` and friends in the
   provided `io`; `sort.Interface` with the provided `sort`;
   `context.Context`.
+
+## Amendment: the first implementation (2026-11-22)
+
+The first implementation follows the design, with these decisions made
+while writing it:
+
+- **Names.** Conversions are written `boxed(Dyn::V(x))`; the crate-level
+  helpers are `iface_show` (`%v`), `iface_type` (`%T`), `iface_name`,
+  `iface_get_t`/`iface_try_t` (assertions to a concrete type, as functions
+  so `rustfmt` lays out their calls), `iface_assert`/`iface_try` and
+  `iface_missing_i` (assertions to an interface type, reporting the first
+  missing method by name, as Go's panic does), and one `dyn_m` dispatcher
+  per method called through an interface.
+- **Reachability (amends RFC 0009).** A reached type keeps, besides
+  `String` and `Error`, the methods named like a method of an interface the
+  program declares, since a call through an interface may reach them
+  without naming them.
+- **Not yet.** `error` as an interface value is the next step; until then
+  error values keep phase 1's lowering to `Result`. The other cases left
+  out are listed, each with its error, in
+  [patina-subset.md](../patina-subset.md#interfaces).
+
+**Goroutines: Rc or Arc.** `Rc` is not `Send`, and an interface value that
+crosses goroutines (a channel, a closure a goroutine runs, a package-level
+variable) must be shareable. The choice is made once per crate: every
+conversion goes through `boxed`, and `Iface` is one type alias, so the
+reference count is named in exactly two places. When RFC 0002 lands, a
+program that starts a goroutine gets `Arc` there (and `Dyn`'s variants are
+then `Send + Sync`, which every supported dynamic type is: numbers,
+strings, `Vec`s and structs of them, and nested interface values, which are
+`Arc` too); a program that starts none keeps `Rc` and pays nothing. Nothing
+else changes: dispatchers, comparisons and assertions take `&Iface`.
+Until then, package-level variables holding an interface value are
+rejected, since a static must be `Sync`.

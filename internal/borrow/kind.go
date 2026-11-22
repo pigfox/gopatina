@@ -66,5 +66,10 @@ func KindOf(t types.Type) Kind {
 	if b, ok := t.(*types.Basic); ok && b.Info()&types.IsString != 0 {
 		return Value
 	}
+	if _, ok := types.Unalias(t).(*types.Interface); ok {
+		// An interface value (RFC 0012): its dynamic value cannot be
+		// changed through it, so a copy is always the same value.
+		return Value
+	}
 	return Copy
 }

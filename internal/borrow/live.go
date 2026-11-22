@@ -358,6 +358,27 @@ func (l *live) stmt(s ast.Stmt, out set) set {
 			in = l.apply(l.walk(func(w *walker) { w.read(s.Tag) }), in)
 		}
 		return l.simple(s.Init, in)
+	case *ast.TypeSwitchStmt:
+		// As a switch whose cases compare no values (RFC 0012); each
+		// clause's variable is defined at its start.
+		l.brk = append(l.brk, out)
+		l.cont = append(l.cont, nil)
+		in := set{}
+		hasDefault := false
+		for _, c := range s.Body.List {
+			c := c.(*ast.CaseClause)
+			body := l.stmts(c.Body, out)
+			if v, ok := l.a.pkg.Info.Implicits[c].(*types.Var); ok {
+				delete(body, v)
+			}
+			in = union(in, body)
+			hasDefault = hasDefault || c.List == nil
+		}
+		l.brk, l.cont = l.brk[:len(l.brk)-1], l.cont[:len(l.cont)-1]
+		if !hasDefault {
+			in = union(in, out)
+		}
+		return l.apply(l.walk(func(w *walker) { w.read(typeSwitchX(s)) }), in)
 	case *ast.ReturnStmt:
 		in := set{}
 		if len(s.Results) == 0 {

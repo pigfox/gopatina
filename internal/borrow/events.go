@@ -188,6 +188,8 @@ func (w *walker) expr(e ast.Expr, kind evKind) {
 		}
 	case *ast.CallExpr:
 		w.call(e)
+	case *ast.TypeAssertExpr:
+		w.read(e.X) // x.(T) copies the dynamic value out (RFC 0012)
 	}
 }
 
