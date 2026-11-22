@@ -28,6 +28,9 @@
 // upper bounds on the defect rate at 95% and at 6σ confidence,
 // -ln(alpha) / tests. Defect-free tests bound it at 3.4 per million from
 // 881,098 tests at 95% and from 6,099,050 at 6σ (docs/QUALITY.md).
+// A run removes everything it makes when it ends, also on SIGINT or
+// SIGTERM: each batch once compared, the crate caches, and its own Go build
+// cache (GOCACHE), so the shared one stays small.
 // The exit status is 0 with no defects, 3 with defects, 1 on an error (such
 // as a program the Go toolchain itself does not build or run cleanly, which
 // is a generator bug) and 2 on bad usage. See docs/QUALITY.md.
@@ -44,10 +47,12 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/pigfox/gopatina/internal/progen"
@@ -56,6 +61,9 @@ import (
 var (
 	exit = os.Exit
 	now  = time.Now
+	// notify delivers the signals that end a run early (SIGINT, SIGTERM),
+	// after which it removes what it made and exits; tests replace it.
+	notify = func(c chan<- os.Signal) { signal.Notify(c, os.Interrupt, syscall.SIGTERM) }
 )
 
 func main() {
@@ -66,6 +74,7 @@ type config struct {
 	seed                          uint64
 	start, programs, per, jobs    int
 	gopatina, goCmd, work, failed string
+	gocache                       string // the run's own GOCACHE
 	timeout                       time.Duration
 }
 
@@ -130,15 +139,41 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	begin := now()
+	// Everything a run makes goes under its working directory and is
+	// removed when it ends, also by a signal: the batches (each removed once
+	// compared; failures are kept under -failures), the crate caches, and a
+	// Go build cache of its own, so the oracle's builds of every generated
+	// program do not fill the shared one (~/.cache/go-build). A -work
+	// directory is the caller's: only what the run made in it is removed.
+	var made []string
 	if c.work == "" {
 		dir, err := os.MkdirTemp("", "gopatina-difftest-")
 		if err != nil {
 			fmt.Fprintln(stderr, "gopatina-difftest:", err)
 			return 1
 		}
-		defer os.RemoveAll(dir)
-		c.work = dir
+		c.work, made = dir, []string{dir}
+	} else {
+		made = []string{filepath.Join(c.work, "gocache")}
+		for w := range c.jobs {
+			made = append(made, filepath.Join(c.work, "cache-"+strconv.Itoa(w)))
+		}
 	}
+	var cleanOnce sync.Once
+	clean := func() {
+		cleanOnce.Do(func() {
+			for _, d := range made {
+				os.RemoveAll(d)
+			}
+		})
+	}
+	defer clean()
+	sigs := make(chan os.Signal, 1)
+	notify(sigs)
+	done := make(chan struct{})
+	defer close(done)
+	go onSignal(sigs, done, clean, stderr)
+	c.gocache = filepath.Join(c.work, "gocache")
 	type job struct{ first, n int }
 	var batches []job
 	for first := c.start; first < c.start+c.programs; first += c.per {
@@ -181,6 +216,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 3
 	}
 	return 0
+}
+
+// onSignal waits for a signal or the end of the run; on a signal it
+// removes what the run made and exits with status 1.
+func onSignal(sigs <-chan os.Signal, done <-chan struct{}, clean func(), stderr io.Writer) {
+	select {
+	case s := <-sigs:
+		fmt.Fprintln(stderr, "gopatina-difftest: stopped by", s)
+		clean()
+		exit(1)
+	case <-done:
+	}
 }
 
 func summarize(c config, results []outcome) report {
@@ -240,14 +287,15 @@ func batch(c config, worker, first, n int) (outcome, error) {
 		return o, err
 	}
 	goBin, refBin, pBin := filepath.Join(dir, "go.bin"), filepath.Join(dir, "goref.bin"), filepath.Join(dir, "patina.bin")
-	if out, err := build(dir, nil, c.goCmd, "build", "-gcflags=all=-N -l", "-o", refBin, "."); err != nil {
+	goEnv := []string{"GOCACHE=" + c.gocache}
+	if out, err := build(dir, goEnv, c.goCmd, "build", "-gcflags=all=-N -l", "-o", refBin, "."); err != nil {
 		return o, fmt.Errorf("batch %d: go build (reference): %v\n%s", first, err, out)
 	}
-	if out, err := build(dir, nil, c.goCmd, "build", "-o", goBin, "."); err != nil {
+	if out, err := build(dir, goEnv, c.goCmd, "build", "-o", goBin, "."); err != nil {
 		return o, fmt.Errorf("batch %d: go build: %v\n%s", first, err, out)
 	}
 	cache := "GOPATINA_CACHE=" + filepath.Join(c.work, "cache-"+strconv.Itoa(worker))
-	pOut, err := build(dir, []string{cache}, c.gopatina, "build", "-patina", "-o", pBin, ".")
+	pOut, err := build(dir, append(goEnv, cache), c.gopatina, "build", "-patina", "-o", pBin, ".")
 	if _, ran := err.(*exec.ExitError); err != nil && !ran {
 		return o, fmt.Errorf("batch %d: %s could not run: %v", first, c.gopatina, err)
 	}
