@@ -5,6 +5,59 @@ without the painful Rust learning curve. Two standing rules follow from it:
 everything is tested, and everything patina mode produces is measured against
 Rust.
 
+## The two bars
+
+GoPatina holds itself to two measurable bars. Both are targets until a run on
+the test server meets them; [BENCHMARKS.md](../BENCHMARKS.md) and
+<https://gopatina.org/#evidence> give the status of each.
+
+### Speed: equivalent to hand-written Rust within ±0.5%, at 5σ
+
+For each benchmark, let μ be the mean of the paired log ratios
+ln(T<sub>GoPatina</sub> / T<sub>Rust</sub>) over interleaved runs, and
+δ = ln(1.005) ≈ 0.0049875, so the margin on the ratio is (1/1.005, 1.005),
+about ±0.5%.
+
+- **Hypotheses.** H₀: |μ| ≥ δ (the two differ by at least the margin);
+  H₁: |μ| < δ (equivalent).
+- **Test.** Two one-sided tests (TOST, Schuirmann 1987), each at
+  α = P(Z > 5) = Φ(−5) ≈ 2.87 × 10⁻⁷. H₀ is rejected, and the benchmark
+  called equivalent, exactly when the (1 − 2α) confidence interval
+  μ̂ ± t<sub>1−α, N−1</sub> · s / √N lies inside (−δ, δ), where μ̂ and s are
+  the mean and standard deviation of the N log ratios. The verdict is
+  *slower* or *faster* when the interval lies wholly beyond +δ or −δ, and
+  *inconclusive* otherwise.
+- **Runs.** The binaries alternate in ABBA order after warm-up runs, so slow
+  drift affects both alike. N is chosen from a pilot run's s:
+  N ≈ (5 · s / (δ − |μ̂|))².
+- **Metric.** Wall time by default; user instructions and cycles from the
+  CPU's counters when the machine allows them. Every result names its metric.
+
+### Correctness: the Six Sigma bar, at most 3.4 defects per million
+
+A test is one generated program, or one panic case, built with `go build`
+and with `gopatina build -patina`. It is a defect when the patina binary's
+standard output, first line of standard error or exit status differs from
+Go's, or when patina mode fails to build it. Let p be the probability that a
+test is a defect, and p₀ = 3.4 × 10⁻⁶.
+
+- **Where 3.4 per million comes from.** It is the Six Sigma convention
+  (Harry 1988): a process whose mean lies 6σ from its specification limit,
+  allowing the conventional long-term drift of the mean by 1.5σ, leaves
+  6 − 1.5 = 4.5σ, and P(Z > 4.5) ≈ 3.4 × 10⁻⁶, that is 3.4 defects per
+  million opportunities (DPMO).
+- **Hypotheses.** H₀: p ≥ p₀; H₁: p < p₀.
+- **Test.** With 0 defects in N independent tests, the exact one-sided 95%
+  upper bound on p is 1 − 0.05<sup>1/N</sup>, which is below −ln(0.05) / N ≈ 3 / N
+  (the rule of three, Hanley and Lippman-Hand 1983). H₀ is rejected at the 5%
+  level when N ≥ −ln(0.05) / p₀ = **881,098**.
+- **Confidence.** This bar is at 95% confidence, the usual reading of Six
+  Sigma. The same rate at the speed bar's confidence needs more tests: with
+  0 defects, N ≥ −ln(α) / p₀, that is 4,430,882 tests at 5σ and 6,099,050 at 6σ.
+- **What it covers.** The bound is for programs drawn from GoPatina's
+  generator (below), inside the phase 1 subset; it says nothing directly
+  about other programs.
+
 ## Testing
 
 ### Unit tests: 100% coverage, enforced
@@ -76,8 +129,8 @@ threshold, where the general copy must reproduce Go's wrap-around and index
 panic. It must match Go's output, the first line of
 Go's standard error and Go's exit status. Programs and panic cases together
 are the tests. With no defect among N tests, the 95% upper bound on the
-defect rate is -ln(0.05) / N; 881,098 defect-free tests bound it at 3.4
-defects per million, the Six Sigma level. A long run belongs on the test server, not a workstation:
+defect rate is below -ln(0.05) / N; 881,098 defect-free tests bound it at 3.4
+defects per million, the Six Sigma bar ([above](#correctness-the-six-sigma-bar-at-most-34-defects-per-million)). A long run belongs on the test server, not a workstation:
 
 ```sh
 go build -o gopatina ./cmd/gopatina && go build -o gopatina-difftest ./cmd/gopatina-difftest
@@ -149,7 +202,9 @@ There are two kinds of run, and they are kept apart:
   machine, the Go and Rust versions, the commit and the date, and links to the
   raw results file.
 - **Target.** Identical speed to hand-written Rust on each benchmark, tracked over
-  time. "Identical" means equivalent within ±0.5% at 5σ: in a two one-sided tests (TOST) equivalence test on paired, interleaved runs, the whole 5σ interval of the ratio lies inside ±0.5%. (`bench/run.sh --equiv`, [bench/README.md](../bench/README.md)). This is a goal that guides the work, **not a claim**. A pull request
+  time. "Identical" means equivalent within ±0.5% at 5σ, the speed bar
+  [above](#speed-equivalent-to-hand-written-rust-within-05-at-5σ)
+  (`bench/run.sh --equiv`, [bench/README.md](../bench/README.md)). This is a goal that guides the work, **not a claim**. A pull request
   that makes a ratio worse beyond run-to-run noise must explain why in its
   description.
 

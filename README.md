@@ -228,6 +228,14 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
 
 ## Quality and performance policy
 
+- **Two bars** ([docs/QUALITY.md](docs/QUALITY.md#the-two-bars)), both
+  targets until the test server meets them:
+  - **Speed:** equivalent to hand-written Rust within ±0.5%, shown by a two
+    one-sided tests (TOST) equivalence test at 5σ (one-sided p ≈ 2.9 × 10⁻⁷
+    per bound).
+  - **Correctness, the Six Sigma bar:** at most 3.4 defects per million
+    (DPMO), shown by 0 defects in at least 881,098 generated differential
+    tests against Go (95% one-sided upper bound, the rule of three).
 - **100% unit-test coverage**, enforced in CI, plus the integration, golden,
   differential and fuzz tests each phase requires.
 - **Shadow Rust and keep up.** Every release, and every pull request that
@@ -251,10 +259,11 @@ checks both, and CI runs it on every golden program; see
 ## Benchmarks
 
 **No official benchmarks have been run yet.** The harness runs on pull
-requests and reports ratios only, which are not published as results.
-Official results, measured on the maintainer's test server with the full
-suite, are published in [BENCHMARKS.md](BENCHMARKS.md); the latest headline
-ratios will appear here.
+requests and reports ratios only, which are not published as results. Local
+measurements, with their caveats, and the official results, measured on the
+maintainer's test server with the full suite, are published in
+[BENCHMARKS.md](BENCHMARKS.md); the latest official headline ratios will
+appear here.
 
 | Benchmark | GoPatina / Rust | GoPatina / Go | Run |
 | --- | --- | --- | --- |
