@@ -10,10 +10,14 @@ GoPatina is an open-source project by [Pigfox](https://pigfox.com), licensed und
 
 ## Individuals
 
-- **$5 a month**: supports the work.
-- **$25 a month**: supports the work, and your name is listed on this page.
+- **$5 a month** (Supporter): supports the work, with a sponsor badge on GitHub.
+- **$25 a month** (Backer): your name is listed on this page.
 
 {{github-sponsors}}
+
+## Small companies
+
+- **$100 a month** (Small company): a small logo on this page. For startups, consultants and small teams, through GitHub Sponsors too.
 
 ## Companies
 
