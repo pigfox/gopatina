@@ -1,0 +1,3 @@
+./main.go:9:14: parameter n is a shared borrow: newName only reads it
+./main.go:11:12: parameter s is a shared borrow: label only reads it
+./main.go:15:7: copied n into m: n is used again on line 18; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
