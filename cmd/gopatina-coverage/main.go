@@ -287,6 +287,7 @@ func measure(lock, work string, boot int, seed uint64, stdout, stderr io.Writer)
 		}
 		fmt.Fprintf(stderr, "%s: %d packages measured\n", e.Module, measured)
 	}
+	coverage.Resolve(r.Packages)
 	r.Summary = coverage.Summarize(r.Packages, boot, seed)
 	out, _ := json.MarshalIndent(r, "", " ")
 	fmt.Fprintf(stdout, "%s\n", out)
@@ -373,10 +374,23 @@ func one(p listed, module string, exports map[string]string) (res coverage.Packa
 	if typeErr != nil {
 		return res, "type-check: " + typeErr.Error()
 	}
-	// Measured alone: its own types are the program's (RFC 0009's
-	// cross-package rule is a later change to the measurement).
+	// The packages it imports, other than the bridged ones, are packages of
+	// the program (RFC 0009): the checker accepts their types and calls,
+	// and coverage.Resolve decides by what they are.
 	pkg.Pkgs = []*types.Package{pkg.Types}
 	pkg.Local = map[*types.Package]bool{pkg.Types: true}
+	var mark func(*types.Package)
+	mark = func(t *types.Package) {
+		for _, imp := range t.Imports() {
+			// reflect and unsafe stay reported, so the functions that use
+			// them stay excluded.
+			if !pkg.Local[imp] && !load.Bridged[imp.Path()] && imp.Path() != "unsafe" && imp.Path() != "reflect" {
+				pkg.Local[imp] = true
+				mark(imp)
+			}
+		}
+	}
+	mark(pkg.Types)
 	pkg.PkgOf = map[*ast.File]*types.Package{}
 	for _, f := range pkg.Files {
 		pkg.PkgOf[f] = pkg.Types

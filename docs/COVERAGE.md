@@ -23,10 +23,18 @@ Rust, so the measurement is of the subset's rules, not of the translator.
 
 - **Functions and methods accepted.** A function is accepted when the
   checker reports nothing inside it (signature and body), and every
-  declaration of its own package that it uses (a type, a function, a method,
-  a variable or a constant) is accepted too. So a function that is clean
-  itself but takes a struct with a map field, or calls a function that uses
-  `defer`, is not accepted: it could not be compiled on its own.
+  declaration it uses (a type, a function, a method, a variable or a
+  constant), of its own package or of any other package of the corpus, is
+  accepted too, as a patina build decides (RFC 0009): a fixed point over the
+  whole corpus. So a function that is clean itself but takes a struct with a
+  map field, or calls a function in another package that uses `defer`, is
+  not accepted, and it inherits that declaration's features. A use of a
+  package the measurement did not measure (skipped, or outside the corpus)
+  is the feature "outside the measured corpus". The bridged packages (`fmt`
+  and the phase 1 functions of `strings`, `errors`, `os`, `io`, `slices`,
+  `bytes`) and the `math/bits` intrinsics are decided by the checker's own
+  rules, and `reflect` and `unsafe` stay excluded, also when a function
+  reaches them through another package.
 - **Lines in accepted functions**: lines from `func` to the closing brace,
   so long functions weigh more.
 - **Files accepted**: files with no diagnostic at all.
@@ -68,12 +76,10 @@ by message in each package's record, so the categories can be checked.
   vendored packages; packages with cgo files (`import "C"`), which cannot be
   type-checked without cgo; packages that fail to load or type-check. Every
   skipped package is listed with its reason.
-- **Two adaptations**, both because libraries are planned but not yet
-  supported. The rule "only package main" and the need for `func main` are
-  left out, since they reject every library alike. And each package is
-  type-checked as `package main`, since the checker treats a named type of
-  any other package as foreign; without that, a library's own types would
-  count against it.
+- **Libraries measured as packages of a program.** The rule "only package
+  main" and the need for `func main` are left out, since they reject every
+  library alike; each package is measured as a package of a program that
+  uses it, with the packages it imports as the program's other packages.
 
 ## The quality of the number
 
