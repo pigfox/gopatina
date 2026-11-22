@@ -11,12 +11,13 @@ import (
 	"testing/fstest"
 )
 
-// withPosts is the site's files plus the given files under content/blog.
+// withPosts is the site's files, with the given files under content/blog
+// in place of the site's own posts.
 func withPosts(t *testing.T, posts map[string]string) fstest.MapFS {
 	t.Helper()
 	m := fstest.MapFS{}
 	fs.WalkDir(files, ".", func(name string, d fs.DirEntry, _ error) error {
-		if !d.IsDir() {
+		if !d.IsDir() && !strings.HasPrefix(name, "content/blog/") {
 			b, _ := files.ReadFile(name)
 			m[name] = &fstest.MapFile{Data: b}
 		}
@@ -129,7 +130,10 @@ func TestBlogWithPosts(t *testing.T) {
 }
 
 func TestBlogWithoutPosts(t *testing.T) {
-	h := handler(t)
+	h, err := newHandler(withPosts(t, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
 	index := body(t, h, "/blog")
 	if !strings.Contains(index, "No posts yet.") || !strings.Contains(index, `name="robots" content="noindex"`) {
 		t.Error("the empty blog is not noindex, or does not say it has no posts")
