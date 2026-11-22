@@ -277,9 +277,10 @@ impl<T> PartialEq for Ptr<T> {
 /// call deeper per cell (which would overflow the stack).
 impl<T> Drop for Ptr<T> {
     fn drop(&mut self) {
-        if let Some(c) = self.0.take()
-            && Rc::strong_count(&c) == 1
-        {
+        let Some(c) = self.0.take() else {
+            return;
+        };
+        if Rc::strong_count(&c) == 1 {
             release(c);
         }
     }
