@@ -1,0 +1,3 @@
+./store/store.go:16:10: parameter key is a shared borrow: Get only reads it
+./main.go:13:11: parameter name is a shared borrow: made only reads it
+./main.go:25:11: parameter key is a shared borrow: find only reads it

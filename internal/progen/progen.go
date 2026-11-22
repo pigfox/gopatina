@@ -76,8 +76,8 @@
 // package lib (Lib), at LibPath in module Module, where each program has a
 // struct type with value and pointer methods, a constant, a function of
 // random wrapping arithmetic and a named integer type with a String
-// method, and a function returning an error, which the program uses
-// across the package boundary. lib comes from a random stream of its own.
+// method, and a function returning an error, sometimes its package-level
+// sentinel error, which the program uses across the package boundary. lib comes from a random stream of its own.
 //
 // Programs also have package-level variables (RFC 0010): in lib, a
 // counter changed by a function, a read-only table read through one, a
@@ -165,8 +165,10 @@ func (g *gen) libDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc F%d(x, y int) int { return %s / (y | 1) }\n", k, expr)
 	fmt.Fprintf(b, "\ntype N%d %s\n", k, ints[g.lr.IntN(len(ints))])
 	fmt.Fprintf(b, "\nfunc (n N%d) String() string { return fmt.Sprintf(\"n%%d\", int(n)) }\n", k)
-	// G returns an error to main, from another package of the program.
-	fmt.Fprintf(b, "\nfunc G%d(x int) (int, error) {\n\tif x%%2 != 0 {\n\t\treturn 0, fmt.Errorf(\"odd %%d\", x)\n\t}\n\treturn x / 2, nil\n}\n", k)
+	// G returns an error to main, from another package of the program:
+	// the sentinel ES for multiples of 3.
+	fmt.Fprintf(b, "\nvar ES%d = fmt.Errorf(\"sentinel %d\")\n", k, k)
+	fmt.Fprintf(b, "\nfunc G%d(x int) (int, error) {\n\tif x%%3 == 0 {\n\t\treturn 0, ES%d\n\t}\n\tif x%%2 != 0 {\n\t\treturn 0, fmt.Errorf(\"odd %%d\", x)\n\t}\n\treturn x / 2, nil\n}\n", k, k)
 }
 
 // Batch returns the source of a package main with n programs, numbered
@@ -423,7 +425,7 @@ func (g *gen) libUses() {
 	g.depth--
 	g.line("}")
 	g.line("_, lgerr2 := lib.G%d(v1)", k)
-	g.line("fmt.Println(lg, lgerr2)")
+	g.line("fmt.Println(lg, lgerr2, lgerr2 == lib.ES%d, errors.Is(lgerr2, lib.ES%d))", k, k)
 }
 
 // shiftUses shifts a value of a random integer type by run-time counts.

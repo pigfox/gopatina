@@ -193,8 +193,13 @@ The provided `errors` API ([RFC 0011](rfcs/0011-provided-packages.md)):
 interface or error type) follow Go's errors package, through the wrapped
 errors and the program's own `Unwrap() error` and `Is(error) bool` methods.
 
-Not supported yet: package-level variables holding an error (sentinel
-errors), a precision on an error printed with `%v` or `%s`, an error result
+Package-level variables of an interface type that nothing changes, such as
+sentinel errors (`var ErrNotFound = errors.New("not found")`), are
+thread-local statics initialized in Go's order, read as copies of the
+value; one that the program changes, or an interface value inside a
+package-level struct or slice, is not supported yet.
+
+Not supported yet: a precision on an error printed with `%v` or `%s`, an error result
 that is not the last, more than one `%w` in a format and error types with
 `Unwrap() []error` (`errors.Join`'s form), and `errors.As` in a program with
 an error type that has an `As` method.
@@ -254,5 +259,6 @@ Not supported yet, each with its own error:
   other than `%v` and `%T` on one;
 - a `switch` on an interface value (as opposed to a type switch), and a
   type switch with an init statement;
-- package-level variables holding an interface value;
+- package-level variables holding an interface value that the program
+  changes, or inside a struct or slice;
 - interfaces with type sets (generic constraints), and method values.

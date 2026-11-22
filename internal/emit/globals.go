@@ -27,6 +27,15 @@ func (g *gen) globalOf(e ast.Expr) *types.Var {
 	return nil
 }
 
+// localStatic reports whether v, a static, holds an interface value and is
+// a thread-local: an interface value's reference count (Rc) is not shared
+// between threads, which a static must be. This is the one place that
+// changes when RFC 0002 makes it shareable (Arc): the static becomes a
+// LazyLock like any other (RFC 0012).
+func (g *gen) localStatic(v *types.Var) bool {
+	return g.globals[v] == subset.GlobalStatic && subset.IsIface(v.Type())
+}
+
 // globalName is v's Rust name, qualified for the package being written.
 func (g *gen) globalName(v *types.Var) string { return g.qual(v.Pkg(), g.gnames[v]) }
 
@@ -45,6 +54,9 @@ func (g *gen) globalValue(v *types.Var) node {
 	case subset.GlobalString:
 		return &call{recv: text(name), head: ".with_borrow", open: "(", close: ")", args: []node{text("|v| v.clone()")}}
 	}
+	if g.localStatic(v) {
+		return &call{recv: text(name), head: ".with", open: "(", close: ")", args: []node{text("Clone::clone")}}
+	}
 	// A static is read in place: a copy of a copied kind, else a place
 	// that owned and the borrowing reads take as they need (isPlace).
 	return atom{"(*" + name + ")", precAtom}
@@ -56,7 +68,7 @@ func (g *gen) globalPlace(v *types.Var) (node, bool) {
 	if a, ok := g.galias[v]; ok {
 		return text(a), true
 	}
-	if g.globals[v] == subset.GlobalStatic {
+	if g.globals[v] == subset.GlobalStatic && !g.localStatic(v) {
 		return atom{"(*" + g.globalName(v) + ")", precAtom}, true
 	}
 	return nil, false
@@ -94,8 +106,19 @@ func (g *gen) globalDecl(s *ast.ValueSpec) {
 		}
 		v := g.info.Defs[n].(*types.Var)
 		name, vis, rt := g.gnames[v], g.vis(v.Exported()), g.rustType(v.Type())
-		switch g.globals[v] {
-		case subset.GlobalStatic:
+		switch {
+		case g.localStatic(v):
+			g.fnContext()
+			init := g.zero(v.Type())
+			if i < len(s.Values) {
+				init = g.owned(s.Values[i])
+			}
+			g.line("thread_local! {")
+			g.ind++
+			g.stmtLine(vis+"static "+name+": "+rt+" = ", init, ";")
+			g.ind--
+			g.line("}")
+		case g.globals[v] == subset.GlobalStatic:
 			g.fnContext()
 			var init node
 			if i < len(s.Values) {
@@ -107,7 +130,7 @@ func (g *gen) globalDecl(s *ast.ValueSpec) {
 			}
 			lazy := &call{head: "std::sync::LazyLock::new", open: "(", close: ")", args: []node{init}}
 			g.stmtLine(vis+"static "+name+": std::sync::LazyLock<"+rt+"> = ", lazy, ";")
-		case subset.GlobalCell:
+		case g.globals[v] == subset.GlobalCell:
 			g.line("thread_local! {")
 			g.line("    " + vis + "static " + name + ": std::cell::Cell<" + rt + "> = const { std::cell::Cell::new(" + g.constZero(v.Type()) + ") };")
 			g.line("}")
@@ -172,6 +195,8 @@ func (g *gen) initVars(p *types.Package) {
 		switch {
 		case v.Name() == "_":
 			g.stmtLine("let _ = ", g.value(ini.Rhs), ";")
+		case g.localStatic(v):
+			g.line(g.gnames[v] + ".with(|_| {});")
 		case g.globals[v] == subset.GlobalStatic:
 			g.line("std::sync::LazyLock::force(&" + g.gnames[v] + ");")
 		default:

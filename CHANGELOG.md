@@ -174,6 +174,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Sentinel errors: package-level variables of an interface type that
+  nothing changes (`var ErrNotFound = errors.New("not found")`), of any
+  package of the program, as thread-local statics initialized in Go's
+  order and read as copies (RFC 0012). Golden `sentinel_errors`; the
+  generator's lib package returns a sentinel error to every program.
 - The provided `errors` API: `fmt.Errorf` with `%w` (Go's
   `*fmt.wrapError`), `errors.Unwrap`, `errors.Is` and `errors.As`, as Go's
   errors package defines them, through wrapped errors and the program's

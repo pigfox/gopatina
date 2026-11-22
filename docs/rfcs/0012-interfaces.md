@@ -338,3 +338,15 @@ compares only when the target's dynamic type is comparable and asks the
 program's `Is(error) bool` methods; both walk `Unwrap() error`. Programs
 with `As(any) bool` methods or `Unwrap() []error` are rejected until the
 walk covers them.
+
+## Amendment: sentinel errors (2026-11-22)
+
+A package-level variable of an interface type that nothing changes is a
+`thread_local!` static (`static ERR: Iface = go_error("...")`), initialized
+in Go's order by touching it in `initVars`, and read as a copy
+(`ERR.with(Clone::clone)`), since a `static` must be `Sync` and `Rc` is
+not. The choice is made in one place (`localStatic` in
+`internal/emit/globals.go`): when RFC 0002 makes interface values `Arc`,
+these become `LazyLock` statics like every other read-only variable. A
+changed one, or an interface value inside a package-level struct or slice,
+is rejected until then.
