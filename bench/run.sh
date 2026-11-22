@@ -27,7 +27,8 @@
 # It checks that all three print the case's expected output, runs the
 # three N times, interleaved (after one warm-up run each), and reports the
 # ratios of the medians: GoPatina and plain Go to hand-written Rust, and
-# GoPatina to plain Go.
+# GoPatina to plain Go; and, from one more run of each under GNU time, the
+# ratios of their peak resident memory to the hand-written Rust's.
 #
 # Only ratios are written: shared CI runners are too noisy for absolute
 # numbers, which come from the maintainer's dedicated machine (policy in
@@ -89,6 +90,16 @@ time_ns() {
   echo $((end - start))
 }
 
+# peak_kb <binary>: the peak resident memory of one run, in kilobytes, or
+# "" without GNU time.
+peak_kb() {
+  if ! [ -x /usr/bin/time ]; then echo ""; return; fi
+  /usr/bin/time -f '%M' -o "$work/peak" "$1" >/dev/null && cat "$work/peak"
+}
+
+# mem_ratio <a> <b>: a/b, or null when either is unknown.
+mem_ratio() { if [ -z "$1" ] || [ -z "$2" ]; then echo null; else ratio "$1" "$2"; fi; }
+
 # median: the median of the numbers on standard input.
 median() { sort -n | sed -n "$(((runs + 1) / 2))p"; }
 
@@ -148,8 +159,14 @@ for dir in "$root"/bench/cases/*/; do
   r_patina="$(ratio "$t_patina" "$t_rust")"
   r_go="$(ratio "$t_go" "$t_rust")"
   r_pg="$(ratio "$t_patina" "$t_go")"
-  echo "$name: gopatina/rust $r_patina, go/rust $r_go, gopatina/go $r_pg (medians of $runs runs)"
-  results+=("{\"case\": \"$name\", \"gopatina_over_rust\": $r_patina, \"go_over_rust\": $r_go, \"gopatina_over_go\": $r_pg}")
+  # Peak memory: one more run of each, the ratios of peak resident memory.
+  m_rust="$(peak_kb "$rust")"
+  m_patina="$(peak_kb "$work/$name-patina")"
+  m_go="$(peak_kb "$work/$name-go")"
+  mr_patina="$(mem_ratio "$m_patina" "$m_rust")"
+  mr_go="$(mem_ratio "$m_go" "$m_rust")"
+  echo "$name: gopatina/rust $r_patina, go/rust $r_go, gopatina/go $r_pg (medians of $runs runs); peak memory gopatina/rust $mr_patina, go/rust $mr_go"
+  results+=("{\"case\": \"$name\", \"gopatina_over_rust\": $r_patina, \"go_over_rust\": $r_go, \"gopatina_over_go\": $r_pg, \"memory_gopatina_over_rust\": $mr_patina, \"memory_go_over_rust\": $mr_go}")
 done
 
 commit="$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)"

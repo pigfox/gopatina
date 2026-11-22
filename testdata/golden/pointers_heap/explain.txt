@@ -1,3 +1,4 @@
+./main.go:7:2: Node.Next can point back to a Node: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:12:7: receiver c is a shared borrow: Inc only reads it
 ./main.go:14:11: parameter head is owned: push keeps it
 ./main.go:21:15: moved list into push: list is not used afterwards

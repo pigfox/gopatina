@@ -333,4 +333,7 @@ frees a cycle of pointers; a reference count does not. Output is
 unaffected, but a long-running program that builds and drops cycles (a
 doubly linked list, a graph with back edges, a node pointing at itself)
 keeps their memory. A list or a tree that is never closed into a cycle
-frees everything.
+frees everything. `-explain` notes each field through which a cycle can
+form (`Node.Next can point back to a Node: a cycle through it is not
+reclaimed`), and the [`cycles` benchmark](../bench/README.md) measures the
+memory such a program keeps.

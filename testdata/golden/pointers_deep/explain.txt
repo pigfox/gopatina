@@ -1,0 +1,1 @@
+./main.go:9:2: Node.Next can point back to a Node: a cycle through it is not reclaimed (RFC 0013)

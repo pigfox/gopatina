@@ -7,6 +7,8 @@
 ./main.go:56:7: receiver c is a shared borrow: Hit only reads it
 ./main.go:61:7: receiver c is owned: Self keeps it
 ./main.go:63:11: parameter c is a shared borrow: show only reads it
+./main.go:66:2: Tree.Left can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
+./main.go:66:8: Tree.Right can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:76:11: parameter t is owned: push keeps it
 ./main.go:89:12: parameter b is a shared borrow: boxed only reads it
 ./main.go:91:13: parameter t is a shared borrow: pairOf only reads it
