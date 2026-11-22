@@ -59,7 +59,7 @@ func TestRoutes(t *testing.T) {
 		{"/faq.md", "text/markdown; charset=utf-8", cacheShort, "### What is GoPatina?"},
 		{"/llms.txt", "text/plain; charset=utf-8", cacheShort, "- [FAQ](https://gopatina.org/faq): "},
 		{"/robots.txt", "text/plain; charset=utf-8", cacheShort, "Sitemap: https://gopatina.org/sitemap.xml"},
-		{"/sitemap.xml", "application/xml; charset=utf-8", cacheShort, "<loc>https://gopatina.org/evidence</loc><lastmod>" + lastUpdated + "</lastmod>"},
+		{"/sitemap.xml", "application/xml; charset=utf-8", cacheShort, "<loc>https://gopatina.org/faq</loc><lastmod>" + lastUpdated + "</lastmod>"},
 		{"/healthz", "text/plain; charset=utf-8", "no-store", "ok"},
 	}
 	for _, tt := range tests {

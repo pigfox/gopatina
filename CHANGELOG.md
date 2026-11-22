@@ -94,6 +94,9 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- The first test-server run, a 100-run wall-time pilot (2026-11-22), is
+  published with its raw JSON: all three benchmarks inconclusive, because the
+  machine's wall-time noise (7% to 20%) is far wider than the ±0.5% margin.
 - The two bars are stated with their hypotheses and exact formulas in
   docs/QUALITY.md, BENCHMARKS.md and the README: speed, equivalent to
   hand-written Rust within ±0.5% by a TOST equivalence test at 5σ; and

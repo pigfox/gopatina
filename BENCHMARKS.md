@@ -29,6 +29,28 @@ Hypotheses, formulas and their limits are in
 [docs/QUALITY.md](docs/QUALITY.md#the-two-bars). "Identical" means equivalent within ±0.5% at 5σ: in a two one-sided tests (TOST) equivalence test on paired, interleaved runs, the whole 5σ interval of the ratio lies inside ±0.5%.
 How the test works is in [bench/README.md](bench/README.md).
 
+## Test-server pilot (2026-11-22): inconclusive, from noise
+
+The first run on the test server, the 100-run pilot that sizes the speed
+bar's run: `bench/run.sh --equiv --runs 100`, wall time, TOST at ±0.5% and
+5σ, GoPatina commit `0af9da87949b1e710ec7a00c4b3a24a79e9d7b49`, on an Intel
+Xeon Gold 6152 virtual server (7 vCPUs, 7 GB, Linux 6.8.0-147, Go 1.27.1,
+rustc 1.100.0 stable, emitted crates pinned to 1.93.0). Notes and load in
+the [run notes](bench/results/2026-11-22-server-0af9da8-pilot.md); raw
+results:
+[2026-11-22-server-0af9da8-pilot.json](bench/results/2026-11-22-server-0af9da8-pilot.json).
+
+| Benchmark | GoPatina / Rust, wall time | 5σ interval | sd of log ratios | Verdict |
+| --- | --- | --- | --- | --- |
+| `fib` | 0.984 | [0.948, 1.021] | 0.069 | inconclusive |
+| `sieve` | 0.975 | [0.874, 1.087] | 0.204 | inconclusive |
+| `suffix-sum` | 1.007 | [0.961, 1.056] | 0.087 | inconclusive |
+
+The wall-time noise on this machine (7% to 20%) is far wider than the ±0.5%
+margin: even with no true difference, the bar would need about 4,800, 41,900
+and 7,700 pairs at 5σ. The pilot makes no speed claim. The bar's run waits
+for CPU counters on the server, or a quieter dedicated machine.
+
 ## Latest local equivalence run (not official)
 
 Measured on 2026-11-21 on the maintainer's laptop, at GoPatina commit
@@ -147,6 +169,7 @@ When the dedicated test server exists, results will be shown in this form:
 
 ## History
 
+- 2026-11-22: the test-server pilot, wall time, inconclusive from noise.
 - 2026-11-21: a local equivalence run with CPU counters, a wall-clock run and a machine-code comparison (not official).
 - 2026-11-18: two local verification runs (not official).
 

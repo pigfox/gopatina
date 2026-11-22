@@ -20,9 +20,10 @@ Each benchmark is written in Go, built with `gopatina build -patina`, and as idi
 | `sieve` | 1.302 times the instructions, about 7% slower in cycles and wall time | the same run |
 | `suffix-sum` | the same user instructions to within 0.0003% (1.0000020); cycles and wall time inconclusive | the same run |
 | Machine code after RFC 0006 | the hot loops of all three are the same instructions as the hand-written Rust's | 2026-11-21, rustc 1.93.0 |
-| The speed bar (±0.5% at 5σ) | pending | the test server |
+| Test-server pilot, wall time | `fib` 0.984, `sieve` 0.975, `suffix-sum` 1.007: all inconclusive, with 5σ intervals 4% to 21% wide | 2026-11-22, test server, 100 runs per binary |
+| The speed bar (±0.5% at 5σ) | pending | the test server, with CPU counters or a quieter machine |
 
-`sieve` was slower because its generated inner loop kept one extra bounds check, which preserves Go's integer semantics. [RFC 0006](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0006-proven-ranges.md)'s loop specialization has since removed it where GoPatina can prove the arithmetic cannot wrap, so all three benchmarks now differ from the hand-written Rust only in a 3-instruction panic-hook setup at startup. That is a comparison of code, not of speed; a new speed measurement is pending. The local wall-time numbers are noisy, and none of these is an official result.
+`sieve` was slower because its generated inner loop kept one extra bounds check, which preserves Go's integer semantics. [RFC 0006](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0006-proven-ranges.md)'s loop specialization has since removed it where GoPatina can prove the arithmetic cannot wrap, so all three benchmarks now differ from the hand-written Rust only in a 3-instruction panic-hook setup at startup. That is a comparison of code, not of speed. The first test-server run, a 100-run pilot on 2026-11-22, measured wall time with a run-to-run spread of 7% to 20%, far wider than the ±0.5% margin, so it shows neither a difference nor equivalence; deciding the bar needs CPU counters or a quieter machine. None of these is an official result.
 
 ## Where the numbers come from {#method}
 
