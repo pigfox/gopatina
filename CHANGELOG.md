@@ -10,6 +10,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A call of another package's function returning an error was left out of
+  the error lowering, and its `Result` destructured as a tuple, so the crate
+  did not build; such calls are now lowered like calls in the same package.
+  And `_, err = f()` kept as a value took the zero value's type from `_`,
+  which has none. Golden `errors_packages`; the generator's lib package
+  returns an error to every program.
 - The borrow checker no longer rejects reading a value in one operand and
   handing it by value to a call in a later one, as in
   `fmt.Println(k, pass(k))` or `s + pass(s)` ("another operand changes k"):

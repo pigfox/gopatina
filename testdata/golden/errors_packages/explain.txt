@@ -1,0 +1,3 @@
+./parse/parse.go:18:13: parameter s is a shared borrow: Number only reads it
+./parse/parse.go:45:23: parameter s is a shared borrow: Parse only reads it
+./main.go:14:12: parameter ss is a shared borrow: total only reads it
