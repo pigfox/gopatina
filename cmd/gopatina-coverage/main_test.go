@@ -48,10 +48,11 @@ func fakeGo(t *testing.T, answers map[string]string, fail string) {
 	}
 }
 
-// TestMeasureStd measures two small standard-library packages for real:
+// TestMeasureStd measures two small standard-library packages for real
+// (strconv imports a translated package, internal/stringslite):
 // go list, export data, type-checking and the subset checker.
 func TestMeasureStd(t *testing.T) {
-	lock := write(t, "lock", "# a comment\nstd errors unicode/utf8 # inline comment\n")
+	lock := write(t, "lock", "# a comment\nstd strconv unicode/utf8 # inline comment\n")
 	code, out, errs := cov("measure", "-boot", "20", "-work", t.TempDir(), lock)
 	if code != 0 {
 		t.Fatalf("code %d: %s", code, errs)

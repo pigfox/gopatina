@@ -34,7 +34,7 @@ func TestFeature(t *testing.T) {
 		"github.com/x/y.F is not supported in patina mode yet":                                                "calls into other modules",
 		"type uint64 is not supported in patina mode yet":                                                     "other integer and float types",
 		"type []float32 is not supported in patina mode yet":                                                  "other integer and float types",
-		"type io.Reader is not supported in patina mode yet":                                                  "types from other packages",
+		"type io.Reader is not supported in patina mode yet":                                                  "provided package: io",
 		"a pointer to a pointer is not supported in patina mode yet":                                          "pointers",
 		"a slice expression (s[i:j]) is not supported in patina mode yet":                                     "slicing",
 		"an array type is not supported in patina mode yet":                                                   "arrays",
@@ -69,7 +69,7 @@ func TestFeature(t *testing.T) {
 		"printing a value of type interface {} is not supported in patina mode yet":                           "interfaces",
 		"the format %v with a value of type any is not supported in patina mode yet":                          "interfaces",
 		"the format %s with a value of type []any is not supported in patina mode yet":                        "interfaces",
-		"the format %s with a value of type time.Duration is not supported in patina mode yet":                "types from other packages",
+		"the format %s with a value of type time.Duration is not supported in patina mode yet":                "provided package: time",
 		"the format %s with a value of type *net/http.pattern is not supported in patina mode yet":            "types from other packages",
 		"printing a value of type []*github.com/x/y.ValueType is not supported in patina mode yet":            "types from other packages",
 		"the format %v with a value of type main.Op is not supported in patina mode yet":                      FmtVerbs,
@@ -314,7 +314,7 @@ func TestOrigin(t *testing.T) {
 }
 
 func TestMessages(t *testing.T) {
-	foreign := "type time.Duration is not supported in patina mode yet"
+	foreign := "type math/big.Int is not supported in patina mode yet"
 	pkgs := []Package{
 		{Module: "a.org/m", Messages: map[string]int{foreign: 2, "a map type is not supported in patina mode yet": 1}},
 		{Module: "b.org/n", Messages: map[string]int{foreign: 1, "a map type is not supported in patina mode yet": 3, "range over a map (M) is not supported in patina mode yet": 3, "range over a map (N) is not supported in patina mode yet": 3}},
@@ -498,5 +498,27 @@ func TestExclusionSamePackage(t *testing.T) {
 	}
 	if s := Summarize(pkgs, 1, 1); s.ThirdParty.Excluded != 2 || s.ThirdParty.ViaDeps != 0 {
 		t.Errorf("excluded %d, via dependencies %d", s.ThirdParty.Excluded, s.ThirdParty.ViaDeps)
+	}
+}
+
+func TestProvidedPackages(t *testing.T) {
+	for msg, want := range map[string]string{
+		"sync.WaitGroup is not supported in patina mode yet":                         "provided package: sync",
+		"internal/bytealg.IndexByteString is not supported in patina mode yet":       "provided package: internal/bytealg",
+		"printing a value of type time.Duration is not supported in patina mode yet": "provided package: time",
+		"type *sync.Mutex is not supported in patina mode yet":                       "provided package: sync",
+		"strconv.Itoa is not supported in patina mode yet":                           "standard library (calls and variables)",
+	} {
+		if got := Feature(msg); got != want {
+			t.Errorf("Feature(%q) = %q, want %q", msg, got, want)
+		}
+	}
+	pkgs := []Package{
+		{Module: "std", Provided: true, Funcs: []Func{{Name: "Lock", Features: []string{Assembly}, Assembly: []string{"sync.x"}}, {Name: "Unlock", Accepted: true}}},
+		{Module: "std", Funcs: []Func{{Name: "Itoa", Accepted: true}}},
+	}
+	s := Summarize(pkgs, 1, 1)
+	if s.Std.Provided != 2 || s.Std.Functions.Den != 1 || len(s.Std.Reasons) != 0 || len(s.AssemblyNeeded) != 0 {
+		t.Errorf("provided %d, functions %v, reasons %v, assembly %v", s.Std.Provided, s.Std.Functions, s.Std.Reasons, s.AssemblyNeeded)
 	}
 }

@@ -53,6 +53,10 @@ type Package struct {
 	// messages of each feature.
 	Messages map[string]int `json:"messages,omitempty"`
 
+	// Provided marks a package GoPatina provides in Rust (RFC 0011): its
+	// functions are counted apart, not translated.
+	Provided bool `json:"provided,omitempty"`
+
 	decls      []*decl // for Resolve
 	filesClean bool    // no file has a diagnostic outside a declaration
 }
@@ -65,6 +69,14 @@ const Excluded = "reflect and unsafe (excluded)"
 // Feature names the construct a diagnostic is about, from its message.
 // Unknown messages fall into "other"; every message the checker can give
 // is covered by a test.
+// ProvidedFeature starts the feature of a use of a provided package's API
+// that GoPatina does not provide yet (RFC 0011): "provided package: sync".
+const ProvidedFeature = "provided package: "
+
+// providedRE finds the package of a diagnostic's subject: path.Name, type
+// path.Name, or a printed value of type path.Name.
+var providedRE = regexp.MustCompile(`^(?:type [*\[\]]*|.*with a value of type [*\[\]]*|printing a value of type [*\[\]]*)?([a-z][a-z0-9_./-]*)\.[A-Za-z_]`)
+
 // Assembly is the feature of a function declared without a Go body.
 const Assembly = "functions without a body (assembly)"
 
@@ -75,6 +87,9 @@ const assemblyMsg = "a function declared without a body (assembly): "
 func Feature(msg string) string {
 	if strings.HasPrefix(msg, assemblyMsg) {
 		return Assembly // before the patterns: a name may contain any word
+	}
+	if m := providedRE.FindStringSubmatch(msg); m != nil && load.Provided(m[1]) {
+		return ProvidedFeature + m[1]
 	}
 	// A named type or alias is rejected for what it is made of (RFC 0007):
 	// "type Code: type uint32 ..." needs uint32.

@@ -27,6 +27,35 @@ var Bridged = map[string]bool{
 	"fmt": true, "strings": true, "errors": true, "os": true, "io": true, "slices": true, "bytes": true,
 }
 
+// provided are the packages GoPatina provides in Rust instead of
+// translating (RFC 0011), besides the bridged ones, and the prefixes of
+// the runtime's internal packages, which nothing translated reaches.
+var (
+	provided = map[string]bool{
+		"sync": true, "sync/atomic": true, "runtime": true, "time": true,
+		"math/rand": true, "math/rand/v2": true, "sort": true, "syscall": true,
+		"os/signal": true, "os/exec": true, "internal/bytealg": true,
+		"internal/abi": true, "internal/sync": true, "internal/chacha8rand": true,
+		"internal/cpu": true, "internal/goarch": true, "internal/godebug": true,
+		"internal/race": true, "internal/poll": true, "internal/reflectlite": true,
+	}
+	providedPrefixes = []string{"internal/runtime/", "internal/syscall/", "runtime/"}
+)
+
+// Provided reports whether the package at path is provided by GoPatina
+// (RFC 0011): bridged, provided, or below a provided package's API.
+func Provided(path string) bool {
+	if Bridged[path] || provided[path] {
+		return true
+	}
+	for _, p := range providedPrefixes {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // Intrinsics are the functions of translated packages that patina mode
 // writes as Rust instead of translating, as gc writes them as machine
 // instructions (RFC 0009): their results follow gc, also where Go's
