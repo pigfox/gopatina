@@ -142,6 +142,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Shifts by a count known only at run time (`x << s`, `x >>= s`), with Go's
+  0 or −1 at and past the width and Go's panic "runtime error: negative
+  shift amount" (`rt::shl`, `rt::shr`); for `x op= s` every index of the
+  place is computed once, before the count, as Go evaluates them.
+- `init` functions, called in the order Go runs them (by file, then source
+  order) before `main`. Golden program `var_shift_init`; the generator
+  shifts values of every integer type by run-time counts, from a random
+  stream of its own.
 - Every integer type and `float32` in patina mode (RFC 0008): `int8`,
   `int16`, `uint`, `uint16`, `uint32`, `uint64`, `uintptr`, `float32`, as
   the Rust primitive of the same width, with wrapping arithmetic, signed

@@ -141,7 +141,7 @@ method, wrapping arithmetic in that width (shifts up to past the width), and
 a named slice of it with pointer-receiver methods, and float-to-integer
 conversions of values far out of range, NaN and the infinities (from
 `float64` and `float32` to every integer width), `float32` arithmetic and
-printing, and fmt
+printing, shifts by run-time counts of every integer type, and fmt
 widths and flags (a width on a slice, `%x` with the `0`, `#` and `-` flags
 on integers, strings and bytes);
 each is valid Go that terminates without a panic. They also contain the

@@ -484,11 +484,27 @@ func (g *gen) binary(e *ast.BinaryExpr) node {
 	l := g.value(e.X)
 	if e.Op == token.SHL || e.Op == token.SHR {
 		l = parenCastTail(l)
+		if g.info.Types[e.Y].Value == nil {
+			return g.varShift(e.Op, l, e.Y)
+		}
 		if w, ok := g.wideShift(xt, e.Y); ok {
 			return wideShift(e.Op, isUnsigned(xt), w, l)
 		}
 	}
 	return &binary{op: op.op, l: l, r: g.value(e.Y), p: op.prec}
+}
+
+// varShift renders x << s or x >> s for a count s known only at run time:
+// rt::shl and rt::shr give Go's 0 or -1 at and past the width and panic
+// with Go's message for a negative count.
+func (g *gen) varShift(op token.Token, x node, s ast.Expr) node {
+	g.rt["shift"] = true
+	head := "rt::shl"
+	if op == token.SHR {
+		head = "rt::shr"
+	}
+	count := atom{paren(g.value(s), precCast) + " as i128", precCast}
+	return &call{head: head, open: "(", close: ")", args: []node{x, count}}
 }
 
 // wideShift reports whether shift count y is a constant at least the bit

@@ -251,6 +251,61 @@ impl fmt::Display for Float32 {
 `,
 	},
 	{
+		name: "shift",
+		code: `/// Go's x << s and x >> s for a count known only at run time: at and past
+/// the width, 0 (or -1 for a negative signed x shifted right); a negative
+/// count panics, as in Go.
+pub fn shl<T: Shift>(x: T, s: i128) -> T {
+    x.go_shl(shift_count(s))
+}
+
+pub fn shr<T: Shift>(x: T, s: i128) -> T {
+    x.go_shr(shift_count(s))
+}
+
+fn shift_count(s: i128) -> u32 {
+    if s < 0 {
+        panic!("gopatina-user-panic:runtime error: negative shift amount");
+    }
+    u32::try_from(s).unwrap_or(u32::MAX)
+}
+
+pub trait Shift: Copy {
+    fn go_shl(self, s: u32) -> Self;
+    fn go_shr(self, s: u32) -> Self;
+}
+
+macro_rules! shift_signed {
+    ($($t:ty),*) => {
+        $(impl Shift for $t {
+            fn go_shl(self, s: u32) -> Self {
+                self.checked_shl(s).unwrap_or(0)
+            }
+            fn go_shr(self, s: u32) -> Self {
+                self.checked_shr(s).unwrap_or(self >> (<$t>::BITS - 1))
+            }
+        })*
+    };
+}
+
+macro_rules! shift_unsigned {
+    ($($t:ty),*) => {
+        $(impl Shift for $t {
+            fn go_shl(self, s: u32) -> Self {
+                self.checked_shl(s).unwrap_or(0)
+            }
+            fn go_shr(self, s: u32) -> Self {
+                self.checked_shr(s).unwrap_or(0)
+            }
+        })*
+    };
+}
+
+shift_signed!(i8, i16, i32, i64);
+shift_unsigned!(u8, u16, u32, u64);
+`,
+	},
+	{
 		name: "uindex",
 		code: `/// An index of Go type uint64 (uint, uintptr): out of range, Go prints it
 /// as an unsigned number, which Rust's own message, read as Go's signed
