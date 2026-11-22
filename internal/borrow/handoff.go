@@ -2,6 +2,7 @@ package borrow
 
 import (
 	"fmt"
+	"github.com/pigfox/gopatina/internal/subset"
 	"go/scanner"
 	"go/token"
 	"go/types"
@@ -48,16 +49,25 @@ func (l *live) handOff(ev event, lv set) {
 		return
 	}
 	a.res.Actions[ev.e] = Clone
-	reason := "Go strings are immutable, so a copy keeps the program's meaning"
-	switch {
-	case k == Shared:
+	reason := copyReason(t)
+	if k == Shared {
 		reason = fmt.Sprintf("%s neither keeps it nor changes what it shares, so a copy behaves like Go's", ev.into)
-	case heapPtrType(t):
-		reason = "a copy of a pointer points at the same variable, as Go's does (RFC 0013)"
-	case isStruct(t):
-		reason = "Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning"
 	}
 	a.fix(ev.pos, fmt.Sprintf("copied %s into %s: %s; %s", what, ev.into, why, reason))
+}
+
+// copyReason says why a copy of a value of type t, which shares nothing that
+// can change, keeps the program's meaning.
+func copyReason(t types.Type) string {
+	switch {
+	case heapPtrType(t):
+		return "a copy of a pointer points at the same variable, as Go's does (RFC 0013)"
+	case isStruct(t):
+		return "Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning"
+	case subset.IsIface(t):
+		return "a copy of an interface value holds the same value, which no copy can change, so a copy keeps the program's meaning"
+	}
+	return "Go strings are immutable, so a copy keeps the program's meaning"
 }
 
 func isStruct(t types.Type) bool {

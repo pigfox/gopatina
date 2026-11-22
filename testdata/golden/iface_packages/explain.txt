@@ -1,3 +1,3 @@
 ./shapes/shapes.go:32:12: parameter all is a shared borrow: Total only reads it
 ./shapes/shapes.go:47:14: parameter all is a shared borrow: Biggest only reads it
-./shapes/shapes.go:51:11: copied s into best: s is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./shapes/shapes.go:51:11: copied s into best: s is borrowed, so its value cannot be moved out; a copy of an interface value holds the same value, which no copy can change, so a copy keeps the program's meaning

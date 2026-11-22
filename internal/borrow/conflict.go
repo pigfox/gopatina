@@ -92,7 +92,7 @@ func (o *operands) check(call *ast.CallExpr, name string, pos token.Pos, stmtLev
 			if copyOnly && call != nil && stmtLevel {
 				a.res.Hoist[call] = true
 				if !op.excl {
-					a.fix(top.pos, fmt.Sprintf("copied %s before calling %s: a later argument changes %s; Go strings are immutable, so a copy keeps the program's meaning", trimElem(top.path), name, rootName(top.path)))
+					a.fix(top.pos, fmt.Sprintf("copied %s before calling %s: a later argument changes %s; %s", trimElem(top.path), name, rootName(top.path), copyReason(a.pkg.Info.TypeOf(top.e))))
 				}
 				continue
 			}
