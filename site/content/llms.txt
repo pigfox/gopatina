@@ -2,7 +2,7 @@
 
 > GoPatina is an open-source Go toolchain front end in which ordinary Go code can opt into running the way Rust code does: no garbage collector, ownership and borrowing, and Rust-grade memory safety. Without a flag it runs the installed Go toolchain unchanged. It is an experiment by Pigfox to get Go developers past Rust's learning curve.
 
-Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress. Default mode works for all Go. For the phase 1 subset (functions, structs and methods, slices, strings, errors, fmt printing, and read-only s[i:] suffix arguments), -emit-rust, -patina, -patina=check, -explain and gopatina verify are implemented, checked by differential tests (79 golden programs, 24 rejection fixtures and 3 Go-only semantics cases; same stdout, first stderr line and exit status as go build) and byte-identical rebuilds. Not supported yet: goroutines and channels, maps, closures, interfaces, generics, defer, general slicing, slices with high or max bounds, saved slice views, most of the standard library. Two local verification runs are published in BENCHMARKS.md (all cases within 1.10 of Rust, worst ratio 1.043); no official test-server run yet. Last updated 2026-11-18.
+Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress. Default mode works for all Go. For the phase 1 subset (functions, structs and methods, slices, strings, errors, fmt printing, and read-only s[i:] suffix arguments), -emit-rust, -patina, -patina=check, -explain and gopatina verify are implemented, checked by differential tests (79 golden programs, 24 rejection fixtures and 3 Go-only semantics cases; same stdout, first stderr line and exit status as go build) and byte-identical rebuilds. Not supported yet: goroutines and channels, maps, closures, interfaces, generics, defer, general slicing, slices with high or max bounds, saved slice views, most of the standard library. Speed goal: identical to equivalent hand-written Rust on every benchmark (a goal, not a claim). No official test-server run yet. Latest local run (2026-11-21, commit 6cb858f): GoPatina / Rust 0.730 fib, 1.123 sieve, 1.010 suffix-sum; these wall-clock numbers are noisy. Machine code: fib and suffix-sum hot loops match the hand-written Rust; sieve has one extra bounds check per inner-loop pass. Details in BENCHMARKS.md. Last updated 2026-11-21.
 
 ## Docs
 
@@ -17,7 +17,7 @@ Status: early. Phase 1 works for a defined subset of Go; real programs need feat
 - [RFC 0003](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0003-toolchain-compatibility.md): toolchain compatibility and versioning
 - [RFC 0004](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0004-read-only-slice-suffix.md): read-only slice suffix arguments
 - [RFC 0005](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0005-phase1-semantic-exactness.md): phase 1 semantic exactness fixes
-- [Benchmarks](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md): where official results will be published (none yet)
+- [Benchmarks](https://github.com/pigfox/gopatina/blob/main/BENCHMARKS.md): local measurements with raw results and caveats; official results will be published there (none yet)
 
 ## Optional
 
