@@ -86,6 +86,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- The coverage measurement decides acceptance across packages, as patina
+  builds do (RFC 0009): a function is accepted when everything it uses, in
+  any measured package, is accepted, and inherits the features of what it
+  uses; a use of an unmeasured package is "outside the measured corpus".
+  Functions that reach reflect or unsafe through another package are
+  excluded too.
 - The Go oracle of the differential tests (`gopatina-difftest` and the golden
   `TestDifferential`) is Go's reference build, `go build -gcflags=all=-N -l`.
   The generated tests found two programs whose optimized gc build (amd64;

@@ -50,6 +50,9 @@ type Package struct {
 	// Messages counts every diagnostic by message, for the summary's top
 	// messages of each feature.
 	Messages map[string]int `json:"messages,omitempty"`
+
+	decls      []*decl // for Resolve
+	filesClean bool    // no file has a diagnostic outside a declaration
 }
 
 // Excluded is the feature of code that uses package reflect or unsafe: out
@@ -187,9 +190,33 @@ func Generated(src []byte) bool {
 type decl struct {
 	node     ast.Node
 	fn       *ast.FuncDecl // nil for a spec
+	key      string        // its key across the corpus (Key)
 	features map[string]bool
-	uses     map[*decl]bool
+	uses     map[*decl]bool  // in its own package
+	foreign  map[string]bool // in other packages of the corpus, by key
 	ok       bool
+	funcIdx  int // its index in Package.Funcs, or -1
+}
+
+// Outside is the feature of a declaration that uses one of a package the
+// measurement has not measured (skipped, or outside the corpus).
+const Outside = "outside the measured corpus"
+
+// Key names a package-level object across the corpus: path.Name, or
+// path.Type.Method for a method.
+func Key(obj types.Object) string {
+	if f, ok := obj.(*types.Func); ok {
+		if r := f.Signature().Recv(); r != nil {
+			t := r.Type()
+			if p, ok := t.(*types.Pointer); ok {
+				t = p.Elem()
+			}
+			if n, ok := types.Unalias(t).(*types.Named); ok {
+				return obj.Pkg().Path() + "." + n.Obj().Name() + "." + obj.Name()
+			}
+		}
+	}
+	return obj.Pkg().Path() + "." + obj.Name()
 }
 
 // Measure turns the checker's diagnostics for pkg into a Package. Files
@@ -206,12 +233,15 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 		name := pkg.Fset.Position(f.Pos()).Filename
 		generated[f] = Generated(pkg.Src[name])
 		add := func(n ast.Node, fn *ast.FuncDecl, names ...*ast.Ident) {
-			d := &decl{node: n, fn: fn, features: map[string]bool{}, uses: map[*decl]bool{}}
+			d := &decl{node: n, fn: fn, features: map[string]bool{}, uses: map[*decl]bool{}, foreign: map[string]bool{}, funcIdx: -1}
 			decls = append(decls, d)
 			fileOf[d] = f
 			for _, id := range names {
 				if obj := pkg.Info.Defs[id]; obj != nil {
 					byObj[obj] = d
+					if d.key == "" && obj.Pkg() != nil {
+						d.key = Key(obj)
+					}
 				}
 			}
 		}
@@ -255,12 +285,16 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 			}
 		}
 	}
-	// What each declaration uses of its own package.
+	// What each declaration uses of its own package, and of the other
+	// packages of the program (RFC 0009), which Resolve looks up.
 	for _, d := range decls {
 		ast.Inspect(d.node, func(n ast.Node) bool {
 			if id, ok := n.(*ast.Ident); ok {
-				if u := byObj[pkg.Info.Uses[id]]; u != nil && u != d {
+				obj := pkg.Info.Uses[id]
+				if u := byObj[obj]; u != nil && u != d {
 					d.uses[u] = true
+				} else if foreign(pkg, obj) {
+					d.foreign[Key(obj)] = true
 				}
 			}
 			return true
@@ -293,14 +327,12 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 			}
 		}
 	}
-	p.Accepted = true
+	p.decls = decls
 	for _, d := range decls {
-		if !d.ok {
-			p.Accepted = false
-		}
 		if d.fn == nil || generated[fileOf[d]] {
 			continue
 		}
+		d.funcIdx = len(p.Funcs)
 		start, end := pkg.Fset.Position(d.fn.Pos()), pkg.Fset.Position(d.fn.End())
 		var fs []string
 		for f := range d.features {
@@ -322,12 +354,99 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 			p.FilesOK++
 		}
 	}
+	p.filesClean = true
 	for _, n := range fileDiags {
 		if n > 0 {
-			p.Accepted = false
+			p.filesClean = false
 		}
 	}
+	p.settle()
 	return p
+}
+
+// foreign reports whether obj is a package-level declaration of another
+// package of the program: one Resolve looks up. Fields belong to their
+// struct type, and intrinsics are written as Rust, not looked up.
+func foreign(pkg *load.Package, obj types.Object) bool {
+	if obj == nil || obj.Pkg() == nil || obj.Pkg() == pkg.Types || !pkg.Local[obj.Pkg()] || load.IsIntrinsic(obj) {
+		return false
+	}
+	if v, ok := obj.(*types.Var); ok && v.IsField() {
+		return false
+	}
+	_, method := obj.(*types.Func)
+	return method || obj.Parent() == obj.Pkg().Scope()
+}
+
+// settle writes the declarations' acceptance and features into p.
+func (p *Package) settle() {
+	p.Accepted = p.filesClean
+	for _, d := range p.decls {
+		if !d.ok {
+			p.Accepted = false
+		}
+		if d.funcIdx < 0 {
+			continue
+		}
+		var fs []string
+		for f := range d.features {
+			fs = append(fs, f)
+		}
+		sort.Strings(fs)
+		f := &p.Funcs[d.funcIdx]
+		f.Accepted, f.Excluded, f.Features = d.ok, d.features[Excluded], fs
+	}
+}
+
+// Resolve applies the rule across packages (RFC 0009): a declaration is
+// accepted when it and everything it uses, in its own package and in
+// every other package of the corpus, is accepted, and it inherits the
+// features of what it uses. A use of a package that was not measured is
+// the feature Outside.
+func Resolve(pkgs []Package) {
+	index := map[string]*decl{}
+	for i := range pkgs {
+		for _, d := range pkgs[i].decls {
+			if d.key != "" {
+				index[d.key] = d
+			}
+		}
+	}
+	inherit := func(d, u *decl) bool {
+		changed := false
+		for f := range u.features {
+			if !d.features[f] {
+				d.features[f] = true
+				changed = true
+			}
+		}
+		if !u.ok && d.ok {
+			d.ok = false
+			changed = true
+		}
+		return changed
+	}
+	outside := &decl{features: map[string]bool{Outside: true}}
+	for changed := true; changed; {
+		changed = false
+		for i := range pkgs {
+			for _, d := range pkgs[i].decls {
+				for k := range d.foreign {
+					u := index[k]
+					if u == nil {
+						u = outside
+					}
+					changed = inherit(d, u) || changed
+				}
+				for u := range d.uses {
+					changed = inherit(d, u) || changed
+				}
+			}
+		}
+	}
+	for i := range pkgs {
+		pkgs[i].settle()
+	}
 }
 
 // recvType returns the named type a method is declared on.

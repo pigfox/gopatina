@@ -3,7 +3,9 @@ package coverage
 import (
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
+	"go/types"
 	"strings"
 	"testing"
 
@@ -337,5 +339,74 @@ func TestMessages(t *testing.T) {
 	s := Summarize(pkgs, 1, 1)
 	if s.ForeignTypes["standard library"] != 3 || len(s.TopMessages["maps"]) != 3 {
 		t.Errorf("Summarize: %v %v", s.ForeignTypes, s.TopMessages)
+	}
+}
+
+// twoPackages type-checks package b and then package a, which imports b
+// and c, from source, as the measurement sees a program's packages.
+func twoPackages(t *testing.T, bSrc, cSrc, aSrc string) (a, b *load.Package) {
+	t.Helper()
+	fset := token.NewFileSet()
+	checked := map[string]*types.Package{}
+	one := func(path, src string) *load.Package {
+		f, err := parser.ParseFile(fset, path+".go", src, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
+		conf := types.Config{Importer: importerFunc(func(p string) (*types.Package, error) { return checked[p], nil })}
+		tp, err := conf.Check(path, fset, []*ast.File{f}, info)
+		if err != nil {
+			t.Fatal(err)
+		}
+		checked[path] = tp
+		pkg := &load.Package{Name: tp.Name(), Fset: fset, Files: []*ast.File{f}, Types: tp, Info: info, Src: map[string][]byte{path + ".go": []byte(src)}}
+		pkg.Local = map[*types.Package]bool{tp: true}
+		for _, imp := range tp.Imports() {
+			pkg.Local[imp] = true
+		}
+		return pkg
+	}
+	b = one("example.com/b", bSrc)
+	one("example.com/c", cSrc)
+	a = one("example.com/a", aSrc)
+	return a, b
+}
+
+type importerFunc func(string) (*types.Package, error)
+
+func (f importerFunc) Import(p string) (*types.Package, error) { return f(p) }
+
+func TestResolve(t *testing.T) {
+	a, b := twoPackages(t,
+		"package b\n\ntype T int\n\nfunc (t T) M() int { return 1 }\n\nfunc G() int { return 1 }\n\nfunc Bad() int { return 2 }\n\nvar V = 1\n\ntype S struct{ F int }\n",
+		"package c\n\nfunc X() int { return 3 }\n",
+		"package a\n\nimport (\n\t\"example.com/b\"\n\t\"example.com/c\"\n)\n\nfunc F() int { return b.G() + b.T(1).M() + b.S{}.F }\n\nfunc H() int { return b.Bad() }\n\nfunc U() int { return c.X() }\n\nfunc W() int { return b.V }\n")
+	bad := diag.Diagnostic{Pos: b.Fset.Position(b.Files[0].Decls[3].Pos()), Msg: "a map type is not supported in patina mode yet"}
+	pkgs := []Package{
+		Measure(b, "example.com/b", "example.com/m", []diag.Diagnostic{bad}),
+		Measure(a, "example.com/a", "example.com/m", nil),
+	}
+	Resolve(pkgs)
+	got := map[string]string{}
+	for _, p := range pkgs {
+		for _, f := range p.Funcs {
+			got[p.Path+"."+f.Name] = fmt.Sprint(f.Accepted, f.Features)
+		}
+	}
+	for name, want := range map[string]string{
+		"example.com/a.F":   "true []",
+		"example.com/a.H":   "false [maps]",
+		"example.com/a.U":   "false [" + Outside + "]",
+		"example.com/a.W":   "true []",
+		"example.com/b.Bad": "false [maps]",
+		"example.com/b.T.M": "true []",
+	} {
+		if got[name] != want {
+			t.Errorf("%s = %s, want %s", name, got[name], want)
+		}
+	}
+	if pkgs[0].Accepted || pkgs[1].Accepted {
+		t.Errorf("packages accepted: %v %v", pkgs[0].Accepted, pkgs[1].Accepted)
 	}
 }
