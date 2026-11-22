@@ -11,11 +11,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 ### Fixed
 
 - The coverage measurement excludes a function for reflect or unsafe only
-  when it, or code of its own module, uses them; through another module
-  (the standard library included) that is the feature "reflect or unsafe
+  when it, or code of its own package, uses them; through another package
+  (of its module, another module or the standard library) that is the
+  feature "reflect or unsafe
   inside dependencies", and the function stays in the shares. With the
   cross-package rule, the exclusion had also taken every function reaching
-  std internals that use unsafe, shrinking the denominator. The report gives
+  std internals that use unsafe (and, counted per module, every std function
+  reaching runtime or internal packages), shrinking the denominator. The report gives
   both counts. "init and functions without a body" is now "functions without
   a body (assembly)".
 - The subset checker no longer panics on a `String` or `Error` method
@@ -98,8 +100,6 @@ Until 1.0.0, minor versions may contain breaking changes.
   builds do (RFC 0009): a function is accepted when everything it uses, in
   any measured package, is accepted, and inherits the features of what it
   uses; a use of an unmeasured package is "outside the measured corpus".
-  Functions that reach reflect or unsafe through another package are
-  excluded too.
 - The Go oracle of the differential tests (`gopatina-difftest` and the golden
   `TestDifferential`) is Go's reference build, `go build -gcflags=all=-N -l`.
   The generated tests found two programs whose optimized gc build (amd64;
