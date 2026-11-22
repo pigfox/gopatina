@@ -1,0 +1,11 @@
+# Hand-written Rust for the cycles benchmark, built with the latest stable Rust.
+[package]
+name = "cycles"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+
+[profile.release]
+codegen-units = 1

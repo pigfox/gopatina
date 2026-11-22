@@ -3,7 +3,7 @@
 - **Status:** Accepted (#86). Implementation in three steps: escape
   analysis and heap cells (step 1, implemented); slices of pointers and
   `*T` in interfaces (step 2, implemented); the `-explain` cycle warning and the pointer
-  benchmark (step 3)
+  benchmark (step 3, implemented)
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file

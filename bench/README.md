@@ -37,7 +37,8 @@ added as the patina subset grows to support them:
 | `nbody` | structs, floating point, loops (needs `math.Sqrt`) | 2 |
 | `spectral-norm` | slices, nested loops | 2 |
 | `fannkuch-redux` | slices, permutations, mutation through borrows | 2 |
-| `binary-trees` | allocation and freeing of many small boxes (where a GC would run) | 2 |
+| `binary-trees` | allocation and freeing of many small trees through pointers (where a GC would run); hand-written Rust uses `Box` | RFC 0013 (in place) |
+| `cycles` | doubly linked lists built and dropped: Go's collector reclaims their cycles, GoPatina's reference counts do not (RFC 0013's known limitation), so its peak memory is the point; hand-written Rust uses `Weak` back pointers | RFC 0013 (in place) |
 | `json-roundtrip` | strings, maps, the standard library subset | 4 |
 | `chan-pipeline` | goroutines and channels | 3 |
 
@@ -61,7 +62,9 @@ For each case, [`run.sh`](run.sh):
    `go version`, both `rustc --version`s, operating system. It writes no
    absolute times.
 
-Peak memory and the official-run format are planned with the test server.
+Each binary also runs once under GNU time, and the result has the ratios of
+their peak resident memory to the hand-written Rust's (null without GNU
+time). The official-run format is planned with the test server.
 
 ## Equivalence test: `run.sh --equiv`
 

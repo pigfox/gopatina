@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"sort"
+	"strings"
 
 	"github.com/pigfox/gopatina/internal/diag"
 	"github.com/pigfox/gopatina/internal/subset"
@@ -432,4 +433,100 @@ func calleeFunc(info *types.Info, c *ast.CallExpr) *types.Func {
 		return fn
 	}
 	return nil
+}
+
+// cycleNotes notes, for -explain, each pointer field (or slice of pointers)
+// of a struct type of the program through which a value can reach a value
+// of the same struct type: a cycle through it is not reclaimed, since a
+// reference count frees no cycle (RFC 0013's known limitation).
+func (a *analyzer) cycleNotes() {
+	info := a.pkg.Info
+	for _, f := range a.pkg.Files {
+		for _, d := range f.Decls {
+			gd, ok := d.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+			for _, spec := range gd.Specs {
+				ts, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				obj := info.Defs[ts.Name].(*types.TypeName)
+				st, ok := obj.Type().Underlying().(*types.Struct)
+				if !ok {
+					continue
+				}
+				for i := 0; i < st.NumFields(); i++ {
+					fld := st.Field(i)
+					if !heapHolder(fld.Type()) {
+						continue
+					}
+					if c := reaches(fld.Type(), obj.Type(), map[types.Type]bool{}); c != nil {
+						name := types.TypeString(c, types.RelativeTo(obj.Pkg()))
+						a.fix(fld.Pos(), fmt.Sprintf("%s.%s can point back to %s %s: a cycle through it is not reclaimed (RFC 0013)", obj.Name(), fld.Name(), article(name), name))
+					}
+				}
+			}
+		}
+	}
+}
+
+// heapHolder reports whether a field of type t holds heap pointers: a heap
+// pointer, or a slice of them.
+func heapHolder(t types.Type) bool {
+	if s, ok := t.Underlying().(*types.Slice); ok {
+		t = s.Elem()
+	}
+	return heapPtrType(t)
+}
+
+// reaches returns the type of a cell that a value of type t can lead to,
+// through heap pointers, slices and struct fields, and that holds a value
+// of type target (is one, or has one in a field); or nil.
+func reaches(t, target types.Type, seen map[types.Type]bool) types.Type {
+	if seen[t] {
+		return nil
+	}
+	seen[t] = true
+	switch u := t.Underlying().(type) {
+	case *types.Pointer: // a heap pointer: one in a field or a slice escapes
+		if holds(u.Elem(), target) {
+			return u.Elem()
+		}
+		return reaches(u.Elem(), target, seen)
+	case *types.Slice:
+		return reaches(u.Elem(), target, seen)
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			if c := reaches(u.Field(i).Type(), target, seen); c != nil {
+				return c
+			}
+		}
+	}
+	return nil
+}
+
+// holds reports whether a value of type t is, or holds in a field (not
+// through a pointer), a value of type target.
+func holds(t, target types.Type) bool {
+	if types.Identical(t, target) {
+		return true
+	}
+	if st, ok := t.Underlying().(*types.Struct); ok {
+		for i := 0; i < st.NumFields(); i++ {
+			if holds(st.Field(i).Type(), target) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// article is "an" before a vowel, else "a".
+func article(name string) string {
+	if strings.ContainsRune("AEIOUaeiou", rune(name[0])) {
+		return "an"
+	}
+	return "a"
 }
