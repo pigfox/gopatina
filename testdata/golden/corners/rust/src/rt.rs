@@ -54,6 +54,33 @@ fn go_panic_message(msg: &str) -> String {
     msg.to_string()
 }
 
+/// Go's largest allocation, in bytes (runtime.maxAlloc).
+#[cfg(target_pointer_width = "64")]
+const MAX_ALLOC: u64 = 1 << 48;
+#[cfg(not(target_pointer_width = "64"))]
+const MAX_ALLOC: u64 = u32::MAX as u64;
+
+/// Go's makeslice check for make([]T, len, cap) with elements of size
+/// bytes: the same tests in the same order, and the same panics.
+fn make_check(len: i64, cap: i64, size: u64) {
+    let too_big = |n: i64| {
+        let (mem, overflow) = (n as u64).overflowing_mul(size);
+        overflow || mem > MAX_ALLOC
+    };
+    if too_big(cap) || len < 0 || len > cap {
+        if too_big(len) || len < 0 {
+            panic!("runtime error: makeslice: len out of range");
+        }
+        panic!("runtime error: makeslice: cap out of range");
+    }
+}
+
+/// The length of make([]T, n), after Go's checks.
+pub fn make_len(n: i64, size: u64) -> usize {
+    make_check(n, n, size);
+    n as usize
+}
+
 /// A float64 printed the way Go's fmt prints it: %v uses the shortest
 /// digits that read back as the same number, with an exponent below 1e-4
 /// and from 1e+06 up; a precision (%.2f) prints fixed digits.

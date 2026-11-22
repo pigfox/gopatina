@@ -125,14 +125,7 @@ func (g *gen) builtin(e *ast.CallExpr, name string) node {
 		}
 		return out
 	case "make":
-		t := g.info.Types[e.Args[0]].Type
-		elem := t.Underlying().(*types.Slice).Elem()
-		if len(e.Args) == 3 {
-			if v := g.info.Types[e.Args[1]].Value; v != nil && constant.Sign(v) == 0 {
-				return &call{head: "Vec::with_capacity", open: "(", close: ")", args: []node{text(g.index(e.Args[2]))}}
-			}
-		}
-		return &call{head: "vec!", open: "[", close: "]", args: []node{atom{g.typedZero(elem).flat() + "; " + g.index(e.Args[1]), precAtom}}}
+		return g.makeSlice(e)
 	}
 	// panic(s). The marker lets the runtime hook tell a Go panic apart from
 	// Rust's own runtime messages, which it translates to Go's text.
@@ -525,3 +518,52 @@ func (g *gen) writeBytes(writer ast.Expr, verbs []subset.Verb, operands []ast.Ex
 
 // goFloat is the text Go's fmt prints for a float64 with %v.
 func goFloat(f float64) string { return strconv.FormatFloat(f, 'g', -1, 64) }
+
+// makeSlice renders make([]T, len) and make([]T, len, cap). Constant
+// arguments were checked by the Go compiler. Otherwise Go's runtime checks
+// them (makeslice) and panics with its own message when one is negative or
+// too large, or len > cap, so the length goes through rt::make_len,
+// rt::make_len_cap or rt::make_cap, which do the same checks in the same
+// order, with the element size Go uses.
+func (g *gen) makeSlice(e *ast.CallExpr) node {
+	elem := g.info.Types[e.Args[0]].Type.Underlying().(*types.Slice).Elem()
+	size := text(strconv.FormatInt(g.pkg.Sizes.Sizeof(elem), 10))
+	isConst := func(x ast.Expr) bool { return g.info.Types[x].Value != nil }
+	vec := func(n string) node {
+		return &call{head: "vec!", open: "[", close: "]", args: []node{atom{g.typedZero(elem).flat() + "; " + n, precAtom}}}
+	}
+	helper := func(name string, args ...ast.Expr) node {
+		g.rt[name] = true
+		var as []node
+		for _, a := range args {
+			as = append(as, g.int64Arg(a))
+		}
+		return &call{head: "rt::" + name, open: "(", close: ")", args: append(as, size)}
+	}
+	if len(e.Args) == 3 {
+		if v := g.info.Types[e.Args[1]].Value; v != nil && constant.Sign(v) == 0 {
+			if isConst(e.Args[2]) {
+				return &call{head: "Vec::with_capacity", open: "(", close: ")", args: []node{text(g.index(e.Args[2]))}}
+			}
+			return &call{head: "Vec::with_capacity", open: "(", close: ")", args: []node{helper("make_cap", e.Args[2])}}
+		}
+		if !isConst(e.Args[1]) || !isConst(e.Args[2]) {
+			return vec(helper("make_len_cap", e.Args[1], e.Args[2]).flat())
+		}
+	} else if !isConst(e.Args[1]) {
+		return vec(helper("make_len", e.Args[1]).flat())
+	}
+	return vec(g.index(e.Args[1]))
+}
+
+// int64Arg renders an integer argument as an i64.
+func (g *gen) int64Arg(x ast.Expr) node {
+	if tv := g.info.Types[x]; tv.Value != nil {
+		return g.constant(tv.Value, types.Typ[types.Int])
+	}
+	v := g.value(x)
+	if g.rustType(g.typeOf(x)) == "i64" {
+		return v
+	}
+	return atom{paren(v, precCast) + " as i64", precCast}
+}
