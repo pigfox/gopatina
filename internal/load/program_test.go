@@ -2,6 +2,7 @@ package load
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"os"
 	"path/filepath"
@@ -51,7 +52,11 @@ func TestProgram(t *testing.T) {
 			t.Errorf("%s keeps its imports", pkg.PkgOf[f].Path())
 		}
 		for _, d := range f.Decls {
-			decls = append(decls, pkg.Fset.Position(d.Pos()).String()[len(dir)+1:])
+			// Relative to the directory go list reports, which resolves
+			// symbolic links (macOS's temporary directories are one).
+			pos := pkg.Fset.Position(d.Pos())
+			rel, _ := filepath.Rel(pkg.Dir, pos.Filename)
+			decls = append(decls, fmt.Sprintf("%s:%d:%d", rel, pos.Line, pos.Column))
 		}
 	}
 	// math/bits keeps nothing (OnesCount is an intrinsic); z keeps N and G;
