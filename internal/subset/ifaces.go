@@ -235,7 +235,11 @@ func interfaceProblem(t *types.Interface) string {
 func (c *checker) dynamicProblem(t types.Type) string {
 	switch {
 	case isPointer(t):
-		return "converting a pointer to an interface (pointers as dynamic types come with the pointers RFC)"
+		// *T for a named type T of the program (RFC 0013): a heap pointer.
+		if n, ok := types.Unalias(pointee(t)).(*types.Named); !ok || isPointer(t.(*types.Pointer).Elem()) || n.Obj().Pkg() == nil || !localPkgs[n.Obj().Pkg()] {
+			return "converting a pointer to a type other than a named type of the program to an interface"
+		}
+		return ""
 	case isWriter(t): // a type switch case or an assertion
 		return "io.Writer as a type switch case or assertion type"
 	case providedName(t) != "":
@@ -378,10 +382,8 @@ func holdsIface(t types.Type) bool {
 
 // stringErrors reports whether the program converts a type of string kind
 // to an interface: fmt.Print would space such an error as a string.
+// (printProblem, called first for every operand, has made the plan.)
 func (c *checker) stringErrors() bool {
-	if c.ifacePlan == nil {
-		c.ifacePlan = Ifaces(c.pkg)
-	}
 	for _, t := range c.ifacePlan.Dyn {
 		if b, ok := t.Underlying().(*types.Basic); ok && b.Info()&types.IsString != 0 {
 			return true

@@ -767,6 +767,23 @@ fn release(c: Rc<dyn Any>) {
 `,
 	},
 	{
+		name: "show_ptr",
+		deps: []string{"Ptr"},
+		code: `/// %v of a pointer through its String or Error method. As Go's fmt does,
+/// a method that panics for a nil pointer prints <nil>.
+pub fn show_ptr<T>(p: &Ptr<T>, show: impl FnOnce(&Ptr<T>) -> String) -> String {
+    if !p.is_nil() {
+        return show(p);
+    }
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let shown = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| show(p)));
+    std::panic::set_hook(hook);
+    shown.unwrap_or_else(|_| String::from("<nil>"))
+}
+`,
+	},
+	{
 		name: "write_bytes",
 		code: `/// Writes the parts one after the other, as Go's fmt does when it prints
 /// a []byte with %s: the bytes as they are, valid UTF-8 or not.

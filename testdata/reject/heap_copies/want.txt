@@ -4,7 +4,7 @@
     see docs/compat.md for what patina mode supports
 ./main.go:42:9: handing a value of type []int held through a pointer that escapes to keepIt, which keeps it is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
-./main.go:43:12: ranging over a slice held through a pointer that escapes is not supported in patina mode yet
+./main.go:43:12: ranging over a slice held through a pointer in a program that changes the elements of a []int held through one is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
 ./main.go:45:12: copying a value of type []int out of a pointer that escapes (a copy would not share its elements) is not supported in patina mode yet
     see docs/compat.md for what patina mode supports

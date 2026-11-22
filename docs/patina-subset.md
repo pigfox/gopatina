@@ -250,7 +250,6 @@ fields and slices; `Println` and plain `%v` and `%T` of them.
 
 Not supported yet, each with its own error:
 
-- pointers as dynamic types (with the pointers RFC);
 - interface methods with a parameter that holds a slice (in Go the callee
   shares it), or with `error`, `io.Writer` or pointer parameters or results;
 - converting a provided type (`time.Duration`), a type whose `String` may
@@ -290,18 +289,37 @@ A slice, or a struct holding one, is used inside its cell: indexed,
 measured with `len`, written, appended to, printed, or lent to a call that
 cannot reach any heap pointer (its parameters hold none), which then runs
 inside the cell's one borrow (`p.with_mut(|v| fill(&mut v.items))`). A copy
-taken out would not share its elements, so it is rejected.
+taken out would not share its elements, so it is rejected. A range over such
+a slice ranges over a copy of it, which is Go's range as long as nothing
+changes an element of a slice of that type held through a pointer during the
+program (a slice in a cell has no other copy); the checker rejects the range
+where something does.
+
+Slices of pointers (`[]*T`) are vectors of heap pointers. A pointer to a
+named type of the program can be an interface's dynamic type: method calls
+through the interface, assertions (`x.(*T)`), type switches, `==` (which
+compares the pointers), `%T`, `errors.As` into a `*T`, and a nil `*T` in a
+non-nil interface, all as in Go.
+
+A pointer is printed only through its type's `String` or `Error` method
+(directly, in a slice, or in an interface), because Go prints any other
+pointer by its address. The method may dereference its receiver: for a nil
+pointer, Go's fmt prints `<nil>` when the method panics, and so does patina
+mode (the one place it catches a panic).
 
 Not supported yet, each with its own error:
 
 - a pointer into a struct field or a slice element that escapes (`&x.f`,
   `&s[i]` returned or stored), and a pointer to a pointer variable that
   escapes;
-- slices of pointers, pointers as an interface's dynamic type, and printing
-  a pointer (RFC 0013's second step);
-- ranging over a slice held through a heap pointer, copying such a slice
-  out (`s := p.items`, `return p.items`), or handing it to a function that
-  keeps it;
+- printing a pointer whose type has no `String` or `Error` method, or an
+  interface value that can hold one; and a pointer to a type other than a
+  named type of the program in an interface;
+- converting `*T` to an interface where `T` holds a slice and has value
+  methods (a call would run on a copy that does not share its elements);
+- copying a slice held through a heap pointer out (`s := p.items`,
+  `return p.items`), handing it to a function that keeps it, or ranging
+  over it in a program that changes the elements of such a slice;
 - lending a place held through a heap pointer to a call that can reach
   heap pointers, two such places to one call, or a value method that
   changes its copy of such a value;

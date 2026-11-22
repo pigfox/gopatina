@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"sort"
 
 	"github.com/pigfox/gopatina/internal/diag"
 	"github.com/pigfox/gopatina/internal/subset"
@@ -132,6 +133,13 @@ func (a *analyzer) checkHeap(decls []*ast.FuncDecl) {
 		a.report(n.Pos(), d.With("see docs/compat.md for what patina mode supports"))
 	}
 	heap := func(e ast.Expr) bool { return HeapPlace(info, plan.Cells, e) }
+	// A range over a slice in a cell ranges over a copy of it (patina mode
+	// cannot hold the cell's borrow through the body), which is Go's range
+	// unless the program changes an element of a slice of that type held
+	// through a pointer, where Go's range would see it: no other copy of a
+	// slice in a cell exists (one cannot be copied out).
+	var ranges []*ast.RangeStmt
+	a.heapWritten = nil
 	for _, fd := range decls { // every one has a body (the subset checker)
 		var stack []ast.Node
 		ast.Inspect(fd.Body, func(n ast.Node) bool {
@@ -153,8 +161,14 @@ func (a *analyzer) checkHeap(decls []*ast.FuncDecl) {
 				a.heapCondition(n.Tag, unsupported)
 			case *ast.RangeStmt:
 				if heap(n.X) {
-					unsupported(n.X, "ranging over a slice held through a pointer that escapes")
+					ranges = append(ranges, n)
 				}
+			case *ast.AssignStmt:
+				for _, l := range n.Lhs {
+					a.elemWrite(l, heap)
+				}
+			case *ast.IncDecStmt:
+				a.elemWrite(n.X, heap)
 			case *ast.CallExpr:
 				a.heapCall(n, heap, unsupported)
 			}
@@ -168,6 +182,79 @@ func (a *analyzer) checkHeap(decls []*ast.FuncDecl) {
 			unsupported(e, fmt.Sprintf("copying a value of type %s out of a pointer that escapes (a copy would not share its elements)", info.TypeOf(e)))
 			return false
 		})
+	}
+	a.heapDynamic(unsupported)
+	for _, r := range ranges {
+		for _, w := range a.heapWritten {
+			if types.Identical(w, info.TypeOf(r.X)) {
+				unsupported(r.X, fmt.Sprintf("ranging over a slice held through a pointer in a program that changes the elements of a %s held through one", w))
+				break
+			}
+		}
+	}
+}
+
+// heapDynamic reports a pointer converted to an interface whose value
+// methods would run on a copy that does not share the value's elements: a
+// call through the interface copies *p out of its cell.
+func (a *analyzer) heapDynamic(unsupported func(ast.Node, string)) {
+	boxed := subset.Ifaces(a.pkg).Boxed
+	var es []ast.Expr
+	for e, t := range boxed {
+		if heapPtrType(t) {
+			es = append(es, e)
+		}
+	}
+	sort.Slice(es, func(i, j int) bool { return es[i].Pos() < es[j].Pos() })
+	seen := map[string]bool{}
+	for _, e := range es {
+		t := boxed[e].(*types.Pointer)
+		if HeapExact(t.Elem()) || seen[t.String()] {
+			continue
+		}
+		ms := types.NewMethodSet(t.Elem())
+		if ms.Len() > 0 {
+			seen[t.String()] = true
+			unsupported(e, fmt.Sprintf("converting %s to an interface, where %s holds a slice and has value methods (a copy would not share its elements)", t, t.Elem()))
+		}
+	}
+}
+
+// elemWrite records the slice types whose elements the assignment target
+// l changes through a heap pointer: s.f[i] = x, s.f[i].g++.
+func (a *analyzer) elemWrite(l ast.Expr, heap func(ast.Expr) bool) {
+	for {
+		switch x := ast.Unparen(l).(type) {
+		case *ast.IndexExpr:
+			if heap(x.X) {
+				a.heapWritten = append(a.heapWritten, a.pkg.Info.TypeOf(x.X))
+			}
+			l = x.X
+		case *ast.SelectorExpr:
+			l = x.X
+		default:
+			return
+		}
+	}
+}
+
+// lentSlices records the slice types inside a place lent to a call, whose
+// elements the call may change.
+func (a *analyzer) lentSlices(t types.Type, seen map[types.Type]bool) {
+	if seen[t] {
+		return
+	}
+	seen[t] = true
+	switch u := t.Underlying().(type) {
+	case *types.Pointer:
+		a.lentSlices(u.Elem(), seen)
+	case *types.Slice:
+		a.heapWritten = append(a.heapWritten, t)
+		a.lentSlices(u.Elem(), seen)
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			a.lentSlices(u.Field(i).Type(), seen)
+		}
 	}
 }
 
@@ -183,6 +270,8 @@ func (a *analyzer) heapUseOK(e ast.Expr, parent ast.Node) bool {
 		return p.X == e
 	case *ast.ParenExpr:
 		return true
+	case *ast.RangeStmt:
+		return p.X == e // a copy, where that is Go's range (checkHeap)
 	case *ast.UnaryExpr:
 		return true // &e (no other operator applies): checked with its call
 	case *ast.AssignStmt:
@@ -277,6 +366,7 @@ func (a *analyzer) heapCall(c *ast.CallExpr, heap func(ast.Expr) bool, unsupport
 	if lent == 0 {
 		return
 	}
+	a.lentSlices(info.TypeOf(at.(ast.Expr)), map[types.Type]bool{})
 	if lent > 1 {
 		unsupported(c, "lending two places held through pointers that escape to one call")
 		return

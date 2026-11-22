@@ -176,6 +176,11 @@ func (p *PtrPlan) build() {
 	for e := range Ifaces(p.pkg).Boxed {
 		markExpr(e) // in an interface
 	}
+	for _, tv := range info.Types {
+		if tv.Type != nil {
+			p.elems(tv.Type) // the elements of a slice of pointers, however made
+		}
+	}
 	// A variable whose address is a heap pointer lives in a cell; a
 	// pointer into a struct or a slice that escapes is not supported.
 	for _, x := range addrs {

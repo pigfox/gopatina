@@ -513,3 +513,61 @@ func isAddrOf(x, y ast.Expr) bool {
 	u, ok := x.(*ast.UnaryExpr)
 	return ok && u.Op == token.AND && ast.Unparen(u.X) == y
 }
+
+// printMethodOf returns the method fmt prints a value of type t through:
+// of its value, or, for a heap pointer, of the pointer's method set.
+func printMethodOf(t types.Type) *types.Func {
+	if isPointerType(t) {
+		return subset.PtrPrintMethod(t)
+	}
+	return subset.PrintMethod(t)
+}
+
+// printCall renders the call of print method m on e, of type t.
+func (g *gen) printCall(e ast.Expr, t types.Type, m *types.Func) node {
+	if isPointerType(t) {
+		return g.ptrShow(g.ref(e), t, m)
+	}
+	return g.methodCall(e, m, nil)
+}
+
+// ptrShow renders %v of the heap pointer p (a reference to it) of type t
+// through its print method m: rt::show_ptr prints <nil> where Go's fmt
+// does, for a method that panics on a nil pointer.
+func (g *gen) ptrShow(p node, t types.Type, m *types.Func) node {
+	g.rt["show_ptr"] = true
+	show := g.methodOn(m, t, "x", nil)
+	var f node = atom{"|x| " + show, precAtom}
+	if head, ok := strings.CutSuffix(show, "(x)"); ok && !strings.Contains(head, "(") {
+		f = text(head) // the method itself, as clippy prefers
+	}
+	return &call{head: "rt::show_ptr", open: "(", close: ")", args: []node{p, f}}
+}
+
+// methodOnPtr renders method m called on v, a reference to a heap pointer
+// of type p, with the rendered arguments: the pointer itself for a
+// pointer-receiver method, a copy of the value for a value-receiver one
+// (the borrow checker allows that copy only where it is Go's).
+func (g *gen) methodOnPtr(m *types.Func, p *types.Pointer, v string, as []string) string {
+	fn := g.res.Funcs[m]
+	free := g.freeMethods(g.recvTypeName(m))
+	if g.heapRecv(m) {
+		recv := v
+		if fn.Recv.Mode != borrow.Ref {
+			recv = v + ".clone()"
+		}
+		head := g.qual(m.Pkg(), g.types[g.recvTypeName(m)]) + "::" + g.funcs[m]
+		if free {
+			head = g.qual(m.Pkg(), g.funcs[m])
+		}
+		return head + "(" + strings.Join(append([]string{recv}, as...), ", ") + ")"
+	}
+	recv := v + ".load()"
+	if free {
+		if fn.Recv.Mode == borrow.Ref || fn.Recv.Mode == borrow.RefMut {
+			recv = "&" + recv
+		}
+		return g.qual(m.Pkg(), g.funcs[m]) + "(" + strings.Join(append([]string{recv}, as...), ", ") + ")"
+	}
+	return recv + "." + g.funcs[m] + "(" + strings.Join(as, ", ") + ")"
+}

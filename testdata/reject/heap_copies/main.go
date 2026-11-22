@@ -54,4 +54,5 @@ func main() {
 	// Read inside the cell: no diagnostics.
 	fmt.Println(p.items, len(p.items), (p.items)[0], p.name[0], slices.Clone(p.items), strings.Join(p.words, ","))
 	p.items = append(p.items, 2)
+	p.items[0]++ // so a range over a []int in a cell would not see Go's elements
 }

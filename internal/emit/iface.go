@@ -79,6 +79,9 @@ func variantName(t types.Type) string {
 		n := types.Typ[t.Kind()].Name()
 		return strings.ToUpper(n[:1]) + n[1:]
 	}
+	if p, ok := t.(*types.Pointer); ok {
+		return "Ptr" + variantName(p.Elem()) // RFC 0013
+	}
 	// The checker lets no other kind of type be converted to an interface.
 	return "Slice" + variantName(t.(*types.Slice).Elem())
 }
@@ -665,6 +668,9 @@ func (g *gen) methodOn(m *types.Func, t types.Type, v string, args []string) str
 		}
 		as = append(as, a)
 	}
+	if p, ok := t.(*types.Pointer); ok {
+		return g.methodOnPtr(m, p, v, as) // RFC 0013
+	}
 	recv := v // a borrow
 	switch {
 	case fn.Recv.Mode == borrow.Ref || fn.Recv.Mode == borrow.RefMut:
@@ -695,6 +701,15 @@ func (g *gen) show(t types.Type, v string) string {
 // dynDisplay renders an expression whose Display is %v of p, a reference to a
 // t (ref) or a place of type t, and whether it is a String already.
 func (g *gen) dynDisplay(t types.Type, p string, ref bool) (string, bool) {
+	if isPointerType(t) {
+		// Only through its print method (RFC 0013): the checker rejects
+		// printing an interface type that can hold a pointer without one.
+		m := subset.PtrPrintMethod(t)
+		if m == nil {
+			return "unreachable!(\"fmt prints the address of a " + goTypeName(t) + "\")", true
+		}
+		return g.ptrShow(text(p), t, m).flat(), true
+	}
 	if m := subset.PrintMethod(t); m != nil {
 		// Only a whole dynamic value: the checker rejects a struct with a
 		// field fmt prints through a method.

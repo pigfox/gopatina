@@ -539,7 +539,7 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		return "{}", g.ifaceVerb('T', e), ""
 	}
 	plain := v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero
-	if m := subset.PrintMethod(t); m != nil && (v.Verb == 'v' || v.Verb == 's') {
+	if m := printMethodOf(t); m != nil && (v.Verb == 'v' || v.Verb == 's') {
 		// fmt prints the result of Error or String (RFC 0007); the subset
 		// checker has made sure the method cannot panic.
 		var b strings.Builder
@@ -560,12 +560,12 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 			b.WriteString("." + itoa(v.Prec))
 		}
 		b.WriteString("}")
-		return b.String(), g.methodCall(e, m, nil), ""
+		return b.String(), g.printCall(e, t, m), ""
 	}
-	if m := subset.PrintMethod(t); m != nil && (v.Verb == 'x' || v.Verb == 'X') {
+	if m := printMethodOf(t); m != nil && (v.Verb == 'x' || v.Verb == 'X') {
 		// The method's result in hex.
 		g.rt["hex_bytes"] = true
-		bytes := &call{recv: atom{paren(g.methodCall(e, m, nil), precPostfix), precPostfix}, head: ".as_bytes", open: "(", close: ")"}
+		bytes := &call{recv: atom{paren(g.printCall(e, t, m), precPostfix), precPostfix}, head: ".as_bytes", open: "(", close: ")"}
 		return hexPadSpec(v), &call{head: "rt::hex_bytes", open: "(", close: ")", args: []node{bytes, text(boolLit(v.Verb == 'X')), text(boolLit(v.Sharp))}}, ""
 	}
 	if tv.Value != nil && plain && (v.Verb == 'v' || v.Verb == 'd' || v.Verb == 's' || v.Verb == 't') {
@@ -660,12 +660,17 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		}
 		flags(false)
 		arg = &call{head: "rt::Float", open: "(", close: ")", args: []node{g.value(e)}}
-	case isSlice(t) && subset.PrintMethod(t.Underlying().(*types.Slice).Elem()) != nil:
+	case isSlice(t) && printMethodOf(t.Underlying().(*types.Slice).Elem()) != nil:
 		// Each element through its String or Error method.
 		g.rt["SliceMap"] = true
 		flags(false)
-		m := subset.PrintMethod(t.Underlying().(*types.Slice).Elem())
-		arg = &call{head: "rt::SliceMap", open: "(", close: ")", args: []node{g.ref(e), text(g.elemPrinter(m))}}
+		elem := t.Underlying().(*types.Slice).Elem()
+		m := printMethodOf(elem)
+		printer := text(g.elemPrinter(m))
+		if isPointerType(elem) {
+			printer = atom{"|e| " + g.ptrShow(text("e"), elem, m).flat(), precAtom}
+		}
+		arg = &call{head: "rt::SliceMap", open: "(", close: ")", args: []node{g.ref(e), printer}}
 	case isSlice(t):
 		g.rt["Slice"] = true
 		switch g.rustType(t.Underlying().(*types.Slice).Elem()) {
