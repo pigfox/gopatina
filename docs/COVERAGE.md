@@ -57,7 +57,10 @@ share (`functions_excluded_reflect_unsafe_direct`,
 Go body (assembly, mostly in the standard library) are counted the same
 way: rejected, with the feature "functions without a body (assembly)", a
 surface to provide with Rust equivalents, as RFC 0009's intrinsics do for
-`math/bits`.
+`math/bits`. The diagnostic names the function (`math.archSqrt`), every
+rejected function records which such functions it reaches, and the report
+ranks them (`assembly_needed`): how many rejected functions reach each, and
+how many would be accepted if only it were provided.
 
 **The reasons.** Each diagnostic is assigned a feature (maps, closures and
 function values, interfaces, goroutines and channels, defer, generics,

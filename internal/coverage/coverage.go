@@ -33,6 +33,8 @@ type Func struct {
 	Accepted bool     `json:"accepted"` // inside the subset, with what it uses
 	Excluded bool     `json:"excluded"` // uses reflect or unsafe, itself or through what it uses
 	Features []string `json:"features"` // what keeps it out, its own and inherited, sorted
+	// Assembly names the functions without a Go body it reaches, sorted.
+	Assembly []string `json:"assembly,omitempty"`
 }
 
 // A Package is the measurement of one package.
@@ -63,7 +65,17 @@ const Excluded = "reflect and unsafe (excluded)"
 // Feature names the construct a diagnostic is about, from its message.
 // Unknown messages fall into "other"; every message the checker can give
 // is covered by a test.
+// Assembly is the feature of a function declared without a Go body.
+const Assembly = "functions without a body (assembly)"
+
+// assemblyMsg starts the checker's message for such a function, which ends
+// with its name.
+const assemblyMsg = "a function declared without a body (assembly): "
+
 func Feature(msg string) string {
+	if strings.HasPrefix(msg, assemblyMsg) {
+		return Assembly // before the patterns: a name may contain any word
+	}
 	// A named type or alias is rejected for what it is made of (RFC 0007):
 	// "type Code: type uint32 ..." needs uint32.
 	msg = declPrefixRE.ReplaceAllString(msg, "")
@@ -159,7 +171,7 @@ var rules = func() []rule {
 		{"built-ins", `built-in|^make of|^append whose|^panic with`},
 		{"strings and formatting", `format string|converting|string constant|comparing a slice with nil`},
 		{"shifts by a variable count", `non-constant count`},
-		{"functions without a body (assembly)", `func init|without a body`},
+		{Assembly, `func init|without a body`},
 	}
 	var rs []rule
 	for _, l := range list {
@@ -194,6 +206,7 @@ type decl struct {
 	features map[string]bool
 	uses     map[*decl]bool  // in its own package
 	foreign  map[string]bool // in other packages of the corpus, by key
+	asm      map[string]bool // the functions without a body it reaches, by key
 	pkgPath  string          // its package's import path
 	ok       bool
 	funcIdx  int // its index in Package.Funcs, or -1
@@ -240,7 +253,7 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 		name := pkg.Fset.Position(f.Pos()).Filename
 		generated[f] = Generated(pkg.Src[name])
 		add := func(n ast.Node, fn *ast.FuncDecl, names ...*ast.Ident) {
-			d := &decl{node: n, fn: fn, features: map[string]bool{}, uses: map[*decl]bool{}, foreign: map[string]bool{}, pkgPath: path, funcIdx: -1}
+			d := &decl{node: n, fn: fn, features: map[string]bool{}, uses: map[*decl]bool{}, foreign: map[string]bool{}, asm: map[string]bool{}, pkgPath: path, funcIdx: -1}
 			decls = append(decls, d)
 			fileOf[d] = f
 			for _, id := range names {
@@ -256,6 +269,10 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 			switch x := x.(type) {
 			case *ast.FuncDecl:
 				add(x, x, x.Name)
+				if x.Body == nil {
+					d := decls[len(decls)-1]
+					d.asm[d.key] = true
+				}
 			case *ast.GenDecl:
 				for _, s := range x.Specs {
 					switch s := s.(type) {
@@ -400,8 +417,13 @@ func (p *Package) settle() {
 			fs = append(fs, f)
 		}
 		sort.Strings(fs)
+		var asm []string
+		for k := range d.asm {
+			asm = append(asm, k)
+		}
+		sort.Strings(asm)
 		f := &p.Funcs[d.funcIdx]
-		f.Accepted, f.Excluded, f.Features = d.ok, d.features[Excluded], fs
+		f.Accepted, f.Excluded, f.Features, f.Assembly = d.ok, d.features[Excluded], fs, asm
 	}
 }
 
@@ -421,6 +443,12 @@ func Resolve(pkgs []Package) {
 	}
 	inherit := func(d, u *decl) bool {
 		changed := false
+		for k := range u.asm {
+			if !d.asm[k] {
+				d.asm[k] = true
+				changed = true
+			}
+		}
 		for f := range u.features {
 			if f == Excluded && u.pkgPath != d.pkgPath {
 				f = ViaDeps // reflect or unsafe of another package

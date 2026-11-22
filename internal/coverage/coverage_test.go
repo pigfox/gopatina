@@ -452,6 +452,39 @@ func TestExclusionScope(t *testing.T) {
 
 // TestExclusionSamePackage checks that a function reaching reflect through
 // its own package is excluded.
+func TestAssembly(t *testing.T) {
+	a, b := twoPackages(t,
+		"package b\n\nfunc Sqrt(x float64) float64\n\nfunc Abs(x float64) float64\n\nfunc Both(x float64) float64 { return Sqrt(x) + Abs(x) }\n",
+		"package c\n",
+		"package a\n\nimport \"example.com/b\"\n\nfunc F() float64 { return b.Sqrt(2) }\n\nfunc G() float64 { return b.Both(2) }\n\nfunc H() float64 { return b.Sqrt(1) }\n")
+	asm := func(n int) diag.Diagnostic {
+		fd := b.Files[0].Decls[n].(*ast.FuncDecl)
+		return diag.Diagnostic{Pos: b.Fset.Position(fd.Pos()), Msg: "a function declared without a body (assembly): example.com/b." + fd.Name.Name + " is not supported in patina mode yet"}
+	}
+	if Feature(asm(0).Msg) != Assembly || Feature("a function declared without a body (assembly): runtime.chansend is not supported in patina mode yet") != Assembly {
+		t.Error("Feature of the assembly message")
+	}
+	hMap := diag.Diagnostic{Pos: a.Fset.Position(a.Files[0].Decls[3].Pos()), Msg: "a map type is not supported in patina mode yet"}
+	pkgs := []Package{
+		Measure(b, "example.com/b", "std", []diag.Diagnostic{asm(0), asm(1)}),
+		Measure(a, "example.com/a", "example.com/m", []diag.Diagnostic{hMap}),
+	}
+	Resolve(pkgs)
+	got := fmt.Sprint(Summarize(pkgs, 1, 1).AssemblyNeeded)
+	// Sqrt: itself, Both, F, G and H reach it; itself and F have nothing
+	// else in the way (H also has a map). Abs: itself, Both and G.
+	if want := "[{example.com/b.Sqrt 5 2} {example.com/b.Abs 3 1}]"; got != want {
+		t.Errorf("AssemblyNeeded = %s, want %s", got, want)
+	}
+	many := []Package{{}}
+	for i := range assemblyTop + 3 {
+		many[0].Funcs = append(many[0].Funcs, Func{Assembly: []string{fmt.Sprint(i)}})
+	}
+	if n := len(assemblyNeeded(many)); n != assemblyTop {
+		t.Errorf("kept %d", n)
+	}
+}
+
 func TestExclusionSamePackage(t *testing.T) {
 	a, _ := twoPackages(t, "package b\n", "package c\n",
 		"package a\n\nfunc R() int { return 1 }\n\nfunc F() int { return R() }\n")
