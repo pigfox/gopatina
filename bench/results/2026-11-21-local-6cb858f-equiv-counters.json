@@ -1,0 +1,146 @@
+{
+  "note": "TOST equivalence of GoPatina against hand-written Rust (cmd/gopatina-bench); ratios and intervals only",
+  "runs": 300,
+  "gopatina_commit": "6cb858fff4bc8a1a659ba240a452d6d45ea6a5c0",
+  "go": "go version go1.27.1 linux/amd64",
+  "rust_stable": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "rust_pinned_for_gopatina": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "os": "Linux 7.0.0-43-generic x86_64",
+  "results": [
+    {
+  "case": "fib",
+  "primary": "instructions",
+  "candidate": "/tmp/tmp.IJ77asHV2c/fib-patina",
+  "baseline": "/tmp/tmp.IJ77asHV2c/target-fib/release/fib",
+  "warmup": 2,
+  "results": {
+    "cycles": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": 0.06633057721143948,
+      "sd_log_ratio": 0.22053271764381555,
+      "ratio": 1.0685799069503699,
+      "ratio_low": 1.0012585529203428,
+      "ratio_high": 1.1404277288894273,
+      "verdict": "inconclusive"
+    },
+    "instructions": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": 0.0000023674097269861364,
+      "sd_log_ratio": 0.0000017550561192484995,
+      "ratio": 1.0000023674125293,
+      "ratio_low": 1.000001849545225,
+      "ratio_high": 1.000002885280102,
+      "verdict": "equivalent"
+    },
+    "wall": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": 0.042465645401102245,
+      "sd_log_ratio": 0.22129697048222005,
+      "ratio": 1.0433802108493109,
+      "ratio_low": 0.9774260139174461,
+      "ratio_high": 1.1137848275889037,
+      "verdict": "inconclusive"
+    }
+  }
+},
+    {
+  "case": "sieve",
+  "primary": "instructions",
+  "candidate": "/tmp/tmp.IJ77asHV2c/sieve-patina",
+  "baseline": "/tmp/tmp.IJ77asHV2c/target-sieve/release/sieve",
+  "warmup": 2,
+  "results": {
+    "cycles": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": 0.07063448231238102,
+      "sd_log_ratio": 0.05896204023097019,
+      "ratio": 1.0731888846494027,
+      "ratio_low": 1.0546790393263792,
+      "ratio_high": 1.0920235817625032,
+      "verdict": "slower"
+    },
+    "instructions": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": 0.2640061835658829,
+      "sd_log_ratio": 0.0000020991004009770742,
+      "ratio": 1.3021362481212784,
+      "ratio_low": 1.302135441599545,
+      "ratio_high": 1.3021370546435114,
+      "verdict": "slower"
+    },
+    "wall": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": 0.06442276042390101,
+      "sd_log_ratio": 0.1360973227696465,
+      "ratio": 1.0665431957187657,
+      "ratio_low": 1.0245611591990231,
+      "ratio_high": 1.1102454725331166,
+      "verdict": "slower"
+    }
+  }
+},
+    {
+  "case": "suffix-sum",
+  "primary": "instructions",
+  "candidate": "/tmp/tmp.IJ77asHV2c/suffix-sum-patina",
+  "baseline": "/tmp/tmp.IJ77asHV2c/target-suffix-sum/release/suffix-sum",
+  "warmup": 2,
+  "results": {
+    "cycles": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": -0.0084963935528021,
+      "sd_log_ratio": 0.10339355879343598,
+      "ratio": 0.9915395987917262,
+      "ratio_low": 0.9617460569879674,
+      "ratio_high": 1.0222561026671906,
+      "verdict": "inconclusive"
+    },
+    "instructions": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": 0.0000020330069069926867,
+      "sd_log_ratio": 0.000001772450639972972,
+      "ratio": 1.0000020330089736,
+      "ratio_low": 1.0000015100092154,
+      "ratio_high": 1.0000025560090051,
+      "verdict": "equivalent"
+    },
+    "wall": {
+      "pairs": 300,
+      "margin": 0.01,
+      "sigma": 5,
+      "alpha_one_sided": 2.866515718791946e-7,
+      "mean_log_ratio": -0.02376683286417621,
+      "sd_log_ratio": 0.3533967335452791,
+      "ratio": 0.9765133740414823,
+      "ratio_low": 0.8798146926956549,
+      "ratio_high": 1.0838400149470353,
+      "verdict": "inconclusive"
+    }
+  }
+}
+  ]
+}

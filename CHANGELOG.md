@@ -77,6 +77,12 @@ Until 1.0.0, minor versions may contain breaking changes.
   gives the 95% upper bound on the rate (881,098 clean programs bound it at
   3.4 per million). Generated batches are checked against the subset and
   borrow checker in the unit tests.
+- A 2026-11-21 local equivalence run with CPU performance counters is
+  published in BENCHMARKS.md and on gopatina.org: `fib` and `suffix-sum`
+  execute the same instructions as hand-written Rust to within 0.0003%;
+  `sieve` executes 1.302 times the instructions and is about 7% slower at
+  5σ. The documents and the site define identical speed as equivalent within
+  ±0.5% at 5σ.
 - Patina supports `read(s[i:])` as a standalone call to a proven read-only
   function over `[]int`. The temporary view checks bounds before the
   callee runs, without copying the slice or inspecting its capacity.

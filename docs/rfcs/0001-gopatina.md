@@ -81,7 +81,7 @@ stricter mode, and get Rust's runtime model underneath.
   for every release and every change to code generation: ratios on CI for
   pull requests, official numbers only on the maintainer's test server after
   merging. The target is identical speed to Rust on each benchmark,
-  tracked over time. This is a goal, not a claim; see [`docs/QUALITY.md`](../QUALITY.md) and
+  tracked over time, where identical means equivalent within ±0.5% at 5σ. This is a goal, not a claim; see [`docs/QUALITY.md`](../QUALITY.md) and
   [`bench/`](../../bench/README.md).
 - **Fully tested.** 100% unit-test coverage, enforced in CI, plus the
   integration, golden, differential and fuzz tests each phase requires
