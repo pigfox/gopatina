@@ -71,6 +71,12 @@ Until 1.0.0, minor versions may contain breaking changes.
   `--metric perf` also counts user instructions and cycles where the kernel
   allows. `bench/asm-check.sh` compares the machine code of the generated and
   hand-written Rust for the functions in each case's `hot` file.
+- `cmd/gopatina-difftest` and `internal/progen` measure a defect rate:
+  random phase 1 programs, built with `go build` and with `-patina`, run and
+  compared program by program, many to a batch. With no defects, the report
+  gives the 95% upper bound on the rate (881,098 clean programs bound it at
+  3.4 per million). Generated batches are checked against the subset and
+  borrow checker in the unit tests.
 - Patina supports `read(s[i:])` as a standalone call to a proven read-only
   function over `[]int`. The temporary view checks bounds before the
   callee runs, without copying the slice or inspecting its capacity.
