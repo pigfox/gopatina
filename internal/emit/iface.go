@@ -30,8 +30,11 @@ type ifaceState struct {
 	missKeys []string
 	gets     map[string]types.Type // x.(T) and v, ok := x.(T) helpers by name
 	getKeys  []string
-	slices   bool            // iface_slice is used
-	goError  bool            // errors.New or fmt.Errorf is used
+	slices   bool                  // iface_slice is used
+	goError  bool                  // errors.New or fmt.Errorf is used
+	wrap     bool                  // fmt.Errorf with %w is used
+	ases     map[string]types.Type // errors.As helpers by name
+	asKeys   []string
 	helpers  map[string]bool // error helpers used (errvals.go)
 }
 
@@ -49,6 +52,7 @@ func (g *gen) initIfaces() {
 		misses:  map[string]types.Type{},
 		gets:    map[string]types.Type{},
 		helpers: map[string]bool{},
+		ases:    map[string]types.Type{},
 	}
 	seen := map[string]int{}
 	for _, t := range g.ifc.plan.Dyn {
@@ -370,10 +374,7 @@ func (g *gen) ifaceItems() {
 	}
 	dyn := g.ifc.plan.Dyn
 	vs := g.ifc.variants
-	n := len(dyn) // variants, with errors.New's
-	if g.ifc.goError {
-		n++
-	}
+	n := len(dyn) + len(g.builtins()) // variants, with Go's own error types
 	g.line("/// The dynamic types of the program's interface values (RFC 0012).")
 	if n == 0 {
 		g.line("pub enum Dyn {}")
@@ -382,8 +383,8 @@ func (g *gen) ifaceItems() {
 		for i, t := range dyn {
 			g.line("    " + vs[i] + "(" + g.rustType(t) + "),")
 		}
-		if g.ifc.goError {
-			g.line("    " + goErrorVariant + "(rt::Error),")
+		for _, b := range g.builtins() {
+			g.line("    " + b.variant + "(" + b.payload + "),")
 		}
 		g.line("}")
 	}
@@ -410,13 +411,20 @@ func (g *gen) ifaceItems() {
 				g.line("            (Dyn::" + vs[i] + "(a), Dyn::" + vs[i] + "(b)) => a == b,")
 			} else {
 				g.line("            (Dyn::" + vs[i] + "(_), Dyn::" + vs[i] + "(_)) => {")
-				g.line("                panic!(\"gopatina-user-panic:runtime error: comparing uncomparable type " + goTypeName(t) + "\")")
+				msg := "\"gopatina-user-panic:runtime error: comparing uncomparable type " + goTypeName(t) + "\""
+				if len("                panic!("+msg+")") <= maxWidth {
+					g.line("                panic!(" + msg + ")")
+				} else {
+					g.line("                panic!(")
+					g.line("                    " + msg)
+					g.line("                )")
+				}
 				g.line("            }")
 			}
 		}
-		if g.ifc.goError {
-			// Go compares the pointers errors.New returns.
-			g.line("            (Dyn::" + goErrorVariant + "(a), Dyn::" + goErrorVariant + "(b)) => std::ptr::eq(a, b),")
+		for _, b := range g.builtins() {
+			// Go compares the pointers errors.New and fmt.Errorf return.
+			g.line("            (Dyn::" + b.variant + "(a), Dyn::" + b.variant + "(b)) => std::ptr::eq(a, b),")
 		}
 		if n > 1 {
 			g.line("            _ => false,")
@@ -433,8 +441,8 @@ func (g *gen) ifaceItems() {
 	for i, t := range dyn {
 		g.line("        Some(Dyn::" + vs[i] + "(_)) => " + strLit(goTypeName(t)) + ",")
 	}
-	if g.ifc.goError {
-		g.line("        Some(Dyn::" + goErrorVariant + "(_)) => \"*errors.errorString\",")
+	for _, b := range g.builtins() {
+		g.line("        Some(Dyn::" + b.variant + "(_)) => " + strLit(b.goName) + ",")
 	}
 	g.noDyn("        ")
 	g.line("    }")
@@ -452,8 +460,8 @@ func (g *gen) ifaceItems() {
 	for i, t := range dyn {
 		g.line("        Some(Dyn::" + vs[i] + "(v)) => " + g.show(t, "v") + ",")
 	}
-	if g.ifc.goError {
-		g.line("        Some(Dyn::" + goErrorVariant + "(v)) => v.to_string(),")
+	for _, b := range g.builtins() {
+		g.line("        Some(Dyn::" + b.variant + "(v)) => " + b.methods[0].call + ",")
 	}
 	g.noDyn("        ")
 	g.line("    }")
@@ -504,6 +512,7 @@ func (g *gen) ifaceItems() {
 	for _, name := range g.ifc.getKeys {
 		g.getterFn(name, g.ifc.gets[name])
 	}
+	g.errorsAPI()
 	for _, name := range g.ifc.missKeys {
 		g.missingFn(name, g.ifc.misses[name])
 	}
@@ -529,12 +538,12 @@ func (g *gen) missingFn(name string, t types.Type) {
 		}
 		byMissing[m] = append(byMissing[m], "Dyn::"+g.ifc.variants[i]+"(_)")
 	}
-	if g.ifc.goError {
-		m := goErrorMissing(it)
+	for _, b := range g.builtins() {
+		m := b.missing(it)
 		if _, ok := byMissing[m]; !ok {
 			order = append(order, m)
 		}
-		byMissing[m] = append(byMissing[m], "Dyn::"+goErrorVariant+"(_)")
+		byMissing[m] = append(byMissing[m], "Dyn::"+b.variant+"(_)")
 	}
 	g.line("")
 	g.line("/// The first method of " + goTypeName(t) + " a dynamic value lacks, if any.")
@@ -623,9 +632,9 @@ func (g *gen) dispatcher(d dispatch) {
 	g.line("        None => panic!(")
 	g.line("            \"gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference\"")
 	g.line("        ),")
-	if g.ifc.goError {
-		if isGoErrorMethod(d.m) {
-			g.line("        Some(Dyn::" + goErrorVariant + "(v)) => v.to_string(),")
+	for _, b := range g.builtins() {
+		if call := b.method(d.m); call != "" {
+			g.line("        Some(Dyn::" + b.variant + "(v)) => " + call + ",")
 		} else {
 			all = false
 		}
@@ -746,7 +755,7 @@ func (g *gen) patArm(indent string, pats []string, rest string) {
 // noDyn writes the arm a match on Option<&Dyn> needs when the program
 // converts no value to an interface, and Dyn has no variants.
 func (g *gen) noDyn(indent string) {
-	if len(g.ifc.plan.Dyn) == 0 && !g.ifc.goError {
+	if len(g.ifc.plan.Dyn) == 0 && len(g.builtins()) == 0 {
 		g.line(indent + "Some(d) => match *d {},")
 	}
 }

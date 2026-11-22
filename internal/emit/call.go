@@ -311,7 +311,17 @@ func (g *gen) std(e *ast.CallExpr, name string) node {
 		}
 		return g.goError(g.owned(a[0]))
 	case "fmt.Errorf":
+		if w := g.wrapped(e); w != nil {
+			g.ifc.wrap = true
+			return &call{head: g.helper("go_wrap"), open: "(", close: ")", args: []node{g.fmtCall(e, name), g.owned(w)}}
+		}
 		return g.goError(g.fmtCall(e, name))
+	case "errors.Is":
+		return &call{head: g.helper("iface_is"), open: "(", close: ")", args: []node{g.ref(a[0]), g.ref(a[1])}}
+	case "errors.Unwrap":
+		return &call{recv: &call{head: g.helper("iface_unwrap"), open: "(", close: ")", args: []node{g.ref(a[0])}}, head: ".flatten", open: "(", close: ")"}
+	case "errors.As":
+		return &call{head: g.asHelper(g.typeOf(stripAddrExpr(a[1]))), open: "(", close: ")", args: []node{g.ref(a[0]), g.mutRef(a[1])}}
 	case "os.Exit":
 		code := text(g.index(a[0]))
 		if tv := g.info.Types[a[0]]; tv.Value != nil {
@@ -463,6 +473,9 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 	tv := g.info.Types[e]
 	if subset.IsIface(t) && !isErrorType(t) {
 		return "{}", g.ifaceVerb(v.Verb, e), "" // RFC 0012: plain %v and %T
+	}
+	if v.Verb == 'w' {
+		return "{}", &call{head: g.helper("iface_w"), open: "(", close: ")", args: []node{g.ref(e)}}, ""
 	}
 	if isErrorType(t) && v.Verb == 's' {
 		// %s of a nil error is %!s(<nil>), which Go does not pad.

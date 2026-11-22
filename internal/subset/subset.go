@@ -880,6 +880,11 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 }
 
 func (c *checker) stdCall(e *ast.CallExpr, name string) {
+	if name == "errors.As" {
+		c.expr(e.Args[0])
+		c.errorsAs(e)
+		return
+	}
 	c.exprs(e.Args)
 	switch {
 	case strings.HasPrefix(name, "fmt."):
@@ -992,7 +997,7 @@ func (c *checker) fmtCall(e *ast.CallExpr, name string) {
 			return
 		}
 		args = args[1:]
-		n := 0
+		n, wraps := 0, 0
 		for _, v := range verbs {
 			if v.Verb == 0 {
 				continue
@@ -1000,6 +1005,16 @@ func (c *checker) fmtCall(e *ast.CallExpr, name string) {
 			if n >= len(args) {
 				c.errorf(e, "format string: %%%c has no operand", v.Verb)
 				return
+			}
+			if v.Verb == 'w' {
+				// RFC 0012: one wrapped error, a variable, since it is both
+				// formatted and kept.
+				wraps++
+				if what := c.wrapProblem(v, args[n], name, wraps); what != "" {
+					c.unsupported(args[n], what)
+				}
+				n++
+				continue
 			}
 			if what := c.verbProblem(v, info.Types[args[n]].Type, name); what != "" {
 				c.unsupported(args[n], what)

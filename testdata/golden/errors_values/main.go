@@ -39,6 +39,25 @@ func two(n int) (int, string, error) {
 	return n, fmt.Sprint(n), nil
 }
 
+// Three error types that are not comparable, with long names.
+type UncomparableListOfStrings []string
+
+func (u UncomparableListOfStrings) Error() string { return "list" }
+
+type AnotherUncomparableSliceError []int
+
+func (a AnotherUncomparableSliceError) Error() string { return "slice" }
+
+type YetAnotherUncomparableError []bool
+
+func (y YetAnotherUncomparableError) Error() string { return "bools" }
+
+func (u UncomparableListOfStrings) Retry() bool { return true }
+
+func (a AnotherUncomparableSliceError) Retry() bool { return true }
+
+func (y YetAnotherUncomparableError) Retry() bool { return true }
+
 // pass returns its error, which may be nil.
 func pass(e error) error { return e }
 
@@ -165,6 +184,10 @@ func main() {
 	_, isRetrier := errors.New("y").(Retrier)
 	r, isRetrier2 := results[2].Err.(Retrier)
 	fmt.Println(isRetrier, isRetrier2, r.Retry())
+	var list error = UncomparableListOfStrings{"x"}
+	var slice error = AnotherUncomparableSliceError{1}
+	var bools error = YetAnotherUncomparableError{true}
+	fmt.Println(errors.Is(list, slice), errors.Is(bools, list), list, slice, bools)
 	var c Coded = NotFound{Name: "x", Code: 7}
 	fmt.Println(c.ErrCode(), describe(errors.New("plain")))
 }

@@ -2,6 +2,7 @@ package emit
 
 import (
 	"go/ast"
+	"go/constant"
 	"go/types"
 	"strings"
 
@@ -189,19 +190,61 @@ func (g *gen) errHelpers() {
 	}
 }
 
-// isGoErrorMethod reports whether m is Error() string, which Go's
-// *errors.errorString has.
-func isGoErrorMethod(m *types.Func) bool {
-	sig := m.Signature()
-	return m.Name() == "Error" && sig.Params().Len() == 0 && sig.Results().Len() == 1 &&
-		types.Identical(sig.Results().At(0).Type(), types.Typ[types.String])
+// A builtin is one of Go's own error types a program's values may have:
+// *errors.errorString (errors.New, fmt.Errorf) and *fmt.wrapError
+// (fmt.Errorf with %w). Each is a Dyn variant whose payload a reference v
+// stands for, compared by identity, as Go compares the pointers.
+type builtin struct {
+	variant, payload, goName string
+	methods                  []builtinMethod // Error first
 }
 
-// goErrorMissing returns the first method of interface it that Go's
-// *errors.errorString lacks, or "".
-func goErrorMissing(it *types.Interface) string {
+// builtinMethod is a method of a builtin: its name, its result (string
+// for Error, error for Unwrap), and the Rust that calls it on v.
+type builtinMethod struct {
+	name, result, call string
+}
+
+var (
+	errorString = builtin{goErrorVariant, "rt::Error", "*errors.errorString", []builtinMethod{
+		{"Error", "string", "v.to_string()"},
+	}}
+	wrapError = builtin{"FmtWrapError", "WrapError", "*fmt.wrapError", []builtinMethod{
+		{"Error", "string", "v.msg.clone()"},
+		{"Unwrap", "error", "v.err.clone()"},
+	}}
+)
+
+// builtins returns the builtins the program uses, in a fixed order.
+func (g *gen) builtins() []builtin {
+	var bs []builtin
+	if g.ifc.goError {
+		bs = append(bs, errorString)
+	}
+	if g.ifc.wrap {
+		bs = append(bs, wrapError)
+	}
+	return bs
+}
+
+// method returns the Rust that calls m on a builtin value, or "" if the
+// builtin lacks m.
+func (b builtin) method(m *types.Func) string {
+	sig := m.Signature()
+	for _, bm := range b.methods {
+		if bm.name == m.Name() && sig.Params().Len() == 0 && sig.Results().Len() == 1 &&
+			sig.Results().At(0).Type().String() == bm.result {
+			return bm.call
+		}
+	}
+	return ""
+}
+
+// missing returns the first method of interface it the builtin lacks, or
+// "".
+func (b builtin) missing(it *types.Interface) string {
 	for i := 0; i < it.NumMethods(); i++ { // sorted by name
-		if !isGoErrorMethod(it.Method(i)) {
+		if b.method(it.Method(i)) == "" {
 			return it.Method(i).Name()
 		}
 	}
@@ -211,4 +254,198 @@ func goErrorMissing(it *types.Interface) string {
 // isErrorType reports whether t is the error interface.
 func isErrorType(t types.Type) bool {
 	return types.Identical(t, types.Universe.Lookup("error").Type())
+}
+
+// stripAddrExpr is x for &x, which the checker requires of errors.As.
+func stripAddrExpr(e ast.Expr) ast.Expr {
+	return ast.Unparen(e).(*ast.UnaryExpr).X
+}
+
+// wrapped returns the operand of fmt.Errorf's %w, or nil.
+func (g *gen) wrapped(e *ast.CallExpr) ast.Expr {
+	verbs, _ := subset.ParseFormat(constant.StringVal(g.info.Types[e.Args[0]].Value))
+	n := 1
+	for _, v := range verbs {
+		if v.Verb == 0 {
+			continue
+		}
+		if v.Verb == 'w' {
+			return e.Args[n]
+		}
+		n++
+	}
+	return nil
+}
+
+// asHelper returns the helper of errors.As to a target of type t.
+func (g *gen) asHelper(t types.Type) string {
+	name := "iface_as_" + snake(variantName(t))
+	if _, ok := g.ifc.ases[name]; !ok {
+		g.ifc.ases[name] = t
+		g.ifc.asKeys = append(g.ifc.asKeys, name)
+	}
+	g.ifc.helpers["iface_unwrap"] = true
+	return g.root(name)
+}
+
+// methodsNamed returns the dynamic types with a value method named name
+// whose signature ok accepts, and the methods.
+func (g *gen) methodsNamed(name string, ok func(*types.Signature) bool) ([]int, []*types.Func) {
+	var is []int
+	var ms []*types.Func
+	for i, t := range g.ifc.plan.Dyn {
+		obj, _, _ := types.LookupFieldOrMethod(t, false, nil, name)
+		if m, isFunc := obj.(*types.Func); isFunc && ok(m.Signature()) {
+			is = append(is, i)
+			ms = append(ms, m)
+		}
+	}
+	return is, ms
+}
+
+func returnsOnly(t types.Type) func(*types.Signature) bool {
+	return func(s *types.Signature) bool {
+		return s.Params().Len() == 0 && s.Results().Len() == 1 && types.Identical(s.Results().At(0).Type(), t)
+	}
+}
+
+// errorsAPI writes the helpers of errors.Is, As and Unwrap and of %w
+// (RFC 0012), as Go's errors package defines them.
+func (g *gen) errorsAPI() {
+	errT := types.Universe.Lookup("error").Type()
+	h := g.ifc.helpers
+	if g.ifc.wrap {
+		g.line("")
+		g.line("/// Go's *fmt.wrapError: fmt.Errorf's value with one %w.")
+		g.line("pub struct WrapError {")
+		g.line("    msg: String,")
+		g.line("    err: Iface,")
+		g.line("}")
+		g.line("")
+		g.line("/// fmt.Errorf with %w: the message, wrapping err.")
+		g.line("pub fn go_wrap(msg: String, err: Iface) -> Iface {")
+		g.line("    boxed(Dyn::FmtWrapError(WrapError { msg, err }))")
+		g.line("}")
+	}
+	if h["iface_w"] {
+		g.line("")
+		g.line("/// %w of an error: its text, or %!w(<nil>).")
+		g.line("pub fn iface_w(x: &Iface) -> String {")
+		g.line("    if x.is_none() {")
+		g.line("        return String::from(\"%!w(<nil>)\");")
+		g.line("    }")
+		g.line("    iface_show(x)")
+		g.line("}")
+	}
+	if h["iface_is"] {
+		h["iface_unwrap"] = true
+		var uncomparable []string
+		for i, t := range g.ifc.plan.Dyn {
+			if !types.Comparable(t) {
+				uncomparable = append(uncomparable, "Dyn::"+g.ifc.variants[i]+"(_)")
+			}
+		}
+		is, ms := g.methodsNamed("Is", func(s *types.Signature) bool {
+			return s.Params().Len() == 1 && types.Identical(s.Params().At(0).Type(), errT) &&
+				s.Results().Len() == 1 && types.Identical(s.Results().At(0).Type(), types.Typ[types.Bool])
+		})
+		g.line("")
+		g.line("/// errors.Is: whether err or an error it wraps is target, or says it is.")
+		g.line("pub fn iface_is(err: &Iface, target: &Iface) -> bool {")
+		g.line("    if err.is_none() || target.is_none() {")
+		g.line("        return err.is_none() && target.is_none();")
+		g.line("    }")
+		cmp := "err == *target"
+		if len(uncomparable) > 0 {
+			if one := "    let comparable = !matches!(target.as_deref(), Some(" + strings.Join(uncomparable, " | ") + "));"; len(one) <= maxWidth {
+				g.line(one)
+			} else {
+				g.line("    let comparable = !matches!(")
+				g.line("        target.as_deref(),")
+				if some := "        Some(" + strings.Join(uncomparable, " | ") + ")"; len(some) <= maxWidth {
+					g.line(some)
+				} else {
+					g.line("        Some(")
+					for i, u := range uncomparable {
+						if i == 0 {
+							g.line("            " + u)
+						} else {
+							g.line("                | " + u)
+						}
+					}
+					g.line("        )")
+				}
+				g.line("    );")
+			}
+			cmp = "comparable && err == *target"
+		}
+		g.line("    let mut err = err.clone();")
+		g.line("    loop {")
+		g.line("        if " + cmp + " {")
+		g.line("            return true;")
+		g.line("        }")
+		if len(is) > 0 {
+			g.line("        let says = match err.as_deref() {")
+			for j, i := range is {
+				g.line("            Some(Dyn::" + g.ifc.variants[i] + "(v)) => " + g.methodOn(ms[j], g.ifc.plan.Dyn[i], "v", []string{"target.clone()"}) + ",")
+			}
+			g.line("            _ => false,")
+			g.line("        };")
+			g.line("        if says {")
+			g.line("            return true;")
+			g.line("        }")
+		}
+		g.line("        match iface_unwrap(&err) {")
+		g.line("            Some(next) if next.is_some() => err = next,")
+		g.line("            _ => return false,")
+		g.line("        }")
+		g.line("    }")
+		g.line("}")
+	}
+	for _, name := range g.ifc.asKeys {
+		t := g.ifc.ases[name]
+		g.line("")
+		g.line("/// errors.As to a " + goTypeName(t) + ": sets target to the first error in err's chain that is one.")
+		g.line("pub fn " + name + "(err: &Iface, target: &mut " + g.rustType(t) + ") -> bool {")
+		g.line("    let mut err = err.clone();")
+		g.line("    loop {")
+		switch v := g.variant(t); {
+		case subset.IsIface(t):
+			g.line("        if let Some(d) = err.as_deref() {")
+			g.line("            if " + g.missing(t) + "(d).is_none() {")
+			g.line("                *target = err.clone();")
+			g.line("                return true;")
+			g.line("            }")
+			g.line("        }")
+		case v != "":
+			g.line("        if let Some(Dyn::" + v + "(v)) = err.as_deref() {")
+			g.line("            *target = " + copyOut(t, "v") + ";")
+			g.line("            return true;")
+			g.line("        }")
+		}
+		g.line("        match iface_unwrap(&err) {")
+		g.line("            Some(next) if next.is_some() => err = next,")
+		g.line("            _ => return false,")
+		g.line("        }")
+		g.line("    }")
+		g.line("}")
+	}
+	if h["iface_unwrap"] {
+		is, ms := g.methodsNamed("Unwrap", returnsOnly(errT))
+		g.line("")
+		g.line("/// Unwrap() error of the dynamic value: the error it wraps, or None if it has")
+		g.line("/// no such method.")
+		g.line("pub fn iface_unwrap(x: &Iface) -> Option<Iface> {")
+		g.line("    match x.as_deref() {")
+		if g.ifc.wrap {
+			g.line("        Some(Dyn::FmtWrapError(v)) => Some(v.err.clone()),")
+		}
+		for j, i := range is {
+			h["iface_err"] = true
+			g.line("        Some(Dyn::" + g.ifc.variants[i] + "(v)) => Some(iface_err(" + g.methodOn(ms[j], g.ifc.plan.Dyn[i], "v", nil) + ")),")
+		}
+		g.line("        _ => None,")
+		g.line("    }")
+		g.line("}")
+	}
 }

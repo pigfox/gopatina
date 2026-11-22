@@ -44,7 +44,7 @@ the exact error committed beside it.
 | Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string, `min` and `max` (Go 1.21, integers only) |
 | Pointers | only as borrows: `p := &x`, `p := &T{...}`, pointer parameters and receivers |
 | `fmt` | `Print`, `Println`, `Printf`, `Sprint`, `Sprintln`, `Sprintf`, `Fprint`, `Fprintln`, `Fprintf` (to an `io.Writer` parameter, `os.Stdout` or `os.Stderr`), `Errorf`; verbs `%v %d %s %t %f %x %X %c %%` with the `-`, `+` and `0` flags, a width and a precision; `%x` and `%X` also of strings and `[]byte` and with the `#` flag; values and slices of a named type printed through its `String` or `Error` method (where the method cannot panic); a width on a slice pads each element, as in Go; interface values with `Println`, `Sprintln`, `Fprintln` and plain `%v` and `%T` |
-| Other functions | `strings.Contains`, `HasPrefix`, `HasSuffix`, `Index`, `Join`, `Repeat`, `TrimSpace`, and (RFC 0011) `ToLower`, `ToUpper`, `EqualFold`, `Split`, `Cut`, `TrimPrefix`, `TrimSuffix`, `ReplaceAll`, `IndexByte`; `errors.New`; `os.Exit`; `slices.Clone`, `bytes.Clone` |
+| Other functions | `strings.Contains`, `HasPrefix`, `HasSuffix`, `Index`, `Join`, `Repeat`, `TrimSpace`, and (RFC 0011) `ToLower`, `ToUpper`, `EqualFold`, `Split`, `Cut`, `TrimPrefix`, `TrimSuffix`, `ReplaceAll`, `IndexByte`; `errors.New`, `Is`, `As`, `Unwrap`; `os.Exit`; `slices.Clone`, `bytes.Clone` |
 
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values, the interface
@@ -187,10 +187,17 @@ A function whose last result is `error` returns `Result<T, Iface>`:
 - Any other call keeps its error as a value: its results are split into
   the values, zero when the error is not nil, and the error.
 
-Not supported yet: `%w`, `errors.Is`, `errors.As` and `errors.Unwrap` (the
-provided `errors` package's next API), package-level variables holding an
-error (sentinel errors, with RFC 0002's shareable form), a precision on an
-error printed with `%v` or `%s`, and an error result that is not the last.
+The provided `errors` API ([RFC 0011](rfcs/0011-provided-packages.md)):
+`fmt.Errorf` with one `%w` of an error variable makes Go's `*fmt.wrapError`;
+`errors.Unwrap`, `errors.Is` and `errors.As` (to `&v` for a local `v` of an
+interface or error type) follow Go's errors package, through the wrapped
+errors and the program's own `Unwrap() error` and `Is(error) bool` methods.
+
+Not supported yet: package-level variables holding an error (sentinel
+errors), a precision on an error printed with `%v` or `%s`, an error result
+that is not the last, more than one `%w` in a format and error types with
+`Unwrap() []error` (`errors.Join`'s form), and `errors.As` in a program with
+an error type that has an `As` method.
 
 ## The crate
 

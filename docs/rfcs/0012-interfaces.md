@@ -326,3 +326,15 @@ rejected, since a static must be `Sync`.
   dynamic kinds.
 - Package-level variables holding an error stay rejected until RFC 0002's
   shareable form (a static must be `Sync`).
+
+## Amendment: the errors API (2026-11-22)
+
+Go's own error types are `Dyn` variants with their methods written in
+Rust: `*errors.errorString` (`errors.New`, `fmt.Errorf`) and
+`*fmt.wrapError` (`fmt.Errorf` with one `%w`), each compared by identity.
+`errors.Unwrap`, `Is` and `As` are `iface_unwrap`, `iface_is` and one
+`iface_as_t` per target type, transcribed from Go's errors package: `Is`
+compares only when the target's dynamic type is comparable and asks the
+program's `Is(error) bool` methods; both walk `Unwrap() error`. Programs
+with `As(any) bool` methods or `Unwrap() []error` are rejected until the
+walk covers them.

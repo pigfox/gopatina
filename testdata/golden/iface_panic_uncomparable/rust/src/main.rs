@@ -34,11 +34,17 @@ mod rt;
 
 pub type Path = Vec<i64>;
 
+pub fn path_error(p: &[i64]) -> String {
+    String::from("path")
+}
+
 fn main() {
     rt::exit_on_panic();
     let (a, b): (Iface, Iface) = (boxed(Dyn::Path(vec![1])), boxed(Dyn::SliceInt(vec![1])));
     let c: Iface = boxed(Dyn::String(String::from("x")));
     println!("{} {} {}", a == b, a == c, b != c);
+    let e: Iface = boxed(Dyn::Path(vec![2]));
+    println!("{} {}", iface_is(&e, &e), iface_is(&e, &go_error("x")));
     println!("{}", a == a);
 }
 
@@ -47,6 +53,7 @@ pub enum Dyn {
     Path(Vec<i64>),
     SliceInt(Vec<i64>),
     String(String),
+    ErrorsErrorString(rt::Error),
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
@@ -70,6 +77,7 @@ impl PartialEq for Dyn {
                 panic!("gopatina-user-panic:runtime error: comparing uncomparable type []int")
             }
             (Dyn::String(a), Dyn::String(b)) => a == b,
+            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => std::ptr::eq(a, b),
             _ => false,
         }
     }
@@ -82,6 +90,7 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
         Some(Dyn::Path(_)) => "main.Path",
         Some(Dyn::SliceInt(_)) => "[]int",
         Some(Dyn::String(_)) => "string",
+        Some(Dyn::ErrorsErrorString(_)) => "*errors.errorString",
     }
 }
 
@@ -94,9 +103,10 @@ pub fn iface_type(x: &Iface) -> &'static str {
 pub fn iface_show(x: &Iface) -> String {
     match x.as_deref() {
         None => String::from("<nil>"),
-        Some(Dyn::Path(v)) => iface_slice(v, |e| e.to_string()),
+        Some(Dyn::Path(v)) => path_error(v),
         Some(Dyn::SliceInt(v)) => iface_slice(v, |e| e.to_string()),
         Some(Dyn::String(v)) => v.to_string(),
+        Some(Dyn::ErrorsErrorString(v)) => v.to_string(),
     }
 }
 
@@ -139,4 +149,35 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
 pub fn iface_slice<T>(v: &[T], show: impl Fn(&T) -> String) -> String {
     let parts: Vec<String> = v.iter().map(show).collect();
     format!("[{}]", parts.join(" "))
+}
+
+/// errors.Is: whether err or an error it wraps is target, or says it is.
+pub fn iface_is(err: &Iface, target: &Iface) -> bool {
+    if err.is_none() || target.is_none() {
+        return err.is_none() && target.is_none();
+    }
+    let comparable = !matches!(target.as_deref(), Some(Dyn::Path(_) | Dyn::SliceInt(_)));
+    let mut err = err.clone();
+    loop {
+        if comparable && err == *target {
+            return true;
+        }
+        match iface_unwrap(&err) {
+            Some(next) if next.is_some() => err = next,
+            _ => return false,
+        }
+    }
+}
+
+/// Unwrap() error of the dynamic value: the error it wraps, or None if it has
+/// no such method.
+pub fn iface_unwrap(x: &Iface) -> Option<Iface> {
+    match x.as_deref() {
+        _ => None,
+    }
+}
+
+/// errors.New: a new error with the message, equal only to itself.
+pub fn go_error(message: impl Into<String>) -> Iface {
+    boxed(Dyn::ErrorsErrorString(rt::Error::new(message)))
 }

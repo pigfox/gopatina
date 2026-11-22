@@ -73,6 +73,37 @@ fn two(n: i64) -> Result<(i64, String), Iface> {
     Ok((n, format!("{}", n)))
 }
 
+/// Three error types that are not comparable, with long names.
+pub type UncomparableListOfStrings = Vec<String>;
+
+pub fn uncomparable_list_of_strings_error(u: &[String]) -> String {
+    String::from("list")
+}
+
+pub type AnotherUncomparableSliceError = Vec<i64>;
+
+pub fn another_uncomparable_slice_error_error(a: &[i64]) -> String {
+    String::from("slice")
+}
+
+pub type YetAnotherUncomparableError = Vec<bool>;
+
+pub fn yet_another_uncomparable_error_error(y: &[bool]) -> String {
+    String::from("bools")
+}
+
+pub fn uncomparable_list_of_strings_retry(u: &[String]) -> bool {
+    true
+}
+
+pub fn another_uncomparable_slice_error_retry(a: &[i64]) -> bool {
+    true
+}
+
+pub fn yet_another_uncomparable_error_retry(y: &[bool]) -> bool {
+    true
+}
+
 /// pass returns its error, which may be nil.
 fn pass(e: Iface) -> Result<(), Iface> {
     iface_result((), e)
@@ -287,6 +318,17 @@ fn main() {
     let (_, is_retrier) = iface_try(&go_error("y"), iface_missing_retrier);
     let (r, is_retrier2) = iface_try(&results[2].err, iface_missing_retrier);
     println!("{} {} {}", is_retrier, is_retrier2, dyn_retry(&r));
+    let list: Iface = boxed(Dyn::UncomparableListOfStrings(vec![String::from("x")]));
+    let slice: Iface = boxed(Dyn::AnotherUncomparableSliceError(vec![1]));
+    let bools: Iface = boxed(Dyn::YetAnotherUncomparableError(vec![true]));
+    println!(
+        "{} {} {} {} {}",
+        iface_is(&list, &slice),
+        iface_is(&bools, &list),
+        iface_show(&list),
+        iface_show(&slice),
+        iface_show(&bools),
+    );
     let c: Iface = boxed(Dyn::NotFound(NotFound {
         name: String::from("x"),
         code: 7,
@@ -298,6 +340,9 @@ fn main() {
 pub enum Dyn {
     Temporary(i64),
     NotFound(NotFound),
+    UncomparableListOfStrings(Vec<String>),
+    AnotherUncomparableSliceError(Vec<i64>),
+    YetAnotherUncomparableError(Vec<bool>),
     ErrorsErrorString(rt::Error),
 }
 
@@ -317,6 +362,21 @@ impl PartialEq for Dyn {
         match (self, other) {
             (Dyn::Temporary(a), Dyn::Temporary(b)) => a == b,
             (Dyn::NotFound(a), Dyn::NotFound(b)) => a == b,
+            (Dyn::UncomparableListOfStrings(_), Dyn::UncomparableListOfStrings(_)) => {
+                panic!(
+                    "gopatina-user-panic:runtime error: comparing uncomparable type main.UncomparableListOfStrings"
+                )
+            }
+            (Dyn::AnotherUncomparableSliceError(_), Dyn::AnotherUncomparableSliceError(_)) => {
+                panic!(
+                    "gopatina-user-panic:runtime error: comparing uncomparable type main.AnotherUncomparableSliceError"
+                )
+            }
+            (Dyn::YetAnotherUncomparableError(_), Dyn::YetAnotherUncomparableError(_)) => {
+                panic!(
+                    "gopatina-user-panic:runtime error: comparing uncomparable type main.YetAnotherUncomparableError"
+                )
+            }
             (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => std::ptr::eq(a, b),
             _ => false,
         }
@@ -329,6 +389,9 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
         None => "<nil>",
         Some(Dyn::Temporary(_)) => "main.Temporary",
         Some(Dyn::NotFound(_)) => "main.NotFound",
+        Some(Dyn::UncomparableListOfStrings(_)) => "main.UncomparableListOfStrings",
+        Some(Dyn::AnotherUncomparableSliceError(_)) => "main.AnotherUncomparableSliceError",
+        Some(Dyn::YetAnotherUncomparableError(_)) => "main.YetAnotherUncomparableError",
         Some(Dyn::ErrorsErrorString(_)) => "*errors.errorString",
     }
 }
@@ -344,6 +407,9 @@ pub fn iface_show(x: &Iface) -> String {
         None => String::from("<nil>"),
         Some(Dyn::Temporary(v)) => temporary_error(*v),
         Some(Dyn::NotFound(v)) => v.error(),
+        Some(Dyn::UncomparableListOfStrings(v)) => uncomparable_list_of_strings_error(v),
+        Some(Dyn::AnotherUncomparableSliceError(v)) => another_uncomparable_slice_error_error(v),
+        Some(Dyn::YetAnotherUncomparableError(v)) => yet_another_uncomparable_error_error(v),
         Some(Dyn::ErrorsErrorString(v)) => v.to_string(),
     }
 }
@@ -391,25 +457,71 @@ pub fn iface_try_not_found(x: &Iface) -> (NotFound, bool) {
     }
 }
 
+/// errors.Is: whether err or an error it wraps is target, or says it is.
+pub fn iface_is(err: &Iface, target: &Iface) -> bool {
+    if err.is_none() || target.is_none() {
+        return err.is_none() && target.is_none();
+    }
+    let comparable = !matches!(
+        target.as_deref(),
+        Some(
+            Dyn::UncomparableListOfStrings(_)
+                | Dyn::AnotherUncomparableSliceError(_)
+                | Dyn::YetAnotherUncomparableError(_)
+        )
+    );
+    let mut err = err.clone();
+    loop {
+        if comparable && err == *target {
+            return true;
+        }
+        match iface_unwrap(&err) {
+            Some(next) if next.is_some() => err = next,
+            _ => return false,
+        }
+    }
+}
+
+/// Unwrap() error of the dynamic value: the error it wraps, or None if it has
+/// no such method.
+pub fn iface_unwrap(x: &Iface) -> Option<Iface> {
+    match x.as_deref() {
+        _ => None,
+    }
+}
+
 /// The first method of main.Coded a dynamic value lacks, if any.
 pub fn iface_missing_coded(d: &Dyn) -> Option<&'static str> {
     match d {
         Dyn::NotFound(_) => None,
-        Dyn::Temporary(_) | Dyn::ErrorsErrorString(_) => Some("ErrCode"),
+        Dyn::Temporary(_)
+        | Dyn::UncomparableListOfStrings(_)
+        | Dyn::AnotherUncomparableSliceError(_)
+        | Dyn::YetAnotherUncomparableError(_)
+        | Dyn::ErrorsErrorString(_) => Some("ErrCode"),
     }
 }
 
 /// The first method of error a dynamic value lacks, if any.
 pub fn iface_missing_error(d: &Dyn) -> Option<&'static str> {
     match d {
-        Dyn::Temporary(_) | Dyn::NotFound(_) | Dyn::ErrorsErrorString(_) => None,
+        Dyn::Temporary(_)
+        | Dyn::NotFound(_)
+        | Dyn::UncomparableListOfStrings(_)
+        | Dyn::AnotherUncomparableSliceError(_)
+        | Dyn::YetAnotherUncomparableError(_)
+        | Dyn::ErrorsErrorString(_) => None,
     }
 }
 
 /// The first method of main.Retrier a dynamic value lacks, if any.
 pub fn iface_missing_retrier(d: &Dyn) -> Option<&'static str> {
     match d {
-        Dyn::Temporary(_) | Dyn::NotFound(_) => None,
+        Dyn::Temporary(_)
+        | Dyn::NotFound(_)
+        | Dyn::UncomparableListOfStrings(_)
+        | Dyn::AnotherUncomparableSliceError(_)
+        | Dyn::YetAnotherUncomparableError(_) => None,
         Dyn::ErrorsErrorString(_) => Some("Retry"),
     }
 }
@@ -430,6 +542,9 @@ pub fn dyn_error(x: &Iface) -> String {
     match x.as_deref() {
         Some(Dyn::Temporary(v)) => temporary_error(*v),
         Some(Dyn::NotFound(v)) => v.error(),
+        Some(Dyn::UncomparableListOfStrings(v)) => uncomparable_list_of_strings_error(v),
+        Some(Dyn::AnotherUncomparableSliceError(v)) => another_uncomparable_slice_error_error(v),
+        Some(Dyn::YetAnotherUncomparableError(v)) => yet_another_uncomparable_error_error(v),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),
@@ -442,6 +557,9 @@ pub fn dyn_retry(x: &Iface) -> bool {
     match x.as_deref() {
         Some(Dyn::Temporary(v)) => temporary_retry(*v),
         Some(Dyn::NotFound(v)) => v.retry(),
+        Some(Dyn::UncomparableListOfStrings(v)) => uncomparable_list_of_strings_retry(v),
+        Some(Dyn::AnotherUncomparableSliceError(v)) => another_uncomparable_slice_error_retry(v),
+        Some(Dyn::YetAnotherUncomparableError(v)) => yet_another_uncomparable_error_retry(v),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),

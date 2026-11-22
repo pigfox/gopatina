@@ -1,0 +1,7 @@
+./main.go:18:7: receiver o is a shared borrow: Error only reads it
+./main.go:20:7: receiver o is owned: Unwrap keeps it
+./main.go:27:18: parameter target is a shared borrow: Is only reads it
+./main.go:35:7: receiver p is a shared borrow: Error only reads it
+./main.go:40:7: receiver u is a shared borrow: Error only reads it
+./main.go:64:20: copied op into opErr: op is used again on line 66; Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning
+./main.go:79:19: moved p into perr: p is not used afterwards

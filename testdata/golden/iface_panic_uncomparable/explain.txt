@@ -1,0 +1,1 @@
+./main.go:13:7: receiver p is a shared borrow: Error only reads it

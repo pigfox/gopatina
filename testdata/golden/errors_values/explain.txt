@@ -1,12 +1,18 @@
 ./main.go:18:7: receiver e is a shared borrow: Error only reads it
 ./main.go:21:7: receiver e is a shared borrow: ErrCode only reads it
 ./main.go:30:7: receiver e is a shared borrow: Retry only reads it
-./main.go:43:11: parameter e is owned: pass keeps it
-./main.go:50:13: parameter name is owned: lookup keeps it
-./main.go:70:12: parameter errs is a shared borrow: first only reads it
-./main.go:74:8: copied x into e: x is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
-./main.go:86:15: parameter err is a shared borrow: describe only reads it
-./main.go:104:12: copied sentinel into copied: sentinel is used again on line 105; Go strings are immutable, so a copy keeps the program's meaning
-./main.go:109:20: copied name into lookup: name is used again on line 111; Go strings are immutable, so a copy keeps the program's meaning
-./main.go:110:51: copied err into a composite literal: err is used again on line 111; Go strings are immutable, so a copy keeps the program's meaning
-./main.go:152:17: copied kept into pass: kept is used again on line 153; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:45:7: receiver u is a shared borrow: Error only reads it
+./main.go:49:7: receiver a is a shared borrow: Error only reads it
+./main.go:53:7: receiver y is a shared borrow: Error only reads it
+./main.go:55:7: receiver u is a shared borrow: Retry only reads it
+./main.go:57:7: receiver a is a shared borrow: Retry only reads it
+./main.go:59:7: receiver y is a shared borrow: Retry only reads it
+./main.go:62:11: parameter e is owned: pass keeps it
+./main.go:69:13: parameter name is owned: lookup keeps it
+./main.go:89:12: parameter errs is a shared borrow: first only reads it
+./main.go:93:8: copied x into e: x is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:105:15: parameter err is a shared borrow: describe only reads it
+./main.go:123:12: copied sentinel into copied: sentinel is used again on line 124; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:128:20: copied name into lookup: name is used again on line 130; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:129:51: copied err into a composite literal: err is used again on line 130; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:171:17: copied kept into pass: kept is used again on line 172; Go strings are immutable, so a copy keeps the program's meaning
