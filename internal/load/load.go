@@ -92,7 +92,7 @@ func Dir(dir, cwd string) (*Package, error) {
 		return nil, fmt.Errorf("%s: cgo (import \"C\") is not supported in patina mode", diag.RelPath(cwd, filepath.Join(abs, bp.CgoFiles[0])))
 	}
 	for _, imp := range bp.Imports {
-		if !Bridged[imp] && imp != "unsafe" {
+		if !Provided(imp) && imp != "unsafe" {
 			return program(abs, cwd) // a program of several packages
 		}
 	}

@@ -289,6 +289,8 @@ func TestRejected(t *testing.T) {
 		{"bytes sprintf", "package main\nimport \"fmt\"\nfunc main() { _ = fmt.Sprintf(\"%s\", []byte(\"x\")) }\n", "the format %s with a value of type []byte is not supported"},
 		{"pointer assign", "package main\nfunc main() { x, y := 1, 2; p := &x; p = &y; _ = p }\n", "assigning to a pointer variable"},
 		{"nil pointer arg", "package main\nfunc f(p *int) {}\nfunc main() { f(nil) }\n", "passing nil for a pointer"},
+		{"time func", "package main\nimport \"time\"\nfunc main() { _ = time.Now() }\n", "time.Now is not supported"},
+		{"time type", "package main\nimport \"time\"\nfunc f(t time.Month) {}\nfunc main() {}\n", "type time.Month is not supported"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -412,5 +414,23 @@ func main() {
 	kinds := Globals(pkg)
 	if !ReadsChangedGlobal(pkg, stmt, kinds) || ReadsChangedGlobal(pkg, mainFn.Body.List[0], kinds) {
 		t.Error("ReadsChangedGlobal")
+	}
+}
+
+// TestProvidedMethodMissing covers a method of a provided type that patina
+// mode does not provide yet.
+func TestProvidedMethodMissing(t *testing.T) {
+	ProvidedTypes["time.Month"] = true
+	t.Cleanup(func() { delete(ProvidedTypes, "time.Month") })
+	got := check(t, "package main\nimport (\"fmt\"; \"time\")\nfunc main() { fmt.Println(time.January.String()) }\n")
+	if !strings.Contains(got, "time.Month.String is not supported") {
+		t.Errorf("got %s", got)
+	}
+	if fn, name := ProvidedMethod(types.Universe.Lookup("error").Type().Underlying().(*types.Interface).Method(0)); fn != "" || name != "" {
+		t.Errorf("error.Error: %q %q", fn, name)
+	}
+	plain := types.NewFunc(0, nil, "f", types.NewSignatureType(nil, nil, nil, nil, nil, false))
+	if fn, name := ProvidedMethod(plain); fn != "" || name != "" {
+		t.Errorf("a function: %q %q", fn, name)
 	}
 }

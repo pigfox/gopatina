@@ -162,6 +162,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- `time.Duration`, the first provided type (RFC 0011): its constants,
+  arithmetic, conversions and the methods `String`, `Nanoseconds`,
+  `Microseconds`, `Milliseconds`, `Seconds`, `Minutes`, `Hours`,
+  `Truncate`, `Round` and `Abs`, transcribed from Go's `time` package into
+  `rt.rs`; fmt prints a Duration through `String`, also with widths and in
+  slices. Patina builds no longer translate provided packages from source
+  (the loader stops at `load.Provided`, as the coverage measurement does).
+  Golden `time_duration`; the generator makes Durations from its integers
+  in every unit and calls every method. The upstream gc issue is filed:
+  golang/go#83292.
 - Golden `gc_subqconst`: a gc miscompile found by the gate (program 26733,
   seed 1): optimized gc on amd64 (Go 1.21.0 to 1.27.1) drops `2^32` from
   `x + 2^31 + 2^31`. The cause is the amd64 rule
