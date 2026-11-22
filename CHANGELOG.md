@@ -65,8 +65,8 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 - The Go oracle of the differential tests (`gopatina-difftest` and the golden
   `TestDifferential`) is Go's reference build, `go build -gcflags=all=-N -l`.
-  The generated tests found two programs whose optimized gc build (Go 1.25.0
-  to 1.27.1, amd64) prints results that contradict the specification and a
+  The generated tests found two programs whose optimized gc build (amd64;
+  one from Go 1.22.0, the other from 1.26.0, both up to 1.27.1) prints results that contradict the specification and a
   hand calculation, while the reference build and GoPatina agree; both,
   reduced, are golden programs (`gc_inline_carry_1`, `_2`).
   `gopatina-difftest` still builds each batch optimized too and reports

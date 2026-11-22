@@ -51,7 +51,8 @@ the reference build's, or when patina mode fails to build it. Each batch is
 also built with plain `go build`; a program whose optimized Go build prints
 something other than the reference build is a **Go compiler disagreement**,
 recorded and kept for review, and not a GoPatina defect. Two have been found
-(2026-11-22): optimized gc builds of Go 1.25.0 to 1.27.1 on amd64 printed
+(2026-11-22): optimized gc builds on amd64 (one program from Go 1.22.0, the
+other from Go 1.26.0, both up to 1.27.1, the newest tested) printed
 results that contradict the specification and a hand calculation, while the
 reference build and GoPatina agreed with both
 (`testdata/golden/gc_inline_carry_*`). Let p be the probability that a

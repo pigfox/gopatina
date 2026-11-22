@@ -48,7 +48,7 @@ GoPatina makes two measurable claims, and this page reports them the way a scien
 | Golden programs | 95 of 95 match the Go reference build's output, first stderr line and exit status | every change, in CI | passing |
 | Development smoke runs | 1,318 generated tests, 0 defects | 2026-11-21, laptop, three generator versions | far below 881,098: not evidence for the bar |
 | Defects found by the generated tests | 1: a shift after a type conversion did not compile (fixed, with a golden program) | 2026-11-22, test server, programs 150 to 299 | the run restarts with the fixed compiler |
-| Go compiler disagreements found by the generated tests | 2: optimized gc builds (Go 1.25.0 to 1.27.1, amd64) printed results that contradict the specification and a hand calculation; the reference build and GoPatina agreed with both | 2026-11-22, test server, programs 169026 and 174986 | not GoPatina defects; the Go oracle is now the reference build, and both programs are golden tests |
+| Go compiler disagreements found by the generated tests | 2: optimized gc builds on amd64 (one from Go 1.22.0, the other from 1.26.0, both up to 1.27.1) printed results that contradict the specification and a hand calculation; the reference build and GoPatina agreed with both | 2026-11-22, test server, programs 169026 and 174986 | not GoPatina defects; the Go oracle is now the reference build, and both programs are golden tests |
 | Correctness milestone (≤ 3.4 DPMO at 95% confidence) | pending: 0 defects needed in at least 881,098 tests | test server | pending |
 | **The correctness bar** (≤ 3.4 DPMO at 6σ confidence) | pending: 0 defects needed in at least 6,099,050 tests | test server | pending |
 
