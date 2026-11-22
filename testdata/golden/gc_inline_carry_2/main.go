@@ -1,6 +1,6 @@
 // Found by the generated differential tests (seed 1, program 174986): with
-// optimization and inlining, gc (Go 1.25.0 to 1.27.1, amd64) prints 0 for v3,
-// while the specification, a hand calculation and gc with -gcflags=-l or
+// optimization and inlining, gc (Go 1.26.0 to 1.27.1, amd64; 1.25.10 is
+// right) prints 0 for v3, while the specification, a hand calculation and gc with -gcflags=-l or
 // -N -l give 4294967296. GoPatina must match the reference build.
 package main
 
