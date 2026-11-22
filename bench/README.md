@@ -80,10 +80,18 @@ hand-written Rust for each case:
    one-sided normal tail beyond `--sigma` standard deviations (default 5,
    α ≈ 2.87e-7).
 3. Runs the two one-sided tests (TOST) against the equivalence margin
-   (`--margin`, default 0.01, that is ±1%, a setting until the project lead
-   chooses another). The verdict is **equivalent** if the whole interval lies
+   (`--margin`, default 0.005, that is ±0.5%, the project lead's choice).
+   "Identical speed" means equivalent within ±0.5% at 5σ. The verdict is **equivalent** if the whole interval lies
    inside ±margin, **slower** or **faster** if it lies wholly outside, and
    **inconclusive** otherwise: more runs or a quieter machine are needed.
+
+**How many runs.** The interval's half-width is about t × sd / √N, with
+t ≈ 5 at 5σ and sd the standard deviation of the log ratios (in the report).
+To call two programs equivalent, it must fit inside the margin less their
+true difference, so N ≈ (5 × sd / (ln 1.005 − |mean|))². At sd = 1%
+and no true difference, that is about 100 runs; at sd = 2%, about 400;
+at sd = 5%, about 2,500. Measure sd with a short run first (say 100 runs),
+then size the real one.
 
 The default metric is wall time. `--metric perf` also counts user
 instructions and user cycles with `perf stat`, each with its own test; it

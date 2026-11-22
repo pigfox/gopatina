@@ -20,7 +20,7 @@
 #
 # With --equiv, it instead runs cmd/gopatina-bench on each case: GoPatina
 # against hand-written Rust, N runs each (default 400) in ABBA order, and a
-# TOST equivalence test at the given margin (default 0.01, ±1%) and sigma
+# TOST equivalence test at the given margin (default 0.005, ±0.5%) and sigma
 # (default 5) on wall time. --metric perf also counts user instructions (then
 # the primary metric) and user cycles where perf can read the CPU's counters,
 # each with its own test; it is off by default. The report names the primary
@@ -30,7 +30,7 @@ set -euo pipefail
 out=bench-results.json
 runs=""
 equiv=false
-margin=0.01
+margin=0.005
 sigma=5
 metric=wall
 while [ "$#" -gt 0 ]; do

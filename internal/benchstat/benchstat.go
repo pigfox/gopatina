@@ -49,7 +49,7 @@ type Result struct {
 
 // Equivalence runs the TOST equivalence test on paired positive timings a
 // and b (a[i] and b[i] measured next to each other), with an equivalence
-// margin (0.01 is ±1%) and a confidence of sigma standard deviations.
+// margin (0.005 is ±0.5%) and a confidence of sigma standard deviations.
 func Equivalence(a, b []float64, margin, sigma float64) (Result, error) {
 	if len(a) != len(b) {
 		return Result{}, errors.New("benchstat: a and b differ in length")

@@ -11,7 +11,7 @@
 // counters, each run also records user instructions (then the primary,
 // lowest-noise metric) and user cycles; the counters are off by default.
 // For each metric it runs benchstat's TOST equivalence test on the paired
-// log ratios CANDIDATE / BASELINE with the given margin (0.01 is ±1%) and
+// log ratios CANDIDATE / BASELINE with the given margin (0.005, ±0.5%, by default) and
 // sigma (5 is a one-sided α of about 2.87e-7 per test). See bench/README.md.
 package main
 
@@ -68,7 +68,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	runs := fs.Int("runs", 200, "runs of each binary (pairs)")
 	warmup := fs.Int("warmup", 2, "unmeasured runs of each binary first")
-	margin := fs.Float64("margin", 0.01, "equivalence margin (0.01 is ±1%)")
+	margin := fs.Float64("margin", 0.005, "equivalence margin (0.005 is ±0.5%)")
 	sigma := fs.Float64("sigma", 5, "confidence in standard deviations")
 	metric := fs.String("metric", "wall", "wall, or perf to also count user instructions and cycles")
 	name := fs.String("case", "", "case name recorded in the report")
