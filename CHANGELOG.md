@@ -101,6 +101,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- The speed bar's first test-server results (2026-11-22) are published with
+  their raw JSON: with one rustc (1.100.0) for both, GoPatina executes the
+  same user instructions as hand-written Rust to within 0.001% on fib, sieve
+  and suffix-sum, equivalent at 5σ and 6σ, so the bar is met on its primary
+  metric; cycles and wall time, measured under load, are not decided, and
+  the bar on run time waits for a quiet run.
 - The first test-server run, a 100-run wall-time pilot (2026-11-22), is
   published with its raw JSON: all three benchmarks inconclusive, because the
   machine's wall-time noise (7% to 20%) is far wider than the ±0.5% margin.

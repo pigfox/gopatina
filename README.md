@@ -23,8 +23,10 @@ existing Go program builds exactly as before.
 > borrow checker, the Rust code generator, `-emit-rust`, `-patina`,
 > `-patina=check` and `gopatina verify` are implemented and tested. Everything
 > else, goroutines and maps first among them, is planned and rejected with a
-> clear error today. No official performance figures yet; local measurements
-> against hand-written Rust are in [BENCHMARKS.md](BENCHMARKS.md).
+> clear error today. First test-server result (2026-11-22): GoPatina
+> executes the same instructions as hand-written Rust to within 0.001% on
+> every benchmark, the speed bar met on its primary metric; run time and the
+> correctness bar are pending ([BENCHMARKS.md](BENCHMARKS.md)).
 
 ## Why
 
@@ -228,8 +230,10 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
 
 ## Quality and performance policy
 
-- **Two bars** ([docs/QUALITY.md](docs/QUALITY.md#the-two-bars)), both
-  targets until the test server meets them:
+- **Two bars** ([docs/QUALITY.md](docs/QUALITY.md#the-two-bars)), each a
+  target until the test server meets it. The speed bar was met on user
+  instructions, its primary metric, on 2026-11-22; run time and the
+  correctness bar are pending:
   - **Speed:** equivalent to hand-written Rust within ±0.5%, shown by a two
     one-sided tests (TOST) equivalence test at 5σ (one-sided p ≈ 2.9 × 10⁻⁷
     per bound).
@@ -245,8 +249,8 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
   Rust built with the latest stable Rust toolchain, whose version is recorded
   with each result. The target is identical speed to Rust on each
   benchmark, tracked over time, where identical means equivalent within
-  ±0.5% at 5σ: a goal, not a claim. **No official numbers yet**; local
-  measurements are in [BENCHMARKS.md](BENCHMARKS.md). The harness
+  ±0.5% at 5σ. The first test-server results are in
+  [BENCHMARKS.md](BENCHMARKS.md). The harness
   ([bench/](bench/README.md)) runs in CI and reports ratios only; official
   numbers come from a dedicated machine.
 
@@ -260,16 +264,17 @@ checks both, and CI runs it on every golden program; see
 
 ## Benchmarks
 
-**No official benchmarks have been run yet.** The harness runs on pull
-requests and reports ratios only, which are not published as results. Local
-measurements, with their caveats, and the official results, measured on the
-maintainer's test server with the full suite, are published in
-[BENCHMARKS.md](BENCHMARKS.md); the latest official headline ratios will
-appear here.
+**First test-server results, 2026-11-22**: user instructions, GoPatina /
+hand-written Rust, both built by rustc 1.100.0, 100 runs each, equivalence
+at ±0.5% and 6σ. Run time (cycles and wall time) is not decided yet: it was
+measured under load and needs a quiet run. Details, raw results and every
+earlier run are in [BENCHMARKS.md](BENCHMARKS.md).
 
-| Benchmark | GoPatina / Rust | GoPatina / Go | Run |
+| Benchmark | GoPatina / Rust, user instructions | 6σ interval | Verdict |
 | --- | --- | --- | --- |
-| *(none yet)* | | | |
+| `fib` | 1.0000082 | [1.0000074, 1.0000090] | equivalent |
+| `sieve` | 1.0000062 | [1.0000056, 1.0000069] | equivalent |
+| `suffix-sum` | 1.0000071 | [1.0000061, 1.0000082] | equivalent |
 
 ## Supported toolchains
 

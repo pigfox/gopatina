@@ -22,7 +22,7 @@ type page struct {
 // pages lists the site, in the order of its navigation.
 var pages = []page{
 	{
-		Path: "/", File: "home", Kind: "home", Crumb: "Overview", Updated: lastUpdated,
+		Path: "/", File: "home", Kind: "home", Crumb: "Overview", Updated: "2026-11-22",
 		Title:       "GoPatina: compile Go to Rust, no garbage collector",
 		Description: "GoPatina is an open-source Go toolchain front end: write ordinary Go and, in an opt-in mode, compile it through Rust with no garbage collector.",
 	},
@@ -57,7 +57,7 @@ var pages = []page{
 		Description: "GoPatina's roadmap, phase by phase: the phase 1 subset of Go compiled through Rust, the rest of the borrow checker, goroutines, the standard library.",
 	},
 	{
-		Path: "/faq", File: "faq", Kind: "faq", Crumb: "FAQ", Updated: lastUpdated,
+		Path: "/faq", File: "faq", Kind: "faq", Crumb: "FAQ", Updated: "2026-11-22",
 		Title:       "GoPatina FAQ: Go without a garbage collector, answered",
 		Description: "Answers about GoPatina: what it is, whether it works today, whether your Go code still works, whether you need Rust, speed, correctness, license.",
 	},

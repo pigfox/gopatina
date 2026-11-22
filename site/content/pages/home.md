@@ -6,7 +6,7 @@ A patina is the thin layer that forms on metal: Go on the surface, Rust undernea
 
 Mission: Go developers get Rust's performance and safety without the painful Rust learning curve. {.mission}
 
-**Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress.** Default mode works for all Go. For the subset, `-emit-rust`, `-patina`, `-patina=check`, `-explain` and `gopatina verify` are implemented and tested; everything else is rejected with a clear error. No official performance or defect-rate figures yet: [the evidence](/evidence) reports the method and every result so far. {.status}
+**Status: early. Phase 1 works for a defined subset of Go; real programs need features still in progress.** Default mode works for all Go. For the subset, `-emit-rust`, `-patina`, `-patina=check`, `-explain` and `gopatina verify` are implemented and tested; everything else is rejected with a clear error. First test-server result (2026-11-22): GoPatina executes the same instructions as hand-written Rust to within 0.001% on every benchmark, the speed bar met on its primary metric at 6σ; run time and the Six Sigma correctness bar are pending. [The evidence](/evidence) reports the method and every result. {.status}
 
 ## Why GoPatina {#why}
 

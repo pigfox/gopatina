@@ -54,12 +54,12 @@ func TestRoutes(t *testing.T) {
 		path, ctype, cache, contains string
 	}{
 		{"/", "text/html; charset=utf-8", cacheShort, "<h1>GoPatina: write Go, run it like Rust</h1>"},
-		{"/evidence", "text/html; charset=utf-8", cacheShort, "No official test-server run has happened yet."},
+		{"/evidence", "text/html; charset=utf-8", cacheShort, "on run time it is not yet decided"},
 		{"/index.md", "text/markdown; charset=utf-8", cacheShort, "# GoPatina: write Go"},
 		{"/faq.md", "text/markdown; charset=utf-8", cacheShort, "### What is GoPatina?"},
 		{"/llms.txt", "text/plain; charset=utf-8", cacheShort, "- [FAQ](https://gopatina.org/faq): "},
 		{"/robots.txt", "text/plain; charset=utf-8", cacheShort, "Sitemap: https://gopatina.org/sitemap.xml"},
-		{"/sitemap.xml", "application/xml; charset=utf-8", cacheShort, "<loc>https://gopatina.org/faq</loc><lastmod>" + lastUpdated + "</lastmod>"},
+		{"/sitemap.xml", "application/xml; charset=utf-8", cacheShort, "<loc>https://gopatina.org/roadmap</loc><lastmod>" + lastUpdated + "</lastmod>"},
 		{"/healthz", "text/plain; charset=utf-8", "no-store", "ok"},
 	}
 	for _, tt := range tests {

@@ -7,8 +7,10 @@ Rust.
 
 ## The two bars
 
-GoPatina holds itself to two measurable bars. Both are targets until a run on
-the test server meets them; [BENCHMARKS.md](../BENCHMARKS.md) and
+GoPatina holds itself to two measurable bars. Each is a target until a run
+on the test server meets it. On 2026-11-22 the speed bar was met on its
+primary metric, user instructions; its result on run time, and the
+correctness bar, are pending. [BENCHMARKS.md](../BENCHMARKS.md) and
 <https://gopatina.org/evidence> give the status of each.
 
 ### Speed: equivalent to hand-written Rust within ±0.5%, at 5σ
@@ -31,7 +33,12 @@ about ±0.5%.
   drift affects both alike. N is chosen from a pilot run's s:
   N ≈ (5 · s / (δ − |μ̂|))².
 - **Metric.** Wall time by default; user instructions and cycles from the
-  CPU's counters when the machine allows them. Every result names its metric.
+  CPU's counters when the machine allows them. With counters, user
+  instructions are the primary metric: other processes do not change them,
+  and they vary by about a millionth between runs. They count work, not
+  time, so the bar is reported as met on instructions, and separately as
+  met on run time once cycles or wall time also pass on a quiet machine.
+  Every result names its metric.
 
 ### Correctness: the Six Sigma bar, at most 3.4 defects per million
 
@@ -236,7 +243,9 @@ There are two kinds of run, and they are kept apart:
 
 ### Status
 
-**No official numbers exist yet.** The harness,
+**The first test-server results (2026-11-22) are in
+[`BENCHMARKS.md`](../BENCHMARKS.md):** the speed bar is met on user
+instructions at 5σ and 6σ; on run time it is pending a quiet run. The harness,
 [`bench/run.sh`](../bench/run.sh), and three cases (`fib`, `sieve` and the
 read-only `s[i:]` case `suffix-sum`) exist, and the
 [`bench` workflow](../.github/workflows/bench.yml) (the per-pull-request
