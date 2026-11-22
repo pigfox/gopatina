@@ -47,6 +47,9 @@ type Package struct {
 	// Unclassified counts the diagnostics Feature puts in "other", by
 	// message, so the categories can be checked against real code.
 	Unclassified map[string]int `json:"unclassified,omitempty"`
+	// Messages counts every diagnostic by message, for the summary's top
+	// messages of each feature.
+	Messages map[string]int `json:"messages,omitempty"`
 }
 
 // Excluded is the feature of code that uses package reflect or unsafe: out
@@ -235,6 +238,10 @@ func Measure(pkg *load.Package, path, module string, diags []diag.Diagnostic) Pa
 			continue
 		}
 		fileDiags[dg.Pos.Filename]++
+		if p.Messages == nil {
+			p.Messages = map[string]int{}
+		}
+		p.Messages[dg.Msg]++
 		if Feature(dg.Msg) == "other" {
 			if p.Unclassified == nil {
 				p.Unclassified = map[string]int{}
