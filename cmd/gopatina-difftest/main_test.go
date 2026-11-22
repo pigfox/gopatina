@@ -272,3 +272,73 @@ func TestMainExit(t *testing.T) {
 		t.Errorf("exit %d", got)
 	}
 }
+
+// recordCache wraps tool: it appends the GOCACHE each build sees to log.
+func recordCache(t *testing.T, tool, log string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "rec")
+	script := "#!/bin/sh\necho \"$GOCACHE\" >> '" + log + "'\nexec '" + tool + "' \"$@\"\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// TestRunLeavesNothing checks that a clean run removes its working
+// directory, batches and caches, and that every build uses the run's own
+// Go build cache, not the shared one.
+func TestRunLeavesNothing(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	log := filepath.Join(t.TempDir(), "gocache.log")
+	g := recordCache(t, fakeTool(t, "go", false, "x", "true"), log)
+	p := recordCache(t, fakeTool(t, "gopatina", false, "x", "true"), log)
+	if code, _, errs := difftest("-programs", "4", "-per", "2", "-jobs", "2", "-go", g, "-gopatina", p); code != 0 {
+		t.Fatalf("code %d: %s", code, errs)
+	}
+	if left, _ := os.ReadDir(tmp); len(left) != 0 {
+		t.Errorf("left behind in TMPDIR: %v", left)
+	}
+	data, _ := os.ReadFile(log)
+	caches := strings.Fields(string(data))
+	if len(caches) != 6 { // two batches: reference, plain and patina builds
+		t.Fatalf("builds saw GOCACHE %q", caches)
+	}
+	for _, c := range caches {
+		if !strings.HasPrefix(c, filepath.Join(tmp, "gopatina-difftest-")) || filepath.Base(c) != "gocache" {
+			t.Errorf("GOCACHE %s is not the run's own", c)
+		}
+		if _, err := os.Stat(c); !os.IsNotExist(err) {
+			t.Errorf("GOCACHE %s is still there", c)
+		}
+	}
+	// With -work, the directory is the caller's: it stays, empty.
+	work := t.TempDir()
+	os.MkdirAll(filepath.Join(work, "gocache", "x"), 0o755)
+	os.MkdirAll(filepath.Join(work, "cache-0", "x"), 0o755)
+	if code, _, errs := difftest("-programs", "2", "-work", work, "-go", g, "-gopatina", p); code != 0 {
+		t.Fatalf("code %d: %s", code, errs)
+	}
+	if left, err := os.ReadDir(work); err != nil || len(left) != 0 {
+		t.Errorf("left behind in -work: %v %v", left, err)
+	}
+}
+
+// TestSignalCleans checks that a signal removes what the run made, then
+// exits with status 1, and that the end of a run stops the wait.
+func TestSignalCleans(t *testing.T) {
+	defer func(f func(int)) { exit = f }(exit)
+	code := -1
+	exit = func(c int) { code = c }
+	sigs := make(chan os.Signal, 1)
+	sigs <- os.Interrupt
+	cleaned := false
+	var errb bytes.Buffer
+	onSignal(sigs, nil, func() { cleaned = true }, &errb)
+	if !cleaned || code != 1 || !strings.Contains(errb.String(), "stopped by interrupt") {
+		t.Errorf("cleaned %v, exit %d, stderr %q", cleaned, code, errb.String())
+	}
+	done := make(chan struct{})
+	close(done)
+	onSignal(make(chan os.Signal), done, func() { t.Error("cleaned at the end of a run") }, &errb)
+}
