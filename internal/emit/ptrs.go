@@ -419,7 +419,11 @@ func (g *gen) cellParamDecl(p *borrow.Param) {
 	if p.Mode == borrow.Ref || p.Mode == borrow.RefMut {
 		g.rt["Ptr"] = true
 		name := g.varName(p.Var)
-		g.line("let " + name + " = rt::Ptr::new(" + name + ".clone());")
+		own := ".clone()"
+		if isStringType(p.Var.Type()) {
+			own = ".to_string()" // a borrowed string is a &str
+		}
+		g.line("let " + name + " = rt::Ptr::new(" + name + own + ");")
 		return
 	}
 	g.cellShadow(p.Var)
