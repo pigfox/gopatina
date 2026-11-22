@@ -1,0 +1,5 @@
+./main.go:55:8: parameter s is a shared borrow: f only reads it
+./main.go:68:10: parameter xs is a shared borrow: sum only reads it
+./main.go:76:11: parameter s is owned: note keeps it
+./main.go:81:11: parameter xs is an exclusive borrow: grow changes it, and the caller sees the change
+./main.go:88:12: parameter s is a shared borrow: greet only reads it

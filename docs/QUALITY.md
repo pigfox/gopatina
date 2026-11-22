@@ -143,7 +143,10 @@ conversions of values far out of range, NaN and the infinities (from
 `float64` and `float32` to every integer width), `float32` arithmetic and
 printing, shifts by run-time counts of every integer type, declarations of
 a second package of the same program (types, methods, constants,
-functions) used across the package boundary, and fmt
+functions) used across the package boundary, package-level variables read
+and changed in statements that also call what changes them (the oracle
+decides an order the Go specification leaves open: gc calls first, RFC
+0010), and fmt
 widths and flags (a width on a slice, `%x` with the `0`, `#` and `-` flags
 on integers, strings and bytes);
 each is valid Go that terminates without a panic. They also contain the

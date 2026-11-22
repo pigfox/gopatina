@@ -1,6 +1,8 @@
 package subset
 
 import (
+	"fmt"
+	"go/ast"
 	"go/types"
 	"os"
 	"path/filepath"
@@ -159,7 +161,14 @@ func TestRejected(t *testing.T) {
 		{"unsafe", "package main\nimport \"unsafe\"\nvar _ = unsafe.Sizeof(0)\nfunc main() {}\n", "package unsafe is not supported"},
 		{"otherpkg", "package main\nimport \"sort\"\nfunc main() { sort.Ints(nil) }\n", "package sort is not supported"},
 		{"renamed", "package main\nimport f \"fmt\"\nfunc main() { f.Println() }\n", "a renamed or dot import is not supported"},
-		{"pkgvar", "package main\nvar x int\nfunc main() { _ = x }\n", "a package-level variable is not supported"},
+		{"changed slice global", "package main\nvar s []int\nfunc main() { s = append(s, 1) }\n", "a package-level variable of type []int that the program changes is not supported"},
+		{"global address", "package main\nvar n int\nfunc main() { p := &n; *p = 1 }\n", "taking the address of a package-level variable is not supported"},
+		{"global ptr method", "package main\ntype T struct{ X int }\nfunc (t *T) Inc() { t.X++ }\nvar g T\nfunc main() { g.Inc() }\n", "calling a pointer-receiver method on a package-level variable is not supported"},
+		{"static slice copy", "package main\nvar s = []int{1}\nfunc main() { t := s; _ = t }\n", "using the package-level variable s this way (a copy of a slice shares its elements) is not supported"},
+		{"loop global call", "package main\nvar n int\nfunc f() int { n++; return n }\nfunc main() { for i := 0; i < n+f(); i++ { } }\n", "a condition that reads a changed package-level variable and calls a function of the program is not supported"},
+		{"error global", "package main\nimport \"errors\"\nvar e = errors.New(\"x\")\nfunc main() { _ = e }\n", "a package-level variable of type error is not supported"},
+		{"writer global", "package main\nimport (\"io\"; \"os\")\nvar w io.Writer = os.Stdout\nfunc main() { _ = w }\n", "a package-level variable of type io.Writer is not supported"},
+		{"multi-value global", "package main\nfunc f() (int, int) { return 1, 2 }\nvar a, b = f()\nfunc main() { _, _ = a, b }\n", "a package-level variable spec with a multi-value initializer is not supported"},
 		{"generic type", "package main\ntype B[T any] struct{ v T }\nfunc main() {}\n", "a generic type (Go 1.18) is not supported"},
 		{"generic method", "package main\ntype B[T any] struct{ v T }\nfunc (b B[T]) M() {}\nfunc main() {}\n", "a method on a generic type (Go 1.18)"},
 		{"generic instance", "package main\ntype B[T any] struct{ v T }\nfunc f(b B[int]) {}\nfunc main() {}\n", "a generic type (Go 1.18)"},
@@ -330,14 +339,77 @@ func TestPackages(t *testing.T) {
 	})
 	for _, want := range []string{
 		"main.go:6:7: using example.com/m/a.F as a value is not supported",
-		"main.go:8:6: the package-level variable example.com/m/a.V is not supported",
-		"a/a.go:7:5: a package-level variable is not supported",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("diagnostics lack %q:\n%s", want, got)
 		}
 	}
-	if strings.Count(got, "is not supported") != 4 || !strings.Contains(got, "reached from main through: main.main -> a.V") {
+	if strings.Count(got, "is not supported") != 2 {
 		t.Errorf("unexpected diagnostics:\n%s", got)
+	}
+}
+
+func TestGlobals(t *testing.T) {
+	got := checkModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"example.com/m/a\"\n\nfunc main() {\n\ta.V++\n\ta.S.Name = \"x\"\n}\n",
+		"a/a.go":  "package a\n\nvar V int\n\ntype T struct{ Name string }\n\nvar S T\n",
+	})
+	if !strings.Contains(got, "a package-level variable of type example.com/m/a.T that the program changes is not supported") || strings.Count(got, "is not supported") != 1 {
+		t.Errorf("diagnostics:\n%s", got)
+	}
+	src := `package main
+
+import "fmt"
+
+var table = []int{1, 2}
+
+type Cfg struct{ Items []int }
+
+var cfg = Cfg{Items: []int{3}}
+
+var n int
+
+var _ = f()
+
+func f() int { n++; return n }
+
+type C struct{ x int }
+
+func (c C) get() int { return c.x + n }
+
+func main() {
+	for _, x := range table {
+		fmt.Println(x, cfg.Items[0])
+	}
+	fmt.Println(n + f(), f() > 0 && f() > n, n|f(), C{x: f()}.get(), len([]byte("x")))
+}
+`
+	if got := check(t, src); got != "" {
+		t.Fatalf("unexpected diagnostics:\n%s", got)
+	}
+	pkg, err := load.Source("/p", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mainFn *ast.FuncDecl
+	for _, d := range pkg.Files[0].Decls {
+		if fd, ok := d.(*ast.FuncDecl); ok && fd.Name.Name == "main" {
+			mainFn = fd
+		}
+	}
+	stmt := mainFn.Body.List[1]
+	var order []string
+	for _, c := range HoistableCalls(pkg, stmt) {
+		order = append(order, fmt.Sprint(pkg.Fset.Position(c.Pos()).Column))
+	}
+	// f, f (the left operand of &&, not the right), f, the inner f, then
+	// C{...}.get() (a call is at its start); not fmt.Println, len or the
+	// conversion.
+	if got := strings.Join(order, " "); got != "18 23 45 55 50" {
+		t.Errorf("hoistable calls at columns %s", got)
+	}
+	kinds := Globals(pkg)
+	if !ReadsChangedGlobal(pkg, stmt, kinds) || ReadsChangedGlobal(pkg, mainFn.Body.List[0], kinds) {
+		t.Error("ReadsChangedGlobal")
 	}
 }

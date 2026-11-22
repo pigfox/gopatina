@@ -70,8 +70,17 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	if obj.Name() == "main" && g.fn.Recv == nil {
 		g.rt["exit_on_panic"] = true
 		g.line("rt::exit_on_panic();")
-		for _, f := range g.inits {
-			g.line(g.qual(f.Pkg(), g.funcs[f]) + "();")
+		// Each package: its variables, then its init functions (Go's
+		// order, RFC 0009 and RFC 0010).
+		for _, p := range g.pkg.Pkgs {
+			if len(g.initsOf(p)) > 0 {
+				g.line(g.qual(p, g.initVarsName[p]) + "();")
+			}
+			for _, f := range g.inits {
+				if f.Pkg() == p {
+					g.line(g.qual(f.Pkg(), g.funcs[f]) + "();")
+				}
+			}
 		}
 	}
 	res := sig.Results()
@@ -203,6 +212,9 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 				last = list[i]
 			}
 		case isReturn(s) && fnBody && i == len(list)-1:
+			if subset.ReadsChangedGlobal(g.pkg, s, g.globals) {
+				g.hoistCalls(s, false) // gc's order (RFC 0010)
+			}
 			if e := g.returnValue(s.(*ast.ReturnStmt)); e != nil {
 				g.stmtLine("", e, "")
 			}
@@ -280,6 +292,22 @@ func (g *gen) block(b *ast.BlockStmt) {
 }
 
 func (g *gen) stmt(s ast.Stmt) {
+	// A simple statement that reads or changes a changed package-level
+	// variable is written in gc's order (RFC 0010).
+	switch x := s.(type) {
+	case *ast.ExprStmt, *ast.ReturnStmt, *ast.DeclStmt:
+		if g.globalStmt(s, nil, func() { g.stmt(s) }) {
+			return
+		}
+	case *ast.AssignStmt:
+		if g.globalStmt(s, x.Lhs, func() { g.stmt(s) }) {
+			return
+		}
+	case *ast.IncDecStmt:
+		if g.globalStmt(s, []ast.Expr{x.X}, func() { g.stmt(s) }) {
+			return
+		}
+	}
 	g.hoist(s)
 	switch s := s.(type) {
 	case *ast.ExprStmt:

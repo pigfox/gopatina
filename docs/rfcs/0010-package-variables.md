@@ -1,6 +1,8 @@
 # RFC 0010: Package-level variables
 
-- **Status:** Draft
+- **Status:** Approved by the coordinator on the project lead's authority
+  (2026-11-22, merged in #66); implemented 2026-11-22 (see "Implementation
+  notes")
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
@@ -205,6 +207,45 @@ Default mode is unchanged; programs accepted today emit the same crate.
   `Cell`/`RefCell`.
 - gc initializes package variables with generated code in exactly the
   order `go/types` reports, which this RFC follows.
+
+## Implementation notes
+
+- **The order of calls and reads is gc's, not the specification's.** In
+  `x := count + next()`, the Go specification does not say whether `count`
+  is read before or after `next()` runs ("the order of those events compared
+  to the evaluation and indexing of x and the evaluation of y is not
+  specified", for operands that are not calls). The oracle is gc, and gc
+  1.27.1 calls first, in both the optimized and the reference build
+  (measured: `count + next()`, `fmt.Println(G, f())`, `G += f()`, `S + g()` and
+  `Q.A = h()` all see the call's change). GoPatina follows it: in a simple
+  statement (assignment, expression, return, declaration, ++ and --) that
+  reads or changes a changed variable, every call of the program in it,
+  innermost first and left to right, is computed into a local first, except
+  in the right operand of && and ||, which Go evaluates only when needed.
+  A changed variable that the statement changes is read into a local after
+  those calls, changed, and set again. The generator mixes such reads and
+  calls in every program, so a change in gc's choice would show as a
+  disagreement.
+- A **condition** (of if, switch, case, a loop, or its post statement) that
+  reads a changed variable and calls a function of the program is rejected
+  with its own message: computing the call first would move it out of code
+  Go may not run.
+- Also rejected, each with its own message: **taking a variable's address**
+  and **calling a pointer-receiver method on one** (they would need a borrow
+  of a thread-local); a **spec with a multi-value initializer**
+  (`var a, b = f()`); and passing a read-only slice variable to a function that
+  may **change or keep** its argument (the borrow checker's decision), since
+  every reader shares its elements.
+- Initializers of variables the program does not reach (RFC 0009) are not
+  translated, although go/types lists them.
+- Found while implementing, and fixed before the change was committed: the
+  program's merged type information (RFC 0009) had not carried go/types'
+  initialization order, so the generator's first runs with variables in a
+  second package found every changed variable starting at zero.
+- The generator gives every program variables in lib (a counter changed by
+  a function, a read-only table, a changed string, a struct changed field
+  by field from main, a function returning the counter plus a call that
+  changes it) and a changed counter in main, mixing reads and calls.
 
 ## Unresolved questions
 

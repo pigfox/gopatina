@@ -19,6 +19,7 @@
 #![allow(clippy::manual_rem_euclid)] // the Go source computes the remainder as written
 #![allow(clippy::manual_unwrap_or)] // Go's error patterns map to match
 #![allow(clippy::manual_unwrap_or_default)] // Go's error patterns map to match
+#![allow(clippy::match_single_binding)] // a Go switch with only a default case
 #![allow(clippy::mut_range_bound)] // Go allows changing a range bound
 #![allow(clippy::needless_return)] // the Go source controls the returns
 #![allow(clippy::nonminimal_bool)] // the Go source controls the condition
@@ -42,6 +43,12 @@ fn main() {
     crate::z_1::init2();
     crate::a_2::init3();
     crate::b_3::init4();
+    let mut hits = crate::a_2::HITS.get();
+    hits += 2;
+    crate::a_2::HITS.set(hits);
+    let mut hits = crate::a_2::HITS.get();
+    hits += 1;
+    crate::a_2::HITS.set(hits);
     let p = crate::a_2::new(3, 4);
     let q = crate::b_3::scale(p, 10);
     println!(
@@ -54,12 +61,14 @@ fn main() {
         crate::b_3::kind_string(2),
     );
     let k: i64 = 7;
+    let call = crate::b_3::shift(3, 10);
     println!(
-        "{} {} {} {}",
+        "{} {} {} {} {}",
         crate::b_3::kind_string(k),
         k,
         crate::b_3::kind_string(k),
-        crate::b_3::shift(3, 10),
+        call,
+        crate::a_2::HITS.get(),
     );
     // Outside Go's documented domain (a carry other than 0 or 1): gc on
     // amd64 counts a carry whose low 32 bits are not zero as 1.

@@ -1,6 +1,7 @@
 package borrow
 
 import (
+	"github.com/pigfox/gopatina/internal/load"
 	"go/ast"
 	"go/printer"
 	"go/token"
@@ -325,6 +326,12 @@ func (w *walker) args(ops *operands, e *ast.CallExpr, callee *Func, name string)
 	borrowed := map[string]bool{}
 	for i, a := range e.Args {
 		p := callee.Params[i]
+		if w.a.final && p.Mode != Ref && p.Kind != Copy && p.Kind != Value && isGlobal(w.a.pkg, a) {
+			// A package-level slice nothing changes (RFC 0010) is shared
+			// by every reader: a callee that changes or keeps its argument
+			// would change what the others see.
+			w.a.report(a.Pos(), w.a.errorf(a.Pos(), "%s may change or keep its argument, a package-level variable of type %s (patina mode passes one only to a function that just reads it)", name, p.Var.Type()))
+		}
 		start := len(w.evs)
 		addr, isAddr := ast.Unparen(a).(*ast.UnaryExpr)
 		isAddr = isAddr && addr.Op == token.AND
@@ -412,4 +419,20 @@ func exprString(e ast.Expr) string {
 	var b strings.Builder
 	printer.Fprint(&b, token.NewFileSet(), e)
 	return b.String()
+}
+
+// isGlobal reports whether e is a package-level variable of the program
+// (os.Stdout is not one): v or pkg.V.
+func isGlobal(pkg *load.Package, e ast.Expr) bool {
+	var id *ast.Ident
+	switch x := ast.Unparen(e).(type) {
+	case *ast.Ident:
+		id = x
+	case *ast.SelectorExpr:
+		id = x.Sel
+	default:
+		return false
+	}
+	v, ok := pkg.Info.Uses[id].(*types.Var)
+	return ok && !v.IsField() && pkg.Local[v.Pkg()] && v.Parent() == v.Pkg().Scope()
 }

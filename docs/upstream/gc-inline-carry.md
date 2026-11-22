@@ -121,16 +121,112 @@ func p174986() {
 func main() { p174986() }
 ```
 
+Program 3, of two packages (module `example.com/gccarry3`), where the
+function is inlined across packages (found 2026-11-22):
+
+```go
+// main.go
+package main
+
+import (
+	"fmt"
+
+	"example.com/gccarry3/lib"
+)
+
+func h9143(a, b int) int {
+	return min((-b), (a - a))
+}
+
+type N9143 uint16
+
+func (x N9143) Mix(y N9143) N9143 {
+	return (((x + 3) | (y >> 7)) % (x | 1))
+}
+
+type L9143 []N9143
+
+func (l *L9143) Add(x N9143) { *l = append(*l, x) }
+
+type A9143 = N9143
+
+func p9143() {
+	v0 := 0
+	v1 := -2147483648
+	v2 := 466
+	v3 := -284
+	s := make([]int, 2)
+	var t []int
+	str := ""
+	m0 := 11
+	w0 := make([]int, m0)
+	fmt.Println(w0[0], w0[m0-1], len(w0))
+	for i1 := 0; i1 < 1; i1++ {
+		switch v3 % 3 {
+		default:
+			v1 -= ((v0 >> 26) / (v1 | 1))
+		}
+	}
+	v0 = h9143((-s[(v1%2+2)%2]), s[(h9143(v0, v1)%2+2)%2])
+	sum := 0
+	fmt.Println(v0, v1, v2, v3, sum, len(t), len(str))
+	n := N9143(v2 * v2)
+	m := n.Mix(N9143(v0))
+	var l L9143
+	pl := &l
+	pl.Add(m.Mix(n))
+	var a A9143 = m
+	m = a ^ n
+	fz := float64(v2 - v2)
+	fs := []float64{float64(v0) * 1e3, float64(v0) / float64(v2|1) * 1e19, fz / fz, 1 / fz, -1 / fz}
+	f32 := float32(fs[1]) * -7.5
+	fmt.Println(int(f32), int8(f32), int16(f32), uint16(f32), uint32(f32), uint64(f32), uint(fs[0]), uint32(fs[1]), uint64(fs[4]))
+	sa := uint8(v0)
+	sc := uint8(v2 & 127)
+	sa >>= sc / 3
+	lp := lib.P9143{A: v0, B: v1}
+	fmt.Println(lp.Sum(), lp.A, lib.F9143(v0, v1), lib.K9143, lib.N9143(v2), []lib.N9143{lib.N9143(v1)})
+}
+
+func main() { p9143() }
+```
+
+```go
+// lib/lib.go
+package lib
+
+import "fmt"
+
+type P9143 struct{ A, B int }
+
+const K9143 = 866
+
+func F9143(x, y int) int { return ((((x + x) & 22) - y) - y) / (y | 1) }
+
+type N9143 int32
+
+func (p P9143) Sum() int { return p.A + p.B*K9143 }
+
+func (p *P9143) Grow(x int) {
+	p.A ^= x
+	p.B += x
+}
+
+func (n N9143) String() string { return fmt.Sprintf("n%d", int(n)) }
+```
+
 Run each with `go run .` and with `go run -gcflags=all=-l .`.
 
 ### What did you see happen?
 
 With the default build, program 1 prints `4294967297 213 4489 -2147483648 0 0 11`
-as its last line, and program 2 prints `1171 787 412614656 0 4294967297 0 0 0`.
+as its last line, program 2 prints `1171 787 412614656 0 4294967297 0 0 0`,
+and program 3 prints `-1859720839168 0 0 866 n466 [n-2147483648]`.
 
 With `-gcflags=all=-l` (or `-gcflags=all=-N -l`), program 1 prints
 `4294967297 213 -287762804343 -2147483648 0 0 11`, and program 2 prints
-`1171 787 412614656 4294967296 4294967297 0 0 0`.
+`1171 787 412614656 4294967296 4294967297 0 0 0`, and program 3 prints
+`-1859720839168 0 -2 866 n466 [n-2147483648]`.
 
 ### What did you expect to see?
 
@@ -144,7 +240,11 @@ The second pair, which is what the specification gives:
   `v2 == 412614656`, `v4 == 4294967297`: `v2/(v4|1) == 0`,
   `h(0, 2147483648) == 4294967296`, and `-2147483648 & 4294967296 == 4294967296`.
 
-In both, the inlined function is `h(a, b) = (a+b)+b` or `(b+a)+b` called with
+- Program 3: `lib.F9143(0, -2147483648)` with
+  `F(x, y) = (((x+x)&22) - y - y) / (y|1)`: `4294967296 / -2147483647 == -2`.
+  Program 3 reproduces with Go 1.22.0 to 1.27.1, as program 1 does.
+
+In all three, the inlined function is `h(a, b) = (a+b)+b` or `(b+a)+b` called with
 `b = -v` where `v == -2147483648`, and the wrong result is what you get if
 `2*b` lost its carry out of bit 31 (`2*2147483648 == 2^32`). Without
 inlining the result is right.

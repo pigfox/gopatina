@@ -3,6 +3,10 @@
 /// Max is a typed constant used by another package.
 const MAX: i64 = 10;
 
+thread_local! {
+    pub(crate) static HITS: std::cell::Cell<i64> = const { std::cell::Cell::new(0) };
+}
+
 /// A Point has a String method, which fmt calls in every package.
 #[derive(Clone, Copy, Default, PartialEq)]
 pub(crate) struct Point {
@@ -27,10 +31,10 @@ pub(crate) fn new(x: i64, y: i64) -> Point {
 
 /// Sum adds the points.
 pub(crate) fn sum(ps: &[Point]) -> Point {
-    let mut s: Point = Point::default(); // New has the same name as a.New.
+    let mut s: Point = Point::default(); // Shift shifts by a count known only at run time, through the runtime.
     for p in ps.iter().copied() {
         s.x += p.x;
-        s.y += p.y; // Shift shifts by a count known only at run time, through the runtime.
+        s.y += p.y;
     }
     s
 }
