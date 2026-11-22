@@ -421,6 +421,12 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		b.WriteString("}")
 		return b.String(), g.methodCall(e, m, nil), ""
 	}
+	if m := subset.PrintMethod(t); m != nil && (v.Verb == 'x' || v.Verb == 'X') {
+		// The method's result in hex.
+		g.rt["hex_bytes"] = true
+		bytes := &call{recv: atom{paren(g.methodCall(e, m, nil), precPostfix), precPostfix}, head: ".as_bytes", open: "(", close: ")"}
+		return hexPadSpec(v), &call{head: "rt::hex_bytes", open: "(", close: ")", args: []node{bytes, text(boolLit(v.Verb == 'X')), text(boolLit(v.Sharp))}}, ""
+	}
 	if tv.Value != nil && plain && (v.Verb == 'v' || v.Verb == 'd' || v.Verb == 's' || v.Verb == 't') {
 		return "", nil, goConstText(tv.Value, t)
 	}
@@ -452,6 +458,32 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		}
 	}
 	switch {
+	case (v.Verb == 'x' || v.Verb == 'X') && (isStringType(t) || isSlice(t)):
+		// The bytes of a string or []byte in hex.
+		g.rt["hex_bytes"] = true
+		var bytes node
+		if isStringType(t) {
+			bytes = &call{recv: atom{paren(g.strRef(e), precPostfix), precPostfix}, head: ".as_bytes", open: "(", close: ")"}
+		} else {
+			bytes = g.ref(e)
+		}
+		arg = &call{head: "rt::hex_bytes", open: "(", close: ")", args: []node{bytes, text(boolLit(v.Verb == 'X')), text(boolLit(v.Sharp))}}
+		return hexPadSpec(v), arg, ""
+	case (v.Verb == 'x' || v.Verb == 'X') && (v.Zero || v.Sharp):
+		// Go pads the digits with zeros to the width (the sign counts, a 0x
+		// prefix does not); then only a space-padded width is left.
+		g.rt["hex_int"] = true
+		zw := 0
+		spec := "{}"
+		if v.Zero && !v.Minus && v.Width >= 0 {
+			zw = v.Width
+		} else {
+			flags(false)
+			b.WriteString("}")
+			spec = b.String()
+		}
+		x := atom{paren(g.value(e), precCast) + " as i128", precCast}
+		return spec, &call{head: "rt::hex_int", open: "(", close: ")", args: []node{x, text(boolLit(v.Verb == 'X')), text(boolLit(v.Sharp)), text(itoa(zw))}}, ""
 	case v.Verb == 'x' || v.Verb == 'X':
 		if isUnsigned(t) {
 			flags(true)
@@ -478,6 +510,12 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		}
 		flags(false)
 		arg = &call{head: "rt::Float", open: "(", close: ")", args: []node{g.value(e)}}
+	case isSlice(t) && subset.PrintMethod(t.Underlying().(*types.Slice).Elem()) != nil:
+		// Each element through its String or Error method.
+		g.rt["SliceMap"] = true
+		flags(false)
+		m := subset.PrintMethod(t.Underlying().(*types.Slice).Elem())
+		arg = &call{head: "rt::SliceMap", open: "(", close: ")", args: []node{g.ref(e), text(g.elemPrinter(m))}}
 	case isSlice(t):
 		g.rt["Slice"] = true
 		flags(false)
@@ -495,6 +533,37 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 	}
 	b.WriteString("}")
 	return b.String(), arg, ""
+}
+
+// hexPadSpec is the format spec of a hex string from rt::hex_bytes: Go pads
+// it with zeros for the 0 flag, unless - is given, and with spaces
+// otherwise.
+func hexPadSpec(v subset.Verb) string {
+	switch {
+	case v.Width < 0:
+		return "{}"
+	case v.Minus:
+		return "{:<" + itoa(v.Width) + "}"
+	case v.Zero:
+		return "{:0>" + itoa(v.Width) + "}"
+	}
+	return "{:>" + itoa(v.Width) + "}"
+}
+
+// elemPrinter renders a closure that prints one element (a &T) through
+// print method m: |e| m(e) for a borrowed receiver, m(*e) for a copied
+// one, e.m() for a struct's method. The receiver is never owned: the subset
+// prints only through a method that cannot panic, and that rule admits
+// nothing that moves the receiver (were it owned, the crate would not
+// compile, never print something else).
+func (g *gen) elemPrinter(m *types.Func) string {
+	switch {
+	case !g.freeMethods(g.recvTypeName(m)):
+		return "|e| e." + g.funcs[m] + "()"
+	case g.res.Funcs[m].Recv.Mode == borrow.Ref:
+		return "|e| " + g.funcs[m] + "(e)"
+	}
+	return "|e| " + g.funcs[m] + "(*e)"
 }
 
 func boolLit(b bool) string {
@@ -561,12 +630,18 @@ func (g *gen) printsBytes(verbs []subset.Verb, operands []ast.Expr) bool {
 		if v.Verb == 0 {
 			continue
 		}
-		if v.Verb == 's' && isSlice(g.typeOf(operands[i])) {
+		if v.Verb == 's' && isByteSliceType(g.typeOf(operands[i])) {
 			return true
 		}
 		i++
 	}
 	return false
+}
+
+// isByteSliceType reports whether t is a []byte, or a named type of one.
+func isByteSliceType(t types.Type) bool {
+	s, ok := t.Underlying().(*types.Slice)
+	return ok && types.Identical(s.Elem(), types.Typ[types.Uint8])
 }
 
 // writeBytes renders a Printf that prints a []byte with %s: Go prints its

@@ -959,11 +959,13 @@ func (c *checker) printProblem(t types.Type) string {
 	if isError(t) || isPrintableBasic(t) {
 		return ""
 	}
-	if s, ok := t.Underlying().(*types.Slice); ok && isPrintableBasic(s.Elem()) {
-		if PrintMethod(s.Elem()) != nil {
-			return "printing a slice of a type with a String or Error method"
+	if s, ok := t.Underlying().(*types.Slice); ok {
+		if m := PrintMethod(s.Elem()); m != nil {
+			return c.methodPrintProblem(m) // each element through its method
 		}
-		return ""
+		if isPrintableBasic(s.Elem()) {
+			return ""
+		}
 	}
 	return fmt.Sprintf("printing a value of type %s", t)
 }
@@ -1085,8 +1087,11 @@ func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
 			}
 			return c.methodPrintProblem(m)
 		case 'x', 'X':
-			// fmt formats the method's result in hex.
-			return fmt.Sprintf("the format %s with a value of type %s", v.Spec, t)
+			// fmt prints the method's result in hex.
+			if v.Plus || v.Space || v.Prec >= 0 {
+				return fmt.Sprintf("the format %s with a value of type %s", v.Spec, t)
+			}
+			return c.methodPrintProblem(m)
 		}
 	}
 	b, _ := t.Underlying().(*types.Basic)
@@ -1098,20 +1103,33 @@ func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
 	case 'd':
 		ok = kind(types.IsInteger) && v.Prec < 0
 	case 'x', 'X':
-		ok = kind(types.IsInteger) && v.Prec < 0 && !v.Plus && !v.Zero
+		// Integers, and the bytes of a string or []byte, with the - 0 and #
+		// flags and a width.
+		ok = (kind(types.IsInteger) || kind(types.IsString) || isByteSlice(t)) && v.Prec < 0 && !v.Plus
 	case 'c':
 		ok = kind(types.IsInteger) && v.Prec < 0 && !v.Plus && !v.Zero
 	case 's':
-		ok = (kind(types.IsString) || isError(t) || (isByteSlice(t) && v.Width < 0 && v.Prec < 0 && fn != "fmt.Sprintf" && fn != "fmt.Errorf")) && !v.Plus && !v.Zero
+		ok = (kind(types.IsString) || isError(t) || c.methodSlice(t) || (isByteSlice(t) && v.Width < 0 && v.Prec < 0 && fn != "fmt.Sprintf" && fn != "fmt.Errorf")) && !v.Plus && !v.Zero
 	case 't':
 		ok = kind(types.IsBoolean) && v.Prec < 0 && !v.Plus && !v.Zero
 	case 'f', 'F':
 		ok = kind(types.IsFloat)
 	}
-	if !ok || v.Space || v.Sharp {
+	if !ok || v.Space || (v.Sharp && v.Verb != 'x' && v.Verb != 'X') {
 		return fmt.Sprintf("the format %s with a value of type %s", v.Spec, t)
 	}
 	return ""
+}
+
+// methodSlice reports whether t is a slice whose elements fmt prints
+// through a String or Error method that cannot panic.
+func (c *checker) methodSlice(t types.Type) bool {
+	s, ok := t.Underlying().(*types.Slice)
+	if !ok {
+		return false
+	}
+	m := PrintMethod(s.Elem())
+	return m != nil && c.methodPrintProblem(m) == ""
 }
 
 // simplePlace reports whether e is a variable or a field of one, possibly

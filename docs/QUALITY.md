@@ -139,7 +139,9 @@ defect. The programs exercise wrapping integer arithmetic (including
 and a named integer type of a random width (RFC 0007) with a `String`
 method, wrapping arithmetic in that width (shifts up to past the width), and
 a named slice of it with pointer-receiver methods, and float-to-integer
-conversions of values far out of range, NaN and the infinities;
+conversions of values far out of range, NaN and the infinities, and fmt
+widths and flags (a width on a slice, `%x` with the `0`, `#` and `-` flags
+on integers, strings and bytes);
 each is valid Go that terminates without a panic. They also contain the
 loop nests RFC 0006 specializes (counted, sieve-like and cube nests over a
 slice made with a variable length), now and then at exactly a

@@ -10,6 +10,8 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A width on a slice (`%6v`, `%-5v`) pads each element, as Go does; the
+  whole slice was padded. Golden program `fmt_verbs`.
 - Float-to-integer conversions follow Go's compiler, not Rust's saturating
   `as`: on x86-64, NaN and values that do not fit give MinInt64 or MinInt32
   (gc's CVTTSD2SQ/CVTTSD2SL, measured against gc on amd64), and `uint8(f)`
@@ -133,6 +135,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- fmt: `%x` and `%X` of strings and `[]byte`; the `#` and `0` flags of `%x`
+  and `%X` (Go zero-pads the digits, sign included, prefix not, for an
+  integer, and the whole text for a string); slices printed through their
+  elements' `String` or `Error` method (`rt::SliceMap`); `%x` of a value with
+  a `String` method. The generator prints with these widths and flags in
+  every program, from a random stream of its own.
 - Named types and type aliases in patina mode (RFC 0007): `type T U` where
   `U` is a supported basic or slice type, or a struct of the package, and
   `type A = B`, as Rust type aliases of the underlying type; methods of named
