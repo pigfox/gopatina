@@ -36,7 +36,14 @@ func TestFeature(t *testing.T) {
 		"a slice expression (s[i:j]) is not supported in patina mode yet":                         "slicing",
 		"an array type is not supported in patina mode yet":                                       "arrays",
 		"range over [256]byte is not supported in patina mode yet":                                "arrays",
-		"an embedded field is not supported in patina mode yet":                                   "struct features",
+		"an embedded field is not supported in patina mode yet":                                   "embedded and promoted fields",
+		"type Kind: a named type that is not a struct is not supported in patina mode yet":        "named non-struct types",
+		"a type alias is not supported in patina mode yet":                                        "type aliases",
+		"a struct field of type error is not supported in patina mode yet":                        "struct fields of type error",
+		"an anonymous struct type is not supported in patina mode yet":                            "anonymous structs and local types",
+		"reflect.ValueOf is not supported in patina mode yet":                                     Excluded,
+		"type unsafe.Pointer is not supported in patina mode yet":                                 Excluded,
+		"package unsafe is not supported in patina mode yet":                                      Excluded,
 		"the error from f is not checked right after the call":                                    "error handling patterns",
 		"a variadic function is not supported in patina mode yet":                                 "variadic functions",
 		"fallthrough is not supported in patina mode yet":                                         "labels, goto and fallthrough",
@@ -200,16 +207,17 @@ func pkgs() []Package {
 		{Path: "b", Module: "std", Files: 1, FilesOK: 1, Accepted: true, Funcs: []Func{f(true, 4)}},
 		{Path: "c", Module: "x.org/m", Files: 1, Accepted: false, Funcs: []Func{f(false, 7, "defer"), f(false, 1, "generics", "maps")}},
 		{Path: "d", Module: "y.org/n", Files: 1, Accepted: false, Funcs: []Func{f(false, 1, "generics", "interfaces")}},
+		{Path: "e", Module: "y.org/n", Files: 1, Accepted: false, Funcs: []Func{{Name: "u", Lines: 9, Excluded: true, Features: []string{Excluded}}}},
 	}
 }
 
 func TestSummarize(t *testing.T) {
 	s := Summarize(pkgs(), 200, 1)
 	a := s.All
-	if a.Packages != 4 || a.Functions.Num != 2 || a.Functions.Den != 7 || a.Lines.Num != 7 || a.Lines.Den != 23 {
+	if a.Excluded != 1 || a.Packages != 5 || a.Functions.Num != 2 || a.Functions.Den != 7 || a.Lines.Num != 7 || a.Lines.Den != 23 {
 		t.Errorf("all: %+v", a)
 	}
-	if a.Files.Num != 2 || a.Files.Den != 5 || a.PackagesWhole.Num != 1 {
+	if a.Files.Num != 2 || a.Files.Den != 6 || a.PackagesWhole.Num != 1 {
 		t.Errorf("files or packages: %+v %+v", a.Files, a.PackagesWhole)
 	}
 	if !(a.Functions.Low <= a.Functions.Value && a.Functions.Value <= a.Functions.High) {
@@ -228,7 +236,7 @@ func TestSummarize(t *testing.T) {
 	if strings.Join(order, ",") != "maps,defer,generics,interfaces" || a.Roadmap[len(a.Roadmap)-1].Rate != 1 {
 		t.Errorf("roadmap %+v", a.Roadmap)
 	}
-	if s.Std.Packages != 2 || s.ThirdParty.Packages != 2 || s.Modules["std"] != 0.5 {
+	if s.Std.Packages != 2 || s.ThirdParty.Packages != 3 || s.Modules["std"] != 0.5 {
 		t.Errorf("groups %+v %+v %v", s.Std, s.ThirdParty, s.Modules)
 	}
 	if !(a.LeaveOneOutLow <= a.Functions.Value && a.Functions.Value <= a.LeaveOneOutHigh) || a.LeaveOneOutLow == a.LeaveOneOutHigh {

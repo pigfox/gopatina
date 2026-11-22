@@ -34,7 +34,10 @@ type Step struct {
 
 // A Group is the summary of a set of packages.
 type Group struct {
-	Packages        int      `json:"packages"`
+	Packages int `json:"packages"`
+	// Excluded counts the functions that use reflect or unsafe; they are
+	// left out of every share below.
+	Excluded        int      `json:"functions_excluded_reflect_unsafe"`
 	Functions       Rate     `json:"functions"`
 	Lines           Rate     `json:"lines_in_accepted_functions"`
 	Files           Rate     `json:"files"`
@@ -76,12 +79,19 @@ func Summarize(pkgs []Package, boot int, seed uint64) Summary {
 }
 
 // counts holds numerator and denominator pairs.
-type counts struct{ funcs, lines, files, whole [2]int }
+type counts struct {
+	funcs, lines, files, whole [2]int
+	excluded                   int
+}
 
 func count(pkgs []Package) counts {
 	var c counts
 	for _, p := range pkgs {
 		for _, f := range p.Funcs {
+			if f.Excluded {
+				c.excluded++
+				continue
+			}
 			c.funcs[1]++
 			c.lines[1] += f.Lines
 			if f.Accepted {
@@ -109,6 +119,7 @@ func ratio(a, b int) float64 {
 func group(pkgs []Package, boot int, seed uint64) Group {
 	g := Group{Packages: len(pkgs)}
 	c := count(pkgs)
+	g.Excluded = c.excluded
 	// Bootstrap: draw len(pkgs) packages with replacement, boot times.
 	r := rand.New(rand.NewPCG(seed, 1))
 	var draws [4][]float64
@@ -182,6 +193,9 @@ func reasons(pkgs []Package, total int) ([]Reason, []Step) {
 	accepted := 0
 	for _, p := range pkgs {
 		for _, f := range p.Funcs {
+			if f.Excluded {
+				continue
+			}
 			if f.Accepted {
 				accepted++
 				continue

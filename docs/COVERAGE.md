@@ -33,10 +33,19 @@ Rust, so the measurement is of the subset's rules, not of the translator.
 - **Packages wholly accepted**: every declaration, function and import
   accepted.
 
+**Out of scope: reflect and unsafe.** Code that uses package `reflect` or
+`unsafe` is out of scope (the project lead, 2026-11-21). A function that
+uses either, itself or through a declaration of its package that it uses,
+is counted apart, as "excluded", and left out of every share: 100% means
+100% of the functions that use neither. The report gives the number
+excluded beside every share.
+
 **The reasons.** Each diagnostic is assigned a feature (maps, closures and
 function values, interfaces, goroutines and channels, defer, generics,
 other integer and float types, pointers, slicing, standard-library calls,
-calls into other modules, and so on; `internal/coverage` lists the rules).
+calls into other modules, named non-struct types such as `type Kind int`,
+type aliases, embedded fields, and so on; `internal/coverage` lists the
+rules).
 A rejected function carries the features of its own diagnostics and of
 everything it depends on. The report gives, per feature:
 
