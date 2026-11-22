@@ -637,13 +637,17 @@ func TestDefaultListenReportsErrors(t *testing.T) {
 
 // TestSponsorPage checks /sponsor: indexed, in the sitemap and the nav (as
 // the item that stands out), linked from the home page, and its GitHub
-// Sponsors line both before and after GitHub Sponsors is active.
+// Sponsors line: the live link, or "coming soon" without an address.
 func TestSponsorPage(t *testing.T) {
 	h := handler(t)
 	b := body(t, h, "/sponsor")
-	if strings.Contains(b, "noindex") || !strings.Contains(b, "GitHub Sponsors: coming soon.") ||
+	if strings.Contains(b, "noindex") || !strings.Contains(b, `<a href="https://github.com/sponsors/pigfox">GitHub Sponsors</a>`) ||
 		strings.Contains(b, "{{github-sponsors}}") || !strings.Contains(b, `href="mailto:sponsors@gopatina.org"`) {
-		t.Error("/sponsor: indexed, with the coming-soon line and the corporate address")
+		t.Error("/sponsor: indexed, with the GitHub Sponsors link and the corporate address")
+	}
+	small, company := strings.Index(b, "$100 a month"), strings.Index(b, "$500 a month")
+	if small < 0 || small > company || strings.Index(b, "$25 a month") > small {
+		t.Error("/sponsor: the $100 tier is not between the individual and the company tiers")
 	}
 	if !strings.Contains(body(t, h, "/sitemap.xml"), siteURL+"sponsor<") {
 		t.Error("/sponsor is not in the sitemap")
@@ -653,9 +657,9 @@ func TestSponsorPage(t *testing.T) {
 		t.Error("the home page lacks the Sponsor nav item or its link to /sponsor")
 	}
 	defer func(u string) { githubSponsorsURL = u }(githubSponsorsURL)
-	githubSponsorsURL = "https://github.com/sponsors/pigfox"
-	if b := body(t, handler(t), "/sponsor"); !strings.Contains(b, `<a href="https://github.com/sponsors/pigfox">GitHub Sponsors</a>`) || strings.Contains(b, "coming soon") {
-		t.Error("/sponsor does not link to GitHub Sponsors once it is set")
+	githubSponsorsURL = ""
+	if b := body(t, handler(t), "/sponsor"); !strings.Contains(b, "GitHub Sponsors: coming soon.") || strings.Contains(b, "sponsors/pigfox") {
+		t.Error("/sponsor does not say coming soon without a GitHub Sponsors address")
 	}
 }
 

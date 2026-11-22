@@ -24,10 +24,9 @@ const (
 	lastUpdated = "2026-11-21"
 )
 
-// githubSponsorsURL is GoPatina's GitHub Sponsors page, or "" until it is
-// active: /sponsor links to it, or says it is coming soon. Set it to
-// "https://github.com/sponsors/pigfox" once GitHub Sponsors is active.
-var githubSponsorsURL = ""
+// githubSponsorsURL is GoPatina's GitHub Sponsors page (live since
+// 2026-11-22): /sponsor links to it, or, set to "", says it is coming soon.
+var githubSponsorsURL = "https://github.com/sponsors/pigfox"
 
 // sponsorLine is the /sponsor line {{github-sponsors}} stands for.
 func sponsorLine() string {
