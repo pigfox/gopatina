@@ -634,3 +634,27 @@ func TestDefaultListenReportsErrors(t *testing.T) {
 		t.Error("listen on an invalid address returned no error")
 	}
 }
+
+// TestSponsorPage checks /sponsor: indexed, in the sitemap and the nav (as
+// the item that stands out), linked from the home page, and its GitHub
+// Sponsors line both before and after GitHub Sponsors is active.
+func TestSponsorPage(t *testing.T) {
+	h := handler(t)
+	b := body(t, h, "/sponsor")
+	if strings.Contains(b, "noindex") || !strings.Contains(b, "GitHub Sponsors: coming soon.") ||
+		strings.Contains(b, "{{github-sponsors}}") || !strings.Contains(b, `href="mailto:sponsors@gopatina.org"`) {
+		t.Error("/sponsor: indexed, with the coming-soon line and the corporate address")
+	}
+	if !strings.Contains(body(t, h, "/sitemap.xml"), siteURL+"sponsor<") {
+		t.Error("/sponsor is not in the sitemap")
+	}
+	home := body(t, h, "/")
+	if !strings.Contains(home, `<a href="/sponsor" class="sponsor">Sponsor</a>`) || !strings.Contains(home, `<a href="/sponsor">Sponsor GoPatina</a>`) {
+		t.Error("the home page lacks the Sponsor nav item or its link to /sponsor")
+	}
+	defer func(u string) { githubSponsorsURL = u }(githubSponsorsURL)
+	githubSponsorsURL = "https://github.com/sponsors/pigfox"
+	if b := body(t, handler(t), "/sponsor"); !strings.Contains(b, `<a href="https://github.com/sponsors/pigfox">GitHub Sponsors</a>`) || strings.Contains(b, "coming soon") {
+		t.Error("/sponsor does not link to GitHub Sponsors once it is set")
+	}
+}
