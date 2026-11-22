@@ -47,6 +47,36 @@ ignored) and exit status; the emitted binary prints Go's panic wording itself,
 so no translation happens in the test. `gopatina fix` and its tests are
 planned.
 
+### Defect rate: generated differential tests
+
+The golden programs are written by hand, so they test what their authors
+thought of. `cmd/gopatina-difftest` measures a defect rate instead. It builds
+random programs inside the phase 1 subset, made by `internal/progen`, with
+`go build` and with `gopatina build -patina`, runs both, and counts every
+program whose output differs, or that patina mode fails to build, as a
+defect. The programs exercise wrapping integer arithmetic (including
+`MinInt64 / -1`), shifts, bitwise operators, `min` and `max`, slices and
+`append`, `switch`, helper calls, string building and formatted printing;
+each is valid Go that terminates without a panic. Program k depends only on
+the seed and k, so a failure is reproducible and a run can be split across
+machines with `-start`.
+
+Programs are built many to a batch, one Go package and one crate, and
+compared program by program through marker lines. With no defect among N
+programs, the 95% upper bound on the defect rate is -ln(0.05) / N; 881,098
+defect-free programs bound it at 3.4 defects per million, the Six Sigma
+level. A long run belongs on the test server, not a workstation:
+
+```sh
+go build -o gopatina ./cmd/gopatina && go build -o gopatina-difftest ./cmd/gopatina-difftest
+./gopatina-difftest -seed 1 -programs 882000 -per 150 -jobs 6 \
+  -gopatina ./gopatina -failures difftest-failures >difftest.json 2>difftest.log
+```
+
+The report (`difftest.json`) gives programs, defects, defects per million
+and the bound; `difftest.log` lists each batch as it finishes, and failing
+batches are kept with both outputs under `difftest-failures`.
+
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |
 | 0: pass-through CLI | CLI tests that run a stand-in `go` command and check arguments, streams and exit status are passed through unchanged |
