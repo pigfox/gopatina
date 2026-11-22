@@ -47,7 +47,7 @@ var pages = []page{
 		Description: "How fast is Go compiled through Rust? GoPatina's benchmarks against hand-written Rust and plain Go: the method, measured ratios and caveats.",
 	},
 	{
-		Path: "/correctness", File: "correctness", Kind: "article", Crumb: "Correctness", Updated: lastUpdated,
+		Path: "/correctness", File: "correctness", Kind: "article", Crumb: "Correctness", Updated: "2026-11-22",
 		Title:       "GoPatina correctness: differential tests against Go",
 		Description: "How GoPatina checks that Go compiled through Rust behaves exactly like Go: golden programs, generated differential tests and a Six Sigma bar.",
 	},

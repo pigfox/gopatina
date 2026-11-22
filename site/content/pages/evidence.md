@@ -12,9 +12,9 @@ GoPatina makes two measurable claims, and this page reports them the way a scien
 
 - **Speed programs.** A benchmark suite (`fib`, `sieve`, `suffix-sum`), each written in Go and as idiomatic hand-written Rust that is not tuned to flatter GoPatina. All three builds must print the same expected output before any timing.
 - **Correctness programs.** Random programs from GoPatina's generator (`internal/progen`): valid Go inside the phase 1 subset, with wrapping integer arithmetic, shifts, slices, `append`, `switch`, formatted printing, and the loop nests RFC 0006 specializes, some at exactly their thresholds. Each batch ends with a panic case: an index out of range, a division by zero, a `make` out of range, an explicit `panic`, or a nest one past its threshold.
-- **The differential contract.** A test passes when the `-patina` binary's standard output, first line of standard error and exit status equal those of the same program built by `go build`. A difference, or a failure to build, is a defect.
+- **The differential contract.** A test passes when the `-patina` binary's standard output, first line of standard error and exit status equal those of the same program built by Go's reference build, `go build -gcflags=all=-N -l` (optimization and inlining off, the closest the gc compiler comes to the language specification). A difference, or a failure to build, is a defect. Each program is also built with plain `go build`; where that optimized build disagrees with the reference build, the program is recorded as a Go compiler disagreement, not a GoPatina defect.
 - **Metrics.** Wall time per run by default, and user instructions and cycles from the CPU's counters where the machine allows them. Also the machine code of each benchmark's hot functions (`bench/asm-check.sh`), which no timing noise affects.
-- **Standing checks.** 93 hand-written golden programs and 27 rejection and semantics fixtures run in CI on every change, with 100% unit-test coverage. Every change, including the maintainer's own, goes through a pull request that the project lead approves.
+- **Standing checks.** 95 hand-written golden programs and 27 rejection and semantics fixtures run in CI on every change, with 100% unit-test coverage. Every change, including the maintainer's own, goes through a pull request that the project lead approves.
 
 ## 3. Apparatus {#apparatus}
 
@@ -45,9 +45,10 @@ GoPatina makes two measurable claims, and this page reports them the way a scien
 | Test server, cycles and wall time, the same runs | all inconclusive, except `fib`'s cycles at 0.903 [0.881, 0.926], although both binaries execute the same instructions | the same runs, under load | not taken as a result: these metrics need a quiet machine |
 | Machine code, rustc 1.100.0 | `fib`'s hot function identical; each `main` differs only by the startup panic-hook setup | 2026-11-22, test server | compiles only; not a speed measurement |
 | **The speed bar** (±0.5%, at 5σ and 6σ) | met on user instructions; on run time not yet decided | test server | **met on the primary metric**; run time pending a quiet run |
-| Golden programs | 93 of 93 match Go's output, first stderr line and exit status | every change, in CI | passing |
+| Golden programs | 95 of 95 match the Go reference build's output, first stderr line and exit status | every change, in CI | passing |
 | Development smoke runs | 1,318 generated tests, 0 defects | 2026-11-21, laptop, three generator versions | far below 881,098: not evidence for the bar |
 | Defects found by the generated tests | 1: a shift after a type conversion did not compile (fixed, with a golden program) | 2026-11-22, test server, programs 150 to 299 | the run restarts with the fixed compiler |
+| Go compiler disagreements found by the generated tests | 2: optimized gc builds (Go 1.25.0 to 1.27.1, amd64) printed results that contradict the specification and a hand calculation; the reference build and GoPatina agreed with both | 2026-11-22, test server, programs 169026 and 174986 | not GoPatina defects; the Go oracle is now the reference build, and both programs are golden tests |
 | Correctness milestone (≤ 3.4 DPMO at 95% confidence) | pending: 0 defects needed in at least 881,098 tests | test server | pending |
 | **The correctness bar** (≤ 3.4 DPMO at 6σ confidence) | pending: 0 defects needed in at least 6,099,050 tests | test server | pending |
 

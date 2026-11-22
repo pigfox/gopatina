@@ -5,6 +5,15 @@
 // ends with a panic case (internal/progen), which must match Go's output,
 // the first line of Go's standard error and Go's exit status.
 //
+// The Go oracle is Go's reference build: go build -gcflags=all=-N -l, with
+// optimization and inlining off, so it follows the language specification
+// as directly as the gc compiler can. The batch is also built with plain
+// go build; a program whose output differs between the two Go builds is a
+// Go compiler disagreement, recorded (and kept with all three outputs) but
+// not counted as a GoPatina defect. Optimized gc builds have been found to
+// disagree with the reference build and with the specification
+// (docs/QUALITY.md).
+//
 // usage: gopatina-difftest [-seed S] [-start K] [-programs N] [-per P]
 //
 //	[-jobs J] [-gopatina PATH] [-go PATH] [-work DIR] [-failures DIR]
@@ -66,6 +75,7 @@ type outcome struct {
 	mismatched  []int // programs whose output differs
 	buildFailed bool  // patina mode did not build the batch
 	panicBad    bool  // the panic case (program first+n) differs
+	goDisagree  []int // programs whose two Go builds disagree
 }
 
 type report struct {
@@ -83,7 +93,11 @@ type report struct {
 	Upper95           *float64 `json:"upper_bound_95_per_million,omitempty"`
 	Upper6Sigma       *float64 `json:"upper_bound_6sigma_per_million,omitempty"`
 	FailedPrograms    []int    `json:"failed_programs,omitempty"`
-	Seconds           float64  `json:"seconds"`
+	// GoDisagreements counts programs whose optimized Go build prints
+	// something other than Go's reference build; not GoPatina defects.
+	GoDisagreements        int     `json:"go_disagreements"`
+	GoDisagreementPrograms []int   `json:"go_disagreement_programs,omitempty"`
+	Seconds                float64 `json:"seconds"`
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -143,8 +157,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 				results[i], errs[i] = batch(c, w, batches[i].first, batches[i].n)
 				if errs[i] == nil {
 					mu.Lock()
-					fmt.Fprintf(stderr, "batch %d-%d: %d mismatched, build failed %t\n",
-						batches[i].first, batches[i].first+batches[i].n-1, len(results[i].mismatched), results[i].buildFailed)
+					fmt.Fprintf(stderr, "batch %d-%d: %d mismatched, build failed %t, %d Go disagreements\n",
+						batches[i].first, batches[i].first+batches[i].n-1, len(results[i].mismatched), results[i].buildFailed, len(results[i].goDisagree))
 					mu.Unlock()
 				}
 			}
@@ -182,6 +196,8 @@ func summarize(c config, results []outcome) report {
 		}
 		r.Mismatched += len(o.mismatched)
 		r.FailedPrograms = append(r.FailedPrograms, o.mismatched...)
+		r.GoDisagreements += len(o.goDisagree)
+		r.GoDisagreementPrograms = append(r.GoDisagreementPrograms, o.goDisagree...)
 		if o.panicBad {
 			r.PanicMismatched++
 			r.FailedPrograms = append(r.FailedPrograms, o.first+o.n)
@@ -191,6 +207,9 @@ func summarize(c config, results []outcome) report {
 	r.Defects = r.Mismatched + r.PanicMismatched + r.BuildFailed
 	if len(r.FailedPrograms) > 100 {
 		r.FailedPrograms = r.FailedPrograms[:100]
+	}
+	if len(r.GoDisagreementPrograms) > 100 {
+		r.GoDisagreementPrograms = r.GoDisagreementPrograms[:100]
 	}
 	r.DefectsPerMillion = float64(r.Defects) / float64(r.Tests) * 1e6
 	if r.Defects == 0 {
@@ -217,7 +236,10 @@ func batch(c config, worker, first, n int) (outcome, error) {
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0o644); err != nil {
 		return o, err
 	}
-	goBin, pBin := filepath.Join(dir, "go.bin"), filepath.Join(dir, "patina.bin")
+	goBin, refBin, pBin := filepath.Join(dir, "go.bin"), filepath.Join(dir, "goref.bin"), filepath.Join(dir, "patina.bin")
+	if out, err := build(dir, nil, c.goCmd, "build", "-gcflags=all=-N -l", "-o", refBin, "."); err != nil {
+		return o, fmt.Errorf("batch %d: go build (reference): %v\n%s", first, err, out)
+	}
 	if out, err := build(dir, nil, c.goCmd, "build", "-o", goBin, "."); err != nil {
 		return o, fmt.Errorf("batch %d: go build: %v\n%s", first, err, out)
 	}
@@ -231,21 +253,28 @@ func batch(c config, worker, first, n int) (outcome, error) {
 		keep(c, first, src, map[string][]byte{"patina-build.txt": pOut})
 		return o, nil
 	}
-	goStdout, goStderr, goCode := execute(goBin, c.timeout)
+	refStdout, refStderr, refCode := execute(refBin, c.timeout)
 	// Only the panic case may fail, and only with a Go panic (status 2).
-	if !(goCode == 0 && len(goStderr) == 0 || goCode == 2 && bytes.HasPrefix(goStderr, []byte("panic: "))) {
-		return o, fmt.Errorf("batch %d: the Go binary exited %d: %s", first, goCode, goStderr)
+	if !(refCode == 0 && len(refStderr) == 0 || refCode == 2 && bytes.HasPrefix(refStderr, []byte("panic: "))) {
+		return o, fmt.Errorf("batch %d: the Go binary exited %d: %s", first, refCode, refStderr)
 	}
+	goStdout, goStderr, goCode := execute(goBin, c.timeout)
 	pStdout, pStderr, pCode := execute(pBin, c.timeout)
-	w, g := segments(goStdout), segments(pStdout)
-	o.mismatched = compare(w, g, first, n)
+	ref, g := segments(refStdout), segments(pStdout)
+	o.mismatched = compare(ref, g, first, n)
 	last := first + n
-	o.panicBad = len(compare(w, g, last, 1)) > 0 || pCode != goCode ||
-		firstLine(pStderr) != firstLine(goStderr)
-	if len(o.mismatched) > 0 || o.panicBad {
+	o.panicBad = len(compare(ref, g, last, 1)) > 0 || pCode != refCode ||
+		firstLine(pStderr) != firstLine(refStderr)
+	opt := segments(goStdout)
+	o.goDisagree = compare(ref, opt, first, n+1)
+	if len(o.goDisagree) == 0 && (goCode != refCode || firstLine(goStderr) != firstLine(refStderr)) {
+		o.goDisagree = []int{last}
+	}
+	if len(o.mismatched) > 0 || o.panicBad || len(o.goDisagree) > 0 {
 		keep(c, first, src, map[string][]byte{
-			"go.out": goStdout, "patina.out": pStdout, "patina.err": pStderr,
-			"patina.exit": []byte(strconv.Itoa(pCode) + "\n"),
+			"goref.out": refStdout, "goref.err": refStderr, "go.out": goStdout, "go.err": goStderr,
+			"patina.out": pStdout, "patina.err": pStderr,
+			"exit": []byte(fmt.Sprintf("goref %d go %d patina %d\n", refCode, goCode, pCode)),
 		})
 	}
 	return o, nil

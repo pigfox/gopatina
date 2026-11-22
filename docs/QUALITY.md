@@ -42,10 +42,19 @@ about ±0.5%.
 
 ### Correctness: the Six Sigma bar, at most 3.4 defects per million
 
-A test is one generated program, or one panic case, built with `go build`
-and with `gopatina build -patina`. It is a defect when the patina binary's
+A test is one generated program, or one panic case, built with Go's
+reference build (`go build -gcflags=all=-N -l`: optimization and inlining
+off, the closest the gc compiler comes to the language specification) and
+with `gopatina build -patina`. It is a defect when the patina binary's
 standard output, first line of standard error or exit status differs from
-Go's, or when patina mode fails to build it. Let p be the probability that a
+the reference build's, or when patina mode fails to build it. Each batch is
+also built with plain `go build`; a program whose optimized Go build prints
+something other than the reference build is a **Go compiler disagreement**,
+recorded and kept for review, and not a GoPatina defect. Two have been found
+(2026-11-22): optimized gc builds of Go 1.25.0 to 1.27.1 on amd64 printed
+results that contradict the specification and a hand calculation, while the
+reference build and GoPatina agreed with both
+(`testdata/golden/gc_inline_carry_*`). Let p be the probability that a
 test is a defect, and p₀ = 3.4 × 10⁻⁶.
 
 - **Where 3.4 per million comes from.** It is the Six Sigma convention
@@ -109,7 +118,8 @@ list for Go-faithful patterns), rustfmt
 and `gopatina verify` tests in `internal/patina/rust_test.go` (run with
 `GOPATINA_RUST_TESTS=1` by the `toolchains` workflow, with Rust stable and the
 MSRV), and `FuzzCheck`, `FuzzBorrow` and `FuzzEmit`, run by CI for 60 seconds
-each. The differential tests build the Go program with `go build` and compare
+each. The differential tests build the Go program with Go's reference build
+(`go build -gcflags=all=-N -l`) and compare
 standard output, the first stderr line (Go's stack trace after a panic is
 ignored) and exit status; the emitted binary prints Go's panic wording itself,
 so no translation happens in the test. `gopatina fix` and its tests are

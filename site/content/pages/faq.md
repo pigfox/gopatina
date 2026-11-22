@@ -30,7 +30,7 @@ The bar is equivalence with equivalent hand-written Rust within ±0.5%, shown by
 
 ### How is GoPatina's correctness measured?
 
-By differential testing against Go: a program built with gopatina build -patina must print the same standard output, the same first line of standard error and exit with the same status as the same program built with go build. The bar is Six Sigma: at most 3.4 defects per million tests, shown at 6σ confidence by 0 defects in at least 6,099,050 generated tests; the first milestone, 881,098 tests, shows the same rate at 95% confidence. Both runs are pending on the test server; the golden programs pass in CI on every change.
+By differential testing against Go: a program built with gopatina build -patina must print the same standard output, the same first line of standard error and exit with the same status as the same program built with Go's reference build (go build with optimization and inlining off). The bar is Six Sigma: at most 3.4 defects per million tests, shown at 6σ confidence by 0 defects in at least 6,099,050 generated tests; the first milestone, 881,098 tests, shows the same rate at 95% confidence. Both runs are pending on the test server; the golden programs pass in CI on every change.
 
 ### What does a machine need to run a patina binary?
 

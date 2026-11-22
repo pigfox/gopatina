@@ -88,7 +88,10 @@ func TestDifferential(t *testing.T) {
 		t.Run(filepath.Base(dir), func(t *testing.T) {
 			tmp := t.TempDir()
 			goBin := filepath.Join(tmp, "go-bin")
-			build := exec.Command("go", "build", "-o", goBin, ".")
+			// Go's reference build: optimization and inlining off, the
+			// closest gc comes to the specification. Optimized gc builds have
+			// printed wrong results (testdata/golden/gc_inline_carry_*).
+			build := exec.Command("go", "build", "-gcflags=all=-N -l", "-o", goBin, ".")
 			build.Dir = dir
 			if out, err := build.CombinedOutput(); err != nil {
 				t.Fatalf("go build: %v\n%s", err, out)
