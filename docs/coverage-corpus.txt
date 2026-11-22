@@ -1,0 +1,79 @@
+# The corpus for gopatina-coverage (docs/COVERAGE.md).
+#
+# Rule: the standard library of the Go toolchain that runs the measurement,
+# and 51 widely used open-source Go modules, chosen by the maintainers to
+# span what Go is used for (web frameworks, command-line tools, encoding,
+# logging, databases, networking, concurrency, the golang.org/x libraries).
+# They were chosen by judgment, not from a ranking: no popularity ranking
+# was available to the tool reproducibly, and that is a known bias of the
+# corpus. "latest" is pinned by `gopatina-coverage resolve`, which writes
+# the lock file (version, go.sum hash, commit) the measurement uses.
+
+std
+
+# command-line tools and configuration
+github.com/spf13/cobra latest
+github.com/spf13/pflag latest
+github.com/spf13/viper latest
+github.com/urfave/cli/v2 latest
+github.com/fatih/color latest
+github.com/mattn/go-isatty latest
+github.com/olekukonko/tablewriter latest
+github.com/charmbracelet/bubbletea latest
+
+# web and networking
+github.com/gorilla/mux latest
+github.com/gorilla/websocket latest
+github.com/gin-gonic/gin latest
+github.com/labstack/echo/v4 latest
+github.com/go-chi/chi/v5 latest
+github.com/gofiber/fiber/v2 latest
+google.golang.org/grpc latest
+golang.org/x/net latest
+
+# encoding and data
+google.golang.org/protobuf latest
+gopkg.in/yaml.v3 latest
+github.com/BurntSushi/toml latest
+github.com/json-iterator/go latest
+github.com/tidwall/gjson latest
+github.com/mitchellh/mapstructure latest
+github.com/shopspring/decimal latest
+github.com/dustin/go-humanize latest
+golang.org/x/text latest
+
+# logging, errors and testing
+github.com/sirupsen/logrus latest
+go.uber.org/zap latest
+github.com/rs/zerolog latest
+github.com/pkg/errors latest
+github.com/hashicorp/go-multierror latest
+github.com/stretchr/testify latest
+github.com/google/go-cmp latest
+github.com/davecgh/go-spew latest
+
+# databases and storage
+github.com/redis/go-redis/v9 latest
+github.com/jackc/pgx/v5 latest
+gorm.io/gorm latest
+github.com/go-sql-driver/mysql latest
+github.com/lib/pq latest
+
+# security and identity
+golang.org/x/crypto latest
+github.com/golang-jwt/jwt/v5 latest
+github.com/google/uuid latest
+github.com/go-playground/validator/v10 latest
+
+# performance, compression and concurrency
+github.com/cespare/xxhash/v2 latest
+github.com/klauspost/compress latest
+github.com/hashicorp/golang-lru/v2 latest
+golang.org/x/sync latest
+golang.org/x/time latest
+golang.org/x/exp latest
+
+# systems and tooling
+golang.org/x/sys latest
+golang.org/x/mod latest
+github.com/prometheus/client_golang latest
