@@ -1,0 +1,511 @@
+package emit
+
+import (
+	"go/ast"
+	"go/token"
+	"go/types"
+	"strings"
+
+	"github.com/pigfox/gopatina/internal/borrow"
+	"github.com/pigfox/gopatina/internal/subset"
+)
+
+// Pointers that escape (RFC 0013). A heap pointer is an rt::Ptr<T>, a
+// shared cell; a variable whose address escapes is declared as one. Every
+// read through a heap pointer is p.with(|v| ...) and every write
+// p.with_mut(|v| ...), so a borrow of a cell lasts for the one access: the
+// expression inside is rendered by the usual code with the cell's contents,
+// v, standing for the pointed-at variable (cellRoot), and a write computes
+// its value first.
+
+// heapPtr reports whether t is a heap pointer type.
+func (g *gen) heapPtr(t types.Type) bool {
+	return t != nil && g.ptrs != nil && g.ptrs.HeapType(t)
+}
+
+// cellVar reports whether v lives in a cell: its address escapes.
+func (g *gen) cellVar(v *types.Var) bool {
+	return v != nil && g.ptrs != nil && g.ptrs.Cells[v]
+}
+
+// ptrType renders the Rust type of heap pointer type t.
+func (g *gen) ptrType(t types.Type) string {
+	g.rt["Ptr"] = true
+	return "rt::Ptr<" + g.rustType(types.Unalias(t).(*types.Pointer).Elem()) + ">"
+}
+
+// heapRoot returns the point where place e goes through a heap pointer:
+// the node that stands for the pointed-at variable (a cell variable, *p,
+// or p in p.f), and the expression whose value is the pointer. It
+// reports false for a place that does not go through one.
+func (g *gen) heapRoot(e ast.Expr) (root, ptr ast.Expr, ok bool) {
+	if g.ptrs == nil || !g.ptrs.Heap() {
+		return nil, nil, false
+	}
+	e = ast.Unparen(e)
+	for {
+		if _, done := g.cellRoot[e]; done {
+			return nil, nil, false // being rendered inside its cell
+		}
+		switch x := e.(type) {
+		case *ast.Ident:
+			if g.cellVar(g.localVar(x)) {
+				return x, x, true
+			}
+			return nil, nil, false
+		case *ast.StarExpr:
+			if g.heapPtr(g.typeOf(x.X)) {
+				return x, x.X, true
+			}
+			return nil, nil, false
+		case *ast.SelectorExpr:
+			sel := g.info.Selections[x]
+			if sel == nil || sel.Kind() != types.FieldVal {
+				return nil, nil, false
+			}
+			base := ast.Unparen(x.X)
+			if _, done := g.cellRoot[base]; !done && g.heapPtr(g.typeOf(base)) {
+				return base, base, true
+			}
+			e = base
+		case *ast.IndexExpr:
+			if !isSlice(g.typeOf(x.X)) {
+				return nil, nil, false
+			}
+			e = ast.Unparen(x.X)
+		default:
+			return nil, nil, false
+		}
+	}
+}
+
+// ptrValue renders the pointer a heap root reads through, without moving
+// it: a variable by its name, anything else as a value.
+func (g *gen) ptrValue(ptr ast.Expr) node {
+	if id, ok := ptr.(*ast.Ident); ok {
+		if v := g.localVar(id); v != nil {
+			return text(g.varName(v))
+		}
+	}
+	return g.value(ptr)
+}
+
+// cellParam returns the name of the closure parameter that stands for a
+// cell's contents in the current function.
+func (g *gen) cellParam() string {
+	if g.cellName == "" {
+		g.cellName = g.lnames.name("", func(string) string { return "v" })
+	}
+	return g.cellName
+}
+
+// inCell renders, with render, an expression over the contents of the cell
+// that root reads through, and wraps it in ptr.with(|v| ...) (or with_mut).
+func (g *gen) inCell(root, ptr ast.Expr, method string, render func() node) node {
+	p := g.ptrValue(ptr)
+	name := g.cellParam()
+	g.cellRoot[root] = name
+	saved := g.inCellRead
+	g.inCellRead = true
+	n := render()
+	g.inCellRead = saved
+	delete(g.cellRoot, root)
+	return &call{recv: p, head: "." + method, open: "(", close: ")", args: []node{atom{"|" + name + "| " + n.flat(), precAtom}}}
+}
+
+// heapValue renders e, a place that goes through a heap pointer, as a value
+// the caller owns: a copy of a Copy value, a clone of anything else, which
+// for a pointer field is a copy of the pointer.
+func (g *gen) heapValue(e ast.Expr) (node, bool) {
+	root, ptr, ok := g.heapRoot(e)
+	if !ok {
+		return nil, false
+	}
+	if ast.Unparen(e) == root {
+		// The whole variable: *p, or a cell variable.
+		if borrow.KindOf(g.typeOf(e)) == borrow.Copy {
+			return g.inCell(root, ptr, "with", func() node { return g.place(e) }), true
+		}
+		return &call{recv: g.ptrValue(ptr), head: ".load", open: "(", close: ")"}, true
+	}
+	return g.inCell(root, ptr, "with", func() node {
+		p := g.place(e)
+		if borrow.KindOf(g.typeOf(e)) == borrow.Copy {
+			return p
+		}
+		return &call{recv: p, head: ".clone", open: "(", close: ")"}
+	}), true
+}
+
+// heapWrite writes s, an assignment or ++/-- whose target goes through a
+// heap pointer: the value first, then the store, in one borrow of the
+// cell. It reports false for any other statement.
+func (g *gen) heapWrite(s ast.Stmt) bool {
+	var lhs ast.Expr
+	var rhs []ast.Expr
+	switch s := s.(type) {
+	case *ast.AssignStmt:
+		if s.Tok == token.DEFINE {
+			for _, l := range s.Lhs {
+				if id, ok := l.(*ast.Ident); ok && g.info.Defs[id] == nil && g.cellVar(g.localVar(id)) {
+					return g.heapMulti(s) // x, err := ... with x an existing cell
+				}
+			}
+			return false
+		}
+		if len(s.Lhs) != 1 || len(s.Rhs) != 1 {
+			return g.heapMulti(s)
+		}
+		lhs, rhs = s.Lhs[0], s.Rhs
+	case *ast.IncDecStmt:
+		lhs = s.X
+	default:
+		return false
+	}
+	root, ptr, ok := g.heapRoot(lhs)
+	if !ok {
+		return false
+	}
+	g.hoistIndexes([]ast.Expr{lhs}, true)
+	if as, ok := s.(*ast.AssignStmt); ok && g.isSelfAppend(lhs, rhs[0]) {
+		for _, a := range rhs[0].(*ast.CallExpr).Args[1:] {
+			g.tempOf(a)
+		}
+		_ = as
+	} else {
+		for _, r := range rhs {
+			g.tempOf(r)
+		}
+	}
+	g.cellStmt(root, ptr, func() { g.stmt(s) })
+	return true
+}
+
+// heapMulti writes a multiple assignment some of whose targets go through
+// a heap pointer: every value first, then each store on its own.
+func (g *gen) heapMulti(s *ast.AssignStmt) bool {
+	any := false
+	for _, l := range s.Lhs {
+		if _, _, ok := g.heapRoot(l); ok {
+			any = true
+		}
+	}
+	if !any {
+		return false
+	}
+	g.hoistIndexes(s.Lhs, true)
+	var temps []string
+	if len(s.Rhs) == 1 {
+		for range s.Lhs {
+			temps = append(temps, g.lnames.name("", func(string) string { return "val" }))
+		}
+		g.stmtLine("let ("+strings.Join(temps, ", ")+") = ", g.value(s.Rhs[0]), ";")
+	} else {
+		for _, r := range s.Rhs {
+			temps = append(temps, g.tempOf(r))
+		}
+	}
+	for i, l := range s.Lhs {
+		if id, ok := l.(*ast.Ident); ok && id.Name == "_" {
+			continue
+		}
+		if id, ok := l.(*ast.Ident); ok && g.info.Defs[id] != nil {
+			v := g.info.Defs[id].(*types.Var) // declared here: x, err := ...
+			if g.cellVar(v) {
+				g.cellDecl(v, text(temps[i]))
+			} else {
+				g.line("let " + g.mutPrefix(v) + g.varName(v) + " = " + temps[i] + ";")
+			}
+			continue
+		}
+		if root, ptr, ok := g.heapRoot(l); ok {
+			g.cellStmt(root, ptr, func() { g.stmtLine(g.place(l).flat()+" = ", text(temps[i]), ";") })
+			continue
+		}
+		g.stmtLine(g.place(l).flat()+" = ", text(temps[i]), ";")
+	}
+	return true
+}
+
+// tempOf computes e, owned, into a new local first, unless it is a
+// constant or a local variable, which the store can read itself.
+func (g *gen) tempOf(e ast.Expr) string {
+	if g.info.Types[e].Value != nil {
+		return g.value(e).flat()
+	}
+	if id, ok := ast.Unparen(e).(*ast.Ident); ok && g.localVar(id) != nil && !g.cellVar(g.localVar(id)) && borrow.KindOf(g.typeOf(e)) == borrow.Copy {
+		return g.varName(g.localVar(id))
+	}
+	name := g.lnames.name("", func(string) string { return "val" })
+	g.stmtLine("let "+name+" = ", g.owned(e), ";")
+	g.temps[ast.Unparen(e)] = name
+	return name
+}
+
+// cellStmt writes, with write, a statement over the contents of the cell
+// root reads through, inside ptr.with_mut(|v| ...).
+func (g *gen) cellStmt(root, ptr ast.Expr, write func()) {
+	pn := g.ptrValue(ptr)
+	if _, simple := pn.(atom); !simple {
+		// A pointer read through others: named first, which reads the
+		// same (reads have no effects), so the write is one short line.
+		tmp := g.lnames.name("", func(string) string { return "ptr" })
+		g.stmtLine("let "+tmp+" = ", pn, ";")
+		pn = text(tmp)
+	}
+	p := pn.flat()
+	name := g.cellParam()
+	saved, savedInd := g.out, g.ind
+	var b strings.Builder
+	g.out, g.ind = &b, 0
+	g.cellRoot[root] = name
+	g.inCellWrite = true
+	write()
+	g.inCellWrite = false
+	delete(g.cellRoot, root)
+	g.out, g.ind = saved, savedInd
+	lines := strings.Split(strings.TrimSuffix(b.String(), "\n"), "\n")
+	head := p + ".with_mut(|" + name + "| "
+	if len(lines) == 1 && strings.HasSuffix(lines[0], ";") {
+		inner := atom{"|" + name + "| " + strings.TrimSuffix(lines[0], ";"), precAtom}
+		n := &call{recv: pn, head: ".with_mut", open: "(", close: ")", args: []node{inner}}
+		if fits(n, n.flat(), g.ind*indentWidth, 1) || !strings.Contains(p, "(") {
+			g.stmtLine("", n, ";")
+			return
+		}
+	}
+	g.line(head + "{")
+	g.ind++
+	for _, l := range lines {
+		g.line(l)
+	}
+	g.ind--
+	g.line("});")
+}
+
+// readsHeap reports whether n reads through a heap pointer.
+func (g *gen) readsHeap(n ast.Node) bool {
+	if g.ptrs == nil || !g.ptrs.Heap() {
+		return false
+	}
+	found := false
+	ast.Inspect(n, func(x ast.Node) bool {
+		if found {
+			return false
+		}
+		if e, ok := x.(ast.Expr); ok {
+			if _, _, ok := g.heapRoot(e); ok {
+				found = true
+			}
+		}
+		return true
+	})
+	return found
+}
+
+// heapOrder computes the program's calls in s first when s reads through a
+// heap pointer: Go makes every call of an expression before it reads the
+// variables (measured with gc), and a call can change what a pointer
+// points at.
+func (g *gen) heapOrder(s ast.Stmt) {
+	switch s.(type) {
+	case *ast.ExprStmt, *ast.AssignStmt, *ast.ReturnStmt, *ast.IncDecStmt, *ast.DeclStmt:
+	default:
+		return // a condition is checked for this by the subset checker
+	}
+	if !g.readsHeap(s) || len(subset.HoistableCalls(g.pkg, s)) == 0 {
+		return
+	}
+	roots := 0
+	switch s := s.(type) {
+	case *ast.AssignStmt:
+		roots = len(s.Rhs)
+	case *ast.ReturnStmt:
+		roots = len(s.Results)
+	}
+	g.hoistCalls(s, roots > 1)
+}
+
+// heapAddr renders &x for a heap pointer: a new cell for &T{...}, the cell
+// itself for a cell variable (the only other operand the checker allows
+// a heap pointer to be taken of).
+func (g *gen) heapAddr(e *ast.UnaryExpr) node {
+	if x, ok := ast.Unparen(e.X).(*ast.CompositeLit); ok {
+		g.rt["Ptr"] = true
+		return &call{head: "rt::Ptr::new", open: "(", close: ")", args: []node{g.composite(x)}}
+	}
+	return &call{recv: text(g.varName(g.localVar(ast.Unparen(e.X).(*ast.Ident)))), head: ".clone", open: "(", close: ")"}
+}
+
+// heapCompare renders p == q, p != q, p == nil and p != nil for heap
+// pointers.
+func (g *gen) heapCompare(e *ast.BinaryExpr) node {
+	operand := func(x ast.Expr) node {
+		if id, ok := ast.Unparen(x).(*ast.Ident); ok && g.localVar(id) != nil {
+			return text(g.varName(g.localVar(id)))
+		}
+		return g.value(x)
+	}
+	x, y := e.X, e.Y
+	if g.info.Types[x].IsNil() {
+		x, y = y, x
+	}
+	if g.info.Types[y].IsNil() {
+		n := node(&call{recv: operand(x), head: ".is_nil", open: "(", close: ")"})
+		if e.Op == token.NEQ {
+			n = atom{"!" + paren(n, precUnary), precUnary}
+		}
+		return n
+	}
+	return &binary{op: binOps[e.Op].op, l: operand(x), r: operand(y), p: precCmp, nonAssoc: true}
+}
+
+// heapRecv reports whether method m has a pointer receiver of a heap
+// pointer type: it takes the pointer itself, &Ptr<T>, so its accesses are
+// each their own borrow.
+func (g *gen) heapRecv(m *types.Func) bool {
+	r := m.Signature().Recv()
+	return r != nil && isPointerType(r.Type()) && g.heapPtr(r.Type())
+}
+
+// heapRecvArg renders the receiver of a call of a method with a heap
+// pointer receiver: the pointer, or the cell of a cell variable (x.M()
+// takes &x).
+func (g *gen) heapRecvArg(x ast.Expr, p *borrow.Param) node {
+	x = ast.Unparen(x)
+	if u, ok := x.(*ast.UnaryExpr); ok && u.Op == token.AND {
+		x = ast.Unparen(u.X)
+	}
+	if id, ok := x.(*ast.Ident); ok && g.cellVar(g.localVar(id)) {
+		name := g.varName(g.localVar(id))
+		if p.Mode == borrow.Ref {
+			return text("&" + name)
+		}
+		return text(name + ".clone()")
+	}
+	return g.arg(x, p)
+}
+
+// cellDecl declares cell variable v holding value.
+func (g *gen) cellDecl(v *types.Var, value node) {
+	g.rt["Ptr"] = true
+	g.stmtLine("let "+g.varName(v)+": "+g.ptrType(types.NewPointer(v.Type()))+" = ", &call{head: "rt::Ptr::new", open: "(", close: ")", args: []node{value}}, ";")
+}
+
+// cellShadow moves a variable just declared by other means into its cell.
+func (g *gen) cellShadow(v *types.Var) {
+	g.rt["Ptr"] = true
+	name := g.varName(v)
+	g.line("let " + name + " = rt::Ptr::new(" + name + ");")
+}
+
+// cellShadows moves the cell variables a multiple := declares into their
+// cells.
+func (g *gen) cellShadows(s *ast.AssignStmt) {
+	if s.Tok != token.DEFINE {
+		return
+	}
+	for _, l := range s.Lhs {
+		if id, ok := l.(*ast.Ident); ok {
+			if v, ok := g.info.Defs[id].(*types.Var); ok && g.cellVar(v) {
+				g.cellShadow(v)
+			}
+		}
+	}
+}
+
+// cellParamDecl moves parameter p, whose address escapes, into its cell.
+func (g *gen) cellParamDecl(p *borrow.Param) {
+	if p.Mode == borrow.Ref || p.Mode == borrow.RefMut {
+		g.rt["Ptr"] = true
+		name := g.varName(p.Var)
+		g.line("let " + name + " = rt::Ptr::new(" + name + ".clone());")
+		return
+	}
+	g.cellShadow(p.Var)
+}
+
+// cellCall renders a call of a program function that is lent a place
+// inside a cell: &p.f, a slice p.f it changes or reads, or the receiver of
+// x.M() for a method of x's type. The other arguments that read through a
+// heap pointer are computed first; then the call runs inside the cell's one
+// borrow, which the borrow checker has checked the callee cannot reach
+// (borrow.HeapFreeFunc). It reports false for any other call.
+func (g *gen) cellCall(e *ast.CallExpr) (node, bool) {
+	if g.ptrs == nil || !g.ptrs.Heap() || g.inCellCall[e] {
+		return nil, false
+	}
+	fn := g.programFunc(e)
+	if fn == nil {
+		return nil, false
+	}
+	var lent ast.Expr // the place lent, inside its cell
+	mut := false
+	if sel, ok := ast.Unparen(e.Fun).(*ast.SelectorExpr); ok && fn.Recv != nil {
+		x := ast.Unparen(sel.X)
+		if u, ok := x.(*ast.UnaryExpr); ok && u.Op == token.AND {
+			x = ast.Unparen(u.X)
+		}
+		recv := fn.Recv.Var.Type()
+		if !isPointerType(recv) && g.heapPtr(g.typeOf(x)) && !borrow.HeapExact(types.Unalias(g.typeOf(x)).(*types.Pointer).Elem()) {
+			// p.M() for a value method: *p, inside its cell.
+			g.inCellCall[e] = true
+			saved := g.inCellWrite
+			g.inCellWrite = true
+			method := "with"
+			if fn.Recv.Mode == borrow.RefMut {
+				method = "with_mut"
+			}
+			n := g.inCell(x, x, method, func() node { return g.call(e) })
+			g.inCellWrite = saved
+			delete(g.inCellCall, e)
+			return n, true
+		}
+		if _, _, ok := g.heapRoot(x); ok {
+			switch {
+			case isPointerType(recv) && !g.heapPtr(recv):
+				lent, mut = x, true
+			case !isPointerType(recv) && !borrow.HeapExact(g.typeOf(x)):
+				lent, mut = x, fn.Recv.Mode == borrow.RefMut
+			}
+		}
+	}
+	for i, a := range e.Args { // variadic functions are not in the subset
+		x := ast.Unparen(a)
+		if u, ok := x.(*ast.UnaryExpr); ok && u.Op == token.AND && !g.heapPtr(g.typeOf(u)) {
+			if _, _, ok := g.heapRoot(u.X); ok {
+				lent, mut = u.X, true
+			}
+			continue
+		}
+		if _, _, ok := g.heapRoot(x); ok && !borrow.HeapExact(g.typeOf(x)) {
+			lent, mut = x, fn.Params[i].Mode == borrow.RefMut
+		}
+	}
+	if lent == nil {
+		return nil, false
+	}
+	root, ptr, _ := g.heapRoot(lent)
+	for _, a := range e.Args {
+		if x := ast.Unparen(a); x != lent && !isAddrOf(x, lent) && g.readsHeap(x) {
+			g.tempOf(x)
+		}
+	}
+	method := "with"
+	if mut {
+		method = "with_mut"
+	}
+	g.inCellCall[e] = true
+	saved := g.inCellWrite
+	g.inCellWrite = true
+	n := g.inCell(root, ptr, method, func() node { return g.call(e) })
+	g.inCellWrite = saved
+	delete(g.inCellCall, e)
+	return n, true
+}
+
+// isAddrOf reports whether x is &y.
+func isAddrOf(x, y ast.Expr) bool {
+	u, ok := x.(*ast.UnaryExpr)
+	return ok && u.Op == token.AND && ast.Unparen(u.X) == y
+}

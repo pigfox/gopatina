@@ -15,6 +15,7 @@ const (
 	fnCallWidth    = 60  // fn_call_width: arguments of a call on one line
 	structLitWidth = 18  // struct_lit_width: fields of a struct literal on one line
 	arrayWidth     = 60  // array_width: elements of vec![...] on one line
+	chainWidth     = 60  // chain_width: a chain of method calls on one line
 	indentWidth    = 4
 )
 
@@ -205,7 +206,7 @@ func lay(n node, col, ind int) string {
 // (such as ";" or " {").
 func layWith(n node, col, ind, suffix int) string {
 	f := n.flat()
-	if c, ok := n.(*call); fits(n, f, col, suffix) || (ok && len(c.args) == 0) {
+	if c, ok := n.(*call); fits(n, f, col, suffix) || (ok && len(c.args) == 0 && !longChain(c)) {
 		return f // a call without arguments has nothing to break
 	}
 	return layBroken(n, col, ind, suffix)
@@ -219,6 +220,9 @@ func layBroken(n node, col, ind, suffix int) string {
 	case *addrOf:
 		return n.prefix + layBroken(n.x, col+len(n.prefix), ind, suffix)
 	case *call:
+		if root, links := chainOf(n); len(links) >= 2 {
+			return chainBroken(root, links, ind)
+		}
 		return n.broken(col, ind, suffix)
 	case *structLit:
 		return n.broken(ind)
@@ -236,6 +240,9 @@ func fits(n node, f string, col, suffix int) bool {
 	}
 	switch n := n.(type) {
 	case *call:
+		if longChain(n) {
+			return false
+		}
 		w := len(joinFlat(n.args))
 		if n.array {
 			return w <= arrayWidth
@@ -341,7 +348,7 @@ var simpleExpr = regexp.MustCompile(`^[&*!-]*(?:(?:r#)?[A-Za-z_][A-Za-z0-9_]*|[0
 
 func allSimple(ns []node) bool {
 	for _, n := range ns {
-		if !simpleExpr.MatchString(n.flat()) {
+		if c, ok := n.(*call); ok && longChain(c) || !simpleExpr.MatchString(n.flat()) {
 			return false
 		}
 	}
@@ -411,4 +418,43 @@ func layOperand(n node, p, col, ind int, right bool) string {
 		return "(" + lay(n, col+1, ind) + ")"
 	}
 	return lay(n, col, ind)
+}
+
+// longChain reports whether c is a chain rustfmt breaks over lines for
+// its width alone.
+func longChain(c *call) bool {
+	_, links := chainOf(c)
+	return len(links) >= 2 && len(c.flat()) > chainWidth // root included (measured)
+}
+
+// chainOf splits a method call chain, a.b(..).c(..), into its root, a,
+// and its links, each a method call without its receiver.
+func chainOf(c *call) (node, []*call) {
+	var links []*call
+	var n node = c
+	for {
+		x, ok := n.(*call)
+		if !ok || x.recv == nil || !strings.HasPrefix(x.head, ".") {
+			break
+		}
+		links = append([]*call{{head: x.head, open: x.open, close: x.close, args: x.args}}, links...)
+		n = x.recv
+	}
+	return n, links
+}
+
+// chainBroken renders a chain over lines as rustfmt does: each link on its
+// own line, indented, the first one kept on the root's line when the root
+// is no wider than an indent.
+func chainBroken(root node, links []*call, ind int) string {
+	var b strings.Builder
+	b.WriteString(paren(root, precPostfix))
+	pad := "\n" + strings.Repeat(" ", ind+indentWidth)
+	for i, l := range links {
+		if i > 0 || len(root.flat()) > indentWidth {
+			b.WriteString(pad)
+		}
+		b.WriteString(l.flat())
+	}
+	return b.String()
 }

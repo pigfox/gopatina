@@ -42,7 +42,7 @@ the exact error committed beside it.
 | Statements | assignment (`=`, `:=`, `op=`, tuple assignment), `++`/`--`, `if`/`else` with an init statement, `for` (3-clause, condition, infinite), `for range` over slices, strings and integers, `switch` (with and without a tag, several values per case, `default` anywhere), type switches (`switch v := x.(type)`, with `nil`, concrete and interface cases and several types per case), `break`, `continue`, `return` |
 | Expressions | arithmetic, comparison, logical and bitwise operators, shifts (by a constant or a run-time count: Go's 0 or −1 at and past the width, and Go's panic for a negative count), string concatenation, indexing of slices and strings, struct and slice literals, numeric conversions, `[]byte(s)`, conversions to interfaces (`any(x)`, implicit ones), method calls (also through an interface), type assertions (`x.(T)` and `v, ok := x.(T)`), `&x` and `*p`; Phase 2 adds [read-only slice suffix arguments](#read-only-slice-suffix-arguments) |
 | Built-ins | `len`, `append` (as `s = append(s, ...)`, including `s = append(s, t...)` and `b = append(b, "text"...)`), `make` for slices, `panic` with a string, `min` and `max` (Go 1.21, integers only) |
-| Pointers | only as borrows: `p := &x`, `p := &T{...}`, pointer parameters and receivers |
+| Pointers | borrows (`p := &x`, `p := &T{...}`, pointer parameters and receivers) and, [RFC 0013](rfcs/0013-pointers.md), pointers that escape: returned, stored in fields and variables, reassigned, compared, `nil`; see [Pointers](#pointers) |
 | `fmt` | `Print`, `Println`, `Printf`, `Sprint`, `Sprintln`, `Sprintf`, `Fprint`, `Fprintln`, `Fprintf` (to an `io.Writer` parameter, `os.Stdout` or `os.Stderr`), `Errorf`; verbs `%v %d %s %t %f %x %X %c %%` with the `-`, `+` and `0` flags, a width and a precision; `%x` and `%X` also of strings and `[]byte` and with the `#` flag; values and slices of a named type printed through its `String` or `Error` method (where the method cannot panic); a width on a slice pads each element, as in Go; interface values with `Println`, `Sprintln`, `Fprintln` and plain `%v` and `%T` |
 | Other functions | `strings.Contains`, `HasPrefix`, `HasSuffix`, `Index`, `Join`, `Repeat`, `TrimSpace`, and (RFC 0011) `ToLower`, `ToUpper`, `EqualFold`, `Split`, `Cut`, `TrimPrefix`, `TrimSuffix`, `ReplaceAll`, `IndexByte`; `errors.New`, `Is`, `As`, `Unwrap`; `os.Exit`; `slices.Clone`, `bytes.Clone` |
 
@@ -96,7 +96,8 @@ Values fall into four kinds:
 - **Shared**: anything holding a slice. Two Go copies share the backing
   array, so a change through one is seen through the other. A Rust copy
   would not share it, so the checker never copies these on its own.
-- **Pointers**: borrows of a variable.
+- **Pointers**: borrows of a variable, or, when they escape, shared cells
+  (see [Pointers](#pointers)).
 
 Each parameter and receiver gets a mode from what the function does with it:
 
@@ -262,3 +263,56 @@ Not supported yet, each with its own error:
 - package-level variables holding an interface value that the program
   changes, or inside a struct or slice;
 - interfaces with type sets (generic constraints), and method values.
+
+## Pointers
+
+[RFC 0013](rfcs/0013-pointers.md). A pointer that only lends a variable to
+a call stays a borrow, as before. A pointer type `*T` some pointer of which
+escapes (is returned, stored in a field, reassigned, compared, set to
+`nil`, or held by a package-level variable) is a heap pointer: every `*T`
+of the program is an `rt::Ptr<T>`, a shared cell (`Option<Rc<RefCell<T>>>`
+behind one helper, `None` for `nil`), and every variable of type `T` whose
+address is taken lives in a cell. Copying a heap pointer copies the
+pointer; `==` compares which variable it points at.
+
+Each access borrows the cell for that access only: a read is
+`p.with(|v| v.f)`, a write `p.with_mut(|v| v.f = x)` with its value
+computed first, and a method with a pointer receiver takes the pointer
+itself (`&rt::Ptr<T>`). No borrow of a cell is held while other code runs,
+so the `RefCell` check never fails. A statement that reads through a heap
+pointer and calls the program makes its calls first, as gc does.
+Dereferencing `nil` panics with Go's message,
+`runtime error: invalid memory address or nil pointer dereference`, and
+exit status 2; a method call on a nil pointer works until the method
+dereferences it.
+
+A slice, or a struct holding one, is used inside its cell: indexed,
+measured with `len`, written, appended to, printed, or lent to a call that
+cannot reach any heap pointer (its parameters hold none), which then runs
+inside the cell's one borrow (`p.with_mut(|v| fill(&mut v.items))`). A copy
+taken out would not share its elements, so it is rejected.
+
+Not supported yet, each with its own error:
+
+- a pointer into a struct field or a slice element that escapes (`&x.f`,
+  `&s[i]` returned or stored), and a pointer to a pointer variable that
+  escapes;
+- slices of pointers, pointers as an interface's dynamic type, and printing
+  a pointer (RFC 0013's second step);
+- ranging over a slice held through a heap pointer, copying such a slice
+  out (`s := p.items`, `return p.items`), or handing it to a function that
+  keeps it;
+- lending a place held through a heap pointer to a call that can reach
+  heap pointers, two such places to one call, or a value method that
+  changes its copy of such a value;
+- a condition that reads through a heap pointer and calls a function of
+  the program, and a package-level pointer variable that the program
+  changes;
+- the address of a range variable that escapes.
+
+**Known limitation: cycles are not reclaimed.** Go's garbage collector
+frees a cycle of pointers; a reference count does not. Output is
+unaffected, but a long-running program that builds and drops cycles (a
+doubly linked list, a graph with back edges, a node pointing at itself)
+keeps their memory. A list or a tree that is never closed into a cycle
+frees everything.

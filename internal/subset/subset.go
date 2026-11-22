@@ -57,6 +57,7 @@ func Check(pkg *load.Package) []diag.Diagnostic {
 	}
 	c.checkGlobals()
 	c.checkIfaces()
+	c.checkPtrs()
 	_, errDiags := Errors(pkg)
 	c.diags = append(c.diags, errDiags...)
 	c.explainReach()
@@ -223,11 +224,7 @@ func (c *checker) typeSpec(s *ast.TypeSpec, top bool) {
 			c.unsupported(f, "a struct field of type io.Writer")
 			continue
 		}
-		if _, ok := t.Underlying().(*types.Pointer); ok {
-			c.unsupported(f, "a struct field of pointer type")
-			continue
-		}
-		c.typ(f.Type, t, false)
+		c.typ(f.Type, pointee(t), false) // a pointer field is a heap pointer (RFC 0013)
 	}
 }
 
@@ -288,11 +285,7 @@ func (c *checker) signature(d *ast.FuncDecl, sig *types.Signature) {
 		case isWriter(t):
 			c.unsupported(d.Name, "an io.Writer result")
 		default:
-			if _, ok := t.(*types.Pointer); ok {
-				c.unsupported(d.Name, "a pointer result (phase 1 supports pointers only as borrows)")
-				continue
-			}
-			c.typ(d.Name, t, false)
+			c.typ(d.Name, pointee(t), false) // a pointer result is a heap pointer (RFC 0013)
 		}
 	}
 }
@@ -302,12 +295,8 @@ func (c *checker) paramType(n ast.Node, t types.Type) {
 	case isWriter(t):
 	case isError(t): // an interface value (RFC 0012)
 	default:
-		if p, ok := t.(*types.Pointer); ok {
-			if _, ok := p.Elem().(*types.Pointer); ok {
-				c.unsupported(n, "a pointer to a pointer")
-				return
-			}
-			c.typ(n, p.Elem(), false)
+		if isPointer(t) {
+			c.typ(n, pointee(t), false)
 			return
 		}
 		c.typ(n, t, false)
@@ -362,7 +351,7 @@ func unsupportedType(t types.Type, constOK bool) string {
 		}
 		return "" // checked at its declaration
 	case *types.Pointer:
-		return "a pointer here (phase 1 supports pointers as parameters, receivers and local borrows)"
+		return "a pointer here (RFC 0013 supports pointers in variables, parameters, results and fields)"
 	case *types.Map:
 		return "a map type"
 	case *types.Chan:
@@ -467,25 +456,21 @@ func (c *checker) localVars(d *ast.GenDecl) {
 	}
 	for _, spec := range d.Specs {
 		vs := spec.(*ast.ValueSpec)
-		for i, name := range vs.Names {
+		for _, name := range vs.Names {
 			if obj := c.pkg.Info.Defs[name]; obj != nil {
 				c.localType(name, obj.Type())
-				if isPointer(obj.Type()) {
-					c.pointerInit(name, vs.Values, i)
-				}
 			}
 		}
 	}
 }
 
-// pointerInit checks that a pointer variable starts as &x or &T{...}.
-func (c *checker) pointerInit(name *ast.Ident, values []ast.Expr, i int) {
-	if i < len(values) {
-		if u, ok := ast.Unparen(values[i]).(*ast.UnaryExpr); ok && u.Op == token.AND {
-			return
-		}
+// pointee strips every level of pointer from t (RFC 0013: a pointer is a
+// borrow or a heap pointer, at any depth).
+func pointee(t types.Type) types.Type {
+	for isPointer(t) {
+		t = types.Unalias(t).(*types.Pointer).Elem()
 	}
-	c.unsupported(name, "a pointer variable that does not start as &x or &T{...} (phase 1 supports pointers only as borrows)")
+	return t
 }
 
 // localType checks the type of a local variable. It reports the type
@@ -496,11 +481,7 @@ func (c *checker) localType(n ast.Node, t types.Type) {
 	case isWriter(t):
 		c.unsupported(n, "a local variable of type io.Writer")
 	default:
-		if p, ok := t.(*types.Pointer); ok {
-			c.typ(n, p.Elem(), false)
-			return
-		}
-		c.typ(n, t, false)
+		c.typ(n, pointee(t), false)
 	}
 }
 
@@ -578,19 +559,13 @@ func (c *checker) switchStmt(s *ast.SwitchStmt) {
 
 func (c *checker) assign(s *ast.AssignStmt) {
 	if s.Tok == token.DEFINE {
-		for i, l := range s.Lhs {
+		for _, l := range s.Lhs {
 			if id := l.(*ast.Ident); c.pkg.Info.Defs[id] != nil {
 				c.localType(id, c.pkg.Info.Defs[id].Type())
-				if isPointer(c.pkg.Info.Defs[id].Type()) {
-					c.pointerInit(id, s.Rhs, i)
-				}
 			}
 		}
 	} else {
 		for _, l := range s.Lhs {
-			if isPointer(c.pkg.Info.Types[l].Type) {
-				c.unsupported(l, "assigning to a pointer variable (phase 1 supports pointers only as borrows)")
-			}
 			c.lvalue(l)
 		}
 	}
@@ -786,12 +761,6 @@ func (c *checker) unary(e *ast.UnaryExpr) {
 	case token.AND:
 		switch x := ast.Unparen(e.X).(type) {
 		case *ast.Ident:
-			if v, ok := c.pkg.Info.Uses[x].(*types.Var); ok {
-				if _, ok := v.Type().(*types.Pointer); ok {
-					c.unsupported(e, "a pointer to a pointer")
-					return
-				}
-			}
 			c.expr(x)
 		case *ast.CompositeLit:
 			c.expr(x)
@@ -869,13 +838,7 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 	if standalone && c.sliceSuffix(e, fun, sig) {
 		return
 	}
-	for i, a := range e.Args {
-		// A variadic call can have more arguments than parameters; the
-		// variadic function itself is reported where it is declared.
-		if i < sig.Params().Len() && info.Types[a].IsNil() && isPointer(sig.Params().At(i).Type()) {
-			c.unsupported(a, "passing nil for a pointer (phase 1 supports pointers only as borrows)")
-		}
-	}
+	// nil passed for a pointer is a heap pointer (RFC 0013).
 	c.exprs(e.Args)
 }
 

@@ -1,0 +1,18 @@
+./main.go:9:7: receiver n is a shared borrow: Inc only reads it
+./main.go:17:7: receiver n is a shared borrow: Up only reads it
+./main.go:26:7: receiver ns is an exclusive borrow: Set changes it, and the caller sees the change
+./main.go:37:7: receiver i is an exclusive borrow: Inc changes it, and the caller sees the change
+./main.go:41:7: receiver b is a shared borrow: Sum only reads it
+./main.go:54:7: receiver c is a shared borrow: Double only reads it
+./main.go:56:7: receiver c is a shared borrow: Hit only reads it
+./main.go:61:7: receiver c is owned: Self keeps it
+./main.go:63:11: parameter c is a shared borrow: show only reads it
+./main.go:76:11: parameter t is owned: push keeps it
+./main.go:89:12: parameter b is a shared borrow: boxed only reads it
+./main.go:91:13: parameter t is a shared borrow: pairOf only reads it
+./main.go:93:11: parameter s is an exclusive borrow: addN changes it, and the caller sees the change
+./main.go:93:27: parameter name is a shared borrow: addN only reads it
+./main.go:95:12: parameter t is a shared borrow: split only reads it
+./main.go:99:14: parameter t is a shared borrow: pairSum only reads it
+./main.go:106:16: parameter p is owned: keepSlice keeps it
+./main.go:110:10: parameter s is an exclusive borrow: set changes it, and the caller sees the change

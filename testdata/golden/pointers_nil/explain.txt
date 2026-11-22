@@ -1,0 +1,2 @@
+./main.go:7:7: receiver t is a shared borrow: Get only reads it
+./main.go:9:7: receiver t is a shared borrow: Safe only reads it

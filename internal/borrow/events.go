@@ -2,6 +2,7 @@ package borrow
 
 import (
 	"github.com/pigfox/gopatina/internal/load"
+	"github.com/pigfox/gopatina/internal/subset"
 	"go/ast"
 	"go/printer"
 	"go/token"
@@ -50,6 +51,10 @@ type event struct {
 	grow bool
 	// A write to the header itself, not an element write or a self-append.
 	replacesSlice bool
+	// heap: the place goes through a pointer that escapes, or is a
+	// variable that lives in a cell (RFC 0013). A write there changes the
+	// cell, not the variable, and a value taken out of it is a copy.
+	heap bool
 }
 
 // walker turns expressions and simple statements into events.
@@ -64,7 +69,15 @@ type walker struct {
 
 func (w *walker) info() *types.Info { return w.a.pkg.Info }
 
-func (w *walker) add(ev event) { w.evs = append(w.evs, ev) }
+func (w *walker) add(ev event) {
+	if ev.kind == evMut && ev.whole && ev.v != nil && heapPtrType(ev.v.Type()) {
+		ev.heap = true // a change to what a heap pointer points at, not to it
+	}
+	if ev.heap && (ev.kind == evMut || ev.kind == evConsume || ev.kind == evBorrow) {
+		ev.kind = evRead // through the cell: the variable itself is only read
+	}
+	w.evs = append(w.evs, ev)
+}
 
 // localVar returns the local variable (or parameter) id names, or nil.
 func (w *walker) localVar(id *ast.Ident) *types.Var {
@@ -95,6 +108,9 @@ func (w *walker) place(e ast.Expr) (ev event, ok bool) {
 				return ev, false
 			}
 			ev.v = v
+			if subset.Ptrs(w.a.pkg).Cells[v] {
+				ev.heap = true
+			}
 			if deref {
 				// Through a pointer. A pointer initialised with &T{...}
 				// owns its value, so that is not an indirection.
@@ -115,6 +131,9 @@ func (w *walker) place(e ast.Expr) (ev event, ok bool) {
 			ev.whole = false
 			if _, isPtr := w.info().Types[x.X].Type.(*types.Pointer); isPtr {
 				deref = true
+				if KindOf(w.info().Types[x.X].Type) != PointerKind {
+					ev.heap = true
+				}
 			}
 			parts = append(parts, "."+x.Sel.Name)
 			e = x.X
@@ -131,6 +150,9 @@ func (w *walker) place(e ast.Expr) (ev event, ok bool) {
 		case *ast.StarExpr:
 			ev.whole = false
 			deref = true
+			if KindOf(w.info().Types[x.X].Type) != PointerKind {
+				ev.heap = true
+			}
 			e = x.X
 		default:
 			return ev, false
