@@ -101,6 +101,20 @@ func TestCheckAndExplain(t *testing.T) {
 	}
 }
 
+// TestEmitExplainNotes checks that -explain also prints the emitter's
+// decisions: loop specialization (RFC 0006).
+func TestEmitExplainNotes(t *testing.T) {
+	s, _, stderr := session(t, "")
+	s.Explain = true
+	if _, err := s.Emit(golden("ranges_sieve")); err != nil {
+		t.Fatal(err)
+	}
+	want := "./testdata/golden/ranges_sieve/main.go:10:2: loop specialized for n <= 3037000500: usize for i, j"
+	if !strings.Contains(stderr.String(), want) {
+		t.Errorf("-explain output does not contain %q:\n%s", want, stderr)
+	}
+}
+
 func TestCheckErrors(t *testing.T) {
 	tests := []struct{ dir, want string }{
 		{reject("ownership"), "./testdata/reject/ownership/main.go:33:2: m.Body is changed after m was handed to out.Queue on line 32"},

@@ -84,7 +84,13 @@ func (s *Session) Emit(dir string) (*emit.Crate, error) {
 	if err != nil {
 		return nil, err
 	}
-	return emit.Emit(pkg, res, emit.Options{Target: target, Version: s.Version}), nil
+	c := emit.Emit(pkg, res, emit.Options{Target: target, Version: s.Version})
+	if s.Explain {
+		for _, n := range c.Notes {
+			fmt.Fprintf(s.Stderr, "%s:%d:%d: %s\n", diag.RelPath(s.Cwd, n.Pos.Filename), n.Pos.Line, n.Pos.Column, n.Text)
+		}
+	}
+	return c, nil
 }
 
 // targets maps GOOS/GOARCH to the Rust target patina binaries are built

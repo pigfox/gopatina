@@ -1,7 +1,7 @@
 # RFC 0006: Proven integer ranges and loop specialization
 
 - **Status:** Accepted by the project lead on 2026-11-21 ("Approve RFC 0006
-  with 60 and 1."); not implemented yet
+  with 60 and 1."); implemented in `internal/emit/ranges.go`
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-21
 - **Discussion:** https://github.com/pigfox/gopatina/pull/37
@@ -255,6 +255,36 @@ loops the analysis proves. Emitted crates stay deterministic.
 
 Both were decided by the project lead on 2026-11-21: "Approve RFC 0006 with
 60 and 1."
+
+## Implementation notes
+
+What the implementation decided where the text above leaves room:
+
+- **Where.** The analysis and the fast copy are in `internal/emit/ranges.go`.
+  Its `-explain` lines come from the emitter, printed after the borrow
+  checker's, and each golden program keeps them in `emit-explain.txt`.
+- **Loop shapes.** Counted loops (`for i := a; i < b; i++`, or `<=`) and
+  monotone loops (`for j := e; j < b; j += d` or `j++`, with `j` written
+  nowhere else). A bound is a non-negative constant, a usize expression of
+  enclosing loops' variables, or an `int` variable the function never
+  changes and whose address it never takes.
+- **Facts.** `make([]T, n)` in a statement of the function body before the
+  nest proves `0 <= n <= maxAlloc / size(T)`. A bound with no sign fact is
+  copied as `n.max(0) as usize`, which is exact only for `x < n` with
+  `x >= 0`, so it is used only there; `i <= n` needs the fact.
+- **Checked expressions.** Every expression the fast copy writes as a usize
+  (indexes, loop starts, steps and bounds, comparison operands) is checked:
+  its largest value, and that of every part of it, must fit in an `i64`
+  (and in the target's usize). A step is also checked added to the largest
+  value of its variable.
+- **The condition.** Found by bisection: the largest `n` for which every
+  check passes. A condition must allow at least 2^20, or the nest is not
+  specialized.
+- **The size limit** is measured on the emitted fast copy, in lines.
+- **Comments** are written in the general copy only, when there are two.
+- **Clippy.** A crate with a specialized nest also allows
+  `clippy::needless_range_loop`: the loops index by position, as the Go
+  source does.
 
 ## Unresolved questions
 

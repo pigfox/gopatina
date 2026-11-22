@@ -3,10 +3,12 @@ package emit
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/pigfox/gopatina/internal/borrow"
@@ -72,6 +74,22 @@ func TestGolden(t *testing.T) {
 				if err := c.Write(want); err != nil {
 					t.Fatal(err)
 				}
+			}
+			// The emitter's -explain notes (loop specialization, RFC 0006)
+			// are kept beside the program, only when there are any.
+			var notes strings.Builder
+			for _, nt := range c.Notes {
+				fmt.Fprintf(&notes, "%s:%d:%d: %s\n", filepath.Base(nt.Pos.Filename), nt.Pos.Line, nt.Pos.Column, nt.Text)
+			}
+			notesFile := filepath.Join(dir, "emit-explain.txt")
+			if *update {
+				os.Remove(notesFile)
+				if notes.Len() > 0 {
+					os.WriteFile(notesFile, []byte(notes.String()), 0o644)
+				}
+			}
+			if got, _ := os.ReadFile(notesFile); string(got) != notes.String() {
+				t.Errorf("emit-explain.txt differs; run go test ./internal/emit -update and review the diff\n--- got:\n%s", notes.String())
 			}
 			files := append(c.Files, File{ManifestName, c.Manifest()})
 			for _, f := range files {

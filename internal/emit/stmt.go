@@ -74,6 +74,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		}
 	}
 	g.fnStart = fd.Body.Lbrace
+	g.fnBody = fd.Body
 	g.bodyTo(fd.Body.List, true, fd.Body.Rbrace)
 	g.ind--
 	g.line("}")
@@ -224,6 +225,9 @@ func isReturn(s ast.Stmt) bool {
 // commentsBefore writes the comments of the current function that come
 // before pos and have not been written yet.
 func (g *gen) commentsBefore(pos token.Pos) {
+	if g.quiet {
+		return
+	}
 	for _, cg := range g.comments {
 		if g.usedComments[cg] || cg.Pos() >= pos || cg.Pos() < g.fnStart {
 			continue
@@ -242,6 +246,9 @@ func (g *gen) commentsBefore(pos token.Pos) {
 // trailingComment returns a comment on the same line after a statement
 // ending at end on line, and marks it written.
 func (g *gen) trailingComment(end token.Pos, line int) string {
+	if g.quiet {
+		return ""
+	}
 	for _, cg := range g.comments {
 		if g.usedComments[cg] || cg.Pos() < end || g.pkg.Fset.Position(cg.Pos()).Line != line || len(cg.List) != 1 {
 			continue
@@ -273,6 +280,10 @@ func (g *gen) stmt(s ast.Stmt) {
 	case *ast.AssignStmt:
 		g.assign(s)
 	case *ast.IncDecStmt:
+		if id, ok := s.X.(*ast.Ident); ok && g.fastVar(g.localVar(id)) {
+			g.line(g.varName(g.localVar(id)) + " += 1;")
+			return
+		}
 		g.hoistIndexes([]ast.Expr{s.X}, false)
 		one := "1"
 		if isFloat(g.typeOf(s.X)) {
@@ -452,6 +463,16 @@ func (g *gen) needsType(e ast.Expr) bool {
 }
 
 func (g *gen) assign(s *ast.AssignStmt) {
+	if id, ok := s.Lhs[0].(*ast.Ident); ok && len(s.Lhs) == 1 && g.fastVar(g.localVar(id)) {
+		// The start or the step of a usize loop variable (loopShape).
+		name := g.varName(g.localVar(id))
+		if s.Tok == token.DEFINE {
+			g.stmtLine("let mut "+name+" = ", g.uTyped(s.Rhs[0]), ";")
+		} else {
+			g.stmtLine(name+" += ", g.uNode(s.Rhs[0]), ";")
+		}
+		return
+	}
 	g.hoistIndexes(s.Lhs, len(s.Lhs) > 1)
 	switch s.Tok {
 	case token.DEFINE, token.ASSIGN:
@@ -681,6 +702,22 @@ func (g *gen) branch(s *ast.BranchStmt) {
 
 // forStmt writes a 3-clause, condition or infinite for loop.
 func (g *gen) forStmt(s *ast.ForStmt) {
+	if g.fast == nil && !g.noPlan {
+		if p := g.planNest(s); p != nil {
+			if g.specialize(s, p) {
+				return
+			}
+			g.noPlan = true
+			g.forBody(s)
+			g.noPlan = false
+			return
+		}
+	}
+	g.forBody(s)
+}
+
+// forBody writes a for statement.
+func (g *gen) forBody(s *ast.ForStmt) {
 	if g.res.Counted[s] {
 		g.countedLoop(s)
 		return
@@ -726,7 +763,15 @@ func (g *gen) countedLoop(s *ast.ForStmt) {
 	v := g.localVar(init.Lhs[0].(*ast.Ident))
 	cond := s.Cond.(*ast.BinaryExpr)
 	start, end := g.value(init.Rhs[0]), g.value(cond.Y)
-	if g.info.Types[init.Rhs[0]].Value != nil && g.info.Types[cond.Y].Value != nil {
+	bothConst := g.info.Types[init.Rhs[0]].Value != nil && g.info.Types[cond.Y].Value != nil
+	switch {
+	case g.fastVar(v):
+		start, _, _ = g.uOperand(init.Rhs[0])
+		end, _, _ = g.uOperand(cond.Y)
+		if bothConst {
+			start = g.uTyped(init.Rhs[0])
+		}
+	case bothConst:
 		start = text(start.flat() + "_" + g.rustType(v.Type()))
 	}
 	op := ".."
