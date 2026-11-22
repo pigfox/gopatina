@@ -10,6 +10,9 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- The subset checker no longer panics on a `String` or `Error` method
+  declared without a body when its type is printed (found by FuzzCheck in
+  CI; the method is rejected where it is declared).
 - A slice literal without a type from its context (`fmt.Println([]int{1 <<
   40})`, `len([]int{-1 << 63})`) did not compile: its constants became
   Rust's default `i32`. The first constant element now carries its type when

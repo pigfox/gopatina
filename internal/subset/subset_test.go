@@ -184,6 +184,9 @@ func TestRejected(t *testing.T) {
 		{"print panicky String slice", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return fmt.Sprint(10 / int(k)) }\nfunc main() { fmt.Println([]K{1}) }\n", "printing a value whose String method may panic is not supported"},
 		{"print String hex plus", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return \"k\" }\nfunc main() { fmt.Printf(\"%+x\", K(1)) }\n", "the format %+x with a value of type main.K is not supported"},
 		{"hex space", "package main\nimport \"fmt\"\nfunc main() { fmt.Printf(\"% x\", \"ab\") }\n", "the format % x with a value of type string is not supported"},
+		// FuzzCheck, 2026-11-22: a String method without a body made the
+		// checker walk a nil body.
+		{"print bodiless String", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string\nfunc main() { fmt.Println(K(1)) }\n", "printing a value whose String method may panic is not supported"},
 		{"s of int", "package main\nimport \"fmt\"\nfunc main() { x := 1; fmt.Printf(\"%s\", x) }\n", "the format %s with a value of type int is not supported"},
 		{"sharp d", "package main\nimport \"fmt\"\nfunc main() { x := 1; fmt.Printf(\"%#d\", x) }\n", "the format %#d with a value of type int is not supported"},
 		{"print String plus", "package main\nimport \"fmt\"\ntype K int\nfunc (k K) String() string { return \"k\" }\nfunc main() { fmt.Printf(\"%+v\", K(1)) }\n", "the format %+v with a value of type main.K is not supported"},

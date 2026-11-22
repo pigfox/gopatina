@@ -1003,7 +1003,8 @@ func (c *checker) methodPrintProblem(m *types.Func) string {
 	for _, f := range c.pkg.Files {
 		for _, d := range f.Decls {
 			if fd, ok := d.(*ast.FuncDecl); ok && c.pkg.Info.Defs[fd.Name] == m {
-				if c.cannotPanic(fd.Body) {
+				// A method without a body is reported where it is declared.
+				if fd.Body != nil && c.cannotPanic(fd.Body) {
 					return ""
 				}
 			}
