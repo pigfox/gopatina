@@ -10,7 +10,7 @@ GoPatina is an open-source Go toolchain front end by Pigfox. Without a flag it i
 
 ### Does GoPatina work today?
 
-Partly. Default mode works for all Go: it passes every command through to the installed go tool. The Rust-based modes work for the phase 1 subset of Go: functions, structs and methods, slices, strings, errors and fmt printing. Goroutines, maps, closures, interfaces, generics and most of the standard library are not supported yet and are rejected with a clear error.
+Partly. Default mode works for all Go: it passes every command through to the installed go tool. The Rust-based modes work for the phase 1 subset of Go: functions, structs and methods, slices, strings, errors and fmt printing. Goroutines, maps, closures, generics, some uses of interfaces and most of the standard library are not supported yet and are rejected with a clear error.
 
 ### Can I compile Go to Rust with GoPatina?
 

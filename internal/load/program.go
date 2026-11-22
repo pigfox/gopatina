@@ -316,11 +316,29 @@ func mergeInfo(to, from *types.Info) {
 
 // reach returns the declarations of packages other than main that the
 // program reaches: from main's declarations and every package's init
-// functions, through the objects they use, and the String and Error
-// methods of the types they reach, which fmt may call.
+// functions, through the objects they use, and the methods of the types
+// they reach that may be called without being named: String and Error,
+// which fmt calls, and those named like a method of an interface the
+// program declares, which a call through an interface may reach (RFC
+// 0012).
 func reach(pkgs []*Package, main *Package, info *types.Info) (map[ast.Node]bool, map[ast.Node]ast.Node) {
 	decl := map[types.Object]ast.Node{} // in packages other than main
 	methods := map[*types.TypeName][]ast.Node{}
+	dynamic := map[string]bool{"String": true, "Error": true}
+	for _, p := range pkgs {
+		for _, f := range p.Files {
+			ast.Inspect(f, func(n ast.Node) bool {
+				if it, ok := n.(*ast.InterfaceType); ok {
+					for _, m := range it.Methods.List {
+						for _, name := range m.Names {
+							dynamic[name.Name] = true
+						}
+					}
+				}
+				return true
+			})
+		}
+	}
 	var work []ast.Node
 	for _, p := range pkgs {
 		for _, f := range p.Files {
@@ -336,7 +354,7 @@ func reach(pkgs []*Package, main *Package, info *types.Info) (map[ast.Node]bool,
 					if d.Recv == nil && d.Name.Name == "init" {
 						work = append(work, d)
 					}
-					if d.Recv != nil && (d.Name.Name == "String" || d.Name.Name == "Error") {
+					if d.Recv != nil && dynamic[d.Name.Name] {
 						tn := recvName(info, d)
 						methods[tn] = append(methods[tn], d)
 					}

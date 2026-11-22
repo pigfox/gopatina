@@ -54,6 +54,7 @@ func Check(pkg *load.Package) []diag.Diagnostic {
 		c.file(f)
 	}
 	c.checkGlobals()
+	c.checkIfaces()
 	_, errDiags := Errors(pkg)
 	c.diags = append(c.diags, errDiags...)
 	c.explainReach()
@@ -364,7 +365,7 @@ func unsupportedType(t types.Type, constOK bool) string {
 	case *types.Chan:
 		return "a channel type (goroutines and channels are planned, RFC 0002)"
 	case *types.Interface:
-		return "an interface type"
+		return interfaceProblem(t) // RFC 0012
 	case *types.Signature:
 		return "a function type"
 	case *types.Array:
@@ -450,8 +451,8 @@ func (c *checker) stmt(s ast.Stmt) {
 		c.unsupported(s, "a channel send (planned, RFC 0002)")
 	case *ast.LabeledStmt:
 		c.unsupported(s, "a labeled statement")
-	default:
-		c.unsupported(s, "a type switch")
+	case *ast.TypeSwitchStmt:
+		c.typeSwitch(s) // RFC 0012
 	}
 }
 
@@ -550,6 +551,9 @@ func (c *checker) switchStmt(s *ast.SwitchStmt) {
 	}
 	if s.Tag != nil {
 		c.expr(s.Tag)
+		if IsIface(c.pkg.Info.TypeOf(s.Tag)) {
+			c.unsupported(s.Tag, "a switch on an interface value (use a type switch)")
+		}
 	}
 	c.loops = append(c.loops, true)
 	for _, cc := range s.Body.List {
@@ -672,8 +676,8 @@ func (c *checker) expr(e ast.Expr) {
 		c.unsupported(e, "a function literal (closure)")
 	case *ast.SliceExpr:
 		c.unsupported(e, "a slice expression (s[i:j])")
-	default:
-		c.unsupported(e, "a type assertion")
+	case *ast.TypeAssertExpr:
+		c.typeAssert(e) // RFC 0012
 	}
 }
 
@@ -897,6 +901,10 @@ func (c *checker) conversion(e *ast.CallExpr, to types.Type) {
 		c.unsupported(e, "converting a []byte to a string (patina strings must be valid UTF-8)")
 	case isString(to) && isNumeric(from):
 		c.unsupported(e, "converting an integer to a string")
+	case IsIface(to):
+		// To an interface (RFC 0012): any(x), Shape(c), any(nil); the
+		// value's dynamic type is checked with every other conversion.
+		c.typ(e, to, false)
 	case types.IdenticalIgnoreTags(to.Underlying(), from.Underlying()):
 		// Between a named type and its underlying type, or two named types
 		// with the same underlying type (RFC 0007): the same value.
@@ -1009,12 +1017,19 @@ func (c *checker) fmtCall(e *ast.CallExpr, name string) {
 	for _, a := range args {
 		if what := c.printProblem(info.Types[a].Type); what != "" {
 			c.unsupported(a, what)
+		} else if IsIface(info.Types[a].Type) && !strings.HasSuffix(name, "ln") {
+			// Print and Sprint put a space between operands unless one is a
+			// string, which for an interface depends on its dynamic type.
+			c.unsupported(a, "an interface value printed with "+name+" (use "+name+"ln or Printf)")
 		}
 	}
 }
 
 // printProblem says why a value of type t cannot be printed with %v.
 func (c *checker) printProblem(t types.Type) string {
+	if IsIface(t) {
+		return "" // through its dynamic type (RFC 0012)
+	}
 	if m := PrintMethod(t); m != nil {
 		return c.methodPrintProblem(m)
 	}
@@ -1151,6 +1166,12 @@ func isPrintableBasic(t types.Type) bool {
 // verbProblem says why verb v cannot format a value of type t, or returns
 // "". fn is the fmt function being called.
 func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
+	if IsIface(t) {
+		if (v.Verb == 'v' || v.Verb == 'T') && v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero && !v.Space && !v.Sharp {
+			return ""
+		}
+		return fmt.Sprintf("the format %s with an interface value", v.Spec)
+	}
 	if m := PrintMethod(t); m != nil {
 		switch v.Verb {
 		case 'v', 's':

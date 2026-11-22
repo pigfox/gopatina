@@ -1,0 +1,356 @@
+package subset
+
+import (
+	"go/ast"
+	"go/token"
+	"go/types"
+	"sort"
+
+	"github.com/pigfox/gopatina/internal/load"
+)
+
+// IfacePlan is the whole program's interface analysis (RFC 0012): every
+// expression whose value is converted to an interface type, and the
+// program's dynamic types, the types of those values. The emitter writes
+// one enum with a variant per dynamic type; an interface value is that
+// enum behind a reference count, or nothing for a nil interface.
+type IfacePlan struct {
+	// Boxed maps each converted expression to its concrete type.
+	Boxed map[ast.Expr]types.Type
+	// Dyn lists the dynamic types in the order the program first converts
+	// them, so the output is deterministic.
+	Dyn []types.Type
+	// CommaOk marks the type assertions of v, ok := x.(T).
+	CommaOk map[*ast.TypeAssertExpr]bool
+}
+
+// IsIface reports whether t is an interface type handled as an interface
+// value (RFC 0012): not error or io.Writer, which phase 1 lowers on their
+// own.
+func IsIface(t types.Type) bool {
+	return t != nil && types.IsInterface(t) && !isError(t) && !isWriter(t)
+}
+
+// Ifaces analyses pkg, every package of the program, for RFC 0012.
+func Ifaces(pkg *load.Package) *IfacePlan {
+	p := &IfacePlan{Boxed: map[ast.Expr]types.Type{}, CommaOk: map[*ast.TypeAssertExpr]bool{}}
+	info := pkg.Info
+	conv := func(e ast.Expr, target types.Type) {
+		if !IsIface(target) {
+			return
+		}
+		tv := info.Types[e]
+		if tv.Type == nil || tv.IsNil() || types.IsInterface(tv.Type) {
+			return // nil, or already an interface: nothing to box
+		}
+		p.Boxed[e] = tv.Type
+		for _, d := range p.Dyn {
+			if types.Identical(d, tv.Type) {
+				return
+			}
+		}
+		p.Dyn = append(p.Dyn, tv.Type)
+	}
+	for _, f := range pkg.Files {
+		var results []*types.Tuple // the enclosing functions' results
+		var walk func(n ast.Node) bool
+		walk = func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.FuncDecl:
+				fn, _ := info.Defs[n.Name].(*types.Func)
+				if fn == nil || n.Body == nil {
+					return false
+				}
+				results = append(results, fn.Signature().Results())
+				ast.Inspect(n.Body, walk)
+				results = results[:len(results)-1]
+				return false
+			case *ast.AssignStmt:
+				if len(n.Lhs) == len(n.Rhs) && (n.Tok == token.ASSIGN || n.Tok == token.DEFINE) {
+					for i, l := range n.Lhs {
+						conv(n.Rhs[i], info.TypeOf(l))
+					}
+				}
+				if len(n.Lhs) == 2 && len(n.Rhs) == 1 {
+					if ta, ok := ast.Unparen(n.Rhs[0]).(*ast.TypeAssertExpr); ok {
+						p.CommaOk[ta] = true
+					}
+				}
+			case *ast.ValueSpec:
+				if n.Type != nil && len(n.Values) == len(n.Names) {
+					for _, v := range n.Values {
+						conv(v, info.TypeOf(n.Type))
+					}
+				}
+				if len(n.Names) == 2 && len(n.Values) == 1 {
+					if ta, ok := ast.Unparen(n.Values[0]).(*ast.TypeAssertExpr); ok {
+						p.CommaOk[ta] = true
+					}
+				}
+			case *ast.ReturnStmt:
+				if len(results) > 0 {
+					res := results[len(results)-1]
+					if res.Len() == len(n.Results) {
+						for i, r := range n.Results {
+							conv(r, res.At(i).Type())
+						}
+					}
+				}
+			case *ast.CallExpr:
+				p.call(info, n, conv)
+			case *ast.CompositeLit:
+				switch u := info.TypeOf(n).Underlying().(type) {
+				case *types.Slice:
+					for _, e := range n.Elts {
+						conv(e, u.Elem())
+					}
+				case *types.Struct:
+					for i, e := range n.Elts {
+						if kv, ok := e.(*ast.KeyValueExpr); ok {
+							if v, ok := info.Uses[kv.Key.(*ast.Ident)].(*types.Var); ok {
+								conv(kv.Value, v.Type())
+							}
+						} else if i < u.NumFields() {
+							conv(e, u.Field(i).Type())
+						}
+					}
+				}
+			case *ast.BinaryExpr:
+				if n.Op == token.EQL || n.Op == token.NEQ {
+					conv(n.X, info.TypeOf(n.Y))
+					conv(n.Y, info.TypeOf(n.X))
+				}
+			}
+			return true
+		}
+		ast.Inspect(f, walk)
+	}
+	return p
+}
+
+// call records the conversions of a call's arguments: to the parameters of
+// a function or method of the program, or of an explicit conversion
+// any(x); append's elements. The standard library's functions (fmt's
+// ...any) take their arguments as they are.
+func (p *IfacePlan) call(info *types.Info, e *ast.CallExpr, conv func(ast.Expr, types.Type)) {
+	fun := ast.Unparen(e.Fun)
+	if tv := info.Types[fun]; tv.IsType() {
+		if len(e.Args) == 1 {
+			conv(e.Args[0], tv.Type)
+		}
+		return
+	}
+	if id, ok := fun.(*ast.Ident); ok {
+		if b, ok := info.Uses[id].(*types.Builtin); ok {
+			if b.Name() == "append" && len(e.Args) > 1 && !e.Ellipsis.IsValid() {
+				if s, ok := info.TypeOf(e.Args[0]).Underlying().(*types.Slice); ok {
+					for _, a := range e.Args[1:] {
+						conv(a, s.Elem())
+					}
+				}
+			}
+			return
+		}
+	}
+	if sel, ok := fun.(*ast.SelectorExpr); ok {
+		if id, ok := sel.X.(*ast.Ident); ok {
+			if _, ok := info.Uses[id].(*types.PkgName); ok {
+				if fn, ok := info.Uses[sel.Sel].(*types.Func); ok && fn.Pkg() != nil && !localPkgs[fn.Pkg()] {
+					return // a function of a bridged or provided package
+				}
+			}
+		}
+	}
+	sig, ok := info.TypeOf(fun).Underlying().(*types.Signature)
+	if !ok || e.Ellipsis.IsValid() {
+		return
+	}
+	for i, a := range e.Args {
+		var t types.Type
+		switch {
+		case sig.Variadic() && i >= sig.Params().Len()-1:
+			t = sig.Params().At(sig.Params().Len() - 1).Type().(*types.Slice).Elem()
+		case i < sig.Params().Len():
+			t = sig.Params().At(i).Type()
+		}
+		conv(a, t)
+	}
+}
+
+// interfaceProblem says why patina mode cannot represent interface type t
+// yet, or returns "".
+func interfaceProblem(t *types.Interface) string {
+	if !t.IsMethodSet() {
+		return "an interface with a type set (a generic constraint)"
+	}
+	for i := 0; i < t.NumMethods(); i++ {
+		sig := t.Method(i).Signature()
+		if sig.Variadic() {
+			return "a variadic interface method"
+		}
+		for j := 0; j < sig.Params().Len(); j++ {
+			pt := sig.Params().At(j).Type()
+			switch {
+			case isError(pt) || isWriter(pt):
+				return "an interface method with an error or io.Writer parameter"
+			case isPointer(pt):
+				return "an interface method with a pointer parameter"
+			}
+			if holdsSlice(pt) {
+				// The callee's copy would share the slice in Go; the
+				// dispatcher's copy would not.
+				return "an interface method with a slice parameter"
+			}
+			if what := unsupportedType(pt, false); what != "" {
+				return what
+			}
+		}
+		for j := 0; j < sig.Results().Len(); j++ {
+			rt := sig.Results().At(j).Type()
+			switch {
+			case isError(rt) || isWriter(rt):
+				return "an interface method with an error result"
+			case isPointer(rt):
+				return "an interface method with a pointer result"
+			}
+			if what := unsupportedType(rt, false); what != "" {
+				return what
+			}
+		}
+	}
+	return ""
+}
+
+// dynamicProblem says why a value of type t cannot be converted to an
+// interface yet, or returns "".
+func (c *checker) dynamicProblem(t types.Type) string {
+	switch {
+	case isPointer(t):
+		return "converting a pointer to an interface (pointers as dynamic types come with the pointers RFC)"
+	case isError(t) || isWriter(t): // a type switch case or an assertion
+		return "an error or io.Writer as a type switch case or assertion type"
+	case providedName(t) != "":
+		return "converting a value of type " + t.String() + " to an interface"
+	}
+	if m := PrintMethod(t); m != nil {
+		if what := c.methodPrintProblem(m); what != "" {
+			return "converting to an interface a value whose " + m.Name() + " method may panic"
+		}
+	}
+	if st, ok := t.Underlying().(*types.Struct); ok {
+		for i := 0; i < st.NumFields(); i++ {
+			if PrintMethod(st.Field(i).Type()) != nil || IsIface(st.Field(i).Type()) {
+				return "converting to an interface a struct with a field fmt prints through a method"
+			}
+		}
+	}
+	return unsupportedType(t, false)
+}
+
+// checkIfaces reports the conversions the plan found that patina mode
+// cannot represent; each type is reported once, where it is first
+// converted.
+func (c *checker) checkIfaces() {
+	plan := Ifaces(c.pkg)
+	var es []ast.Expr
+	for e := range plan.Boxed {
+		es = append(es, e)
+	}
+	sort.Slice(es, func(i, j int) bool { return es[i].Pos() < es[j].Pos() })
+	seen := map[string]bool{}
+	for _, e := range es {
+		t := plan.Boxed[e]
+		if what := c.dynamicProblem(t); what != "" && !seen[t.String()] {
+			seen[t.String()] = true
+			c.unsupported(e, what)
+		}
+	}
+}
+
+// typeAssert checks x.(T).
+func (c *checker) typeAssert(e *ast.TypeAssertExpr) {
+	c.expr(e.X) // go/types allows x.(type) only in a type switch
+	t := c.pkg.Info.TypeOf(e.Type)
+	if what := c.assertProblem(t); what != "" {
+		c.unsupported(e.Type, what)
+	}
+}
+
+// assertProblem says why a type assertion or type switch case to t is not
+// supported, or returns "".
+func (c *checker) assertProblem(t types.Type) string {
+	if IsIface(t) {
+		return unsupportedType(t, false)
+	}
+	return c.dynamicProblem(t)
+}
+
+// typeSwitch checks switch [v :=] x.(type) { ... }.
+func (c *checker) typeSwitch(s *ast.TypeSwitchStmt) {
+	if s.Init != nil {
+		c.unsupported(s.Init, "a type switch with an init statement")
+	}
+	var x ast.Expr
+	switch a := s.Assign.(type) {
+	case *ast.AssignStmt:
+		x = a.Rhs[0].(*ast.TypeAssertExpr).X
+	case *ast.ExprStmt:
+		x = a.X.(*ast.TypeAssertExpr).X
+	}
+	c.expr(x)
+	for _, cl := range s.Body.List {
+		cc := cl.(*ast.CaseClause)
+		for _, t := range cc.List {
+			if tv := c.pkg.Info.Types[t]; !tv.IsNil() {
+				if what := c.assertProblem(tv.Type); what != "" {
+					c.unsupported(t, what)
+				}
+			}
+		}
+		if n := len(cc.Body); n > 0 {
+			if b, ok := cc.Body[n-1].(*ast.BranchStmt); ok {
+				c.trailing[b] = true
+			}
+		}
+		c.loops = append(c.loops, true)
+		for _, st := range cc.Body {
+			c.stmt(st)
+		}
+		c.loops = c.loops[:len(c.loops)-1]
+	}
+}
+
+// holdsSlice reports whether a value of type t holds a slice, directly or
+// in a field.
+func holdsSlice(t types.Type) bool {
+	switch u := t.Underlying().(type) {
+	case *types.Slice:
+		return true
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			if holdsSlice(u.Field(i).Type()) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// holdsIface reports whether a value of type t holds an interface value,
+// directly, in a field or in a slice.
+func holdsIface(t types.Type) bool {
+	if IsIface(t) {
+		return true
+	}
+	switch u := t.Underlying().(type) {
+	case *types.Slice:
+		return holdsIface(u.Elem())
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			if holdsIface(u.Field(i).Type()) {
+				return true
+			}
+		}
+	}
+	return false
+}

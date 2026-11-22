@@ -49,9 +49,28 @@ func (w *walker) stmt(s ast.Stmt) {
 				w.stmt(st)
 			}
 		}
+	case *ast.TypeSwitchStmt:
+		w.read(typeSwitchX(s))
+		for _, c := range s.Body.List {
+			c := c.(*ast.CaseClause)
+			if v, ok := w.info().Implicits[c].(*types.Var); ok {
+				w.add(event{kind: evDef, v: v, pos: c.Pos(), init: true})
+			}
+			for _, st := range c.Body {
+				w.stmt(st)
+			}
+		}
 	default:
 		w.simple(s)
 	}
+}
+
+// typeSwitchX is the expression a type switch switches on (RFC 0012).
+func typeSwitchX(s *ast.TypeSwitchStmt) ast.Expr {
+	if a, ok := s.Assign.(*ast.AssignStmt); ok {
+		return a.Rhs[0].(*ast.TypeAssertExpr).X
+	}
+	return s.Assign.(*ast.ExprStmt).X.(*ast.TypeAssertExpr).X
 }
 
 // rangeHead walks the range expression and defines the loop variables.

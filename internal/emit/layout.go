@@ -243,6 +243,13 @@ func fits(n node, f string, col, suffix int) bool {
 		if len(n.args) == 1 && !overflows(n.args[0]) {
 			return true // rustfmt keeps a lone simple argument on the line
 		}
+		// rustfmt holds the arguments to their own widths too: a struct
+		// literal in a call in a call is broken when its fields are long.
+		for _, a := range n.args {
+			if !fits(a, a.flat(), 0, 0) {
+				return false
+			}
+		}
 		return w <= fnCallWidth
 	case *structLit:
 		return len(n.fieldsFlat()) <= structLitWidth

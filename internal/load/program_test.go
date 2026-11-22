@@ -177,3 +177,33 @@ func TestProvided(t *testing.T) {
 		}
 	}
 }
+
+// TestProgramInterfaceMethods checks that a reached type keeps the methods
+// a call through an interface may reach (RFC 0012): those named like a
+// method of an interface the program declares, and no others.
+func TestProgramInterfaceMethods(t *testing.T) {
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{
+		"go.mod":  "module example.com/p\n\ngo 1.25\n",
+		"main.go": "package main\n\nimport (\n\t\"fmt\"\n\n\t\"example.com/p/a\"\n)\n\ntype I interface{ Area() int }\n\nfunc main() {\n\tvar i I = a.T(2)\n\tfmt.Println(i.Area())\n}\n",
+		"a/a.go":  "package a\n\ntype T int\n\nfunc (t T) Area() int { return int(t) }\n\nfunc (t T) Other() int { return 1 }\n",
+	})
+	pkg, err := Dir(dir, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []string
+	for _, f := range pkg.Files {
+		if pkg.PkgOf[f].Path() != "example.com/p/a" {
+			continue
+		}
+		for _, d := range f.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok {
+				kept = append(kept, fd.Name.Name)
+			}
+		}
+	}
+	if got := strings.Join(kept, " "); got != "Area" {
+		t.Errorf("a keeps methods %q, want Area", got)
+	}
+}

@@ -343,6 +343,8 @@ func (g *gen) stmt(s ast.Stmt) {
 		g.rangeStmt(s)
 	case *ast.SwitchStmt:
 		g.switchStmt(s)
+	case *ast.TypeSwitchStmt:
+		g.typeSwitch(s) // RFC 0012
 	case *ast.ReturnStmt:
 		if e := g.returnValue(s); e != nil {
 			g.stmtLine("return ", e, ";")

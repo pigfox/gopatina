@@ -36,12 +36,13 @@ The patina modes accept a defined subset of Go, specified in [docs/patina-subset
 - programs of several packages: `package main` and the packages it imports, of its own module, other modules and the standard library, translated from their Go source (only what `main` reaches), with functions, methods, named struct types, named types such as `type Op int` and `type Path []int` (with methods, and printed through `String` and `Error` as `fmt` does), and type aliases
 - every integer type (`int8` to `int64`, `uint8` to `uint64`, `int`, `uint`, `uintptr`), `float32`, `float64`, `bool`, `string`, and slices of supported types, including read-only `s[i:]` suffix arguments
 - package-level variables, initialized in Go's order
+- interfaces: interface types and `any`, method calls through them, comparisons, type assertions and type switches, with Go's panics; an interface value is one Rust enum of the program's dynamic types, so a call is a `match`, with no trait objects
 - `time.Duration`, with its constants, arithmetic and methods (`String`, `Seconds`, `Round`, `Truncate` and the rest), written in Rust with Go's exact behaviour
 - `if`, `for` (including `for range` over slices, strings and integers), `switch`, constants and `iota`
 - `error` results with `errors.New` and `fmt.Errorf`, and pointers used as borrows
 - `fmt` printing (`Println`, `Printf`, `Sprintf`, `Fprintf` and the rest), the common functions of `strings` (`Split`, `Cut`, `ToLower`, `ToUpper`, `EqualFold`, `ReplaceAll`, `TrimPrefix`, `TrimSuffix` and more, with case mapping by Go's own Unicode tables), and a few functions from `slices`, `bytes` and `os`
 
-**Not supported yet:** goroutines and channels, maps, closures and function values, interfaces other than `error` and `io.Writer`, generics, `defer`, general slicing (`s[i:j]`), slices with an explicit high or max bound, saved slice views, and most of the standard library. Every unsupported construct is rejected with a Go-style error that names the construct; nothing is translated approximately. See the [feature matrix](https://github.com/pigfox/gopatina/blob/main/docs/compat.md) and [every known place where Go and Rust semantics differ](https://github.com/pigfox/gopatina/blob/main/docs/go-rust-disconnects.md).
+**Not supported yet:** goroutines and channels, maps, closures and function values, `error` as an ordinary interface value, pointers inside interfaces, generics, `defer`, general slicing (`s[i:j]`), slices with an explicit high or max bound, saved slice views, and most of the standard library. Every unsupported construct is rejected with a Go-style error that names the construct; nothing is translated approximately. See the [feature matrix](https://github.com/pigfox/gopatina/blob/main/docs/compat.md) and [every known place where Go and Rust semantics differ](https://github.com/pigfox/gopatina/blob/main/docs/go-rust-disconnects.md).
 
 ## Goroutines {#goroutines}
 

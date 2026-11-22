@@ -160,7 +160,11 @@ var rules = func() []rule {
 		{"arrays", `^range over (an array|a pointer to an array)`},
 		{"goroutines and channels", `go statement|^select|channel|\bchan\b|the <- operator`},
 		{"maps", `map type|range over (a )?map|make of map`},
-		{"interfaces", `interface type|type assertion|type switch|io\.Writer|^calling methods on|^type any\b`},
+		// RFC 0012: a pointer as a dynamic type comes with pointers, an
+		// interface with a type set with generics.
+		{"pointers", `^converting a pointer to an interface`},
+		{"generics", `^an interface with a type set`},
+		{"interfaces", `interface|type assertion|type switch|io\.Writer|^calling methods on|^type any\b`},
 		{"closures and function values", `function literal|function value|function type|as a value|method value|method expression|range over a function`},
 		{"generics", `generic|Go 1\.18`},
 		{"defer", `^defer`},

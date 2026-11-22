@@ -162,6 +162,17 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Interfaces (RFC 0012): interface types (named, literal, embedded,
+  `any`), conversions to them, method calls through them, `==` and `!=`,
+  type assertions (`x.(T)` and `v, ok := x.(T)`), type switches, and
+  `Println` and plain `%v`/`%T` of interface values, all with Go's panics
+  (nil method call, failed assertion, missing method, uncomparable
+  types). An interface value is one enum of the program's dynamic types
+  behind a reference count; calls are `match`es. A reached type now keeps
+  the methods an interface call may reach. Goldens `interfaces`,
+  `interfaces_more`, `iface_packages` and five `iface_panic_*`; the
+  generator declares an interface and two implementing types per program.
+  `error` as an interface value comes next.
 - `time.Duration`, the first provided type (RFC 0011): its constants,
   arithmetic, conversions and the methods `String`, `Nanoseconds`,
   `Microseconds`, `Milliseconds`, `Seconds`, `Minutes`, `Hours`,

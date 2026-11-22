@@ -35,7 +35,7 @@ Status values: **supported** (implemented and tested), **partial**
 | `defer` | Go 1.0 | planned | 2 | |
 | `error` values | Go 1.0 | partial | 1 | Lowered to `Result` for the patterns in [patina-subset.md](patina-subset.md#errors) |
 | `panic`, `recover` | Go 1.0 | partial | | `panic` with a string exits with status 2, as in Go; `recover` is open |
-| Interfaces, type switches | Go 1.0 | open | | RFC 0001 open question 2; `io.Writer` parameters are supported |
+| Interfaces, type switches | Go 1.0 | partial | 2 | RFC 0012: interface types, conversions, method calls, `==`, assertions, type switches, `%v` and `%T`; not `error` as an interface value yet, pointers as dynamic types, or the other cases in [patina-subset.md](patina-subset.md#interfaces); `io.Writer` parameters are supported |
 | Goroutines, channels, `select` | Go 1.0 | planned | 3 | RFC 0002 |
 | `sync` package | Go 1.0 | planned | 3 | RFC 0002 |
 | Generics (type parameters) | Go 1.18 | open | | RFC 0001 open question 6 |

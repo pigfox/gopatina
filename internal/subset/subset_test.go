@@ -145,6 +145,13 @@ func main() {
 	case 1:
 		break
 	}
+	var x any = v
+	var n, ok = x.(int)
+	switch x.(type) {
+	case int:
+		fmt.Println(n, ok)
+		break
+	}
 }
 `
 	if got := check(t, src); got != "" {
@@ -174,7 +181,7 @@ func TestRejected(t *testing.T) {
 		{"generic instance", "package main\ntype B[T any] struct{ v T }\nfunc f(b B[int]) {}\nfunc main() {}\n", "a generic type (Go 1.18)"},
 		{"closure", "package main\nfunc main() { f := func() {}; _ = f }\n", "a function literal (closure) is not supported"},
 		{"slice expr", "package main\nfunc main() { s := []int{1}; _ = s[0:1] }\n", "a slice expression (s[i:j]) is not supported"},
-		{"type assert", "package main\nfunc main() { var x any; _ = x.(int) }\n", "a type assertion is not supported"},
+		{"assert pointer", "package main\nfunc main() { var x any; _ = x.(*int) }\n", "converting a pointer to an interface"},
 		{"promoted", "package main\ntype E struct{ X int }\ntype S struct{ E }\nfunc main() { _ = S{}.X }\n", "a promoted field is not supported"},
 		{"call literal", "package main\nfunc main() { func() {}() }\n", "calling a function value is not supported"},
 		{"call func var", "package main\nfunc main() { var f func(); f() }\n", "calling a function value is not supported"},
@@ -225,7 +232,29 @@ func TestRejected(t *testing.T) {
 		{"complex", "package main\nfunc main() { var x complex128; _ = x }\n", "type complex128 is not supported"},
 		{"complex64", "package main\nfunc f(x complex64) {}\nfunc main() {}\n", "type complex64 is not supported"},
 		{"chan", "package main\nfunc main() { var c chan int; _ = c }\n", "a channel type (goroutines and channels are planned, RFC 0002) is not supported"},
-		{"interface", "package main\nfunc f(x interface{ M() }) {}\nfunc main() {}\n", "an interface type is not supported"},
+		{"type set", "package main\ntype C interface{ ~int | ~string }\nfunc main() {}\n", "an interface with a type set (a generic constraint) is not supported"},
+		{"iface slice param", "package main\ntype I interface{ M([]int) }\nfunc main() {}\n", "an interface method with a slice parameter is not supported"},
+		{"iface struct slice param", "package main\ntype P struct{ N int; S []int }\ntype I interface{ M(P) }\nfunc main() {}\n", "an interface method with a slice parameter is not supported"},
+		{"iface error result", "package main\ntype I interface{ M() error }\nfunc main() {}\n", "an interface method with an error result is not supported"},
+		{"iface pointer param", "package main\ntype I interface{ M(*int) }\nfunc main() {}\n", "an interface method with a pointer parameter is not supported"},
+		{"iface pointer result", "package main\ntype I interface{ M() *int }\nfunc main() {}\n", "an interface method with a pointer result is not supported"},
+		{"iface error param", "package main\ntype I interface{ M(error) }\nfunc main() {}\n", "an interface method with an error or io.Writer parameter is not supported"},
+		{"iface variadic", "package main\ntype I interface{ M(...int) }\nfunc main() {}\n", "a variadic interface method is not supported"},
+		{"iface map param", "package main\ntype I interface{ M(map[int]int) }\nfunc main() {}\n", "a map type is not supported"},
+		{"iface map result", "package main\ntype I interface{ M() map[int]int }\nfunc main() {}\n", "a map type is not supported"},
+		{"pointer to iface", "package main\nfunc main() { x := 1; var a any = &x; _ = a }\n", "converting a pointer to an interface"},
+		{"duration to iface", "package main\nimport \"time\"\nfunc main() { var a any = time.Second; _ = a }\n", "converting a value of type time.Duration to an interface"},
+		{"error case", "package main\nfunc main() { var x any; switch x.(type) { case error: } }\n", "an error or io.Writer as a type switch case or assertion type is not supported"},
+		{"panicky string", "package main\ntype T []int\nfunc (t T) String() string { return string(rune(t[0])) }\nfunc main() { var a any = T{1}; _ = a }\n", "converting to an interface a value whose String method may panic"},
+		{"struct method field", "package main\ntype N int\nfunc (n N) String() string { return \"n\" }\ntype S struct{ X N }\nfunc main() { var a any = S{}; _ = a }\n", "converting to an interface a struct with a field fmt prints through a method"},
+		{"map to iface", "package main\nfunc main() { var a any = map[int]int{}; _ = a }\n", "a map type is not supported"},
+		{"iface print", "package main\nimport \"fmt\"\nfunc main() { var a any = 1; fmt.Print(a) }\n", "an interface value printed with fmt.Print (use fmt.Println or Printf) is not supported"},
+		{"iface verb", "package main\nimport \"fmt\"\nfunc main() { var a any = 1; fmt.Printf(\"%d\", a) }\n", "the format %d with an interface value is not supported"},
+		{"T of int", "package main\nimport \"fmt\"\nfunc main() { fmt.Printf(\"%T\", 1) }\n", "the format %T with a value of type int is not supported"},
+		{"iface global", "package main\nvar g any = 1\nfunc main() { _ = g }\n", "a package-level variable holding an interface value is not supported"},
+		{"iface slice global", "package main\ntype I interface{ M() }\nvar g []I\nfunc main() { _ = g }\n", "a package-level variable holding an interface value is not supported"},
+		{"iface field global", "package main\ntype S struct{ N int; X any }\nvar g S\nfunc main() { _ = g.N }\n", "a package-level variable holding an interface value is not supported"},
+		{"iface switch tag", "package main\nfunc main() { var a any = 1; switch a { case 1: } }\n", "a switch on an interface value (use a type switch) is not supported"},
 		{"func type", "package main\nfunc f(g func()) {}\nfunc main() {}\n", "a function type is not supported"},
 		{"array", "package main\nfunc main() { var a [3]int; _ = a }\n", "an array type is not supported"},
 		{"anon struct var", "package main\nfunc main() { var a struct{}; _ = a }\n", "an anonymous struct type is not supported"},
@@ -240,7 +269,9 @@ func TestRejected(t *testing.T) {
 		{"label", "package main\nfunc main() {\nL:\n\tfor {\n\t\tbreak L\n\t}\n}\n", "a labeled statement is not supported"},
 		{"goto", "package main\nfunc main() {\n\tgoto end\nend:\n}\n", "goto is not supported"},
 		{"fallthrough", "package main\nfunc main() {\n\tswitch 1 {\n\tcase 1:\n\t\tfallthrough\n\tdefault:\n\t}\n}\n", "fallthrough is not supported"},
-		{"type switch", "package main\nfunc f(x any) {}\nfunc main() { var x any; switch x.(type) {} }\n", "a type switch is not supported"},
+		{"type switch init", "package main\nfunc main() { var x any; switch y := 1; x.(type) { default: _ = y } }\n", "a type switch with an init statement is not supported"},
+		{"type switch case", "package main\nfunc main() { var x any; switch x.(type) { case *int: } }\n", "converting a pointer to an interface"},
+		{"assert iface", "package main\ntype I interface{ M([]int) }\nfunc main() { var x any; _ = x.(I) }\n", "an interface method with a slice parameter is not supported"},
 		{"expr stmt", "package main\nfunc main() { c := make(chan int); <-c }\n", "a channel receive as a statement is not supported"},
 		{"range map", "package main\nfunc main() { for range map[int]int{} {} }\n", "range over a map (map[int]int) is not supported"},
 		{"range func", "package main\nfunc seq(yield func(int) bool) {}\nfunc main() { for range seq {} }\n", "range over a function (Go 1.23) is not supported"},
