@@ -2,6 +2,8 @@
 # run.sh: the benchmark harness (bench/README.md).
 #
 # usage: bench/run.sh [--out results.json] [--runs N]
+#        bench/run.sh --equiv [--out results.json] [--runs N] [--margin M]
+#                     [--sigma S] [--metric wall|perf]
 #
 # For each case under bench/cases it builds three binaries: the Go program
 # with gopatina build -patina (the generated crate, built by rustc with its
@@ -15,23 +17,43 @@
 # Only ratios are written: shared CI runners are too noisy for absolute
 # numbers, which come from the maintainer's dedicated machine (policy in
 # docs/QUALITY.md).
+#
+# With --equiv, it instead runs cmd/gopatina-bench on each case: GoPatina
+# against hand-written Rust, N runs each (default 400) in ABBA order, and a
+# TOST equivalence test at the given margin (default 0.005, ±0.5%) and sigma
+# (default 5) on wall time. --metric perf also counts user instructions (then
+# the primary metric) and user cycles where perf can read the CPU's counters,
+# each with its own test; it is off by default. The report names the primary
+# metric.
 set -euo pipefail
 
 out=bench-results.json
-runs=11
+runs=""
+equiv=false
+margin=0.005
+sigma=5
+metric=wall
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --out) out="$2"; shift 2 ;;
     --runs) runs="$2"; shift 2 ;;
-    *) echo "usage: $0 [--out file] [--runs N]" >&2; exit 2 ;;
+    --equiv) equiv=true; shift ;;
+    --margin) margin="$2"; shift 2 ;;
+    --sigma) sigma="$2"; shift 2 ;;
+    --metric) metric="$2"; shift 2 ;;
+    *) echo "usage: $0 [--equiv] [--out file] [--runs N] [--margin M] [--sigma S] [--metric wall|perf]" >&2; exit 2 ;;
   esac
 done
+if [ -z "$runs" ]; then
+  if $equiv; then runs=400; else runs=11; fi
+fi
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 go build -o "$work/gopatina" "$root/cmd/gopatina"
+go build -o "$work/gopatina-bench" "$root/cmd/gopatina-bench"
 export GOPATINA_CACHE="$work/cache"
 
 # time_ns <binary>: the wall time of one run, in nanoseconds.
@@ -62,6 +84,14 @@ for dir in "$root"/bench/cases/*/; do
       exit 1
     fi
   done
+  if $equiv; then
+    # gopatina-bench prints the JSON on stdout and one line per metric on
+    # stderr.
+    r="$("$work/gopatina-bench" -runs "$runs" -margin "$margin" -sigma "$sigma" \
+      -metric "$metric" -case "$name" "$work/$name-patina" "$rust")"
+    results+=("$r")
+    continue
+  fi
   # Warm up, then run the three interleaved, so drift affects all alike.
   for bin in "$rust" "$work/$name-patina" "$work/$name-go"; do "$bin" >/dev/null; done
   : >"$work/rust.t"; : >"$work/patina.t"; : >"$work/go.t"
@@ -83,7 +113,11 @@ done
 commit="$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)"
 {
   echo "{"
-  echo "  \"note\": \"ratios only (median wall time over hand-written Rust); no absolute numbers come from shared runners\","
+  if $equiv; then
+    echo "  \"note\": \"TOST equivalence of GoPatina against hand-written Rust (cmd/gopatina-bench); ratios and intervals only\","
+  else
+    echo "  \"note\": \"ratios only (median wall time over hand-written Rust); no absolute numbers come from shared runners\","
+  fi
   echo "  \"runs\": $runs,"
   echo "  \"gopatina_commit\": \"$commit\","
   echo "  \"go\": \"$(go version)\","

@@ -17,7 +17,9 @@ bench/
       rust/      equivalent hand-written Rust, as a cargo crate
       input/     fixed inputs, if the program reads any (none yet)
       expected   the exact output every version must print
-  run.sh         the harness
+      hot        functions asm-check.sh compares, one per line
+  run.sh         the harness (--equiv: the equivalence test)
+  asm-check.sh   the machine-code comparison
   results/       <date>-<gopatina version>.json and a summary, one pair per
                  official run (published through a pull request)
 ```
@@ -59,8 +61,56 @@ For each case, [`run.sh`](run.sh):
    `go version`, both `rustc --version`s, operating system. It writes no
    absolute times.
 
-Peak memory, the spread and the official-run format are planned with the
-test server.
+Peak memory and the official-run format are planned with the test server.
+
+## Equivalence test: `run.sh --equiv`
+
+The goal is identical speed to equivalent hand-written Rust, and a median of
+11 runs cannot show that: on a busy machine the spread between runs is
+larger than the differences being looked for. `bench/run.sh --equiv` builds
+and checks the same binaries, then runs
+[`cmd/gopatina-bench`](../cmd/gopatina-bench) on GoPatina against the
+hand-written Rust for each case:
+
+1. Runs the two binaries N times each (`--runs`, default 400) after two
+   warm-up runs each, in ABBA order (A B, B A, A B, ...), so slow drift in the
+   machine affects both alike. Each pair is two runs next to each other.
+2. Takes the log of each pair's ratio, ln(GoPatina / Rust), and computes a
+   (1 - 2α) confidence interval of its mean with Student's t. α is the
+   one-sided normal tail beyond `--sigma` standard deviations (default 5,
+   α ≈ 2.87e-7).
+3. Runs the two one-sided tests (TOST) against the equivalence margin
+   (`--margin`, default 0.005, that is ±0.5%, the project lead's choice).
+   "Identical speed" means equivalent within ±0.5% at 5σ. The verdict is **equivalent** if the whole interval lies
+   inside ±margin, **slower** or **faster** if it lies wholly outside, and
+   **inconclusive** otherwise: more runs or a quieter machine are needed.
+
+**How many runs.** The interval's half-width is about t × sd / √N, with
+t ≈ 5 at 5σ and sd the standard deviation of the log ratios (in the report).
+To call two programs equivalent, it must fit inside the margin less their
+true difference, so N ≈ (5 × sd / (ln 1.005 − |mean|))². At sd = 1%
+and no true difference, that is about 100 runs; at sd = 2%, about 400;
+at sd = 5%, about 2,500. Measure sd with a short run first (say 100 runs),
+then size the real one.
+
+The default metric is wall time. `--metric perf` also counts user
+instructions and user cycles with `perf stat`, each with its own test; it
+needs the kernel to allow performance counters (`kernel.perf_event_paranoid`
+of 2 or lower) and is off by default. Each process's start-up time is part of
+what is measured, the same for both binaries, so a short benchmark dilutes a
+difference; cases should run for a large fraction of a second or more. The
+JSON report lists, per case and metric, the ratio, the interval, the
+standard deviation of the log ratios, the margin, sigma and the verdict.
+
+## Machine-code check: `asm-check.sh`
+
+`bench/asm-check.sh` compiles each case's emitted crate and its hand-written
+crate with the same rustc and release flags, disassembles the functions
+listed in the case's `hot` file, masks addresses, and reports for each the
+instruction counts and how many lines differ. Identical machine code is the
+strongest evidence of identical speed and is not affected by noise; a
+difference points at the code generation to fix. It is a report, not a
+gate.
 
 ## Where it runs
 

@@ -63,6 +63,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- `bench/run.sh --equiv` and `cmd/gopatina-bench` test whether GoPatina and
+  hand-written Rust run at the same speed: interleaved ABBA runs and a two
+  one-sided tests (TOST) equivalence test on the paired log ratios, at a
+  ±0.5% margin and 5 sigma by default (both settings): "identical speed"
+  means equivalent within ±0.5% at 5σ. Wall time by default;
+  `--metric perf` also counts user instructions and cycles where the kernel
+  allows. `bench/asm-check.sh` compares the machine code of the generated and
+  hand-written Rust for the functions in each case's `hot` file.
 - Patina supports `read(s[i:])` as a standalone call to a proven read-only
   function over `[]int`. The temporary view checks bounds before the
   callee runs, without copying the slice or inspecting its capacity.
