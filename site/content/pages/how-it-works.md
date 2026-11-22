@@ -33,7 +33,7 @@ In patina mode memory is managed the way Rust manages it: each value has one own
 
 The patina modes accept a defined subset of Go, specified in [docs/patina-subset.md](https://github.com/pigfox/gopatina/blob/main/docs/patina-subset.md):
 
-- `package main` in one directory, with functions, methods, named struct types, named types such as `type Op int` and `type Path []int` (with methods, and printed through `String` and `Error` as `fmt` does), and type aliases
+- programs of several packages: `package main` and the packages it imports, of its own module, other modules and the standard library, translated from their Go source (only what `main` reaches), with functions, methods, named struct types, named types such as `type Op int` and `type Path []int` (with methods, and printed through `String` and `Error` as `fmt` does), and type aliases
 - every integer type (`int8` to `int64`, `uint8` to `uint64`, `int`, `uint`, `uintptr`), `float32`, `float64`, `bool`, `string`, and slices of supported types, including read-only `s[i:]` suffix arguments
 - `if`, `for` (including `for range` over slices, strings and integers), `switch`, constants and `iota`
 - `error` results with `errors.New` and `fmt.Errorf`, and pointers used as borrows

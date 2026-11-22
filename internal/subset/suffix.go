@@ -24,7 +24,7 @@ func (c *checker) sliceSuffix(call *ast.CallExpr, fun ast.Expr, sig *types.Signa
 	intSlice := types.NewSlice(intType)
 	base, _ := ast.Unparen(s.X).(*ast.Ident)
 	v, _ := info.Uses[base].(*types.Var)
-	if v == nil || v.Parent() == c.pkg.Types.Scope() || !types.Identical(v.Type(), intSlice) || !types.Identical(sig.Params().At(0).Type(), intSlice) {
+	if v == nil || v.Parent() == v.Pkg().Scope() || !types.Identical(v.Type(), intSlice) || !types.Identical(sig.Params().At(0).Type(), intSlice) {
 		return false
 	}
 	low := ast.Unparen(s.Low)
@@ -32,7 +32,7 @@ func (c *checker) sliceSuffix(call *ast.CallExpr, fun ast.Expr, sig *types.Signa
 	case *ast.Ident:
 		switch v := info.Uses[x].(type) {
 		case *types.Var:
-			return v.Parent() != c.pkg.Types.Scope() && types.Identical(v.Type(), intType)
+			return v.Parent() != v.Pkg().Scope() && types.Identical(v.Type(), intType)
 		case *types.Const:
 			return integerBound(v.Val())
 		}

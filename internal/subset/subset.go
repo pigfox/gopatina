@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"go/types"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/pigfox/gopatina/internal/diag"
@@ -38,6 +39,9 @@ type checker struct {
 // sorted by position. An empty result means the package is in the subset.
 func Check(pkg *load.Package) []diag.Diagnostic {
 	c := &checker{pkg: pkg, trailing: map[*ast.BranchStmt]bool{}, selfAppend: map[*ast.CallExpr]bool{}}
+	checkMu.Lock()
+	defer checkMu.Unlock()
+	localPkgs = pkg.Local
 	if pkg.Name != "main" {
 		c.errorf(pkg.Files[0].Name, "package %s: only package main is supported in patina mode yet (libraries are planned)", pkg.Name)
 	}
@@ -51,8 +55,25 @@ func Check(pkg *load.Package) []diag.Diagnostic {
 	}
 	_, errDiags := Errors(pkg)
 	c.diags = append(c.diags, errDiags...)
+	c.explainReach()
 	diag.Sort(c.diags)
 	return c.diags
+}
+
+// explainReach adds to each diagnostic in a package other than main how the
+// program reaches the declaration it is in (RFC 0009).
+func (c *checker) explainReach() {
+	for i, d := range c.diags {
+		for n := range c.pkg.Via {
+			start, end := c.pkg.Fset.Position(n.Pos()), c.pkg.Fset.Position(n.End())
+			if start.Filename == d.Pos.Filename && start.Offset <= d.Pos.Offset && d.Pos.Offset < end.Offset {
+				if chain := load.Chain(c.pkg, n); chain != "" {
+					c.diags[i] = d.With("reached from main through: " + chain)
+				}
+				break
+			}
+		}
+	}
 }
 
 func (c *checker) errorf(n ast.Node, format string, args ...any) {
@@ -65,6 +86,13 @@ func (c *checker) unsupported(n ast.Node, what string) {
 	c.diags = append(c.diags, d.With(seeCompat))
 }
 
+// localPkgs is the program's translated packages while Check runs, for
+// unsupportedType, which has no checker.
+var (
+	checkMu   sync.Mutex
+	localPkgs map[*types.Package]bool
+)
+
 var allowedImports = map[string]bool{
 	"bytes": true, "errors": true, "fmt": true, "io": true, "os": true, "slices": true, "strings": true,
 }
@@ -72,7 +100,13 @@ var allowedImports = map[string]bool{
 func (c *checker) file(f *ast.File) {
 	for _, imp := range f.Imports {
 		path := strings.Trim(imp.Path.Value, `"`)
+		pn, _ := c.pkg.Info.Implicits[imp].(*types.PkgName)
+		if imp.Name != nil {
+			pn, _ = c.pkg.Info.Defs[imp.Name].(*types.PkgName)
+		}
 		switch {
+		case pn != nil && c.pkg.Local[pn.Imported()] && imp.Name == nil:
+			// A package of the program, translated from source (RFC 0009).
 		case !allowedImports[path]:
 			c.unsupported(imp, fmt.Sprintf("package %s", path))
 		case imp.Name != nil:
@@ -143,7 +177,7 @@ func (c *checker) namedSpec(s *ast.TypeSpec) {
 	t := c.pkg.Info.Defs[s.Name].Type()
 	if _, ok := t.Underlying().(*types.Struct); ok {
 		from, ok := types.Unalias(c.pkg.Info.Types[s.Type].Type).(*types.Named)
-		if !ok || from.Obj().Pkg() != c.pkg.Types {
+		if !ok || !c.pkg.Local[from.Obj().Pkg()] {
 			c.unsupported(s, fmt.Sprintf("type %s: a struct type from another package", s.Name.Name))
 		}
 		return
@@ -296,7 +330,7 @@ func unsupportedType(t types.Type, constOK bool) string {
 		}
 		return unsupportedType(t.Elem(), false)
 	case *types.Named:
-		if t.Obj().Pkg() == nil || t.Obj().Pkg().Name() != "main" {
+		if t.Obj().Pkg() == nil || !localPkgs[t.Obj().Pkg()] {
 			return fmt.Sprintf("type %s", t)
 		}
 		if t.TypeArgs().Len() > 0 {
@@ -631,9 +665,23 @@ func (c *checker) ident(id *ast.Ident) {
 		// nil is a nil error or an empty slice: pointers are never nil,
 		// since they start as &x, and nil is never passed for one.
 	case *types.Var:
-		if obj.Parent() == c.pkg.Types.Scope() {
+		if obj.Pkg() != nil && obj.Parent() == obj.Pkg().Scope() {
 			c.unsupported(id, "a package-level variable")
 		}
+	}
+}
+
+// localSelector checks p.Name for a package p of the program: a function
+// (called, not as a value), a constant or a type, not a package-level
+// variable.
+func (c *checker) localSelector(e *ast.SelectorExpr, name string, called bool) {
+	switch c.pkg.Info.Uses[e.Sel].(type) {
+	case *types.Func:
+		if !called {
+			c.unsupported(e, fmt.Sprintf("using %s as a value", name))
+		}
+	case *types.Var:
+		c.unsupported(e, fmt.Sprintf("the package-level variable %s", name))
 	}
 }
 
@@ -642,6 +690,10 @@ func (c *checker) selector(e *ast.SelectorExpr, called bool) {
 	if id, ok := e.X.(*ast.Ident); ok {
 		if pn, ok := info.Uses[id].(*types.PkgName); ok {
 			name := pn.Imported().Path() + "." + e.Sel.Name
+			if c.pkg.Local[pn.Imported()] {
+				c.localSelector(e, name, called)
+				return
+			}
 			switch info.Uses[e.Sel].(type) {
 			case *types.Func:
 				if !StdFuncs[name] {
@@ -774,12 +826,14 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 	case *ast.SelectorExpr:
 		c.selector(f, true)
 		if pn, ok := f.X.(*ast.Ident); ok {
-			if _, ok := info.Uses[pn].(*types.PkgName); ok {
-				c.stdCall(e, info.Uses[pn].(*types.PkgName).Imported().Path()+"."+f.Sel.Name)
+			if p, ok := info.Uses[pn].(*types.PkgName); ok && !c.pkg.Local[p.Imported()] {
+				c.stdCall(e, p.Imported().Path()+"."+f.Sel.Name)
 				return
 			}
 		}
-		if sel := info.Selections[f]; sel == nil || sel.Kind() != types.MethodVal {
+		if _, ok := info.Uses[f.Sel].(*types.Func); ok && info.Selections[f] == nil {
+			// A function of another package of the program (RFC 0009).
+		} else if sel := info.Selections[f]; sel == nil || sel.Kind() != types.MethodVal {
 			c.unsupported(e, "calling a function value")
 			return
 		}
@@ -964,7 +1018,7 @@ func (c *checker) printProblem(t types.Type) string {
 // nil. Only named types of the package have methods in the subset.
 func PrintMethod(t types.Type) *types.Func {
 	n, ok := types.Unalias(t).(*types.Named)
-	if !ok || n.Obj().Pkg() == nil || n.Obj().Pkg().Name() != "main" {
+	if !ok || n.Obj().Pkg() == nil || n.Obj().Pkg().Path() == "io" {
 		return nil
 	}
 	ms := types.NewMethodSet(n)
@@ -1016,6 +1070,12 @@ func (c *checker) cannotPanic(n ast.Node) bool {
 			return true
 		case *ast.BinaryExpr:
 			ok = n.Op != token.QUO && n.Op != token.REM && n.Op != token.SHL && n.Op != token.SHR
+			return ok
+		case *ast.SelectorExpr:
+			// Reading a field of a value cannot panic; through a pointer
+			// it could.
+			sel := c.pkg.Info.Selections[n]
+			ok = sel != nil && sel.Kind() == types.FieldVal && !isPointer(c.pkg.Info.Types[n.X].Type)
 			return ok
 		case *ast.CallExpr:
 			// The callee is a type, a built-in or fmt's function, not a

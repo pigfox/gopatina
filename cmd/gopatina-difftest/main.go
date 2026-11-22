@@ -232,7 +232,10 @@ func batch(c config, worker, first, n int) (outcome, error) {
 	}
 	defer os.RemoveAll(dir)
 	src := progen.Batch(c.seed, first, n)
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module difftest\n\ngo 1.25\n"), 0o644)
+	lib := progen.Lib(c.seed, first, n)
+	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module "+progen.Module+"\n\ngo 1.25\n"), 0o644)
+	os.MkdirAll(filepath.Join(dir, "lib"), 0o755)
+	os.WriteFile(filepath.Join(dir, "lib", "lib.go"), []byte(lib), 0o644)
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0o644); err != nil {
 		return o, err
 	}
@@ -250,7 +253,7 @@ func batch(c config, worker, first, n int) (outcome, error) {
 	}
 	if err != nil {
 		o.buildFailed = true
-		keep(c, first, src, map[string][]byte{"patina-build.txt": pOut})
+		keep(c, first, n, src, map[string][]byte{"patina-build.txt": pOut})
 		return o, nil
 	}
 	refStdout, refStderr, refCode := execute(refBin, c.timeout)
@@ -271,7 +274,7 @@ func batch(c config, worker, first, n int) (outcome, error) {
 		o.goDisagree = []int{last}
 	}
 	if len(o.mismatched) > 0 || o.panicBad || len(o.goDisagree) > 0 {
-		keep(c, first, src, map[string][]byte{
+		keep(c, first, n, src, map[string][]byte{
 			"goref.out": refStdout, "goref.err": refStderr, "go.out": goStdout, "go.err": goStderr,
 			"patina.out": pStdout, "patina.err": pStderr,
 			"exit": []byte(fmt.Sprintf("goref %d go %d patina %d\n", refCode, goCode, pCode)),
@@ -348,10 +351,12 @@ func firstLine(b []byte) string {
 
 // keep saves a failing batch's source and outputs under the failures
 // directory.
-func keep(c config, first int, src string, files map[string][]byte) {
+func keep(c config, first, n int, src string, files map[string][]byte) {
 	dir := filepath.Join(c.failed, fmt.Sprintf("seed%d-b%d", c.seed, first))
 	os.MkdirAll(dir, 0o755)
 	os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0o644)
+	os.MkdirAll(filepath.Join(dir, "lib"), 0o755)
+	os.WriteFile(filepath.Join(dir, "lib", "lib.go"), []byte(progen.Lib(c.seed, first, n)), 0o644)
 	for name, data := range files {
 		os.WriteFile(filepath.Join(dir, name), data, 0o644)
 	}

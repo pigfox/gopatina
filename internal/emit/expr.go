@@ -55,7 +55,7 @@ func (g *gen) localVar(id *ast.Ident) *types.Var {
 		obj = g.info.Defs[id]
 	}
 	v, ok := obj.(*types.Var)
-	if !ok || v.IsField() || v.Parent() == g.pkg.Types.Scope() {
+	if !ok || v.IsField() || v.Pkg() == nil || v.Parent() == v.Pkg().Scope() {
 		return nil
 	}
 	return v

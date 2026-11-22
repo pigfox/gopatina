@@ -35,7 +35,7 @@ the exact error committed beside it.
 
 | Area | Supported in phase 1 |
 | --- | --- |
-| Packages | `package main` with `func main()`, in one directory, any number of files |
+| Packages | `package main` with `func main()`, any number of files, and the packages it imports: of its own module, of other modules and of the standard library, translated from their Go source; only what `main` and the `init` functions reach is translated ([RFC 0009](rfcs/0009-packages.md)); `math/bits` intrinsics give gc's results |
 | Imports | `fmt`, `strings`, `errors`, `os`, `io`, `slices`, `bytes` (only the functions below) |
 | Types | every integer type (`int`, `int8` to `int64`, `uint`, `uint8` (`byte`) to `uint64`, `uintptr`, `rune`), `float32`, `float64` ([RFC 0008](rfcs/0008-integer-and-float-types.md)), `bool`, `string`, slices of supported types, named struct types, named types of the basic and slice types (`type Op int`, `type Path []int`, [RFC 0007](rfcs/0007-named-types-and-aliases.md)) and type aliases, `error` (as a result), `io.Writer` (as a parameter) |
 | Declarations | functions and methods, `init` functions (run in source order before `main`) (on structs and on named non-struct types), struct types, named types, type aliases, constants (typed, untyped, `iota`), local variables |

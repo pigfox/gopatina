@@ -41,6 +41,17 @@ type Package struct {
 	Info      *types.Info
 	Sizes     types.Sizes       // word sizes of the GOOS/GOARCH target
 	Src       map[string][]byte // file contents, by absolute file name
+
+	// A program of several packages (RFC 0009) is loaded as one Package:
+	// Files and Info hold every translated package's, and these say which
+	// is which. For one package, Pkgs is just Types.
+	Pkgs  []*types.Package             // translated packages, in initialization order, main last
+	PkgOf map[*ast.File]*types.Package // the package of each file
+	Local map[*types.Package]bool      // the translated packages
+	// Via records, for each declaration of a package other than main that
+	// the program reaches, the declaration that first reached it (an init
+	// function and main's declarations reach without one).
+	Via map[ast.Node]ast.Node
 }
 
 // stdImporter imports standard-library packages from export data. It is
@@ -79,6 +90,11 @@ func Dir(dir, cwd string) (*Package, error) {
 	}
 	if len(bp.CgoFiles) > 0 {
 		return nil, fmt.Errorf("%s: cgo (import \"C\") is not supported in patina mode", diag.RelPath(cwd, filepath.Join(abs, bp.CgoFiles[0])))
+	}
+	for _, imp := range bp.Imports {
+		if !Bridged[imp] && imp != "unsafe" {
+			return program(abs, cwd) // a program of several packages
+		}
 	}
 	goVersion, srcs, err := sources(abs, bp.GoFiles)
 	if err != nil {
@@ -169,6 +185,12 @@ func check(dir, cwd, goVersion string, srcs map[string][]byte) (*Package, error)
 	pkg.Types, _ = conf.Check(pkg.Name, pkg.Fset, pkg.Files, pkg.Info)
 	if len(diags) > 0 {
 		return nil, &diag.Error{Dir: cwd, Diags: diags}
+	}
+	pkg.Pkgs = []*types.Package{pkg.Types}
+	pkg.Local = map[*types.Package]bool{pkg.Types: true}
+	pkg.PkgOf = map[*ast.File]*types.Package{}
+	for _, f := range pkg.Files {
+		pkg.PkgOf[f] = pkg.Types
 	}
 	return pkg, nil
 }

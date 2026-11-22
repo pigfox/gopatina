@@ -2,6 +2,8 @@ package subset
 
 import (
 	"go/types"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -296,5 +298,46 @@ func TestRejected(t *testing.T) {
 func TestUnsupportedTypeOther(t *testing.T) {
 	if got := unsupportedType(types.NewTuple(), false); got != "type ()" {
 		t.Errorf("unsupportedType(tuple) = %q", got)
+	}
+}
+
+// checkModule loads a module of several packages (RFC 0009) from files
+// and returns the subset diagnostics, rendered.
+func checkModule(t *testing.T, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	files["go.mod"] = "module example.com/m\n\ngo 1.25\n"
+	for name, src := range files {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pkg, err := load.Dir(dir, dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	return (&diag.Error{Dir: dir, Diags: Check(pkg)}).Error()
+}
+
+func TestPackages(t *testing.T) {
+	got := checkModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"example.com/m/a\"\n\nfunc main() {\n\tf := a.F\n\t_ = f\n\t_ = a.V\n\ta.F()\n\t_ = a.T(a.C)\n}\n",
+		"a/a.go":  "package a\n\nconst C = 1\n\ntype T int\n\nvar V = 2\n\nfunc F() {}\n",
+	})
+	for _, want := range []string{
+		"main.go:6:7: using example.com/m/a.F as a value is not supported",
+		"main.go:8:6: the package-level variable example.com/m/a.V is not supported",
+		"a/a.go:7:5: a package-level variable is not supported",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("diagnostics lack %q:\n%s", want, got)
+		}
+	}
+	if strings.Count(got, "is not supported") != 4 || !strings.Contains(got, "reached from main through: main.main -> a.V") {
+		t.Errorf("unexpected diagnostics:\n%s", got)
 	}
 }

@@ -1,6 +1,8 @@
 package progen
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,7 +20,20 @@ import (
 func TestBatchesAreAccepted(t *testing.T) {
 	for seed := range uint64(64) {
 		src := Batch(seed, int(seed)*4, 3)
-		pkg, err := load.Source("/gen", "main.go", src, "go1.25")
+		dir := t.TempDir()
+		for name, data := range map[string]string{
+			"go.mod":     "module " + Module + "\n\ngo 1.25\n",
+			"main.go":    src,
+			"lib/lib.go": Lib(seed, int(seed)*4, 3),
+		} {
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		pkg, err := load.Dir(dir, dir)
 		if err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}

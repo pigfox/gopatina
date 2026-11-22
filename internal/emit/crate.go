@@ -54,7 +54,7 @@ type Crate struct {
 // Emit translates pkg, already checked by subset and borrow, into a crate.
 func Emit(pkg *load.Package, res *borrow.Result, opt Options) *Crate {
 	errs, _ := subset.Errors(pkg)
-	mainRS, rtRS, notes := source(pkg, res, errs)
+	mainRS, rtRS, notes, modules := source(pkg, res, errs)
 	name := CrateName(pkg.Dir)
 	c := &Crate{Name: name, Target: opt.Target, Notes: notes}
 	c.add("Cargo.toml", cargoToml(name, opt))
@@ -64,6 +64,9 @@ func Emit(pkg *load.Package, res *borrow.Result, opt Options) *Crate {
 	c.add("src/main.rs", mainRS)
 	if rtRS != "" {
 		c.add("src/rt.rs", rtRS)
+	}
+	for _, m := range modules {
+		c.add(m.Path, m.Text)
 	}
 	sort.Slice(c.Files, func(i, j int) bool { return c.Files[i].Path < c.Files[j].Path })
 	return c

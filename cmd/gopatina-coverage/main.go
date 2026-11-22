@@ -373,6 +373,14 @@ func one(p listed, module string, exports map[string]string) (res coverage.Packa
 	if typeErr != nil {
 		return res, "type-check: " + typeErr.Error()
 	}
+	// Measured alone: its own types are the program's (RFC 0009's
+	// cross-package rule is a later change to the measurement).
+	pkg.Pkgs = []*types.Package{pkg.Types}
+	pkg.Local = map[*types.Package]bool{pkg.Types: true}
+	pkg.PkgOf = map[*ast.File]*types.Package{}
+	for _, f := range pkg.Files {
+		pkg.PkgOf[f] = pkg.Types
+	}
 	defer func() {
 		if v := recover(); v != nil {
 			why = fmt.Sprintf("subset checker or measurement panicked at %s: %v", panicSite(debug.Stack()), v)

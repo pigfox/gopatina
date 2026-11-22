@@ -142,6 +142,19 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Programs of several packages (RFC 0009): the packages a program imports,
+  of its own module, other modules and the standard library, are translated
+  from their Go source into Rust modules of the one crate (`pub(crate)`
+  items, `crate::m::` paths), with only what `main` and the `init` functions
+  reach; Go's package initialization order (the Go 1.21 rule, checked against
+  `go run`). An unsupported declaration in another package is reported where
+  it is, with how `main` reaches it. `math/bits` intrinsics (`Add64`, `Sub64`,
+  `Mul64`, the rotates, zero counts, `Len`, `ReverseBytes`) give gc's results,
+  also outside Go's documented domain (a carry counts as 1 when its low 32
+  bits are not zero, on x86-64; measured). Golden program `multi_package`,
+  rejection fixture `package_reach`; the generator adds a second package to
+  every batch. The coverage measurement's cross-package rule is still to
+  come.
 - Shifts by a count known only at run time (`x << s`, `x >>= s`), with Go's
   0 or −1 at and past the width and Go's panic "runtime error: negative
   shift amount" (`rt::shl`, `rt::shr`); for `x op= s` every index of the

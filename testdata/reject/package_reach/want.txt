@@ -1,0 +1,6 @@
+./a/a.go:7:2: a map type is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
+    reached from main through: main.main -> a.Count -> a.tally
+./a/a.go:7:10: a map type is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
+    reached from main through: main.main -> a.Count -> a.tally
