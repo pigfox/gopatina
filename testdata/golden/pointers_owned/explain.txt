@@ -1,0 +1,10 @@
+./main.go:10:6: pointers of type *Tag are shared: a slice, map, array, channel or struct value holds it (line 19) (RFC 0016)
+./main.go:12:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:19:28: parameter tags is a shared borrow: build only reads it
+./main.go:21:62: copied tags[key%2] into a composite literal: tags[key%2] is an element of tags, and an element cannot be moved out; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
+./main.go:31:7: receiver n is a shared borrow: sum only reads it
+./main.go:38:7: receiver n is a shared borrow: depth only reads it
+./main.go:52:15: parameter n is a shared borrow: leftmost only reads it
+./main.go:59:12: parameter n is a shared borrow: label only reads it
+./main.go:68:6: pointers of type *List are never shared: each has one owner (RFC 0016)
+./main.go:80:13: parameter l is a shared borrow: length only reads it

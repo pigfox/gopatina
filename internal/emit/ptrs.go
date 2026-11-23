@@ -28,10 +28,26 @@ func (g *gen) cellVar(v *types.Var) bool {
 	return v != nil && g.ptrs != nil && g.ptrs.Cells[v]
 }
 
+// ownPtr reports whether t is a heap pointer type that is never shared
+// (RFC 0016): a box with one owner, read through as a plain borrow.
+func (g *gen) ownPtr(t types.Type) bool {
+	return g.heapPtr(t) && g.ptrs.Owned(t)
+}
+
+// ptrKind returns the runtime type of heap pointer type t, Own or Ptr,
+// and marks it used.
+func (g *gen) ptrKind(t types.Type) string {
+	k := "Ptr"
+	if g.ownPtr(t) {
+		k = "Own"
+	}
+	g.rt[k] = true
+	return k
+}
+
 // ptrType renders the Rust type of heap pointer type t.
 func (g *gen) ptrType(t types.Type) string {
-	g.rt["Ptr"] = true
-	return "rt::Ptr<" + g.rustType(types.Unalias(t).(*types.Pointer).Elem()) + ">"
+	return "rt::" + g.ptrKind(t) + "<" + g.rustType(types.Unalias(t).(*types.Pointer).Elem()) + ">"
 }
 
 // heapRoot returns the point where place e goes through a heap pointer:
@@ -64,7 +80,7 @@ func (g *gen) heapRoot(e ast.Expr) (root, ptr ast.Expr, ok bool) {
 				return nil, nil, false
 			}
 			base := ast.Unparen(x.X)
-			if _, done := g.cellRoot[base]; !done && g.heapPtr(g.typeOf(base)) {
+			if _, done := g.cellRoot[base]; !done && g.heapPtr(g.typeOf(base)) && !g.ownPtr(g.typeOf(base)) {
 				return base, base, true
 			}
 			e = base
@@ -331,8 +347,7 @@ func (g *gen) heapOrder(s ast.Stmt) {
 // a heap pointer to be taken of).
 func (g *gen) heapAddr(e *ast.UnaryExpr) node {
 	if x, ok := ast.Unparen(e.X).(*ast.CompositeLit); ok {
-		g.rt["Ptr"] = true
-		return &call{head: "rt::Ptr::new", open: "(", close: ")", args: []node{g.composite(x)}}
+		return &call{head: "rt::" + g.ptrKind(g.typeOf(e)) + "::new", open: "(", close: ")", args: []node{g.composite(x)}}
 	}
 	return &call{recv: text(g.varName(g.localVar(ast.Unparen(e.X).(*ast.Ident)))), head: ".clone", open: "(", close: ")"}
 }

@@ -180,6 +180,12 @@ func (g *gen) place(e ast.Expr) node {
 			b = g.value(base)
 		}
 		field := g.fields[g.info.Selections[x].Obj().(*types.Var)]
+		if g.ownPtr(g.typeOf(base)) {
+			// Through an owned pointer (RFC 0016): p.get().f, whose field
+			// is a link of the chain, as rustfmt breaks it.
+			b = &call{recv: b, head: ".get", open: "(", close: ")"}
+			return &call{recv: b, head: "." + field}
+		}
 		return atom{paren(b, precPostfix) + "." + field, precPostfix}
 	case *ast.IndexExpr:
 		var b node
@@ -252,8 +258,7 @@ func (g *gen) value(e ast.Expr) node {
 				return text("None")
 			}
 			if g.heapPtr(g.nils[e]) {
-				g.rt["Ptr"] = true
-				return text("rt::Ptr::nil()")
+				return text("rt::" + g.ptrKind(g.nils[e]) + "::nil()")
 			}
 			return text("Vec::<" + g.rustType(g.nils[e].Underlying().(*types.Slice).Elem()) + ">::new()")
 		}
@@ -506,8 +511,7 @@ func (g *gen) zero(t types.Type) node {
 		return text("None")
 	}
 	if g.heapPtr(t) {
-		g.rt["Ptr"] = true
-		return text("rt::Ptr::nil()")
+		return text("rt::" + g.ptrKind(t) + "::nil()")
 	}
 	return text(g.rustType(t) + "::default()")
 }
@@ -804,8 +808,7 @@ func (g *gen) composite(e *ast.CompositeLit) node {
 	t := g.typeOf(e)
 	if p, ok := t.(*types.Pointer); ok {
 		// {...} for &T{...}, in a literal of pointers (RFC 0013).
-		g.rt["Ptr"] = true
-		return &call{head: "rt::Ptr::new", open: "(", close: ")", args: []node{g.compositeOf(e, p.Elem())}}
+		return &call{head: "rt::" + g.ptrKind(t) + "::new", open: "(", close: ")", args: []node{g.compositeOf(e, p.Elem())}}
 	}
 	return g.compositeOf(e, t)
 }

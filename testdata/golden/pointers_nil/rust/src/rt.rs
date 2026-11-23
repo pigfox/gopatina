@@ -4,7 +4,6 @@
 use std::any::Any;
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::rc::Rc;
 
 /// Ends the program on a panic the way Go does: the message on standard
 /// error, then exit status 2. (Rust's default status is 101.)
@@ -57,108 +56,84 @@ fn go_panic_message(msg: &str) -> String {
     msg.to_string()
 }
 
-/// A Go pointer that escapes (RFC 0013): nil, or a cell shared by every
-/// copy of the pointer. Each access borrows the cell for that access only,
-/// so no borrow is held while other code runs.
-pub struct Ptr<T: 'static>(Option<Shared<T>>);
+/// A Go pointer that is never shared (RFC 0016): nil, or a box with one
+/// owner. Nothing writes through it once it is made, so a read is a plain
+/// borrow of the box.
+pub struct Own<T: 'static>(Option<Box<T>>);
 
-/// The one place the sharing is chosen: Rc now; Arc and a lock once
-/// goroutines come (RFC 0002).
-type Shared<T> = Rc<RefCell<T>>;
-
-impl<T> Ptr<T> {
-    /// A new cell holding v: Go's &T{...}, or a variable whose address
-    /// escapes.
+impl<T> Own<T> {
+    /// A new box holding v: Go's &T{...}.
     pub fn new(v: T) -> Self {
-        Ptr(Some(Rc::new(RefCell::new(v))))
+        Own(Some(Box::new(v)))
     }
 
     pub fn nil() -> Self {
-        Ptr(None)
+        Own(None)
     }
 
     pub fn is_nil(&self) -> bool {
         self.0.is_none()
     }
 
-    fn cell(&self) -> &RefCell<T> {
+    /// The value pointed at, for reading through the pointer.
+    pub fn get(&self) -> &T {
         match &self.0 {
-            Some(c) => c,
+            Some(b) => b,
             None => panic!(
                 "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
             ),
         }
     }
-
-    /// Reads through the pointer.
-    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        f(&self.cell().borrow())
-    }
-
-    /// Writes through the pointer.
-    pub fn with_mut<R>(&self, f: impl FnOnce(&mut T) -> R) -> R {
-        f(&mut self.cell().borrow_mut())
-    }
 }
 
-impl<T: Clone> Ptr<T> {
-    /// A copy of the value pointed at: Go's *p.
-    pub fn load(&self) -> T {
-        self.cell().borrow().clone()
-    }
-}
-
-impl<T> Clone for Ptr<T> {
+impl<T: Clone> Clone for Own<T> {
     fn clone(&self) -> Self {
-        Ptr(self.0.clone())
+        Own(self.0.clone())
     }
 }
 
-impl<T> Default for Ptr<T> {
+impl<T> Default for Own<T> {
     fn default() -> Self {
-        Ptr(None)
+        Own(None)
     }
 }
 
 /// Go compares pointers by the variable they point at.
-impl<T> PartialEq for Ptr<T> {
+impl<T> PartialEq for Own<T> {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
-            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
+            (Some(a), Some(b)) => std::ptr::eq::<T>(&**a, &**b),
             (None, None) => true,
             _ => false,
         }
     }
 }
 
-/// The last pointer to a cell frees it through release, so freeing a long
-/// list frees one cell at a time, as Go's collector does, instead of one
-/// call deeper per cell (which would overflow the stack).
-impl<T> Drop for Ptr<T> {
+thread_local! {
+    static OWN_DEPTH: Cell<u32> = const { Cell::new(0) };
+    static OWN_PENDING: RefCell<Vec<Box<dyn Any>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Freeing a box frees the boxes it owns, one call deeper each; past a
+/// fixed depth they are freed in a loop instead, so freeing a long list
+/// cannot overflow the stack.
+impl<T> Drop for Own<T> {
     fn drop(&mut self) {
-        let Some(c) = self.0.take() else {
+        let Some(b) = self.0.take() else {
             return;
         };
-        if Rc::strong_count(&c) == 1 {
-            release(c);
+        let depth = OWN_DEPTH.get();
+        if depth >= 1024 {
+            OWN_PENDING.with_borrow_mut(|p| p.push(b));
+            return;
         }
+        OWN_DEPTH.set(depth + 1);
+        drop(b);
+        if depth == 0 {
+            while let Some(b) = OWN_PENDING.with_borrow_mut(|p| p.pop()) {
+                drop(b);
+            }
+        }
+        OWN_DEPTH.set(depth);
     }
-}
-
-thread_local! {
-    static PENDING: RefCell<Vec<Rc<dyn Any>>> = const { RefCell::new(Vec::new()) };
-    static RELEASING: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Frees cell c, and the cells freeing it frees, in a loop.
-fn release(c: Rc<dyn Any>) {
-    PENDING.with_borrow_mut(|p| p.push(c));
-    if RELEASING.get() {
-        return; // the loop below, further up, frees it
-    }
-    RELEASING.set(true);
-    while let Some(c) = PENDING.with_borrow_mut(|p| p.pop()) {
-        drop(c);
-    }
-    RELEASING.set(false);
 }

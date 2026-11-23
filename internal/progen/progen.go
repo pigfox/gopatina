@@ -947,6 +947,16 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc ndLen%d(n *Nd%d) int {\n\tc := 0\n\tfor p := n; p != nil; p = p.Next {\n\t\tc++\n\t}\n\treturn c\n}\n", k, k)
 	// A nil test of a field inside the node's cell, in a recursive method.
 	fmt.Fprintf(b, "\nfunc (n *Nd%d) Depth() int {\n\tif n.Next == nil {\n\t\treturn 1\n\t}\n\treturn 1 + n.Next.Depth()\n}\n", k)
+	// Owned pointers (RFC 0016): a tree built from new pointers and a chain
+	// longer than the runtime's drop depth, then only read through, tested
+	// for nil and lent, so each is a Box with one owner.
+	fmt.Fprintf(b, "\ntype Tr%d struct {\n\tL, R *Tr%d\n\tV    int\n\tS    string\n}\n", k, k)
+	fmt.Fprintf(b, "\nfunc mkTr%d(d, v int) *Tr%d {\n\tif d <= 0 {\n\t\treturn &Tr%d{V: v, S: fmt.Sprint(\"t\", v)}\n\t}\n\tt := &Tr%d{L: mkTr%d(d-1, v %s %d), R: mkTr%d(d-1, v+1), V: v}\n\treturn t\n}\n", k, k, k, k, k, op(), 1+g.qr.IntN(9), k)
+	fmt.Fprintf(b, "\nfunc (t *Tr%d) Sum() int {\n\tif t == nil {\n\t\treturn 0\n\t}\n\treturn t.V %s t.L.Sum() + t.R.Sum()\n}\n", k, op())
+	fmt.Fprintf(b, "\nfunc trDepth%d(t *Tr%d) int {\n\tif t.L == nil {\n\t\treturn 1\n\t}\n\treturn 1 + trDepth%d(t.L)\n}\n", k, k, k)
+	fmt.Fprintf(b, "\ntype Ch%d struct {\n\tV int\n\tN *Ch%d\n}\n", k, k)
+	fmt.Fprintf(b, "\nfunc chain%d(n int) *Ch%d {\n\tif n == 0 {\n\t\treturn nil\n\t}\n\treturn &Ch%d{V: n, N: chain%d(n - 1)}\n}\n", k, k, k, k)
+	fmt.Fprintf(b, "\nfunc chLen%d(c *Ch%d) int {\n\tif c == nil {\n\t\treturn 0\n\t}\n\treturn c.V %% 3 + chLen%d(c.N)\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc fill%d(s []int, x int) {\n\tfor i := range s {\n\t\ts[i] = s[i]%sx + i\n\t}\n}\n", k, op())
 }
 
@@ -1001,6 +1011,10 @@ func (g *gen) ptrUses() {
 	g.depth--
 	g.line("}")
 	g.line("fmt.Println(ndLen%d(ptrL), ptrN == nil, ptrN != ptrL, ptrA == ptrL, ptrL.Next.Next == nil, ptrL.in.Get())", k)
+	g.line("trT := mkTr%d(%d, %s)", k, 1+g.qr.IntN(4), v())
+	g.line("fmt.Println(trT.Sum(), trDepth%d(trT), trT.S, trT.L.V, trT.R == nil, nil != trT.L.L, len(trT.R.S))", k)
+	g.line("trT = mkTr%d(0, %s)", k, v())
+	g.line("fmt.Println(trT.Sum(), trT.L == nil, chLen%d(chain%d(%d)))", k, k, 1100+g.qr.IntN(900))
 	// Slices of pointers, and pointers in interfaces (RFC 0013, step 2).
 	g.line("ptrL.Kids = append(ptrL.Kids, ptrA, newNd%d(%s, nil), ptrL.Next)", k, v())
 	g.line("ptrK := []*Nd%d{ptrL.Next, nil, ptrN}", k)

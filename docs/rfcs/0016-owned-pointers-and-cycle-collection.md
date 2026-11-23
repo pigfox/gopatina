@@ -1,7 +1,10 @@
 # RFC 0016: Owned pointers and cycle collection
 
 - **Status:** Accepted (the project lead, 2026-11-23). Implementation in two
-  steps: owned pointers, then cycle collection
+  steps: owned pointers (step 1, implemented for pointers that are never
+  written through: the analysis in #117, the `rt::Own` representation
+  after it; writes and moves out of a place to follow), then cycle
+  collection
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file
