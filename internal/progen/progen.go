@@ -169,6 +169,9 @@ func (g *gen) libDecls(b *strings.Builder) {
 	// G returns an error to main, from another package of the program:
 	// the sentinel ES for multiples of 3.
 	fmt.Fprintf(b, "\nvar ES%d = fmt.Errorf(\"sentinel %d\")\n", k, k)
+	// An error handed straight back from an if's init statement (Rust's ?).
+	fmt.Fprintf(b, "\nfunc Pos%d(x int) error {\n\tif x < 0 {\n\t\treturn fmt.Errorf(\"negative %%d\", x)\n\t}\n\treturn nil\n}\n", k)
+	fmt.Fprintf(b, "\nfunc Dbl%d(x int) (int, error) {\n\tif err := Pos%d(x); err != nil {\n\t\treturn 0, err\n\t}\n\tif _, err := G%d(x); err != nil {\n\t\treturn 0, err\n\t}\n\treturn x * 2, nil\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc G%d(x int) (int, error) {\n\tif x%%3 == 0 {\n\t\treturn 0, ES%d\n\t}\n\tif x%%2 != 0 {\n\t\treturn 0, fmt.Errorf(\"odd %%d\", x)\n\t}\n\treturn x / 2, nil\n}\n", k, k)
 }
 
@@ -438,6 +441,13 @@ func (g *gen) libUses() {
 	g.line("fmt.Println(\"lib error:\", lgerr)")
 	g.depth--
 	g.line("}")
+	g.line("ldv, lderr := lib.Dbl%d(v0)", k)
+	g.line("if lderr != nil {")
+	g.depth++
+	g.line("fmt.Println(\"dbl error:\", lderr)")
+	g.depth--
+	g.line("}")
+	g.line("fmt.Println(ldv)")
 	g.line("_, lgerr2 := lib.G%d(v1)", k)
 	g.line("fmt.Println(lg, lgerr2, lgerr2 == lib.ES%d, errors.Is(lgerr2, lib.ES%d))", k, k)
 }
