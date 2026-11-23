@@ -353,6 +353,8 @@ Not supported yet, each with its own error:
 - a condition that reads through a heap pointer and calls a function of
   the program, and a package-level pointer variable that the program
   changes;
+- a package-level variable holding pointers in a slice, an array or a
+  struct (a static cannot hold reference-counted cells);
 - the address of a range variable that escapes.
 
 **Known limitation: cycles are not reclaimed.** Go's garbage collector
