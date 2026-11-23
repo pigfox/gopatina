@@ -50,7 +50,8 @@ jobs:
         run: |
           toolchain="${{ matrix.rust }}"
           if [ "$toolchain" = msrv ]; then toolchain="$RUST_MSRV"; fi
-          rustup toolchain install "$toolchain" --profile minimal
+          # clippy: TestLibraries lints the library crates and their users.
+          rustup toolchain install "$toolchain" --profile minimal --component clippy
           rustup default "$toolchain"
           echo "RUST_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
       - name: Install the pinned toolchain with rustfmt and clippy
@@ -66,12 +67,50 @@ jobs:
         env:
           GOPATINA_RUST_TESTS: "1"
           RUSTUP_TOOLCHAIN: ${{ env.RUST_TOOLCHAIN }}
-        run: go test -run 'TestDifferential' -v ./internal/patina
+        run: go test -run 'TestDifferential|TestLibraries' -v ./internal/patina
       - name: Golden crates with the pinned toolchain (warnings, rustfmt, gopatina verify)
         if: matrix.go == 'stable' && matrix.rust == 'stable'
         env:
           GOPATINA_RUST_TESTS: "1"
         run: go test -run 'TestGoldenCratesAreClean|TestVerifyGolden' -v ./internal/patina
+
+  rust-interop:
+    # examples/rust-interop (RFC 0014): a hand-written Rust application and
+    # a crate GoPatina generates from Go, built, tested and linted with
+    # plain cargo, with no GoPatina tooling on the Rust side; then the crate
+    # is regenerated and compared, and the Rust application is run against
+    # the Go original on the same inputs.
+    name: rust-interop (rust stable)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/rust-interop
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: Install Rust stable with clippy
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt
+          rustup default stable
+      - name: Record versions
+        run: |
+          go version
+          rustc --version
+          cargo --version
+      - name: cargo build
+        run: cargo build --locked
+      - name: cargo test
+        run: cargo test --locked
+      - name: cargo clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: cargo fmt (the hand-written application)
+        run: cargo fmt --check -p quote
+      - name: The generated crate matches its Go source, and Rust matches Go
+        env:
+          GOPATINA_RUST_TESTS: "1"
+        run: go test -v .
 
   canary:
     name: canary (go ${{ matrix.go }}, rust ${{ matrix.rust }})

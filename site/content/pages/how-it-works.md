@@ -31,6 +31,12 @@ Before any Rust is written, GoPatina's own borrow checker runs on the Go code. I
 
 In patina mode memory is managed the way Rust manages it: each value has one owner and is freed when its owner goes out of scope, so there is no garbage collector and no collection pause. The borrow checker above is what makes that safe for Go code that was written for a garbage collector.
 
+## Drop GoPatina output into a Rust project {#rust-interop}
+
+A Go package other than `main` compiles to a Rust library crate ([RFC 0014](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0014-library-crates.md)). Its exported functions, types and constants become public Rust items with Rust types: `&str` and `&[T]` for what a function only reads, `String` and `Vec<T>` for what it keeps, and `Result<T, Error>` for a Go error. A Rust project depends on it like any other crate and builds, tests and lints it with plain cargo. The crate's `api.txt` lists its API and says, for each parameter a function takes ownership of, why.
+
+The [rust-interop example](https://github.com/pigfox/gopatina/tree/main/examples/rust-interop) shows it: a hand-written Rust command-line application whose pricing rules engine is a crate GoPatina generated from Go. CI builds, tests and lints the workspace with cargo alone, regenerates the crate and requires it unchanged, and runs the Rust application against the Go original on the same inputs. The library has to stay inside the subset: no `init` functions, no package variables it changes, and no interfaces other than `error` or pointers that escape in its API.
+
 ## What phase 1 supports {#subset}
 
 The patina modes accept a defined subset of Go, specified in [docs/patina-subset.md](https://github.com/pigfox/gopatina/blob/main/docs/patina-subset.md):
