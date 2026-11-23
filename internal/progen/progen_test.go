@@ -66,3 +66,36 @@ func TestBatchIsDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// TestLibrariesAreAccepted checks that generated library packages (RFC
+// 0014) are in the subset and emit a library crate, and that the Rust
+// check writes the most negative integer as i64::MIN.
+func TestLibrariesAreAccepted(t *testing.T) {
+	for k := range 32 {
+		dir := t.TempDir()
+		os.MkdirAll(filepath.Join(dir, LibraryName), 0o755)
+		os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module libcheck\n\ngo 1.25\n"), 0o644)
+		os.WriteFile(filepath.Join(dir, LibraryName, "lib.go"), []byte(LibraryPackage(1, k)), 0o644)
+		pkg, err := load.Dir(filepath.Join(dir, LibraryName), dir)
+		if err != nil {
+			t.Fatalf("library %d: %v", k, err)
+		}
+		if ds := subset.Check(pkg); len(ds) > 0 {
+			t.Fatalf("library %d: subset: %v", k, ds)
+		}
+		res, ds := borrow.Check(pkg)
+		if len(ds) > 0 {
+			t.Fatalf("library %d: borrow: %v", k, ds)
+		}
+		if c := emit.Emit(pkg, res, emit.Options{Target: "x86_64-unknown-linux-gnu", Version: "devel"}); !c.Library {
+			t.Fatalf("library %d: not a library crate", k)
+		}
+		goCheck, rsCheck := LibraryCheckGo(1, k, "libcheck/glib"), LibraryCheckRust(1, k)
+		if !strings.Contains(goCheck, `"libcheck/glib"`) || !strings.Contains(rsCheck, "glib::err_neg()") {
+			t.Errorf("library %d: checks:\n%s\n%s", k, goCheck, rsCheck)
+		}
+	}
+	if rustInt(-1<<63) != "i64::MIN" || rustInt(7) != "7" {
+		t.Error("rustInt")
+	}
+}

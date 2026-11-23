@@ -192,6 +192,24 @@ defects, defects per million tests and, with no defects, the 95% and 6σ
 bounds for that part; `difftest.log` lists each batch as it finishes, and failing
 batches are kept with both outputs under `difftest-failures`.
 
+Two more checks run beside the comparison:
+- **Lint** (`-lint N`, default every 10th batch): the batch's crate from
+  `gopatina build -emit-rust` must pass `cargo clippy -D warnings`, as the
+  golden crates must. Some lints are allowed here because the random Go
+  program itself trips them: `x % 1`, `x = x`, `else { if }`, code after a
+  `panic`, and so on. Hand-written Rust translating that Go would trip them
+  too. The list is `inputLints` in `cmd/gopatina-difftest/extra.go`.
+  Anything else is a defect (`lint_failed`). A lint check is not counted as
+  a test.
+- **Library** (`-libraries N`, default every batch): `internal/progen`
+  makes a library package that exercises what RFC 0014 exposes, and
+  GoPatina emits it as a crate. A Rust program calls the crate, and its
+  output must match a Go program calling the package. Each check is a test
+  (`library_checks`); a difference, or a crate that doesn't build, is a
+  defect (`library_failed`), kept under `difftest-failures/seed<s>-lib<k>`.
+- Both need `cargo` (`-cargo`). A machine without clippy stops the run
+  rather than passing it.
+
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |
 | 0: pass-through CLI | CLI tests that run a stand-in `go` command and check arguments, streams and exit status are passed through unchanged |

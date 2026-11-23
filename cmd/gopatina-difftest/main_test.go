@@ -90,7 +90,13 @@ func TestGoDisagreements(t *testing.T) {
 	}
 }
 
+// difftest runs the harness without the lint and library checks, which
+// extra_test.go tests with a fake cargo.
 func difftest(args ...string) (int, string, string) {
+	return difftestWith(append([]string{"-lint", "0", "-libraries", "0"}, args...)...)
+}
+
+func difftestWith(args ...string) (int, string, string) {
 	var out, errb bytes.Buffer
 	code := run(args, &out, &errb)
 	return code, out.String(), errb.String()
@@ -266,7 +272,7 @@ func TestMainExit(t *testing.T) {
 	os.Stdout = devnull
 	got := -1
 	exit = func(c int) { got = c }
-	os.Args = []string{"gopatina-difftest", "-programs", "1", "-go", g, "-gopatina", g}
+	os.Args = []string{"gopatina-difftest", "-lint", "0", "-libraries", "0", "-programs", "1", "-go", g, "-gopatina", g}
 	main()
 	if got != 0 {
 		t.Errorf("exit %d", got)
