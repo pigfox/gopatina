@@ -76,6 +76,8 @@ type config struct {
 	gopatina, goCmd, work, failed string
 	gocache                       string // the run's own GOCACHE
 	timeout                       time.Duration
+	cargo                         string // the cargo command, for the checks below
+	lint, libraries               int    // run clippy, and a library check, every N batches (0: never)
 }
 
 // outcome is one batch's result.
@@ -85,6 +87,9 @@ type outcome struct {
 	buildFailed bool  // patina mode did not build the batch
 	panicBad    bool  // the panic case (program first+n) differs
 	goDisagree  []int // programs whose two Go builds disagree
+	// The batch's crate linted, and failing clippy; a library check run,
+	// and failing (extra.go).
+	lintChecked, lintFailed, libChecked, libFailed bool
 }
 
 type report struct {
@@ -104,9 +109,16 @@ type report struct {
 	FailedPrograms    []int    `json:"failed_programs,omitempty"`
 	// GoDisagreements counts programs whose optimized Go build prints
 	// something other than Go's reference build; not GoPatina defects.
-	GoDisagreements        int     `json:"go_disagreements"`
-	GoDisagreementPrograms []int   `json:"go_disagreement_programs,omitempty"`
-	Seconds                float64 `json:"seconds"`
+	GoDisagreements        int   `json:"go_disagreements"`
+	GoDisagreementPrograms []int `json:"go_disagreement_programs,omitempty"`
+	// Batches whose crate was linted, and those that failed clippy (each
+	// a defect); library checks (each a test), and those that failed (each
+	// a defect).
+	LintChecks    int     `json:"lint_checks"`
+	LintFailed    int     `json:"lint_failed"`
+	LibraryChecks int     `json:"library_checks"`
+	LibraryFailed int     `json:"library_failed"`
+	Seconds       float64 `json:"seconds"`
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -123,6 +135,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&c.work, "work", "", "working directory (default: a temporary one, removed after)")
 	fs.StringVar(&c.failed, "failures", "difftest-failures", "where failing batches are kept")
 	fs.DurationVar(&c.timeout, "timeout", time.Minute, "limit for running one batch binary")
+	fs.StringVar(&c.cargo, "cargo", "cargo", "the cargo command")
+	fs.IntVar(&c.lint, "lint", 10, "run cargo clippy -D warnings on every Nth batch's crate (0: never)")
+	fs.IntVar(&c.libraries, "libraries", 1, "run a library check (RFC 0014) every Nth batch (0: never)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -132,7 +147,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	// Builds run in each batch's directory, so a relative path to a tool
 	// would not be found there; a bare name is looked up in PATH.
-	for _, tool := range []*string{&c.gopatina, &c.goCmd} {
+	for _, tool := range []*string{&c.gopatina, &c.goCmd, &c.cargo} {
 		if strings.ContainsRune(*tool, filepath.Separator) {
 			abs, _ := filepath.Abs(*tool)
 			*tool = abs
@@ -234,6 +249,18 @@ func summarize(c config, results []outcome) report {
 	r := report{Seed: c.seed, Start: c.start, Programs: c.programs, PerBatch: c.per}
 	for _, o := range results {
 		r.PanicCases++
+		if o.lintChecked {
+			r.LintChecks++
+		}
+		if o.lintFailed {
+			r.LintFailed++
+		}
+		if o.libChecked {
+			r.LibraryChecks++
+		}
+		if o.libFailed {
+			r.LibraryFailed++
+		}
 		if o.buildFailed {
 			r.BuildFailed += o.n + 1
 			for k := o.first; k <= o.first+o.n; k++ {
@@ -250,8 +277,8 @@ func summarize(c config, results []outcome) report {
 			r.FailedPrograms = append(r.FailedPrograms, o.first+o.n)
 		}
 	}
-	r.Tests = r.Programs + r.PanicCases
-	r.Defects = r.Mismatched + r.PanicMismatched + r.BuildFailed
+	r.Tests = r.Programs + r.PanicCases + r.LibraryChecks
+	r.Defects = r.Mismatched + r.PanicMismatched + r.BuildFailed + r.LintFailed + r.LibraryFailed
 	if len(r.FailedPrograms) > 100 {
 		r.FailedPrograms = r.FailedPrograms[:100]
 	}
@@ -302,7 +329,7 @@ func batch(c config, worker, first, n int) (outcome, error) {
 	if err != nil {
 		o.buildFailed = true
 		keep(c, first, n, src, map[string][]byte{"patina-build.txt": pOut})
-		return o, nil
+		return checks(c, worker, first, n, src, dir, o)
 	}
 	refStdout, refStderr, refCode := execute(refBin, c.timeout)
 	// Only the panic case may fail, and only with a Go panic (status 2).
@@ -327,6 +354,32 @@ func batch(c config, worker, first, n int) (outcome, error) {
 			"patina.out": pStdout, "patina.err": pStderr,
 			"exit": []byte(fmt.Sprintf("goref %d go %d patina %d\n", refCode, goCode, pCode)),
 		})
+	}
+	return checks(c, worker, first, n, src, dir, o)
+}
+
+// checks runs the batch's lint and library checks when they are due
+// (extra.go).
+func checks(c config, worker, first, n int, src, dir string, o outcome) (outcome, error) {
+	if due(c, c.lint, first) && !o.buildFailed {
+		failed, out, err := lintBatch(c, worker, dir)
+		if err != nil {
+			return o, fmt.Errorf("batch %d: lint: %v", first, err)
+		}
+		o.lintChecked, o.lintFailed = true, failed
+		if failed {
+			keep(c, first, n, src, map[string][]byte{"clippy.txt": out})
+		}
+	}
+	if due(c, c.libraries, first) {
+		failed, files, err := libraryCheck(c, worker, first)
+		if err != nil {
+			return o, err
+		}
+		o.libChecked, o.libFailed = true, failed
+		if failed {
+			keepLibrary(c, first, files)
+		}
 	}
 	return o, nil
 }
