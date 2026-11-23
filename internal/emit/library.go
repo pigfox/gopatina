@@ -205,8 +205,9 @@ func apiText(crate, from, lib string, notes map[string][]string) string {
 			var fields []string
 			for i+1 < len(lines) && strings.TrimSpace(lines[i+1]) != "}" {
 				i++
-				if f := strings.TrimSpace(lines[i]); strings.HasPrefix(f, "pub ") {
-					fields = append(fields, strings.TrimSuffix(f, ","))
+				f, _, _ := strings.Cut(strings.TrimSpace(lines[i]), " //") // a field's comment
+				if strings.HasPrefix(f, "pub ") {
+					fields = append(fields, strings.TrimSuffix(strings.TrimSpace(f), ","))
 				}
 			}
 			sig += " { " + strings.Join(fields, ", ") + " }"

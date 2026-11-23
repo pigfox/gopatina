@@ -285,7 +285,9 @@ integers wrap.
 Not supported yet in a library, each with its own error: `init`
 functions; package-level variables the library changes or initializes by
 calling the program; exported variables other than sentinel errors; and,
-in the API, interfaces other than `error` and pointers that escape.
+in the API, interfaces other than `error`, pointers that escape, and
+`error` anywhere but a function's last result (a parameter or an exported
+field).
 `gopatina build -patina` of a library is refused: it has no binary.
 
 ## Pointers

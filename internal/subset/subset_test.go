@@ -171,6 +171,8 @@ func TestRejected(t *testing.T) {
 		{"library heap ptr api", "package lib\ntype T struct{ n int }\nfunc New() *T { return &T{} }\n", "a pointer that escapes in the API of a library"},
 		{"library heap recv", "package lib\ntype T struct{ n int }\nfunc k() *T { return &T{} }\nfunc (t *T) M() int { return t.n }\n", "a pointer that escapes as the receiver of an exported method of a library"},
 		{"library api field", "package lib\ntype T struct{ A any }\n", "an interface type in an exported field of a library's exported struct"},
+		{"library error param", "package lib\nfunc Describe(err error) string { return \"x\" }\n", "an error parameter in the API of a library"},
+		{"library error field", "package lib\ntype T struct{ Err error }\n", "an error value in an exported field of a library's exported struct"},
 		{"nomain", "package main\nfunc f() {}\n", "package main has no func main()"},
 		{"unsafe", "package main\nimport \"unsafe\"\nvar _ = unsafe.Sizeof(0)\nfunc main() {}\n", "package unsafe is not supported"},
 		{"otherpkg", "package main\nimport \"sort\"\nfunc main() { sort.Ints(nil) }\n", "package sort is not supported"},
