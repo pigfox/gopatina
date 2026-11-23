@@ -11,17 +11,28 @@ import (
 	"github.com/pigfox/gopatina/internal/subset"
 )
 
+// freeFuncNames returns the Rust names of the functions and free methods,
+// which a function's locals must not shadow. They are found once: a batch
+// of many programs has thousands of functions.
+func (g *gen) freeFuncNames() map[string]string {
+	if g.funcNames == nil {
+		g.funcNames = map[string]string{}
+		for f, n := range g.funcs {
+			if f.Signature().Recv() == nil || g.freeMethods(g.recvTypeName(f)) {
+				g.funcNames[n] = f.Name()
+			}
+		}
+	}
+	return g.funcNames
+}
+
 // funcDecl writes a function or method.
 func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	obj := g.info.Defs[fd.Name].(*types.Func)
 	g.fn = g.res.Funcs[obj]
 	g.locals = map[types.Object]string{}
 	g.lnames = newNamer()
-	for f, n := range g.funcs {
-		if f.Signature().Recv() == nil || g.freeMethods(g.recvTypeName(f)) {
-			g.lnames.taken[n] = f.Name()
-		}
-	}
+	g.lnames.outer = g.freeFuncNames()
 	g.recv = nil
 	g.cellName = ""
 	g.temps = map[ast.Expr]string{}
