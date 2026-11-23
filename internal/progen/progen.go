@@ -405,6 +405,10 @@ func (g *gen) globalDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nvar T%d = []int{%s}\n", k, strings.Join(tab, ", "))
 	fmt.Fprintf(b, "\nvar S%d = %q\n", k, []string{"", "s", "go"}[g.gr.IntN(3)])
 	fmt.Fprintf(b, "\nvar Q%d P%d\n", k, k)
+	// A variable nothing uses, whose initializer prints: Go initializes it
+	// all the same, before main.
+	fmt.Fprintf(b, "\nfunc say%d(s string) int {\n\tfmt.Println(\"init\", s)\n\treturn len(s)\n}\n", k)
+	fmt.Fprintf(b, "\nvar Said%d = say%d(\"lib%d\")\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc Bump%d(x int) int {\n\tC%d += x\n\treturn C%d\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc Look%d(i int) int { return T%d[(i%%len(T%d)+len(T%d))%%len(T%d)] }\n", k, k, k, k, k)
 	// A return that reads C and calls what changes it: gc calls first.
