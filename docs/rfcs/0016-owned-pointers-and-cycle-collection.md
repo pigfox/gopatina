@@ -43,15 +43,17 @@ time only):
 
 | Program | Wall |
 | --- | --- |
-| Hand-written Rust, `Box<Node>` (16-byte node) | 5.03 s |
+| Hand-written Rust, `Box<Node>` (allocates 16 bytes) | 5.03 s |
 | The same, with the node padded to 40 bytes | 5.81 s |
-| Hand-written Rust, `Rc<RefCell<Node>>` | 6.00 s |
-| GoPatina at main, after the nil-test fix (#112) | about 6.36 s |
+| Hand-written Rust, `Rc<RefCell<Node>>` (allocates 40 bytes) | 6.00 s |
+| GoPatina's crate edited by hand: no pointer copies to read, children lent inside the borrow, plain `Rc` drop | 6.36 s |
 | GoPatina at d207c32 | 6.63 s |
 
-`Rc<RefCell<Node>>` holds two counts and a borrow flag beside the node:
-40 bytes, a 48-byte allocation, against 16 bytes (a 32-byte allocation) for
-`Box<Node>`. Size alone (the padded `Box`) explains about 15% of the 32%
+Sizes, measured with `malloc_usable_size` (rustc 1.100.0, glibc):
+`Box<Node>` allocates a 16-byte payload, which `malloc` serves from a
+32-byte chunk. `Rc<RefCell<Node>>` allocates 40 bytes, the node plus two
+reference counts and a borrow flag, served from a 48-byte chunk, as is the
+`Box` node padded to 40 bytes. Size alone (the padded `Box`) explains about 15% of the 32%
 gap, and the representation as a whole (the hand-written `Rc<RefCell>`)
 about 19%. What remains is emitted code: reference-count changes for
 pointers copied only to be read, and the release loop that keeps freeing a
@@ -231,8 +233,8 @@ to hand-written Rust for trees); the goldens record it.
 ## Rationale and alternatives
 
 - **A smaller cell in `unsafe` Rust.** A single word holding the count and
-  the borrow state would make a shared node 24 bytes, a 32-byte
-  allocation. RFC 0013 keeps the output safe Rust, and an owned pointer is
+  the borrow state would make a shared node a 24-byte payload, served from
+  a 32-byte chunk. RFC 0013 keeps the output safe Rust, and an owned pointer is
   exact without it for the shapes that need it most.
 - **`Weak` back pointers** for doubly linked lists and parent pointers.
   Exact only when the node a back pointer reaches is always kept alive by
