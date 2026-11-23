@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -31,9 +32,13 @@ func helper(t *testing.T, prog, perf string) string {
 	if script == "" {
 		script = "exit 1"
 	}
-	old := perfCommand
-	t.Cleanup(func() { perfCommand = old })
+	old, oldTime := perfCommand, timeCommand
+	t.Cleanup(func() { perfCommand, timeCommand = old, oldTime })
 	perfCommand = func(string) *exec.Cmd { return exec.Command("sh", "-c", script) }
+	// GNU time, faked: it runs the program and records 1234 kilobytes.
+	timeCommand = func(out, bin string) *exec.Cmd {
+		return exec.Command("sh", "-c", `"$2" && echo 1234 > "$1"`, "sh", out, bin)
+	}
 	return bin
 }
 
@@ -59,7 +64,7 @@ func TestRunCycles(t *testing.T) {
 	}
 	// Every run counts the same instructions and cycles, so their ratio is
 	// exactly 1; wall time is measured too.
-	if r.Primary != "instructions" || r.Case != "c" || len(r.Results) != 3 ||
+	if r.Primary != "instructions" || r.Case != "c" || len(r.Results) != 4 ||
 		r.Results["instructions"].Verdict != "equivalent" || r.Results["cycles"].Verdict != "equivalent" {
 		t.Errorf("got %s", out)
 	}
@@ -102,6 +107,14 @@ func TestRunErrors(t *testing.T) {
 	if code, _, errs := runBench("-runs", "5", "-metric", "perf", ok, ok); code != 1 || !strings.Contains(errs, "at least 10") {
 		t.Errorf("few runs: %d %q", code, errs)
 	}
+	if code, _, errs := runBench("-runs", "10", "-memruns", "5", ok, ok); code != 1 || !strings.Contains(errs, "at least 10") {
+		t.Errorf("few memory runs: %d %q", code, errs)
+	}
+	// perf succeeds (helper fakes it) but the binary itself fails, which
+	// only the memory runs outside perf see.
+	if code, _, errs := runBench("-runs", "10", "-metric", "perf", ok, bin); code != 1 || !strings.Contains(errs, "exit status 1") {
+		t.Errorf("failing memory run: %d %q", code, errs)
+	}
 }
 
 func TestCyclesParse(t *testing.T) {
@@ -140,3 +153,71 @@ func TestDefaultPerfCommand(t *testing.T) {
 		t.Errorf("perf command %q", got)
 	}
 }
+
+// TestRunThreeArms checks the plain Go arm: every pair is tested, every arm
+// is reported with its estimates and size, and -memruns 0 leaves memory out.
+func TestRunThreeArms(t *testing.T) {
+	bin := helper(t, "ok", "perf-ok")
+	code, out, errs := runBench("-runs", "10", "-metric", "perf", "-go", bin, bin, bin)
+	if code != 0 {
+		t.Fatalf("code %d: %s", code, errs)
+	}
+	var r struct {
+		Go    string
+		Pairs map[string]map[string]struct{ Verdict string }
+		Arms  []struct {
+			Name      string
+			SizeBytes int64 `json:"size_bytes"`
+			Estimates map[string]struct{ Runs int }
+		}
+	}
+	if err := json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatal(err)
+	}
+	if r.Go != bin || len(r.Pairs) != 3 || r.Pairs["gopatina_over_go"]["instructions"].Verdict != "equivalent" ||
+		len(r.Pairs["go_over_rust"]) != 4 || len(r.Arms) != 3 || r.Arms[2].Name != "go" ||
+		r.Arms[0].SizeBytes == 0 || r.Arms[1].Estimates["peak_kb"].Runs != 20 || r.Arms[2].Estimates["instructions"].Runs != 10 {
+		t.Errorf("got %s", out)
+	}
+	if !strings.Contains(errs, "gopatina_over_go peak_memory") {
+		t.Errorf("stderr %s", errs)
+	}
+	code, out, _ = runBench("-runs", "10", "-memruns", "0", "-go", bin, bin, filepath.Join(t.TempDir(), "gone")+"x")
+	if code != 1 {
+		t.Errorf("missing baseline: %d %s", code, out)
+	}
+	code, out, _ = runBench("-runs", "10", "-memruns", "0", bin, bin)
+	if code != 0 || strings.Contains(out, "peak") {
+		t.Errorf("-memruns 0: %d %s", code, out)
+	}
+}
+
+// TestPeak checks the memory runs: GNU time's figure, a missing or garbled
+// one (no memory figures, with a note), and the real GNU time where the
+// machine has it.
+func TestPeak(t *testing.T) {
+	bin := helper(t, "ok", "perf-ok")
+	if v, err := measurePeak(bin); err != nil || v.peakKB != 1234 {
+		t.Errorf("faked: %v %v", v, err)
+	}
+	timeCommand = func(out, bin string) *exec.Cmd { return exec.Command("sh", "-c", "echo x > \"$1\"", "sh", out) }
+	if _, err := measurePeak(bin); err == nil || !strings.Contains(err.Error(), "no peak memory") {
+		t.Errorf("garbled: %v", err)
+	}
+	code, out, _ := runBench("-runs", "10", bin, bin)
+	if code != 0 || !strings.Contains(out, "GNU time cannot measure") || strings.Contains(out, "peak_kb") {
+		t.Errorf("no GNU time: %d %s", code, out)
+	}
+	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
+	if _, err := measurePeak(bin); err == nil {
+		t.Error("no temporary directory: no error")
+	}
+}
+
+func TestDefaultTimeCommand(t *testing.T) {
+	if got := strings.Join(defaultTime("out", "prog").Args, " "); got != "/usr/bin/time -f %M -o out prog" {
+		t.Errorf("time command %q", got)
+	}
+}
+
+var defaultTime = timeCommand

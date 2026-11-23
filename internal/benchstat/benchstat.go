@@ -187,3 +187,39 @@ func betaCF(a, b, x float64) float64 {
 	}
 	return h
 }
+
+// An Estimate is the geometric mean of positive measurements of one
+// program, with its confidence interval at Sigma (Student's t on the logs).
+type Estimate struct {
+	Runs  int     `json:"runs"`
+	Sigma float64 `json:"sigma"`
+	Mean  float64 `json:"geomean"`
+	Low   float64 `json:"low"`
+	High  float64 `json:"high"`
+}
+
+// Interval estimates the geometric mean of xs with its interval at sigma.
+func Interval(xs []float64, sigma float64) (Estimate, error) {
+	if len(xs) < MinPairs {
+		return Estimate{}, errors.New("benchstat: need at least 10 runs")
+	}
+	if !(sigma > 0) {
+		return Estimate{}, errors.New("benchstat: sigma must be positive")
+	}
+	var sum float64
+	for _, x := range xs {
+		if !(x > 0) {
+			return Estimate{}, errors.New("benchstat: measurements must be positive")
+		}
+		sum += math.Log(x)
+	}
+	n := float64(len(xs))
+	mean := sum / n
+	var ss float64
+	for _, x := range xs {
+		d := math.Log(x) - mean
+		ss += d * d
+	}
+	half := TQuantile(TailAlpha(sigma), n-1) * math.Sqrt(ss/(n-1)) / math.Sqrt(n)
+	return Estimate{Runs: len(xs), Sigma: sigma, Mean: math.Exp(mean), Low: math.Exp(mean - half), High: math.Exp(mean + half)}, nil
+}

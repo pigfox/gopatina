@@ -3,11 +3,16 @@
 //
 // usage: gopatina-bench [-runs N] [-warmup N] [-margin M] [-sigma S]
 //
-//	[-metric wall|perf] [-case NAME] CANDIDATE BASELINE
+//	[-metric wall|perf] [-case NAME] [-go GO] [-memruns N] CANDIDATE BASELINE
 //
 // It runs CANDIDATE and BASELINE (two binaries that take no arguments) N
 // times each, in ABBA order so slow drift affects both alike, and measures
-// each run's wall time. With -metric perf, where perf can read the CPU's
+// each run's wall time. With -go, the same Go program built with plain go
+// build is a third arm (ABCCBA order), and every pair is tested:
+// GoPatina / Rust, Go / Rust and GoPatina / Go. Each arm is also reported on
+// its own (each metric's geometric mean with its interval, its binary size),
+// and -memruns more runs outside perf measure each arm's peak resident
+// memory under GNU time, with a test per pair. With -metric perf, where perf can read the CPU's
 // counters, each run also records user instructions (then the primary,
 // lowest-noise metric) and user cycles; the counters are off by default.
 // For each metric it runs benchstat's TOST equivalence test on the paired
@@ -39,6 +44,15 @@ var (
 		return exec.Command("perf", "stat", "-x,", "-e", "instructions:u,cycles:u", "--", bin)
 	}
 	now = time.Now
+	// timeCommand is the GNU time invocation that writes bin's peak
+	// resident memory, in kilobytes, to out. A child of this process cannot
+	// measure it itself: Go starts children sharing its memory until they
+	// exec, and Linux carries that high-water mark across exec, so every
+	// child would read at least this process's own size. GNU time forks
+	// first, and its floor is a small C program's.
+	timeCommand = func(out, bin string) *exec.Cmd {
+		return exec.Command("/usr/bin/time", "-f", "%M", "-o", out, bin)
+	}
 )
 
 func main() {
@@ -49,6 +63,7 @@ func main() {
 // counts from perf; they are zero when only wall time is measured.
 type sample struct {
 	instructions, cycles, wall float64
+	peakKB                     float64 // peak resident memory, from GNU time runs only
 }
 
 // report is the JSON gopatina-bench prints. Results holds one TOST result
@@ -61,6 +76,20 @@ type report struct {
 	Warmup    int                         `json:"warmup"`
 	Results   map[string]benchstat.Result `json:"results"`
 	Notes     []string                    `json:"notes,omitempty"`
+	// With -go: the third arm, every pair's results (results is
+	// gopatina_over_rust), and each arm's own estimates.
+	Go    string                                 `json:"go,omitempty"`
+	Pairs map[string]map[string]benchstat.Result `json:"pairs,omitempty"`
+	Arms  []arm                                  `json:"arms"`
+}
+
+// An arm is one program's own measurements: the geometric mean of each
+// metric with its interval, peak memory in kilobytes, and binary size.
+type arm struct {
+	Name      string                        `json:"name"`
+	Path      string                        `json:"path"`
+	SizeBytes int64                         `json:"size_bytes"`
+	Estimates map[string]benchstat.Estimate `json:"estimates"`
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -72,6 +101,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	sigma := fs.Float64("sigma", 5, "confidence in standard deviations")
 	metric := fs.String("metric", "wall", "wall, or perf to also count user instructions and cycles")
 	name := fs.String("case", "", "case name recorded in the report")
+	goBin := fs.String("go", "", "a third arm, the program built with plain go build")
+	memRuns := fs.Int("memruns", 20, "runs of each arm outside perf for peak memory (0: none)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -80,6 +111,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	cand, base := fs.Arg(0), fs.Arg(1)
+	arms := []string{cand, base}
+	if *goBin != "" {
+		arms = append(arms, *goBin)
+	}
 	var notes []string
 	measure := measureWall
 	switch *metric {
@@ -94,71 +129,141 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "gopatina-bench: unknown -metric %q\n", *metric)
 		return 2
 	}
+	fail := func(err error) int {
+		fmt.Fprintln(stderr, "gopatina-bench:", err)
+		return 1
+	}
 	for range *warmup {
-		for _, bin := range []string{cand, base} {
+		for _, bin := range arms {
 			if _, err := measure(bin); err != nil {
-				fmt.Fprintln(stderr, "gopatina-bench:", err)
-				return 1
+				return fail(err)
 			}
 		}
 	}
-	a := make([]sample, 0, *runs)
-	b := make([]sample, 0, *runs)
+	// Each run measures every arm, in an order that reverses every other
+	// run (ABBA for two arms, ABCCBA for three), so slow drift affects all
+	// alike.
+	samples := make([][]sample, len(arms))
 	for i := range *runs {
-		order := []string{cand, base}
-		if i%2 == 1 {
-			order = []string{base, cand}
-		}
-		var got [2]sample
-		for j, bin := range order {
-			v, err := measure(bin)
-			if err != nil {
-				fmt.Fprintln(stderr, "gopatina-bench:", err)
-				return 1
+		for k := range arms {
+			j := k
+			if i%2 == 1 {
+				j = len(arms) - 1 - k
 			}
-			got[j] = v
+			v, err := measure(arms[j])
+			if err != nil {
+				return fail(err)
+			}
+			samples[j] = append(samples[j], v)
 		}
-		if i%2 == 1 {
-			got[0], got[1] = got[1], got[0]
-		}
-		a = append(a, got[0])
-		b = append(b, got[1])
 	}
 	pick := map[string]func(sample) float64{
 		"wall": func(s sample) float64 { return s.wall },
 	}
 	primary := "wall"
-	if len(a) > 0 && a[0].instructions > 0 {
+	if *runs > 0 && samples[0][0].instructions > 0 {
 		primary = "instructions"
 		pick["instructions"] = func(s sample) float64 { return s.instructions }
 		pick["cycles"] = func(s sample) float64 { return s.cycles }
 	}
-	results := map[string]benchstat.Result{}
-	for m, f := range pick {
-		xa := make([]float64, len(a))
-		xb := make([]float64, len(b))
-		for i := range a {
-			xa[i], xb[i] = f(a[i]), f(b[i])
+	// Peak memory: the arms' own resident set, from runs under GNU time
+	// (not under perf, whose usage is its own), in the same alternating
+	// order.
+	if *memRuns > 0 {
+		if _, err := measurePeak(cand); err != nil {
+			notes = append(notes, "GNU time cannot measure peak memory here ("+err.Error()+"); no memory figures")
+			*memRuns = 0
 		}
-		res, err := benchstat.Equivalence(xa, xb, *margin, *sigma)
-		if err != nil {
-			fmt.Fprintln(stderr, "gopatina-bench:", err)
-			return 1
-		}
-		results[m] = res
 	}
-	out, _ := json.MarshalIndent(report{
+	mem := make([][]sample, len(arms))
+	for i := range *memRuns {
+		for k := range arms {
+			j := k
+			if i%2 == 1 {
+				j = len(arms) - 1 - k
+			}
+			v, err := measurePeak(arms[j])
+			if err != nil {
+				return fail(err)
+			}
+			mem[j] = append(mem[j], v)
+		}
+	}
+	peak := func(s sample) float64 { return s.peakKB }
+	var errs []error // the statistics' errors: too few runs
+	compare := func(a, b int) map[string]benchstat.Result {
+		res := map[string]benchstat.Result{}
+		for m, f := range pick {
+			r, err := benchstat.Equivalence(values(samples[a], f), values(samples[b], f), *margin, *sigma)
+			errs = append(errs, err)
+			res[m] = r
+		}
+		if *memRuns > 0 {
+			r, err := benchstat.Equivalence(values(mem[a], peak), values(mem[b], peak), *margin, *sigma)
+			errs = append(errs, err)
+			res["peak_memory"] = r
+		}
+		return res
+	}
+	results := compare(0, 1)
+	rep := report{
 		Case: *name, Primary: primary, Candidate: cand, Baseline: base,
 		Warmup: *warmup, Results: results, Notes: notes,
-	}, "", "  ")
+	}
+	if *goBin != "" {
+		rep.Go = *goBin
+		rep.Pairs = map[string]map[string]benchstat.Result{
+			"gopatina_over_rust": results, "go_over_rust": compare(2, 1), "gopatina_over_go": compare(0, 2),
+		}
+	}
+	for j, bin := range arms {
+		a := arm{Name: armNames[j], Path: bin, Estimates: map[string]benchstat.Estimate{}}
+		if fi, err := os.Stat(bin); err == nil {
+			a.SizeBytes = fi.Size()
+		}
+		for m, f := range pick {
+			e, err := benchstat.Interval(values(samples[j], f), *sigma)
+			errs = append(errs, err)
+			a.Estimates[m] = e
+		}
+		if *memRuns > 0 {
+			e, err := benchstat.Interval(values(mem[j], peak), *sigma)
+			errs = append(errs, err)
+			a.Estimates["peak_kb"] = e
+		}
+		rep.Arms = append(rep.Arms, a)
+	}
+	if err := errors.Join(errs...); err != nil {
+		return fail(err)
+	}
+	out, _ := json.MarshalIndent(rep, "", "  ")
 	fmt.Fprintf(stdout, "%s\n", out)
-	for _, m := range []string{"instructions", "cycles", "wall"} {
-		if r, ok := results[m]; ok {
-			fmt.Fprintf(stderr, "%s %s: %s, ratio %.4f [%.4f, %.4f], %d pairs, margin %g, %g sigma\n",
-				*name, m, r.Verdict, r.Ratio, r.Low, r.High, r.Pairs, r.Margin, r.Sigma)
+	pairs := []string{"gopatina_over_rust"}
+	all := map[string]map[string]benchstat.Result{"gopatina_over_rust": results}
+	if rep.Pairs != nil {
+		pairs, all = []string{"gopatina_over_rust", "go_over_rust", "gopatina_over_go"}, rep.Pairs
+	}
+	for _, p := range pairs {
+		for _, m := range []string{"instructions", "cycles", "wall", "peak_memory"} {
+			if r, ok := all[p][m]; ok {
+				fmt.Fprintf(stderr, "%s %s %s: %s, ratio %.4f [%.4f, %.4f], %d pairs, margin %g, %g sigma\n",
+					*name, p, m, r.Verdict, r.Ratio, r.Low, r.High, r.Pairs, r.Margin, r.Sigma)
+			}
 		}
 	}
 	return 0
+}
+
+// armNames name the arms in the report, in argument order.
+var armNames = []string{"gopatina", "rust", "go"}
+
+// values picks one metric from each sample.
+func values(ss []sample, f func(sample) float64) []float64 {
+	xs := make([]float64, len(ss))
+	for i, s := range ss {
+		xs[i] = f(s)
+	}
+	return xs
 }
 
 // measureWall runs bin once, discarding its output, and returns its wall
@@ -170,6 +275,26 @@ func measureWall(bin string) (sample, error) {
 		return sample{}, fmt.Errorf("%s: %w", bin, err)
 	}
 	return sample{wall: float64(now().Sub(start).Nanoseconds())}, nil
+}
+
+// measurePeak runs bin once under GNU time and returns its peak resident
+// memory in kilobytes.
+func measurePeak(bin string) (sample, error) {
+	f, err := os.CreateTemp("", "gopatina-bench-peak-")
+	if err != nil {
+		return sample{}, err
+	}
+	f.Close()
+	defer os.Remove(f.Name())
+	if err := timeCommand(f.Name(), bin).Run(); err != nil {
+		return sample{}, fmt.Errorf("time %s: %w", bin, err)
+	}
+	data, _ := os.ReadFile(f.Name())
+	kb, err := strconv.ParseFloat(strings.TrimSpace(string(data)), 64)
+	if err != nil || !(kb > 0) {
+		return sample{}, fmt.Errorf("time %s: no peak memory in %q", bin, data)
+	}
+	return sample{peakKB: kb}, nil
 }
 
 // measurePerf runs bin once under perf stat and returns the user

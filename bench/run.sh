@@ -34,10 +34,11 @@
 # numbers, which come from the maintainer's dedicated machine (policy in
 # docs/QUALITY.md).
 #
-# With --equiv, it instead runs cmd/gopatina-bench on each case: GoPatina
-# against hand-written Rust, N runs each (default 400) in ABBA order, and a
-# TOST equivalence test at the given margin (default 0.005, ±0.5%) and sigma
-# (default 5) on wall time. --metric perf also counts user instructions (then
+# With --equiv, it instead runs cmd/gopatina-bench on each case: GoPatina,
+# hand-written Rust and plain Go, N runs each (default 400) in ABCCBA
+# order, and a TOST equivalence test for every pair at the given margin
+# (default 0.005, ±0.5%) and sigma (default 5) on wall time, peak memory
+# and each arm's own interval and binary size. --metric perf also counts user instructions (then
 # the primary metric) and user cycles where perf can read the CPU's counters,
 # each with its own test; it is off by default. The report names the primary
 # metric.
@@ -141,7 +142,7 @@ for dir in "$root"/bench/cases/*/; do
     # gopatina-bench prints the JSON on stdout and one line per metric on
     # stderr.
     r="$("$work/gopatina-bench" -runs "$runs" -margin "$margin" -sigma "$sigma" \
-      -metric "$metric" -case "$name" "$work/$name-patina" "$rust")"
+      -metric "$metric" -case "$name" -go "$work/$name-go" "$work/$name-patina" "$rust")"
     results+=("$r")
     continue
   fi
@@ -173,7 +174,7 @@ commit="$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)"
 {
   echo "{"
   if $equiv; then
-    echo "  \"note\": \"TOST equivalence of GoPatina against hand-written Rust (cmd/gopatina-bench); ratios and intervals only\","
+    echo "  \"note\": \"TOST for every pair of GoPatina, hand-written Rust and plain Go (cmd/gopatina-bench), and each arm's interval\","
   else
     echo "  \"note\": \"ratios only (median wall time over hand-written Rust); no absolute numbers come from shared runners\","
   fi

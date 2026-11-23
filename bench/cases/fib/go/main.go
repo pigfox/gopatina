@@ -12,5 +12,5 @@ func fib(n int) int {
 }
 
 func main() {
-	fmt.Println(fib(35))
+	fmt.Println(fib(42))
 }

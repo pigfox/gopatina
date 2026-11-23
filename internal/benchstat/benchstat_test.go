@@ -99,3 +99,27 @@ func TestEquivalenceErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestInterval(t *testing.T) {
+	xs := []float64{1, 2, 4, 1, 2, 4, 1, 2, 4, 2}
+	e, err := Interval(xs, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	near(t, "geomean", e.Mean, math.Pow(2, 1), 1e-9)
+	if !(e.Low < e.Mean && e.Mean < e.High) || e.Runs != 10 {
+		t.Errorf("%+v", e)
+	}
+	same := []float64{3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
+	e, _ = Interval(same, 5)
+	near(t, "constant low", e.Low, 3, 1e-12)
+	near(t, "constant high", e.High, 3, 1e-12)
+	for _, bad := range [][]float64{{1}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 0}} {
+		if _, err := Interval(bad, 5); err == nil {
+			t.Errorf("%v: no error", bad)
+		}
+	}
+	if _, err := Interval(same, 0); err == nil {
+		t.Error("sigma 0: no error")
+	}
+}
