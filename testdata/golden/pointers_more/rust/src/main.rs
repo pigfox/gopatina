@@ -135,6 +135,20 @@ pub struct Tree {
     name: String,
 }
 
+impl Tree {
+    /// depth tests its fields for nil inside the cell, without copying them.
+    fn depth(t: &rt::Ptr<Tree>) -> i64 {
+        if t.with(|v| v.left.is_nil()) && t.with(|v| v.right.is_nil()) {
+            return 1;
+        }
+        let mut d: i64 = 0;
+        if !t.with(|v| v.left.is_nil()) {
+            d = Tree::depth(&t.with(|v| v.left.clone()));
+        }
+        d + 1
+    }
+}
+
 fn leaf(k: i64) -> rt::Ptr<Tree> {
     rt::Ptr::new(Tree {
         key: k,
@@ -219,23 +233,19 @@ fn main() {
             .with(|v| v.left.clone())
             .with(|v| v.left.clone())
             .with(|v| v.key),
-        forest
-            .with(|v| v.left.clone())
-            .with(|v| v.right.clone())
-            .is_nil(),
+        forest.with(|v| v.left.clone()).with(|v| v.right.is_nil()),
     );
     println!(
         "{} {}",
         forest
             .with(|v| v.left.clone())
             .with(|v| v.left.clone())
-            .with(|v| v.left.clone())
-            .is_nil(),
-        forest
-            .with(|v| v.left.clone())
-            .with(|v| v.right.clone())
-            .is_nil(),
+            .with(|v| v.left.is_nil()),
+        forest.with(|v| v.left.clone()).with(|v| v.right.is_nil()),
     );
+    let call_2 = Tree::depth(&forest);
+    let call_3 = Tree::depth(&forest.with(|v| v.left.clone()).with(|v| v.left.clone()));
+    println!("{} {}", call_2, call_3);
     let tr = forest.with(|v| v.left.clone()).with(|v| v.left.clone());
     println!(
         "{} {}",
@@ -248,12 +258,12 @@ fn main() {
     );
     forest.with_mut(|v| v.r#in.inc());
     forest.with_mut(|v| v.r#in.inc());
-    let call_2 = forest.with(|v| v.r#in).get();
-    let call_3 = forest.with(|v| v.bag.sum());
+    let call_4 = forest.with(|v| v.r#in).get();
+    let call_5 = forest.with(|v| v.bag.sum());
     println!(
         "{} {} {} {}",
-        call_2,
-        call_3,
+        call_4,
+        call_5,
         forest.with(|v| v.name.clone()).as_bytes()[0],
         forest.with(|v| v.name.clone()) == tr.with(|v| v.name.clone()),
     );
@@ -266,14 +276,14 @@ fn main() {
     Counter::hit(&c);
     Counter::hit(&c);
     let self_ = Counter::self_(c.clone());
-    let call_4 = c.load().double();
-    let call_5 = self_.load().double();
-    let call_6 = show(&c.clone());
+    let call_6 = c.load().double();
+    let call_7 = self_.load().double();
+    let call_8 = show(&c.clone());
     println!(
         "{} {} {} {}",
-        call_4,
-        call_5,
         call_6,
+        call_7,
+        call_8,
         self_.with(|v| v.hits),
     );
 
@@ -290,8 +300,8 @@ fn main() {
     let (val_3, val_4) = pair_of(&tr);
     k.with_mut(|v| *v = val_3);
     extra = val_4;
-    let call_7 = ptr_to(6);
-    println!("{} {} {}", cell.with(|v| *v), extra, call_7.with(|v| *v));
+    let call_9 = ptr_to(6);
+    println!("{} {} {}", cell.with(|v| *v), extra, call_9.with(|v| *v));
     let (val_5, val_6) = pair_of(&forest);
     k.with_mut(|v| *v = val_5);
     let more = val_6;

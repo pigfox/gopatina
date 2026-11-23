@@ -942,6 +942,8 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\ntype Sz%d interface{ Sum() int }\n", k)
 	fmt.Fprintf(b, "\nfunc (n *Nd%d) Sum() int {\n\tt := n.V\n\tfor i := 0; i < len(n.Items); i++ {\n\t\tt = t %s n.Items[i]\n\t}\n\treturn t\n}\n", k, op())
 	fmt.Fprintf(b, "\nfunc ndLen%d(n *Nd%d) int {\n\tc := 0\n\tfor p := n; p != nil; p = p.Next {\n\t\tc++\n\t}\n\treturn c\n}\n", k, k)
+	// A nil test of a field inside the node's cell, in a recursive method.
+	fmt.Fprintf(b, "\nfunc (n *Nd%d) Depth() int {\n\tif n.Next == nil {\n\t\treturn 1\n\t}\n\treturn 1 + n.Next.Depth()\n}\n", k)
 	fmt.Fprintf(b, "\nfunc fill%d(s []int, x int) {\n\tfor i := range s {\n\t\ts[i] = s[i]%sx + i\n\t}\n}\n", k, op())
 }
 
@@ -985,6 +987,11 @@ func (g *gen) ptrUses() {
 	g.line("if %s%%2 == 0 {", v())
 	g.depth++
 	g.line("ptrN = ptrL.Next")
+	g.depth--
+	g.line("}")
+	g.line("if ptrL.Next != nil && ptrA.Next.Next != nil {")
+	g.depth++
+	g.line("fmt.Println(ptrL.Depth(), ptrL.Next.Depth())")
 	g.depth--
 	g.line("}")
 	g.line("fmt.Println(ndLen%d(ptrL), ptrN == nil, ptrN != ptrL, ptrA == ptrL, ptrL.Next.Next == nil, ptrL.in.Get())", k)
