@@ -116,8 +116,29 @@ func libraryName(pkg *load.Package) string {
 }
 
 // unmark removes the marker a program's panic hook strips from GoPatina's
-// own panic messages: a library has no hook (RFC 0014).
-func unmark(s string) string { return strings.ReplaceAll(s, "gopatina-user-panic:", "") }
+// own panic messages: a library has no hook (RFC 0014). A panic! whose
+// only argument is a string literal was broken over lines because, with the
+// marker, it did not fit; rustfmt joins it again once it does.
+func unmark(s string) string {
+	lines := strings.Split(strings.ReplaceAll(s, "gopatina-user-panic:", ""), "\n")
+	var out []string
+	for i := 0; i < len(lines); i++ {
+		l := lines[i]
+		if strings.HasSuffix(l, "panic!(") && i+2 < len(lines) {
+			lit := strings.TrimSpace(lines[i+1])
+			end := strings.TrimSpace(lines[i+2])
+			if strings.HasPrefix(lit, "\"") && strings.HasSuffix(lit, "\"") && strings.HasPrefix(end, ")") {
+				if one := l + lit + end; len(one) <= maxWidth {
+					out = append(out, one)
+					i += 2
+					continue
+				}
+			}
+		}
+		out = append(out, l)
+	}
+	return strings.Join(out, "\n")
+}
 
 // CrateName derives a cargo package name from the package directory.
 func CrateName(dir string) string {

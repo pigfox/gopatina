@@ -89,7 +89,13 @@ func (c *checker) apiFunc(d *ast.FuncDecl) {
 	}
 	for _, tup := range []*types.Tuple{sig.Params(), sig.Results()} {
 		for i := 0; i < tup.Len(); i++ {
-			if what := c.apiTypeProblem(tup.At(i).Type()); what != "" {
+			t := tup.At(i).Type()
+			if isError(t) && tup == sig.Params() {
+				// Only a result's error crosses the API, as Result's Error.
+				c.unsupported(d.Name, "an error parameter in the API of a library")
+				return
+			}
+			if what := c.apiTypeProblem(t); what != "" {
 				c.unsupported(d.Name, what+" in the API of a library")
 				return
 			}
@@ -109,7 +115,11 @@ func (c *checker) apiStruct(s *ast.TypeSpec) {
 		if !f.Exported() {
 			continue
 		}
-		if what := c.apiTypeProblem(f.Type()); what != "" {
+		what := c.apiTypeProblem(f.Type())
+		if isError(f.Type()) {
+			what = "an error value"
+		}
+		if what != "" {
 			c.unsupported(s.Name, what+" in an exported field of a library's exported struct")
 			return
 		}
