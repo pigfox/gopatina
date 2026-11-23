@@ -59,6 +59,12 @@ fn new_counter() -> rt::Ptr<Counter> {
     })
 }
 
+/// startAt names the new pointer before returning it, which the crate
+/// returns directly.
+fn start_at(n: i64) -> rt::Ptr<Counter> {
+    rt::Ptr::new(Counter { n })
+}
+
 fn main() {
     rt::exit_on_panic();
     let mut list: rt::Ptr<Node> = rt::Ptr::nil();
@@ -83,6 +89,9 @@ fn main() {
         c == d,
         c == call,
     );
+    let s = start_at(9);
+    Counter::inc(&s);
+    println!("{}", s.with(|v| v.n));
     let x: rt::Ptr<i64> = rt::Ptr::new(5);
     let p = x.clone();
     let q = p.clone();

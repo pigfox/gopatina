@@ -1543,8 +1543,8 @@ func (g *gen) foldTailLetReturn(s ast.Stmt, r *ast.ReturnStmt) (node, *ast.Retur
 	if !ok || id.Name == "_" || g.info.Defs[id] != rdef {
 		return nil, nil, false
 	}
-	if g.errs.Calls[as] != nil || isPointerType(g.typeOf(id)) {
-		return nil, nil, false
+	if t := g.typeOf(id); g.errs.Calls[as] != nil || isPointerType(t) && !g.heapPtr(t) {
+		return nil, nil, false // a borrow; a heap pointer is a value (RFC 0013)
 	}
 	return g.owned(as.Rhs[0]), r, true
 }

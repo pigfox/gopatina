@@ -935,6 +935,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc cell%d(x int) *Ct%d {\n\tc := Ct%d{n: x}\n\tc.n++\n\treturn &c\n}\n", k, k, k)
 	fmt.Fprintf(b, "\ntype Nd%d struct {\n\tV     int\n\tName  string\n\tItems []int\n\tNext  *Nd%d\n\tKids  []*Nd%d\n\tin    Cn%d\n}\n", k, k, k, k)
 	fmt.Fprintf(b, "\nfunc newNd%d(v int, next *Nd%d) *Nd%d {\n\treturn &Nd%d{V: v, Next: next, Name: \"n\" + fmt.Sprint(v)}\n}\n", k, k, k, k)
+	// A new pointer named before it is returned: the crate returns it
+	// directly (clippy's let_and_return).
+	fmt.Fprintf(b, "\nfunc lone%d(v int) *Nd%d {\n\tn := &Nd%d{V: v, Name: \"lone\"}\n\treturn n\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc (n *Nd%d) Push(x int) { n.Items = append(n.Items, x) }\n", k)
 	// Printed through String; for a nil pointer it panics, which fmt prints
 	// as <nil>.
@@ -961,6 +964,9 @@ func (g *gen) ptrUses() {
 	g.line("ptrL = newNd%d(i %s %s, ptrL)", k, op(), v())
 	g.depth--
 	g.line("}")
+	g.line("ptrO := lone%d(%s)", k, v())
+	g.line("ptrO.V %s= ptrL.V", op())
+	g.line("fmt.Println(ptrO.V, ptrO.Name, ptrO.Next == nil)")
 	g.line("ptrA := ptrL")
 	g.line("ptrA.V %s= %s", op(), v())
 	g.line("ptrL.Push(%s)", v())

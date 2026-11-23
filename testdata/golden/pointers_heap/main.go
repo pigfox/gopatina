@@ -15,6 +15,13 @@ func push(head *Node, v int) *Node { return &Node{Val: v, Next: head} }
 
 func newCounter() *Counter { return &Counter{} }
 
+// startAt names the new pointer before returning it, which the crate
+// returns directly.
+func startAt(n int) *Counter {
+	c := &Counter{N: n}
+	return c
+}
+
 func main() {
 	var list *Node
 	for i := 1; i <= 3; i++ {
@@ -29,6 +36,9 @@ func main() {
 	d.Inc()
 	c.Inc()
 	fmt.Println(c.N, d.N, c == d, c == newCounter())
+	s := startAt(9)
+	s.Inc()
+	fmt.Println(s.N)
 	x := 5
 	p := &x
 	q := p
