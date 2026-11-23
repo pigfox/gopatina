@@ -35,6 +35,12 @@ type checker struct {
 	selfAppend map[*ast.CallExpr]bool
 	// ifacePlan is the program's interface analysis (RFC 0012), made once.
 	ifacePlan *IfacePlan
+	// methodDecls are the program's method declarations, by method, and
+	// printProblems the answers of methodPrintProblem, by method and nil
+	// receiver: a program prints at many places, and each would otherwise
+	// search every file again (see methodPrintProblem).
+	methodDecls   map[*types.Func]*ast.FuncDecl
+	printProblems map[printKey]string
 	// nilRecv is the pointer receiver of the print method being checked
 	// (RFC 0013), or nil.
 	nilRecv *types.Var
@@ -1108,18 +1114,41 @@ func (c *checker) ptrPrintProblem(t types.Type) string {
 // yet: Go's fmt recovers a panic in it and prints %!v(PANIC=...), which
 // patina mode does not reproduce yet, so m must be unable to panic.
 func (c *checker) methodPrintProblem(m *types.Func) string {
-	if fn, _ := ProvidedMethod(m); fn != "" {
-		return "" // a provided method cannot panic
+	k := printKey{m, c.nilRecv}
+	if what, ok := c.printProblems[k]; ok {
+		return what
 	}
-	for _, f := range c.pkg.Files {
-		for _, d := range f.Decls {
-			if fd, ok := d.(*ast.FuncDecl); ok && c.pkg.Info.Defs[fd.Name] == m {
-				// A method without a body is reported where it is declared.
-				if fd.Body != nil && c.cannotPanic(fd.Body) {
-					return ""
+	if c.printProblems == nil {
+		c.printProblems = map[printKey]string{}
+		c.methodDecls = map[*types.Func]*ast.FuncDecl{}
+		for _, f := range c.pkg.Files {
+			for _, d := range f.Decls {
+				if fd, ok := d.(*ast.FuncDecl); ok && fd.Recv != nil {
+					if fn, ok := c.pkg.Info.Defs[fd.Name].(*types.Func); ok {
+						c.methodDecls[fn] = fd
+					}
 				}
 			}
 		}
+	}
+	what := c.methodPrintProblemOf(m)
+	c.printProblems[k] = what
+	return what
+}
+
+// A printKey is what methodPrintProblem's answer depends on.
+type printKey struct {
+	m       *types.Func
+	nilRecv *types.Var
+}
+
+func (c *checker) methodPrintProblemOf(m *types.Func) string {
+	if fn, _ := ProvidedMethod(m); fn != "" {
+		return "" // a provided method cannot panic
+	}
+	// A method without a body is reported where it is declared.
+	if fd := c.methodDecls[m]; fd != nil && fd.Body != nil && c.cannotPanic(fd.Body) {
+		return ""
 	}
 	return fmt.Sprintf("printing a value whose %s method may panic", m.Name())
 }
