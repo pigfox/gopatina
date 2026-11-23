@@ -11,7 +11,7 @@
 // on its own, not the page. Node 22 or later (for the built-in WebSocket);
 // no packages. CI runs it on gopatina.org's page (.github/workflows/ci.yml).
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,39 +21,66 @@ if (!chrome || !url) {
   process.exit(2);
 }
 const widths = [320, 360, 390, 412, 430, 768, 1024, 1440];
-const port = 9222 + Math.floor(Math.random() * 1000);
-const profile = mkdtempSync(join(tmpdir(), 'site-overflow-'));
-const proc = spawn(chrome, [
-  '--headless', '--no-sandbox', '--disable-gpu', '--no-first-run',
-  `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank',
-], { stdio: 'ignore' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// done stops Chrome, waits for it to exit so it no longer writes to its
-// profile, removes the profile, and exits; a failed clean-up of a
-// temporary directory does not change the result.
-const done = async (code) => {
-  const exited = new Promise((resolve) => proc.once('exit', resolve));
-  proc.kill();
-  await Promise.race([exited, sleep(5000)]);
+
+// start launches Chrome with a new profile and returns it with a DevTools
+// connection to its page, or with no connection if Chrome did not come up
+// within 20 seconds or exited first. Chrome picks a free port itself
+// (--remote-debugging-port=0) and writes it to DevToolsActivePort in its
+// profile, so two checks, or a Chrome still exiting, never meet on a port.
+const start = async () => {
+  const profile = mkdtempSync(join(tmpdir(), 'site-overflow-'));
+  const proc = spawn(chrome, [
+    '--headless', '--no-sandbox', '--disable-gpu', '--no-first-run',
+    '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank',
+  ], { stdio: 'ignore' });
+  let exited = false;
+  proc.once('exit', () => { exited = true; });
+  let ws;
+  for (let i = 0; i < 100 && !ws && !exited; i++) {
+    await sleep(200);
+    try {
+      const port = readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0];
+      const targets = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
+      const page = targets.find((t) => t.type === 'page');
+      if (page) ws = new WebSocket(page.webSocketDebuggerUrl);
+    } catch {
+      // Chrome is not listening yet.
+    }
+  }
+  return { proc, profile, ws };
+};
+
+// stop stops Chrome, waits for it to exit so it no longer writes to its
+// profile, and removes the profile; a failed clean-up of a temporary
+// directory does not change the result.
+const stop = async ({ proc, profile }) => {
+  if (proc.exitCode === null && proc.signalCode === null) {
+    const exited = new Promise((resolve) => proc.once('exit', resolve));
+    proc.kill();
+    await Promise.race([exited, sleep(5000)]);
+  }
   try {
     rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   } catch {
     // Left for the system's temporary-file clean-up.
   }
-  process.exit(code);
 };
 
-let ws;
-for (let i = 0; i < 100 && !ws; i++) {
-  await sleep(200);
-  try {
-    const targets = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
-    const page = targets.find((t) => t.type === 'page');
-    if (page) ws = new WebSocket(page.webSocketDebuggerUrl);
-  } catch {
-    // Chrome is not listening yet.
-  }
+// A Chrome that does not come up is tried again, up to three times: a slow
+// or failed start on a busy machine says nothing about the page.
+let browser;
+for (let attempt = 1; attempt <= 3; attempt++) {
+  browser = await start();
+  if (browser.ws) break;
+  await stop(browser);
+  console.error('site-overflow: Chrome did not start (attempt ' + attempt + ' of 3)');
 }
+const done = async (code) => {
+  await stop(browser);
+  process.exit(code);
+};
+const { ws } = browser;
 if (!ws) {
   console.error('site-overflow: Chrome did not start');
   await done(2);
