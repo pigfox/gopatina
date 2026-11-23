@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html"
 	"io"
 	"io/fs"
@@ -59,7 +60,7 @@ func TestRoutes(t *testing.T) {
 		{"/faq.md", "text/markdown; charset=utf-8", cacheShort, "### What is GoPatina?"},
 		{"/llms.txt", "text/plain; charset=utf-8", cacheShort, "- [FAQ](https://gopatina.org/faq): "},
 		{"/robots.txt", "text/plain; charset=utf-8", cacheShort, "Sitemap: https://gopatina.org/sitemap.xml"},
-		{"/sitemap.xml", "application/xml; charset=utf-8", cacheShort, "<loc>https://gopatina.org/roadmap</loc><lastmod>" + lastUpdated + "</lastmod>"},
+		{"/sitemap.xml", "application/xml; charset=utf-8", cacheShort, "<loc>https://gopatina.org/roadmap</loc><lastmod>2026-11-22</lastmod>"},
 		{"/healthz", "text/plain; charset=utf-8", "no-store", "ok"},
 	}
 	for _, tt := range tests {
@@ -461,6 +462,7 @@ func TestNewHandlerErrors(t *testing.T) {
 		"missing page":       without("content/pages/faq.md"),
 		"missing 404 page":   without("content/pages/404.md"),
 		"missing llms.txt":   without("content/llms.txt"),
+		"missing funding":    without("content/funding.json"),
 	} {
 		if _, err := newHandler(fsys); err == nil {
 			t.Errorf("%s: no error", name)
@@ -675,5 +677,59 @@ func TestNavOneRow(t *testing.T) {
 	}
 	if !strings.Contains(b, `<p class="brand"><a href="/">`) {
 		t.Error("the logo does not link home")
+	}
+}
+
+// TestFundingManifest checks /funding.json: it parses, follows the
+// fundingjson.org v1.1.0 shape the site uses, and its plans are the tiers
+// /sponsor shows, through the channels it names.
+func TestFundingManifest(t *testing.T) {
+	h := handler(t)
+	rec := get(t, h, "GET", "/funding.json", false)
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type %q", ct)
+	}
+	var m struct {
+		Schema  string `json:"$schema"`
+		Version string
+		Entity  struct{ Type, Role, Name, Email string }
+		Funding struct {
+			Channels []struct{ GUID, Type, Address string }
+			Plans    []struct {
+				Name      string
+				Amount    float64
+				Currency  string
+				Frequency string
+				Channels  []string
+			}
+		}
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil {
+		t.Fatal(err)
+	}
+	if m.Schema != "https://fundingjson.org/schema/v1.1.0.json" || m.Version != "v1.1.0" || m.Entity.Email != "sponsors@gopatina.org" {
+		t.Errorf("manifest %+v", m)
+	}
+	channels := map[string]bool{}
+	for _, c := range m.Funding.Channels {
+		channels[c.GUID] = true
+	}
+	if !channels["github-sponsors"] || !channels["invoice"] {
+		t.Errorf("channels %+v", m.Funding.Channels)
+	}
+	sponsor := body(t, h, "/sponsor")
+	want := []string{"$5 a month", "$25 a month", "$100 a month", "$500 a month", "$2,500 a month"}
+	if len(m.Funding.Plans) != len(want) {
+		t.Fatalf("%d plans, /sponsor has %d tiers", len(m.Funding.Plans), len(want))
+	}
+	for i, p := range m.Funding.Plans {
+		amount := strings.Replace(want[i], "$2,500", "$2500", 1)
+		if fmt.Sprintf("$%g a month", p.Amount) != amount || p.Currency != "USD" || p.Frequency != "monthly" ||
+			!strings.Contains(sponsor, want[i]) || len(p.Channels) != 1 || !channels[p.Channels[0]] {
+			t.Errorf("plan %d %+v does not match /sponsor's %q", i, p, want[i])
+		}
+		if (p.Amount <= 100) != (p.Channels[0] == "github-sponsors") || !strings.Contains(sponsor, "("+p.Name+")") && p.Amount <= 100 {
+			t.Errorf("plan %+v: the GitHub Sponsors tiers go through github-sponsors with /sponsor's name, the others by invoice", p)
+		}
 	}
 }

@@ -14,6 +14,8 @@ Where GoPatina can prove that a loop's integer arithmetic cannot wrap, it writes
 
 ## A borrow checker for Go {#borrow-checker}
 
+This is where GoPatina aims to save development time: the ownership work a Rust developer does by hand, choosing between moves, clones and borrows and annotating lifetimes until rustc accepts the code, is done by GoPatina on Go code, and explained in Go terms. The aim is Go's development speed with Rust's output; no measurement of development time exists yet.
+
 Before any Rust is written, GoPatina's own borrow checker runs on the Go code. It decides who owns each value and which values are moved, copied or borrowed, and applies fixes that keep the program's meaning. Phase 1 implements moves, copies of strings and small structs, and inferred shared and exclusive borrows; shared ownership and mutexes for values shared across goroutines come with goroutines. Every decision is reported with `-explain`; `gopatina fix`, which will write fixes back into the Go source, is planned. When no safe fix exists, the error is in Go terms. This is real output for the project's ownership example:
 
 ```text

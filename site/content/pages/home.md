@@ -14,6 +14,10 @@ The language you write in matters more to you, day to day, than what runs undern
 
 GoPatina keeps Go on top and puts Rust underneath. You keep writing Go; the compiler does the Rust part. **GoPatina is an experiment by [Pigfox](https://pigfox.com) to get Go developers past Rust's learning curve.** Without a garbage collector a few ownership rules remain, but GoPatina states and checks them in Go terms: no Rust syntax, no lifetime annotations, no `async` keywords to learn.
 
+## Go's development speed, Rust's output {#development-speed}
+
+Writing Rust by hand is slow going: developers spend hours satisfying its borrow checker, annotating lifetimes and restructuring code until it compiles. GoPatina's goal is to keep the speed of writing Go and still end with a program Rust's borrow checker has verified. You write Go; GoPatina's own borrow checker decides ownership and borrowing, fixes what it safely can, and reports the rest as errors in Go terms, with every decision shown by `-explain`. There are no lifetimes to annotate and no Rust to learn, and the output is ordinary Rust that rustc compiles and checks. That is the design, not a measurement: no study of development time exists yet, and the [roadmap](/roadmap#development-speed) describes the one being designed.
+
 ## Three modes, two flags {#modes}
 
 | Mode | Flag | Garbage collector | Works with all Go | Output | Status |
