@@ -1262,6 +1262,10 @@ func (g *gen) errCall(s ast.Stmt, ec *subset.ErrCall) {
 		g.stmtLine("let _ = ", callN, ";")
 	case ec.Err == nil:
 		g.stmtLine(assignPrefix, &call{recv: callN, head: ".unwrap_or_default", open: "(", close: ")"}, ";")
+	case ec.Init && ec.Propagate && s.(*ast.IfStmt).Else == nil:
+		// if err := f(); err != nil { return ..., err }: the values it
+		// declares live only in the if, so this is f()?, as clippy asks.
+		g.stmtLine("", atom{paren(callN, precPostfix) + "?", precPostfix}, ";")
 	case ec.Init:
 		g.initCheck(s.(*ast.IfStmt), ec, callN)
 	case ec.Propagate:
