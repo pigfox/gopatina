@@ -1,0 +1,10 @@
+# A Rust workspace: a hand-written application, app, and one component,
+# rules, that GoPatina generates from the Go package go/rules (RFC 0014).
+[workspace]
+members = ["app", "rules"]
+resolver = "3"
+
+# The generated crate keeps Go's wrapping integers in dev builds too (its
+# Cargo.toml says so; release builds have overflow checks off already).
+[profile.dev.package.rules]
+overflow-checks = false

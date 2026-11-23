@@ -1,0 +1,9 @@
+[package]
+name = "quote"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Prices an order under a rules file, with the rules engine GoPatina generates from Go."
+
+[dependencies]
+rules = { path = "../rules" }

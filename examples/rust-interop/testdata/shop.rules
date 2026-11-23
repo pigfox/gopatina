@@ -1,0 +1,5 @@
+# The shop's pricing rules.
+discount bulk 10 5
+discount sku coffee 12
+shipping 499 free-over 5000
+tax 8
