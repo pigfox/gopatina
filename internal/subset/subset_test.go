@@ -177,6 +177,7 @@ func TestRejected(t *testing.T) {
 		{"unsafe", "package main\nimport \"unsafe\"\nvar _ = unsafe.Sizeof(0)\nfunc main() {}\n", "package unsafe is not supported"},
 		{"otherpkg", "package main\nimport \"sort\"\nfunc main() { sort.Ints(nil) }\n", "package sort is not supported"},
 		{"renamed", "package main\nimport f \"fmt\"\nfunc main() { f.Println() }\n", "a renamed or dot import is not supported"},
+		{"blank import of an unsupported package", "package main\nimport _ \"sort\"\nfunc main() {}\n", "package sort is not supported"},
 		{"changed slice global", "package main\nvar s []int\nfunc main() { s = append(s, 1) }\n", "a package-level variable of type []int that the program changes is not supported"},
 		{"global address", "package main\nvar n int\nfunc main() { p := &n; *p = 1 }\n", "taking the address of a package-level variable is not supported"},
 		{"global ptr method", "package main\ntype T struct{ X int }\nfunc (t *T) Inc() { t.X++ }\nvar g T\nfunc main() { g.Inc() }\n", "calling a pointer-receiver method on a package-level variable is not supported"},

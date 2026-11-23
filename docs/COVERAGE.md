@@ -152,3 +152,44 @@ go build -o gopatina-coverage ./cmd/gopatina-coverage
 the summary, every package and function, and every skipped package.
 `coverage.log` has one line per module and the headline share with its
 interval.
+
+## The standard library against TinyGo
+
+A second number, beside the function share above: the standard library
+measured with [TinyGo](https://tinygo.org/lang-support/stdlib/)'s
+yardstick. "Okay, so this is the minimum target of GoPatina's coverage.
+Anything below TinyGo's coverage is unacceptable." (the project lead,
+2026-11-23), so TinyGo's two counts are GoPatina's minimum target.
+
+TinyGo publishes, for each of the Go standard library's packages (172 at
+TinyGo 0.44.0 and Go 1.27.3: `go list std` without the `internal`,
+`vendor`, `cmd` and `runtime` packages), whether it is **importable** and
+whether it **passes its tests**. Its table is copied, with its source and
+date, in [stdlib/tinygo-0.44.0.txt](stdlib/tinygo-0.44.0.txt).
+`gopatina-coverage stdlib` asks GoPatina the same two questions of the
+same packages:
+
+- **Importable**: a program that only imports the package,
+  `package main; import _ "P"; func main() {}`, builds with
+  `gopatina build -patina` and runs to exit status 0. GoPatina translates
+  a package from its Go source only as far as the program reaches it
+  (RFC 0009), so this asks whether the package's initialization (its
+  `init` functions, and every package-level variable whose initializer can
+  act) translates, builds and runs. TinyGo compiles the package for the
+  same program. Because the two differ, the report also gives, from a
+  `measure` report (`-coverage`), each package's functions, how many
+  patina mode accepts, and whether it accepts all of them: the strictest
+  reading of importable.
+- **Passes its tests**: the package's own `_test.go` files, built and run
+  through GoPatina in patina mode, pass. GoPatina has no patina test mode
+  yet, so this is 0 for every package, and the report says why for each.
+  It does not run `go test`, which would build the tests with Go.
+
+Results, with the order of work that raises them, are in
+[stdlib/](stdlib/README.md).
+
+```sh
+printf 'std\n' > std.lock
+./gopatina-coverage measure -boot 20 std.lock > cov-std.json
+./gopatina-coverage stdlib -gopatina ./gopatina -coverage cov-std.json docs/stdlib/tinygo-0.44.0.txt > stdlib.json
+```

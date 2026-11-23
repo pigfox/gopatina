@@ -120,8 +120,15 @@ func (c *checker) file(f *ast.File) {
 		switch {
 		case pn != nil && c.pkg.Local[pn.Imported()] && imp.Name == nil:
 			// A package of the program, translated from source (RFC 0009).
+		case imp.Name != nil && imp.Name.Name == "_" && c.localPath(path):
+			// A blank import of a translated package: its initialization is
+			// translated and checked like the rest of the program.
 		case !allowedImports[path]:
 			c.unsupported(imp, fmt.Sprintf("package %s", path))
+		case imp.Name != nil && imp.Name.Name == "_":
+			// A blank import runs the package's initialization only, which
+			// for the packages patina mode provides changes nothing a
+			// program can observe: nothing to write.
 		case imp.Name != nil:
 			c.unsupported(imp.Name, "a renamed or dot import")
 		}
@@ -1311,6 +1318,17 @@ func simplePlace(e ast.Expr) bool {
 		return simplePlace(x.X)
 	case *ast.StarExpr:
 		return simplePlace(x.X)
+	}
+	return false
+}
+
+// localPath reports whether the program translates the package at path
+// from source (RFC 0009).
+func (c *checker) localPath(path string) bool {
+	for p := range c.pkg.Local {
+		if p.Path() == path {
+			return true
+		}
 	}
 	return false
 }

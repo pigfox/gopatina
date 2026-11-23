@@ -55,7 +55,7 @@ var pages = []page{
 		Description: "How GoPatina checks that Go compiled through Rust behaves exactly like Go: golden programs, generated differential tests and a Six Sigma bar.",
 	},
 	{
-		Path: "/roadmap", File: "roadmap", Kind: "article", Crumb: "Roadmap", Updated: "2026-11-22",
+		Path: "/roadmap", File: "roadmap", Kind: "article", Crumb: "Roadmap", Updated: "2026-11-23",
 		Title:       "GoPatina roadmap: from a Go subset to goroutines",
 		Description: "GoPatina's roadmap, phase by phase: the phase 1 subset of Go compiled through Rust, the rest of the borrow checker, goroutines, the standard library.",
 	},

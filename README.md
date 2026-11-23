@@ -242,6 +242,16 @@ listed in the [RFC](docs/rfcs/0001-gopatina.md#open-questions).
     generated differential tests against Go (one-sided α ≈ 9.9 × 10⁻¹⁰). On
     the way, 881,098 defect-free tests show the same rate at 95% confidence
     (the rule of three).
+- **At least TinyGo's standard library coverage.** "Okay, so this is the
+  minimum target of GoPatina's coverage. Anything below TinyGo's coverage
+  is unacceptable." (the project lead, 2026-11-23). TinyGo imports 163 of
+  the 172 standard library packages and passes the tests of 101
+  (TinyGo 0.44.0). GoPatina, measured with the same yardstick on
+  2026-11-23: **37 importable, 0 passing their tests**, below the target.
+  Method, results and the order of work:
+  [docs/stdlib/](docs/stdlib/README.md). The share of real-world functions
+  the subset accepts ([docs/COVERAGE.md](docs/COVERAGE.md)) is a separate
+  number.
 - **100% unit-test coverage**, enforced in CI, plus the integration, golden,
   differential and fuzz tests each phase requires.
 - **Shadow Rust and keep up.** Every release, and every pull request that

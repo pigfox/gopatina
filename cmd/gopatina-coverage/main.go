@@ -18,6 +18,10 @@
 // package, every function with what keeps it out, the packages it could
 // not measure and why, and the summary with 95% bootstrap intervals.
 // Nothing is built with Rust.
+//
+// stdlib asks TinyGo's two questions of every package in TABLE (TinyGo's
+// published table, docs/stdlib/): can a program import it in patina mode,
+// and does it pass its own tests (docs/COVERAGE.md). It builds with Rust.
 package main
 
 import (
@@ -68,7 +72,7 @@ func main() {
 	exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-const usage = "usage: gopatina-coverage resolve CORPUS >LOCK\n       gopatina-coverage measure [-work DIR] [-boot N] [-seed S] LOCK >REPORT.json\n"
+const usage = "usage: gopatina-coverage resolve CORPUS >LOCK\n       gopatina-coverage measure [-work DIR] [-boot N] [-seed S] LOCK >REPORT.json\n       gopatina-coverage stdlib [-gopatina CMD] [-work DIR] [-coverage REPORT] TABLE >REPORT.json\n"
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
@@ -97,6 +101,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		if err := measure(fs.Arg(0), *work, *boot, *seed, stdout, stderr); err != nil {
+			fmt.Fprintln(stderr, "gopatina-coverage:", err)
+			return 1
+		}
+		return 0
+	case "stdlib":
+		fs := flag.NewFlagSet("stdlib", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		gopatina := fs.String("gopatina", "gopatina", "the gopatina command")
+		work := fs.String("work", "", "working directory (default: a temporary one)")
+		covReport := fs.String("coverage", "", "a measure report with the standard library, for each package's accepted functions")
+		if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 1 {
+			fmt.Fprint(stderr, usage)
+			return 2
+		}
+		if err := stdlib(fs.Arg(0), *gopatina, *work, *covReport, stdout, stderr); err != nil {
 			fmt.Fprintln(stderr, "gopatina-coverage:", err)
 			return 1
 		}
