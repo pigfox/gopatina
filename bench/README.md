@@ -1,8 +1,8 @@
-# Benchmarks: GoPatina against hand-written Rust
+# Benchmarks: GoPatina, hand-written Rust and plain Go
 
-> **Status: no official results yet.** The harness and the first two cases
-> exist and run per pull request, reporting ratios only. The test server that
-> produces official numbers does not exist yet.
+Each case is one Go program, built two ways (`gopatina build -patina` and
+plain `go build`), and the same program written by hand in Rust. Official
+results are in [`results/`](results) and [`BENCHMARKS.md`](../BENCHMARKS.md).
 
 The policy (what is measured, when, against which Rust, and the target) is in
 [`docs/QUALITY.md`](../docs/QUALITY.md#performance-shadow-rust-and-keep-up).
@@ -31,7 +31,7 @@ added as the patina subset grows to support them:
 
 | Case | Exercises | Earliest phase |
 | --- | --- | --- |
-| `fib` | function calls, integer arithmetic | 1 (in place) |
+| `fib` | function calls, integer arithmetic: `fib(42)` by plain recursion | 1 (in place) |
 | `sieve` | a large slice, nested loops, element writes | 1 (in place) |
 | `suffix-sum` | a read-only `s[i:]` view passed to a proven reader, slice fill and range | 2 (read-only slice suffix) |
 | `nbody` | structs, floating point, loops (needs `math.Sqrt`) | 2 |
@@ -45,14 +45,36 @@ added as the patina subset grows to support them:
 The Rust versions are written to be idiomatic and safe (no `unsafe`), as a
 Rust developer would write them, not tuned to make GoPatina look good.
 
+**What each case measures**, against plain Go:
+
+- `fib`: allocates nothing, so it measures code generation (gc against
+  LLVM) on calls and integer arithmetic, not the garbage collector.
+- `sieve`: one allocation, then a loop of element writes: bounds checks and
+  loop code generation, not the collector.
+- `suffix-sum`: one allocation, then reads through `s[i:]` views: bounds
+  checks and slicing, not the collector.
+- `binary-trees`: millions of small allocations and frees: Go's collector
+  against `Rc` (GoPatina) and `Box` (hand-written Rust). This is the case
+  where memory management decides.
+- `cycles`: lists with cycles, built and dropped: Go's collector reclaims
+  cycles, GoPatina's reference counts don't (RFC 0013), so peak memory is
+  the point, not time.
+
+**Why `fib(42)` and not `fib(1000)`.** A case should run for a few seconds,
+so that start-up time is a small part of what is measured. `fib(42)` takes
+about two seconds in Rust. Plain recursion makes 2 × fib(n + 1) − 1 calls:
+866,988,873 for `fib(42)`, and about 10^209 for `fib(1000)`, which no
+computer could finish. (`fib(1000)` would also overflow `int64`: it has 209
+digits.)
+
 ## The harness
 
 For each case, [`run.sh`](run.sh):
 
 1. Builds three binaries: `gopatina build -patina` (the generated crate,
-   built by rustc in release mode with its pinned toolchain), the
-   hand-written Rust crate with `cargo build --release` (the latest stable
-   Rust on the machine), and plain `go build`.
+   built by rustc in release mode), the hand-written Rust crate with
+   `cargo build --release`, and plain `go build` (gc, default flags; the
+   `go version` is recorded).
 2. Checks that all three print the case's `expected` output, so only
    equivalent programs are compared.
 3. Runs the three many times (11 by default), interleaved, after a warm-up
@@ -64,7 +86,7 @@ For each case, [`run.sh`](run.sh):
 
 Each binary also runs once under GNU time, and the result has the ratios of
 their peak resident memory to the hand-written Rust's (null without GNU
-time). The official-run format is planned with the test server.
+time).
 
 ## Equivalence test: `run.sh --equiv`
 
@@ -72,13 +94,14 @@ The goal is identical speed to equivalent hand-written Rust, and a median of
 11 runs cannot show that: on a busy machine the spread between runs is
 larger than the differences being looked for. `bench/run.sh --equiv` builds
 and checks the same binaries, then runs
-[`cmd/gopatina-bench`](../cmd/gopatina-bench) on GoPatina against the
-hand-written Rust for each case:
+[`cmd/gopatina-bench`](../cmd/gopatina-bench) on the three for each case:
 
-1. Runs the two binaries N times each (`--runs`, default 400) after two
-   warm-up runs each, in ABBA order (A B, B A, A B, ...), so slow drift in the
-   machine affects both alike. Each pair is two runs next to each other.
-2. Takes the log of each pair's ratio, ln(GoPatina / Rust), and computes a
+1. Runs the three binaries N times each (`--runs`, default 400) after two
+   warm-up runs each, in ABCCBA order (A B C, C B A, A B C, ...), so slow
+   drift in the machine affects all alike. Every pair of arms is measured
+   in the same round.
+2. For each pair (GoPatina / Rust, Go / Rust, GoPatina / Go), takes the log
+   of each round's ratio, for example ln(GoPatina / Rust), and computes a
    (1 - 2α) confidence interval of its mean with Student's t. α is the
    one-sided normal tail beyond `--sigma` standard deviations (default 5,
    α ≈ 2.87e-7).
@@ -117,7 +140,16 @@ of 2 or lower) and is off by default. Each process's start-up time is part of
 what is measured, the same for both binaries, so a short benchmark dilutes a
 difference; cases should run for a large fraction of a second or more. The
 JSON report lists, per case and metric, the ratio, the interval, the
-standard deviation of the log ratios, the margin, sigma and the verdict.
+standard deviation of the log ratios, the margin, sigma and the verdict,
+for every pair. For each arm on its own it lists each metric's geometric
+mean with its interval at the same sigma, the binary's size in bytes (as
+each tool builds it by default, not stripped), and its peak resident
+memory, with a test per pair like the other metrics. Peak memory comes
+from 20 more runs of each arm under GNU time (`-memruns`), not under
+`perf`. A Go program can't measure its child's peak itself: Go starts
+children sharing its own memory, and Linux keeps that high-water mark
+across `exec`, so every child would read at least the harness's own
+size. Without `/usr/bin/time` the report leaves memory out, with a note.
 
 ## Machine-code check: `asm-check.sh`
 
@@ -156,5 +188,4 @@ change. Once merged, the numbers are shown in
 the README's Benchmarks section, and in the GitHub release notes for that
 version, each linking to the raw results file.
 
-This runner does not exist yet, and **nothing has been measured officially
-yet**.
+The first official runs were on 2026-11-22 ([`results/`](results)).
