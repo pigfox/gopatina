@@ -532,20 +532,65 @@ func (g *gen) typeDecl(d *ast.GenDecl, s *ast.TypeSpec) {
 				fieldComments[n.Name] = f.Comment
 			}
 		}
+		// rustfmt aligns the trailing comments of a run of commented
+		// fields (measured): a field without one ends the run, and a field
+		// with a doc comment keeps one space and does not count.
+		var run []fieldLine
+		flush := func() {
+			g.alignedComments(run)
+			run = nil
+		}
 		for i := 0; i < st.NumFields(); i++ {
 			f := st.Field(i)
-			g.docComment(fieldDocs[f.Name()])
 			fvis := g.vis(f.Exported())
 			field := fvis + g.fields[f] + ": " + g.rustType(f.Type()) + ","
 			if c := fieldComments[f.Name()]; c != nil && len(c.List) == 1 {
-				field += " " + c.List[0].Text
+				run = append(run, fieldLine{doc: fieldDocs[f.Name()], field: field, comment: c.List[0].Text})
+				continue
 			}
+			flush()
+			g.docComment(fieldDocs[f.Name()])
 			g.line(field)
 		}
+		flush()
 		g.ind--
 		g.line("}")
 	}
 	g.methods(obj)
+}
+
+// A fieldLine is a struct field with a trailing comment, and its doc
+// comment, if any.
+type fieldLine struct {
+	doc            *ast.CommentGroup
+	field, comment string
+}
+
+// alignedComments writes a run of fields with trailing comments as rustfmt
+// lays them out: each comment one space after the widest field of the run
+// without a doc comment, unless that would take a line past the maximum
+// width; a field with a doc comment keeps one space.
+func (g *gen) alignedComments(run []fieldLine) {
+	width := 0
+	for _, f := range run {
+		if f.doc == nil {
+			width = max(width, len(f.field))
+		}
+	}
+	align := true
+	for _, f := range run {
+		if f.doc == nil && g.ind*indentWidth+width+1+len(f.comment) > maxWidth {
+			align = false
+		}
+	}
+	for _, f := range run {
+		g.docComment(f.doc)
+		pad := " "
+		if align && f.doc == nil {
+			pad = strings.Repeat(" ", width-len(f.field)+1)
+		}
+		g.line(f.field + pad + f.comment)
+	}
 }
 
 // methods writes the impl block holding every method of named type obj, in
