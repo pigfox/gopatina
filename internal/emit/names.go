@@ -92,6 +92,9 @@ func camel(name string) string {
 type namer struct {
 	taken map[string]string // Rust name -> the Go name that has it
 	sep   string            // between a name and its number: "_", or "" for types
+	// outer holds names taken in an enclosing namespace, shared and never
+	// changed: the program's functions, seen from each function's locals.
+	outer map[string]string
 }
 
 func newNamer(reserved ...string) *namer {
@@ -112,6 +115,9 @@ func (n *namer) name(goName string, conv func(string) string) string {
 			cand = strings.TrimPrefix(base, "r#") + n.sep + itoa(i)
 		}
 		owner, ok := n.taken[cand]
+		if !ok {
+			owner, ok = n.outer[cand]
+		}
 		if !ok {
 			n.taken[cand] = goName
 			return cand

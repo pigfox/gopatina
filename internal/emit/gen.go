@@ -68,6 +68,7 @@ type gen struct {
 	fn         *borrow.Func
 	locals     map[types.Object]string
 	lnames     *namer
+	funcNames  map[string]string // see freeFuncNames
 	recv       *types.Var
 	refElem    map[*types.Var]bool     // range variables bound to an element
 	nils       map[ast.Expr]types.Type // the type each untyped nil stands for
