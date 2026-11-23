@@ -38,21 +38,21 @@ pub struct T {
 }
 
 impl T {
-    pub fn get(t: &rt::Ptr<T>) -> i64 {
-        t.with(|v| v.n)
+    pub fn get(t: &rt::Own<T>) -> i64 {
+        t.get().n
     }
 
-    pub fn safe(t: &rt::Ptr<T>) -> i64 {
+    pub fn safe(t: &rt::Own<T>) -> i64 {
         if t.is_nil() {
             return -1;
         }
-        t.with(|v| v.n)
+        t.get().n
     }
 }
 
 fn main() {
     rt::exit_on_panic();
-    let p: rt::Ptr<T> = rt::Ptr::nil();
+    let p: rt::Own<T> = rt::Own::nil();
     println!("{}", T::safe(&p));
     println!("before");
     println!("{}", T::get(&p));

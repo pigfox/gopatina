@@ -301,6 +301,20 @@ behind one helper, `None` for `nil`), and every variable of type `T` whose
 address is taken lives in a cell. Copying a heap pointer copies the
 pointer; `==` compares which variable it points at.
 
+**Owned pointers** ([RFC 0016](rfcs/0016-owned-pointers-and-cycle-collection.md)).
+A heap pointer type that is never shared is an `rt::Own<T>` instead, a
+`Box` with one owner (`Option<Box<T>>`, `None` for `nil`). Its pointers
+are only ever new (`&T{...}` or a function's result), moved once into the
+variable, field or result that owns them, and then only read through,
+tested for `nil` and lent to functions; `T` is a struct of numbers,
+booleans, strings and heap pointers. That is a tree built and then read.
+A read is a plain borrow, `p.get().f`, and a lend is `&p.get().left`, as
+hand-written Rust writes it; freeing a long chain needs no call per box.
+One write through the pointer, one copy kept, one comparison with another
+pointer, or one held in a slice, an interface or a package-level variable
+makes the type shared, a cell as above. `-explain` says which each type
+is and, for a shared one, the first line that shares it.
+
 Each access borrows the cell for that access only: a read is
 `p.with(|v| v.f)`, a write `p.with_mut(|v| v.f = x)` with its value
 computed first, and a method with a pointer receiver takes the pointer
