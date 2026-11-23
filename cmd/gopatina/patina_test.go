@@ -81,6 +81,9 @@ func TestParseErrors(t *testing.T) {
 		{[]string{"build", "-patina", "-race", "."}, "gopatina build -patina: flag -race is not supported in patina mode yet\n"},
 		{[]string{"run", "-emit-rust", "."}, "gopatina run: -emit-rust is supported only with build (it writes a crate and stops)\n"},
 		{[]string{"build", "-patina", "a", "b"}, "gopatina build -patina: one package directory at a time in patina mode (got a b)\n"},
+		{[]string{"build", "-emit-rust", "-crate-name", "Bad", "."}, "gopatina build: -crate-name \"Bad\" is not a crate name (lowercase letters, digits and _, starting with a letter)\n"},
+		{[]string{"build", "-emit-rust", "-crate-name=9x", "."}, "gopatina build: -crate-name \"9x\" is not a crate name (lowercase letters, digits and _, starting with a letter)\n"},
+		{[]string{"build", "-emit-rust", "-version", "1.2", "."}, "gopatina build: -version \"1.2\" is not a version vX.Y.Z\n"},
 	}
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
@@ -226,5 +229,28 @@ func TestProgramThatCannotRun(t *testing.T) {
 	r.code = runCommand("the program", filepath.Join(t.TempDir(), "missing"), nil, nil, &stdout, &stderr)
 	if r.code != exitFailure || !strings.HasPrefix(stderr.String(), "gopatina: cannot run the program: ") {
 		t.Errorf("exit %d, stderr %q", r.code, stderr.String())
+	}
+}
+
+// TestEmitLibrary emits a library crate with -crate-name and -version, in
+// both spellings (RFC 0014).
+func TestEmitLibrary(t *testing.T) {
+	lib := filepath.Join(repoRoot(), "testdata", "golden-lib", "wordstat")
+	for _, args := range [][]string{
+		{"-crate-name", "words", "-version", "v1.2.3"},
+		{"-crate-name=words", "-version=1.2.3"},
+	} {
+		out := filepath.Join(t.TempDir(), "crate")
+		r := runCLI(t, "", append(append([]string{"build", "-emit-rust"}, args...), "-o", out, lib)...)
+		if r.code != exitOK {
+			t.Fatalf("%v: got %+v", args, r)
+		}
+		toml, _ := os.ReadFile(filepath.Join(out, "Cargo.toml"))
+		if !strings.Contains(string(toml), "name = \"words\"") || !strings.Contains(string(toml), "version = \"1.2.3\"") {
+			t.Errorf("%v: Cargo.toml:\n%s", args, toml)
+		}
+		if _, err := os.Stat(filepath.Join(out, "api.txt")); err != nil {
+			t.Error(err)
+		}
 	}
 }

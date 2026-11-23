@@ -33,6 +33,9 @@ type Session struct {
 	Stderr  io.Writer
 	Explain bool   // report every automatic decision of the borrow checker
 	Version string // the GoPatina version, recorded in Cargo.toml
+	// CrateName and CrateVersion set the emitted crate's name and version
+	// (-crate-name, -version; RFC 0014); empty for the defaults.
+	CrateName, CrateVersion string
 	// Getenv reads the environment (os.Getenv, replaceable in tests).
 	Getenv func(string) string
 }
@@ -84,7 +87,7 @@ func (s *Session) Emit(dir string) (*emit.Crate, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := emit.Emit(pkg, res, emit.Options{Target: target, Version: s.Version})
+	c := emit.Emit(pkg, res, emit.Options{Target: target, Version: s.Version, CrateName: s.CrateName, CrateVersion: s.CrateVersion})
 	if s.Explain {
 		for _, n := range c.Notes {
 			fmt.Fprintf(s.Stderr, "%s:%d:%d: %s\n", diag.RelPath(s.Cwd, n.Pos.Filename), n.Pos.Line, n.Pos.Column, n.Text)
@@ -208,6 +211,9 @@ func (s *Session) Build(dir, out string) error {
 	if err != nil {
 		return err
 	}
+	if c.Library {
+		return errLibrary(c)
+	}
 	crateDir, err := s.CacheDir(c)
 	if err != nil {
 		return err
@@ -254,6 +260,11 @@ func (s *Session) EmitTo(dir, out string) error {
 	}
 	fmt.Fprintf(s.Stderr, "wrote crate %s (%d files, listed in %s)\n", diag.RelPath(s.Cwd, out), len(c.Files), emit.ManifestName)
 	return nil
+}
+
+// errLibrary is the error for building or verifying a binary of a library.
+func errLibrary(c *emit.Crate) error {
+	return fmt.Errorf("%s is a library, which has no binary: gopatina build -emit-rust writes its crate (RFC 0014)", c.Name)
 }
 
 // writeCrate writes a crate; tests replace it to make writing fail.

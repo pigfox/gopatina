@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -95,6 +96,9 @@ in docs/patina-subset.md:
 	-explain        also report every decision the borrow checker made on its
 	                own: each move, copy and borrow
 	-o path         the output file (or crate directory with -emit-rust)
+	-crate-name n   the crate's name (default: for a library, the last element
+	                of its import path, with - as _; RFC 0014)
+	-version vX.Y.Z the crate's version (default 0.0.0)
 
 Commands handled by gopatina itself:
 
@@ -162,7 +166,14 @@ type invocation struct {
 	out     string
 	pkg     string
 	args    []string // the program's arguments (run)
+	// The crate's name and version (-crate-name, -version; RFC 0014).
+	crateName, crateVersion string
 }
+
+var (
+	crateNameRE    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	crateVersionRE = regexp.MustCompile(`^v?[0-9]+\.[0-9]+\.[0-9]+$`)
+)
 
 // parse reads the patina flags of build or run. ok is false when there is
 // no patina flag, so the command is the go command's. code is an exit
@@ -185,6 +196,16 @@ loop:
 			i++
 		case strings.HasPrefix(a, "-o=") || strings.HasPrefix(a, "--o="):
 			_, inv.out, _ = strings.Cut(a, "=")
+		case (a == "-crate-name" || a == "-version") && i+1 < len(args):
+			if !inv.crateFlag(cmd, a, args[i+1], stderr) {
+				return inv, true, exitUsage
+			}
+			i++
+		case strings.HasPrefix(a, "-crate-name=") || strings.HasPrefix(a, "-version="):
+			name, value, _ := strings.Cut(a, "=")
+			if !inv.crateFlag(cmd, name, value, stderr) {
+				return inv, true, exitUsage
+			}
 		case strings.HasPrefix(a, "-patina=") || strings.HasPrefix(a, "--patina="):
 			fmt.Fprintf(stderr, "gopatina %s: unknown patina mode %s (want -patina or -patina=check)\n", cmd, a)
 			return inv, true, exitUsage
@@ -228,6 +249,24 @@ loop:
 	return inv, true, -1
 }
 
+// crateFlag sets -crate-name or -version, or reports a bad value.
+func (inv *invocation) crateFlag(cmd, flag, value string, stderr io.Writer) bool {
+	if flag == "-crate-name" {
+		if !crateNameRE.MatchString(value) {
+			fmt.Fprintf(stderr, "gopatina %s: -crate-name %q is not a crate name (lowercase letters, digits and _, starting with a letter)\n", cmd, value)
+			return false
+		}
+		inv.crateName = value
+		return true
+	}
+	if !crateVersionRE.MatchString(value) {
+		fmt.Fprintf(stderr, "gopatina %s: -version %q is not a version vX.Y.Z\n", cmd, value)
+		return false
+	}
+	inv.crateVersion = value
+	return true
+}
+
 func newSession(stdout, stderr io.Writer, explain bool) *patina.Session {
 	cwd, _ := os.Getwd()
 	return &patina.Session{Cwd: cwd, Stdout: stdout, Stderr: stderr, Explain: explain, Version: version, Getenv: os.Getenv}
@@ -236,6 +275,7 @@ func newSession(stdout, stderr io.Writer, explain bool) *patina.Session {
 // exec runs the invocation.
 func (inv invocation) exec(stdin io.Reader, stdout, stderr io.Writer) int {
 	s := newSession(stdout, stderr, inv.explain)
+	s.CrateName, s.CrateVersion = inv.crateName, inv.crateVersion
 	switch {
 	case inv.mode == emitRustMode:
 		out := inv.out

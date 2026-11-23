@@ -35,7 +35,7 @@ the exact error committed beside it.
 
 | Area | Supported in phase 1 |
 | --- | --- |
-| Packages | `package main` with `func main()`, any number of files, and the packages it imports: of its own module, of other modules and of the standard library, translated from their Go source; only what `main` and the `init` functions reach is translated ([RFC 0009](rfcs/0009-packages.md)); `math/bits` intrinsics give gc's results |
+| Packages | `package main` with `func main()`, or another package as a library crate ([Libraries](#libraries)), any number of files, and the packages it imports: of its own module, of other modules and of the standard library, translated from their Go source; only what `main` and the `init` functions reach is translated ([RFC 0009](rfcs/0009-packages.md)); `math/bits` intrinsics give gc's results |
 | Imports | `fmt`, `strings`, `errors`, `os`, `io`, `slices`, `bytes`, `time` (only the functions and types below) |
 | Types | every integer type (`int`, `int8` to `int64`, `uint`, `uint8` (`byte`) to `uint64`, `uintptr`, `rune`), `float32`, `float64` ([RFC 0008](rfcs/0008-integer-and-float-types.md)), `bool`, `string`, slices of supported types, named struct types, named types of the basic and slice types (`type Op int`, `type Path []int`, [RFC 0007](rfcs/0007-named-types-and-aliases.md)) and type aliases, `error` (an interface value, see [Errors](#errors)), `io.Writer` (as a parameter), interface types: named and literal, embedded, `any` ([RFC 0012](rfcs/0012-interfaces.md); see [Interfaces](#interfaces)), `time.Duration` with its constants and its methods `String`, `Nanoseconds`, `Microseconds`, `Milliseconds`, `Seconds`, `Minutes`, `Hours`, `Truncate`, `Round` and `Abs` (RFC 0011: a provided type, its methods in Rust with Go's behaviour) |
 | Declarations | functions and methods, `init` functions (run in source order before `main`), package-level variables in Go's initialization order ([RFC 0010](rfcs/0010-package-variables.md)) (on structs and on named non-struct types), struct types, named types, type aliases, constants (typed, untyped, `iota`), local variables |
@@ -262,6 +262,31 @@ Not supported yet, each with its own error:
 - package-level variables holding an interface value that the program
   changes, or inside a struct or slice;
 - interfaces with type sets (generic constraints), and method values.
+
+## Libraries
+
+[RFC 0014](rfcs/0014-library-crates.md). A package other than `main`,
+given to `gopatina build -emit-rust`, becomes a Rust library crate that a
+Rust project depends on like any other: its exported functions, methods,
+structs, constants and sentinel errors are `pub` items with Rust types.
+Strings and slices are taken as `&str` and `&[T]` when the function only
+reads them, and as `String` and `Vec<T>` when it keeps them; results are
+owned. A function whose last result is an `error` returns
+`Result<T, Error>`, where `Error` is an opaque Go error that prints its
+`Error()` text and compares as Go's `==`; an exported sentinel error is a
+function, `pub fn err_not_found() -> Error`. The crate's `api.txt` lists
+every `pub` signature and, under each function, every parameter it takes
+ownership of and why. The crate is named after the last element of the
+package's import path (`-crate-name` overrides it), versioned with
+`-version vX.Y.Z`, and a workspace using it sets
+`[profile.dev.package.<crate>] overflow-checks = false`, since Go's
+integers wrap.
+
+Not supported yet in a library, each with its own error: `init`
+functions; package-level variables the library changes or initializes by
+calling the program; exported variables other than sentinel errors; and,
+in the API, interfaces other than `error` and pointers that escape.
+`gopatina build -patina` of a library is refused: it has no binary.
 
 ## Pointers
 

@@ -32,15 +32,18 @@ const BuildTag = "patina"
 
 // A Package is a parsed and type-checked Go package.
 type Package struct {
-	Dir       string // absolute directory of the package
-	Name      string // package name, from the package clause
-	GoVersion string // language version, such as "go1.25"; empty if no go.mod
-	Fset      *token.FileSet
-	Files     []*ast.File // sorted by file name
-	Types     *types.Package
-	Info      *types.Info
-	Sizes     types.Sizes       // word sizes of the GOOS/GOARCH target
-	Src       map[string][]byte // file contents, by absolute file name
+	Dir  string // absolute directory of the package
+	Name string // package name, from the package clause
+	// ImportPath is the package's import path, when it was loaded as part
+	// of a module ("" for a package loaded from source alone).
+	ImportPath string
+	GoVersion  string // language version, such as "go1.25"; empty if no go.mod
+	Fset       *token.FileSet
+	Files      []*ast.File // sorted by file name
+	Types      *types.Package
+	Info       *types.Info
+	Sizes      types.Sizes       // word sizes of the GOOS/GOARCH target
+	Src        map[string][]byte // file contents, by absolute file name
 
 	// A program of several packages (RFC 0009) is loaded as one Package:
 	// Files and Info hold every translated package's, and these say which
@@ -100,7 +103,45 @@ func Dir(dir, cwd string) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	return check(abs, cwd, goVersion, srcs)
+	pkg, err := check(abs, cwd, goVersion, srcs)
+	if err != nil {
+		return nil, err
+	}
+	pkg.ImportPath = moduleImportPath(abs)
+	return pkg, nil
+}
+
+// moduleImportPath returns the import path of the package in dir, from the
+// module path of the go.mod above it, or "" outside a module.
+func moduleImportPath(dir string) string {
+	for d := dir; ; {
+		data, err := os.ReadFile(filepath.Join(d, "go.mod"))
+		if err == nil {
+			mod := moduleDirective(data)
+			rel, _ := filepath.Rel(d, dir) // both absolute, d above dir
+			if mod == "" || rel == "." {
+				return mod
+			}
+			return mod + "/" + filepath.ToSlash(rel)
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			return ""
+		}
+		d = parent
+	}
+}
+
+// moduleDirective extracts the module path from a go.mod file's "module"
+// line.
+func moduleDirective(data []byte) string {
+	sc := bufio.NewScanner(bytes.NewReader(data))
+	for sc.Scan() {
+		if fields := strings.Fields(sc.Text()); len(fields) >= 2 && fields[0] == "module" {
+			return strings.Trim(fields[1], `"`)
+		}
+	}
+	return ""
 }
 
 // sources reads the named files in dir, and the language version of the

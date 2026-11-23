@@ -47,13 +47,8 @@ func Check(pkg *load.Package) []diag.Diagnostic {
 	checkMu.Lock()
 	defer checkMu.Unlock()
 	localPkgs = pkg.Local
-	if pkg.Name != "main" {
-		c.errorf(pkg.Files[0].Name, "package %s: only package main is supported in patina mode yet (libraries are planned)", pkg.Name)
-	}
-	if obj, ok := pkg.Types.Scope().Lookup("main").(*types.Func); !ok || obj.Signature().Params().Len() != 0 {
-		if pkg.Name == "main" {
-			c.errorf(pkg.Files[0].Name, "package main has no func main()")
-		}
+	if obj, ok := pkg.Types.Scope().Lookup("main").(*types.Func); !Library(pkg) && (!ok || obj.Signature().Params().Len() != 0) {
+		c.errorf(pkg.Files[0].Name, "package main has no func main()")
 	}
 	for _, f := range pkg.Files {
 		c.file(f)
@@ -61,6 +56,9 @@ func Check(pkg *load.Package) []diag.Diagnostic {
 	c.checkGlobals()
 	c.checkIfaces()
 	c.checkPtrs()
+	if Library(pkg) {
+		c.checkLibrary() // RFC 0014
+	}
 	_, errDiags := Errors(pkg)
 	c.diags = append(c.diags, errDiags...)
 	c.explainReach()

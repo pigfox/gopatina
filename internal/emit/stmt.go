@@ -52,6 +52,9 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		params = append(params, name+": "+g.paramType(p.Var.Type(), p.Mode))
 	}
 	vis := g.vis(obj.Exported() && obj.Name() != "main")
+	if g.apiName(obj) != "" {
+		vis = "" // its pub wrapper is the API (RFC 0014)
+	}
 	ret := g.resultType(obj)
 	if ret != "" {
 		ret = " -> " + ret
@@ -102,6 +105,17 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	g.bodyTo(fd.Body.List, true, fd.Body.Rbrace)
 	g.ind--
 	g.line("}")
+	if g.inAPI(obj) {
+		name := g.funcs[obj]
+		if n := g.apiName(obj); n != "" {
+			name = n
+			g.apiWrapper(fd, obj, params, ret)
+		}
+		if g.fn.Recv != nil && !g.freeMethods(g.recvTypeName(obj)) {
+			name = g.types[g.recvTypeName(obj)] + "::" + name
+		}
+		g.apiNotes(obj, name)
+	}
 }
 
 // countNames counts the local objects that get each Rust name, so a loop

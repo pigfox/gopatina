@@ -380,3 +380,13 @@ func TestCargoOnPath(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+// TestBuildLibrary checks that -patina refuses a library, which has no
+// binary, and names -emit-rust (RFC 0014).
+func TestBuildLibrary(t *testing.T) {
+	s, _, _ := session(t, "")
+	err := s.Build(filepath.Join(root(), "testdata", "golden-lib", "wordstat"), filepath.Join(t.TempDir(), "bin"))
+	if err == nil || err.Error() != "wordstat is a library, which has no binary: gopatina build -emit-rust writes its crate (RFC 0014)" {
+		t.Errorf("Build of a library: %v", err)
+	}
+}

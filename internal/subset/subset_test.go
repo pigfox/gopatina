@@ -163,7 +163,14 @@ func TestRejected(t *testing.T) {
 	tests := []struct {
 		name, src, want string
 	}{
-		{"library", "package lib\n", "package lib: only package main is supported in patina mode yet"},
+		{"library init", "package lib\nfunc init() {}\n", "an init function in a library"},
+		{"library changed var", "package lib\nvar n int\nfunc Bump() { n++ }\n", "a package-level variable that a library changes"},
+		{"library exported var", "package lib\nvar Limit = 3\nfunc F() int { return Limit }\n", "an exported package-level variable in a library, other than a sentinel error"},
+		{"library var by call", "package lib\nfunc f() int { return 1 }\nvar n = f()\nfunc F() int { return n }\n", "a package-level variable of a library initialized by a call of the program"},
+		{"library iface api", "package lib\ntype S interface{ M() }\nfunc F(s S) {}\n", "an interface type in the API of a library"},
+		{"library heap ptr api", "package lib\ntype T struct{ n int }\nfunc New() *T { return &T{} }\n", "a pointer that escapes in the API of a library"},
+		{"library heap recv", "package lib\ntype T struct{ n int }\nfunc k() *T { return &T{} }\nfunc (t *T) M() int { return t.n }\n", "a pointer that escapes as the receiver of an exported method of a library"},
+		{"library api field", "package lib\ntype T struct{ A any }\n", "an interface type in an exported field of a library's exported struct"},
 		{"nomain", "package main\nfunc f() {}\n", "package main has no func main()"},
 		{"unsafe", "package main\nimport \"unsafe\"\nvar _ = unsafe.Sizeof(0)\nfunc main() {}\n", "package unsafe is not supported"},
 		{"otherpkg", "package main\nimport \"sort\"\nfunc main() { sort.Ints(nil) }\n", "package sort is not supported"},
@@ -470,5 +477,17 @@ func TestProvidedMethodMissing(t *testing.T) {
 	plain := types.NewFunc(0, nil, "f", types.NewSignatureType(nil, nil, nil, nil, nil, false))
 	if fn, name := ProvidedMethod(plain); fn != "" || name != "" {
 		t.Errorf("a function: %q %q", fn, name)
+	}
+}
+
+// TestLibraryAccepted checks library programs RFC 0014 accepts: constants
+// and a blank variable, a method of an unexported type, a slice of structs
+// and a pointer that only borrows in the API.
+func TestLibraryAccepted(t *testing.T) {
+	src := "package lib\n\nconst Max = 3\n\nvar _ = Max\n\ntype inner struct{ n int }\n\nfunc (i inner) Get() int { return i.n }\n\n" +
+		"type T struct{ N int }\n\nfunc Sum(ts []T) int {\n\ts := 0\n\tfor _, t := range ts {\n\t\ts += t.N\n\t}\n\treturn s\n}\n\n" +
+		"func Bump(t *T) { t.N++ }\n"
+	if got := check(t, src); got != "" {
+		t.Errorf("rejected:\n%s", got)
 	}
 }
