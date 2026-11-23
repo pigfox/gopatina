@@ -71,6 +71,18 @@ type Tree struct {
 	name        string
 }
 
+// depth tests its fields for nil inside the cell, without copying them.
+func (t *Tree) depth() int {
+	if t.Left == nil && t.Right == nil {
+		return 1
+	}
+	d := 0
+	if t.Left != nil {
+		d = t.Left.depth()
+	}
+	return d + 1
+}
+
 func leaf(k int) *Tree { return &Tree{Key: k, bag: Bag{s: []int{k, k}}, items: []int{k}, name: "t"} }
 
 func push(t *Tree, k int) *Tree {
@@ -122,6 +134,7 @@ func main() {
 	forest := push(push(push(nil, 3), 2), 1)
 	fmt.Println(forest.Left.Left.Key, forest.Left.Right == nil)
 	fmt.Println(forest.Left.Left.Left == nil, nil == forest.Left.Right)
+	fmt.Println(forest.depth(), forest.Left.Left.depth())
 	tr := forest.Left.Left
 	fmt.Println(forest.Left.Left.Key+tr.Key, tr == forest.Left.Left)
 	forest.in.Inc()

@@ -351,7 +351,12 @@ func (g *gen) heapCompare(e *ast.BinaryExpr) node {
 		x, y = y, x
 	}
 	if g.info.Types[y].IsNil() {
-		n := node(&call{recv: operand(x), head: ".is_nil", open: "(", close: ")"})
+		var n node = &call{recv: operand(x), head: ".is_nil", open: "(", close: ")"}
+		if root, ptr, ok := g.heapRoot(x); ok && ast.Unparen(x) != root {
+			// p.f == nil tests the field inside p's cell: no copy of the
+			// pointer, so no reference count changes.
+			n = g.inCell(root, ptr, "with", func() node { return &call{recv: g.place(x), head: ".is_nil", open: "(", close: ")"} })
+		}
 		if e.Op == token.NEQ {
 			n = atom{"!" + paren(n, precUnary), precUnary}
 		}

@@ -170,10 +170,7 @@ fn main() {
     println!(
         "{} {}",
         w.item.with(|v| v.v),
-        s.head
-            .with(|v| v.next.clone())
-            .with(|v| v.next.clone())
-            .is_nil(),
+        s.head.with(|v| v.next.clone()).with(|v| v.next.is_nil()),
     );
     let mut sum: i64 = 0;
     for _ in 0_i64..3 {
