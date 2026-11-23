@@ -1,0 +1,1599 @@
+{
+  "note": "TOST for every pair of GoPatina, hand-written Rust and plain Go (cmd/gopatina-bench), and each arm's interval",
+  "runs": 100,
+  "gopatina_commit": "d207c32cca6f6aee84a4c7d272c9974bf97e65ad",
+  "go": "go version go1.27.1 linux/amd64",
+  "toolchain": "same",
+  "rustc_gopatina": "1.100.0",
+  "rustc_rust": "1.100.0",
+  "rust_stable": "rustc 1.100.0 (0ef1bc386 2026-11-09)",
+  "rust_pinned_for_gopatina": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "os": "Linux 6.8.0-147-generic x86_64",
+  "results": [
+    {
+      "case": "binary-trees",
+      "primary": "instructions",
+      "candidate": "binary-trees-patina",
+      "baseline": "binary-trees",
+      "warmup": 2,
+      "results": {
+        "cycles": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0.3949804712840401,
+          "sd_log_ratio": 0.03883669226155932,
+          "ratio": 1.4843552030867229,
+          "ratio_low": 1.4538441555708332,
+          "ratio_high": 1.5155065695920649,
+          "verdict": "slower"
+        },
+        "instructions": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0.31646761648269545,
+          "sd_log_ratio": 3.0863425363391616e-08,
+          "ratio": 1.3722718025290002,
+          "ratio_low": 1.3722717798792459,
+          "ratio_high": 1.3722718251787545,
+          "verdict": "slower"
+        },
+        "peak_memory": {
+          "pairs": 20,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0.3876339050143144,
+          "sd_log_ratio": 0.0025550692615675403,
+          "ratio": 1.4734902481421275,
+          "ratio_low": 1.4673134248605642,
+          "ratio_high": 1.4796930734660663,
+          "verdict": "slower"
+        },
+        "wall": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0.402918358853582,
+          "sd_log_ratio": 0.09519087963014763,
+          "ratio": 1.4961847364400682,
+          "ratio_low": 1.421925163859425,
+          "ratio_high": 1.5743224907000428,
+          "verdict": "slower"
+        }
+      },
+      "go": "binary-trees-go",
+      "pairs": {
+        "go_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.6532335507824416,
+            "sd_log_ratio": 0.03424370723153935,
+            "ratio": 1.921744852667428,
+            "ratio_low": 1.886872184270885,
+            "ratio_high": 1.9572620284191762,
+            "verdict": "slower"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.5593846755301736,
+            "sd_log_ratio": 0.003764613625831954,
+            "ratio": 1.7495956000235398,
+            "ratio_low": 1.746076754360263,
+            "ratio_high": 1.753121537170493,
+            "verdict": "slower"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.017395787845889427,
+            "sd_log_ratio": 0.03550987846704191,
+            "ratio": 1.0175479757587316,
+            "ratio_low": 0.9598427099946331,
+            "ratio_high": 1.078722453365804,
+            "verdict": "inconclusive"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.061419454855007584,
+            "sd_log_ratio": 0.07520915447220647,
+            "ratio": 0.9404286896541486,
+            "ratio_low": 0.9033545347438311,
+            "ratio_high": 0.9790243877786197,
+            "verdict": "faster"
+          }
+        },
+        "gopatina_over_go": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.2582530794984016,
+            "sd_log_ratio": 0.03344777277112197,
+            "ratio": 0.7723997288330977,
+            "ratio_low": 0.7587063650556972,
+            "ratio_high": 0.7863402346145415,
+            "verdict": "faster"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.24291705904747807,
+            "sd_log_ratio": 0.0037646148720506707,
+            "ratio": 0.7843365646956,
+            "ratio_low": 0.7827590800289063,
+            "ratio_high": 0.7859172284475795,
+            "verdict": "faster"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.37023811716842503,
+            "sd_log_ratio": 0.035526095617201915,
+            "ratio": 1.4480793861767784,
+            "ratio_low": 1.3659222138789915,
+            "ratio_high": 1.5351781290057303,
+            "verdict": "slower"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.4643378137085895,
+            "sd_log_ratio": 0.08198153620167084,
+            "ratio": 1.590960327880154,
+            "ratio_low": 1.5227155949042166,
+            "ratio_high": 1.6622636383045284,
+            "verdict": "slower"
+          }
+        },
+        "gopatina_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.3949804712840401,
+            "sd_log_ratio": 0.03883669226155932,
+            "ratio": 1.4843552030867229,
+            "ratio_low": 1.4538441555708332,
+            "ratio_high": 1.5155065695920649,
+            "verdict": "slower"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.31646761648269545,
+            "sd_log_ratio": 3.0863425363391616e-08,
+            "ratio": 1.3722718025290002,
+            "ratio_low": 1.3722717798792459,
+            "ratio_high": 1.3722718251787545,
+            "verdict": "slower"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.3876339050143144,
+            "sd_log_ratio": 0.0025550692615675403,
+            "ratio": 1.4734902481421275,
+            "ratio_low": 1.4673134248605642,
+            "ratio_high": 1.4796930734660663,
+            "verdict": "slower"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.402918358853582,
+            "sd_log_ratio": 0.09519087963014763,
+            "ratio": 1.4961847364400682,
+            "ratio_low": 1.421925163859425,
+            "ratio_high": 1.5743224907000428,
+            "verdict": "slower"
+          }
+        }
+      },
+      "arms": [
+        {
+          "name": "gopatina",
+          "path": "binary-trees-patina",
+          "size_bytes": 355160,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 10653910162.926243,
+              "low": 10481569492.97789,
+              "high": 10829084502.635422
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 26294334426.62977,
+              "low": 26294334075.879997,
+              "high": 26294334777.379547
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 51225.510406204696,
+              "low": 51064.139906989825,
+              "high": 51387.39086090034
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 5759652340.689668,
+              "low": 5472794768.092583,
+              "high": 6061545607.195108
+            }
+          }
+        },
+        {
+          "name": "rust",
+          "path": "binary-trees",
+          "size_bytes": 447560,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 7177466782.055712,
+              "low": 7068989955.566517,
+              "high": 7287608234.178715
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 19161170825.03,
+              "low": 19161170506.265766,
+              "high": 19161171143.79424
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 34764.74341841984,
+              "low": 34659.09090285673,
+              "high": 34870.71799823086
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 3849559616.8116593,
+              "low": 3654608465.9126596,
+              "high": 4054910226.802197
+            }
+          }
+        },
+        {
+          "name": "go",
+          "path": "binary-trees-go",
+          "size_bytes": 2359825,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 13793259843.606724,
+              "low": 13626941994.93624,
+              "high": 13961607614.089209
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 33524300166.771732,
+              "low": 33456874808.11089,
+              "high": 33591861407.191307
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 35374.79429318471,
+              "low": 33366.395957799854,
+              "high": 37504.08263654879
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 3620236306.183696,
+              "low": 3475510500.618111,
+              "high": 3770988725.3339267
+            }
+          }
+        }
+      ]
+    },
+    {
+      "case": "cycles",
+      "primary": "instructions",
+      "candidate": "cycles-patina",
+      "baseline": "cycles",
+      "warmup": 2,
+      "results": {
+        "cycles": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": -0.021339256023536337,
+          "sd_log_ratio": 0.07829847613552814,
+          "ratio": 0.9788868149824281,
+          "ratio_low": 0.9387443374200625,
+          "ratio_high": 1.0207458605608244,
+          "verdict": "inconclusive"
+        },
+        "instructions": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": -0.01682221791720926,
+          "sd_log_ratio": 4.3632246778465335e-07,
+          "ratio": 0.9833184855046175,
+          "ratio_low": 0.9833182560583689,
+          "ratio_high": 0.9833187149509197,
+          "verdict": "faster"
+        },
+        "peak_memory": {
+          "pairs": 20,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 4.139341489734039,
+          "sd_log_ratio": 0.021478783357142543,
+          "ratio": 62.76147876033255,
+          "ratio_low": 60.583847445345434,
+          "ratio_high": 65.01738305308476,
+          "verdict": "slower"
+        },
+        "wall": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0.6925071929702448,
+          "sd_log_ratio": 0.10481506676223439,
+          "ratio": 1.9987204343173517,
+          "ratio_low": 1.889767235454956,
+          "ratio_high": 2.113955253116655,
+          "verdict": "slower"
+        }
+      },
+      "go": "cycles-go",
+      "pairs": {
+        "go_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.37924090924417037,
+            "sd_log_ratio": 0.06966908791310912,
+            "ratio": 0.6843807191631128,
+            "ratio_low": 0.6593512422666666,
+            "ratio_high": 0.7103603341249033,
+            "verdict": "faster"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.36107705310638466,
+            "sd_log_ratio": 0.01747296197907743,
+            "ratio": 0.6969252961389482,
+            "ratio_low": 0.6904433638851307,
+            "ratio_high": 0.7034680812417329,
+            "verdict": "faster"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.9445036710551253,
+            "sd_log_ratio": 0.05732981713807373,
+            "ratio": 2.571536733682889,
+            "ratio_low": 2.340227070930381,
+            "ratio_high": 2.825709203531038,
+            "verdict": "slower"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.30129043340477873,
+            "sd_log_ratio": 0.10868393008129455,
+            "ratio": 0.7398628606497044,
+            "ratio_low": 0.698086002631999,
+            "ratio_high": 0.7841398488222205,
+            "verdict": "faster"
+          }
+        },
+        "gopatina_over_go": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.35790165322063394,
+            "sd_log_ratio": 0.07618034866796836,
+            "ratio": 1.4303249457106986,
+            "ratio_low": 1.373224390326716,
+            "ratio_high": 1.489799820578173,
+            "verdict": "slower"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.34425483518917566,
+            "sd_log_ratio": 0.017472944357340394,
+            "ratio": 1.410938146387171,
+            "ratio_low": 1.3978153678778737,
+            "ratio_high": 1.4241841223657206,
+            "verdict": "slower"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 3.194837818678915,
+            "sd_log_ratio": 0.05672390222891585,
+            "ratio": 24.406215139088157,
+            "ratio_low": 22.233013820523453,
+            "ratio_high": 26.791839479072102,
+            "verdict": "slower"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.9937976263750237,
+            "sd_log_ratio": 0.12081812392666234,
+            "ratio": 2.7014742063984563,
+            "ratio_low": 2.532446683077687,
+            "ratio_high": 2.881783429677951,
+            "verdict": "slower"
+          }
+        },
+        "gopatina_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.021339256023536337,
+            "sd_log_ratio": 0.07829847613552814,
+            "ratio": 0.9788868149824281,
+            "ratio_low": 0.9387443374200625,
+            "ratio_high": 1.0207458605608244,
+            "verdict": "inconclusive"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.01682221791720926,
+            "sd_log_ratio": 4.3632246778465335e-07,
+            "ratio": 0.9833184855046175,
+            "ratio_low": 0.9833182560583689,
+            "ratio_high": 0.9833187149509197,
+            "verdict": "faster"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 4.139341489734039,
+            "sd_log_ratio": 0.021478783357142543,
+            "ratio": 62.76147876033255,
+            "ratio_low": 60.583847445345434,
+            "ratio_high": 65.01738305308476,
+            "verdict": "slower"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.6925071929702448,
+            "sd_log_ratio": 0.10481506676223439,
+            "ratio": 1.9987204343173517,
+            "ratio_low": 1.889767235454956,
+            "ratio_high": 2.113955253116655,
+            "verdict": "slower"
+          }
+        }
+      },
+      "arms": [
+        {
+          "name": "gopatina",
+          "path": "cycles-patina",
+          "size_bytes": 354800,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 390485967.15369487,
+              "low": 378250691.62788033,
+              "high": 403117017.15000224
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 909513324.6499522,
+              "low": 909513169.4091777,
+              "high": 909513479.8907533
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 189548.79016110444,
+              "low": 189445.7824046614,
+              "high": 189651.85392617297
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 452947539.92979103,
+              "low": 429880703.96880007,
+              "high": 477252112.1193192
+            }
+          }
+        },
+        {
+          "name": "rust",
+          "path": "cycles",
+          "size_bytes": 448608,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 398908189.56500596,
+              "low": 386364807.08186895,
+              "high": 411858794.55193835
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 924942770.8899618,
+              "low": 924942614.328712,
+              "high": 924942927.4512383
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 3020.1453806551544,
+              "low": 2915.773902698086,
+              "high": 3128.2528840293007
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 226618756.75699198,
+              "low": 212987479.09376073,
+              "high": 241122441.24677813
+            }
+          }
+        },
+        {
+          "name": "go",
+          "path": "cycles-go",
+          "size_bytes": 2343131,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 273005073.654553,
+              "low": 266759131.99705043,
+              "high": 279397258.80481577
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 644616014.5140566,
+              "low": 638620593.6297259,
+              "high": 650667720.8861068
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 7766.414787417435,
+              "low": 7078.232189166056,
+              "high": 8521.506082060676
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 167666801.65110797,
+              "low": 158617024.06879884,
+              "high": 177232907.63366333
+            }
+          }
+        }
+      ]
+    },
+    {
+      "case": "fib",
+      "primary": "instructions",
+      "candidate": "fib-patina",
+      "baseline": "fib",
+      "warmup": 2,
+      "results": {
+        "cycles": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": -0.10195533474684697,
+          "sd_log_ratio": 0.04241089365649514,
+          "ratio": 0.9030698866131853,
+          "ratio_low": 0.8828181499725196,
+          "ratio_high": 0.923786195529552,
+          "verdict": "faster"
+        },
+        "instructions": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 2.651387554366956e-07,
+          "sd_log_ratio": 4.40490729717846e-08,
+          "ratio": 1.0000002651387905,
+          "ratio_low": 1.0000002415820004,
+          "ratio_high": 1.0000002886955814,
+          "verdict": "equivalent"
+        },
+        "peak_memory": {
+          "pairs": 20,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0.025424018522914833,
+          "sd_log_ratio": 0.05622146876764143,
+          "ratio": 1.025749965311963,
+          "ratio_low": 0.9351863561259084,
+          "ratio_high": 1.1250837701441356,
+          "verdict": "inconclusive"
+        },
+        "wall": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": -0.1010042229420876,
+          "sd_log_ratio": 0.0749511917077889,
+          "ratio": 0.9039292156370752,
+          "ratio_low": 0.8684137587404209,
+          "ratio_high": 0.9408971456963007,
+          "verdict": "faster"
+        }
+      },
+      "go": "fib-go",
+      "pairs": {
+        "go_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.5374536747209461,
+            "sd_log_ratio": 0.04548687786162524,
+            "ratio": 1.7116429089128202,
+            "ratio_low": 1.6705083376982044,
+            "ratio_high": 1.7537903771665144,
+            "verdict": "slower"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.3909281824695977,
+            "sd_log_ratio": 6.776022660309198e-06,
+            "ratio": 1.4783523379865857,
+            "ratio_low": 1.4783469808681613,
+            "ratio_high": 1.4783576951244228,
+            "verdict": "slower"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.07021533988660889,
+            "sd_log_ratio": 0.04584613076860898,
+            "ratio": 0.9321930599430844,
+            "ratio_low": 0.8645114167987342,
+            "ratio_high": 1.0051734241103238,
+            "verdict": "inconclusive"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.5423813443981831,
+            "sd_log_ratio": 0.08050869029774134,
+            "ratio": 1.7200981349447009,
+            "ratio_low": 1.6476112357767911,
+            "ratio_high": 1.7957741059257202,
+            "verdict": "slower"
+          }
+        },
+        "gopatina_over_go": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.6394090094677928,
+            "sd_log_ratio": 0.0464632496805036,
+            "ratio": 0.5276041409751676,
+            "ratio_low": 0.5146558473537242,
+            "ratio_high": 0.5408782024054667,
+            "verdict": "faster"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.39092791733084226,
+            "sd_log_ratio": 6.775570878420736e-06,
+            "ratio": 0.6764289130835497,
+            "ratio_low": 0.6764264620655517,
+            "ratio_high": 0.6764313641104288,
+            "verdict": "faster"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.09563935840952367,
+            "sd_log_ratio": 0.05004264086164766,
+            "ratio": 1.1003621560694634,
+            "ratio_low": 1.0134541699196637,
+            "ratio_high": 1.1947228700098178,
+            "verdict": "slower"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.6433855673402706,
+            "sd_log_ratio": 0.09928778763909658,
+            "ratio": 0.5255102585563443,
+            "ratio_low": 0.4983347751241822,
+            "ratio_high": 0.554167691345919,
+            "verdict": "faster"
+          }
+        },
+        "gopatina_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.10195533474684697,
+            "sd_log_ratio": 0.04241089365649514,
+            "ratio": 0.9030698866131853,
+            "ratio_low": 0.8828181499725196,
+            "ratio_high": 0.923786195529552,
+            "verdict": "faster"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 2.651387554366956e-07,
+            "sd_log_ratio": 4.40490729717846e-08,
+            "ratio": 1.0000002651387905,
+            "ratio_low": 1.0000002415820004,
+            "ratio_high": 1.0000002886955814,
+            "verdict": "equivalent"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.025424018522914833,
+            "sd_log_ratio": 0.05622146876764143,
+            "ratio": 1.025749965311963,
+            "ratio_low": 0.9351863561259084,
+            "ratio_high": 1.1250837701441356,
+            "verdict": "inconclusive"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.1010042229420876,
+            "sd_log_ratio": 0.0749511917077889,
+            "ratio": 0.9039292156370752,
+            "ratio_low": 0.8684137587404209,
+            "ratio_high": 0.9408971456963007,
+            "verdict": "faster"
+          }
+        }
+      },
+      "arms": [
+        {
+          "name": "gopatina",
+          "path": "fib-patina",
+          "size_bytes": 347016,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 2608927028.765544,
+              "low": 2553538856.3834968,
+              "high": 2665516612.135388
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 8504566959.46997,
+              "low": 8504566809.179976,
+              "high": 8504567109.759965
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 2034.0288169093471,
+              "low": 1920.765094832094,
+              "high": 2153.9714768605286
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 1366633994.6978943,
+              "low": 1298142615.978783,
+              "high": 1438739051.0677526
+            }
+          }
+        },
+        {
+          "name": "rust",
+          "path": "fib",
+          "size_bytes": 445736,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 2888953631.872154,
+              "low": 2823014242.4830427,
+              "high": 2956433220.034469
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 8504564704.5800295,
+              "low": 8504564550.35512,
+              "high": 8504564858.804943
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 1982.9674732581977,
+              "low": 1877.915610654693,
+              "high": 2093.8960077280267
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 1511881650.7493136,
+              "low": 1441980990.8773758,
+              "high": 1585170775.712986
+            }
+          }
+        },
+        {
+          "name": "go",
+          "path": "fib-go",
+          "size_bytes": 2342317,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 4944856998.171932,
+              "low": 4882625743.439887,
+              "high": 5007881418.153377
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 12572743114.57408,
+              "low": 12572697537.172665,
+              "high": 12572788692.140717
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 1848.5085166641627,
+              "low": 1744.524394820198,
+              "high": 1958.6907161204356
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 2600584807.710965,
+              "low": 2495024395.8654203,
+              "high": 2710611308.3721004
+            }
+          }
+        }
+      ]
+    },
+    {
+      "case": "sieve",
+      "primary": "instructions",
+      "candidate": "sieve-patina",
+      "baseline": "sieve",
+      "warmup": 2,
+      "results": {
+        "cycles": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": -0.009504824601194822,
+          "sd_log_ratio": 0.055443145293166164,
+          "ratio": 0.990540203469923,
+          "ratio_low": 0.9616016608448471,
+          "ratio_high": 1.0203496256736881,
+          "verdict": "inconclusive"
+        },
+        "instructions": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 6.194886625933992e-06,
+          "sd_log_ratio": 1.0930267602860285e-06,
+          "ratio": 1.0000061949058143,
+          "ratio_low": 1.0000056103680288,
+          "ratio_high": 1.0000067794439416,
+          "verdict": "equivalent"
+        },
+        "peak_memory": {
+          "pairs": 20,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0,
+          "sd_log_ratio": 0,
+          "ratio": 1,
+          "ratio_low": 1,
+          "ratio_high": 1,
+          "verdict": "equivalent"
+        },
+        "wall": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": -0.016464437607444645,
+          "sd_log_ratio": 0.10208234643218901,
+          "ratio": 0.9836703604401669,
+          "ratio_low": 0.9314092221997216,
+          "ratio_high": 1.038863858061526,
+          "verdict": "inconclusive"
+        }
+      },
+      "go": "sieve-go",
+      "pairs": {
+        "go_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.014104734072080762,
+            "sd_log_ratio": 0.056961998283713886,
+            "ratio": 0.985994271659757,
+            "ratio_low": 0.9564113679041062,
+            "ratio_high": 1.016492208657363,
+            "verdict": "inconclusive"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 4.735055544580862e-05,
+            "sd_log_ratio": 0.0008704986324662616,
+            "ratio": 1.0000473516765012,
+            "ratio_low": 0.9995819083536114,
+            "ratio_high": 1.0005130117274899,
+            "verdict": "equivalent"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.014854763569912572,
+            "sd_log_ratio": 0.0030264935929064495,
+            "ratio": 1.0149656439237658,
+            "ratio_low": 1.0099278759756025,
+            "ratio_high": 1.0200285414940566,
+            "verdict": "slower"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.01633615569006812,
+            "sd_log_ratio": 0.10534110366705861,
+            "ratio": 1.016470320263569,
+            "ratio_low": 0.9607906994280635,
+            "ratio_high": 1.0753766794284851,
+            "verdict": "inconclusive"
+          }
+        },
+        "gopatina_over_go": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.004599909470885951,
+            "sd_log_ratio": 0.05867575952106332,
+            "ratio": 1.0046105052948369,
+            "ratio_low": 0.9735763707123865,
+            "ratio_high": 1.0366338971541218,
+            "verdict": "inconclusive"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -4.115566881990611e-05,
+            "sd_log_ratio": 0.0008703465322523634,
+            "ratio": 0.999958845178063,
+            "ratio_low": 0.9994935243476966,
+            "ratio_high": 1.0004243826416241,
+            "verdict": "equivalent"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.01485476356991251,
+            "sd_log_ratio": 0.0030264935929065332,
+            "ratio": 0.9852550241346989,
+            "ratio_low": 0.9803647244372982,
+            "ratio_high": 0.9901697178464235,
+            "verdict": "faster"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.03280059329751276,
+            "sd_log_ratio": 0.11804320134572413,
+            "ratio": 0.9677315125001414,
+            "ratio_low": 0.9085291290982662,
+            "ratio_high": 1.0307916942798643,
+            "verdict": "inconclusive"
+          }
+        },
+        "gopatina_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.009504824601194822,
+            "sd_log_ratio": 0.055443145293166164,
+            "ratio": 0.990540203469923,
+            "ratio_low": 0.9616016608448471,
+            "ratio_high": 1.0203496256736881,
+            "verdict": "inconclusive"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 6.194886625933992e-06,
+            "sd_log_ratio": 1.0930267602860285e-06,
+            "ratio": 1.0000061949058143,
+            "ratio_low": 1.0000056103680288,
+            "ratio_high": 1.0000067794439416,
+            "verdict": "equivalent"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0,
+            "sd_log_ratio": 0,
+            "ratio": 1,
+            "ratio_low": 1,
+            "ratio_high": 1,
+            "verdict": "equivalent"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.016464437607444645,
+            "sd_log_ratio": 0.10208234643218901,
+            "ratio": 0.9836703604401669,
+            "ratio_low": 0.9314092221997216,
+            "ratio_high": 1.038863858061526,
+            "verdict": "inconclusive"
+          }
+        }
+      },
+      "arms": [
+        {
+          "name": "gopatina",
+          "path": "sieve-patina",
+          "size_bytes": 347128,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 394513794.5136334,
+              "low": 384124615.9615829,
+              "high": 405183962.68858576
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 384639389.389911,
+              "low": 384639248.7108728,
+              "high": 384639530.0690006
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 21375.999999999887,
+              "low": 21375.999999999698,
+              "high": 21376.000000000076
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 257748123.64542484,
+              "low": 243016642.62136623,
+              "high": 273372615.6617402
+            }
+          }
+        },
+        {
+          "name": "rust",
+          "path": "sieve",
+          "size_bytes": 445256,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 398281456.04956764,
+              "low": 389129427.3960888,
+              "high": 407648733.46753746
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 384637006.5998848,
+              "low": 384636844.92101556,
+              "high": 384637168.27882206
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 21375.999999999887,
+              "low": 21375.999999999698,
+              "high": 21376.000000000076
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 262026928.95015407,
+              "low": 248670994.19492695,
+              "high": 276100201.0601595
+            }
+          }
+        },
+        {
+          "name": "go",
+          "path": "sieve-go",
+          "size_bytes": 2342580,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 392703234.17317665,
+              "low": 383566463.4707869,
+              "high": 402057647.9356834
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 384655219.80698705,
+              "low": 384476232.1219023,
+              "high": 384834290.81735635
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 21695.90560451442,
+              "low": 21588.218276854503,
+              "high": 21804.130102976942
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 266342596.38764012,
+              "low": 251431597.6679861,
+              "high": 282137882.86141765
+            }
+          }
+        }
+      ]
+    },
+    {
+      "case": "suffix-sum",
+      "primary": "instructions",
+      "candidate": "suffix-sum-patina",
+      "baseline": "suffix-sum",
+      "warmup": 2,
+      "results": {
+        "cycles": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0.0017984799455516042,
+          "sd_log_ratio": 0.030256343376809762,
+          "ratio": 1.0018000981805846,
+          "ratio_low": 0.9857207700315994,
+          "ratio_high": 1.0181417164238673,
+          "verdict": "inconclusive"
+        },
+        "instructions": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 7.203567021528011e-06,
+          "sd_log_ratio": 1.0369123549103373e-06,
+          "ratio": 1.0000072035929672,
+          "ratio_low": 1.0000066490639345,
+          "ratio_high": 1.0000077581223077,
+          "verdict": "equivalent"
+        },
+        "peak_memory": {
+          "pairs": 20,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 8.097167761514207e-05,
+          "sd_log_ratio": 0.000249225587790256,
+          "ratio": 1.0000809749559099,
+          "ratio_low": 0.999671274994935,
+          "ratio_high": 1.0004908428261388,
+          "verdict": "equivalent"
+        },
+        "wall": {
+          "pairs": 100,
+          "margin": 0.005,
+          "sigma": 5,
+          "alpha_one_sided": 2.866515718791946e-07,
+          "mean_log_ratio": 0.005518553784046167,
+          "sd_log_ratio": 0.0875486024489489,
+          "ratio": 1.0055338090514077,
+          "ratio_low": 0.9595401428787335,
+          "ratio_high": 1.0537320909910228,
+          "verdict": "inconclusive"
+        }
+      },
+      "go": "suffix-sum-go",
+      "pairs": {
+        "go_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.06026075406012877,
+            "sd_log_ratio": 0.03470321491989288,
+            "ratio": 1.0621134608377585,
+            "ratio_low": 1.0425837369277553,
+            "ratio_high": 1.0820090163855396,
+            "verdict": "slower"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.29842946980857216,
+            "sd_log_ratio": 0.0005739604240094255,
+            "ratio": 1.3477404774506654,
+            "ratio_low": 1.3473268581454318,
+            "ratio_high": 1.3481542237339434,
+            "verdict": "slower"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.0026684330149607796,
+            "sd_log_ratio": 0.0006985031410630087,
+            "ratio": 1.0026719964512305,
+            "ratio_low": 1.0015211828102109,
+            "ratio_high": 1.0038241324527344,
+            "verdict": "equivalent"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.03493660284681867,
+            "sd_log_ratio": 0.08176876944205502,
+            "ratio": 1.0355540555394438,
+            "ratio_low": 0.9912464276125826,
+            "ratio_high": 1.0818421858296108,
+            "verdict": "inconclusive"
+          }
+        },
+        "gopatina_over_go": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.05846227411457721,
+            "sd_log_ratio": 0.041022723276084846,
+            "ratio": 0.9432138233050913,
+            "ratio_low": 0.9227466090538801,
+            "ratio_high": 0.964135015772093,
+            "verdict": "faster"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.29842226624155066,
+            "sd_log_ratio": 0.0005739158729267999,
+            "ratio": 0.7419879571210496,
+            "ratio_low": 0.7417602599268649,
+            "ratio_high": 0.7422157242111495,
+            "verdict": "faster"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.0025874613373456966,
+            "sd_log_ratio": 0.0006201625367478239,
+            "ratio": 0.9974158832554504,
+            "ratio_low": 0.9963994297389738,
+            "ratio_high": 0.9984333736831498,
+            "verdict": "equivalent"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": -0.029418049062772497,
+            "sd_log_ratio": 0.10109690472415125,
+            "ratio": 0.9710104495970537,
+            "ratio_low": 0.9199065786519692,
+            "ratio_high": 1.0249533105941486,
+            "verdict": "inconclusive"
+          }
+        },
+        "gopatina_over_rust": {
+          "cycles": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.0017984799455516042,
+            "sd_log_ratio": 0.030256343376809762,
+            "ratio": 1.0018000981805846,
+            "ratio_low": 0.9857207700315994,
+            "ratio_high": 1.0181417164238673,
+            "verdict": "inconclusive"
+          },
+          "instructions": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 7.203567021528011e-06,
+            "sd_log_ratio": 1.0369123549103373e-06,
+            "ratio": 1.0000072035929672,
+            "ratio_low": 1.0000066490639345,
+            "ratio_high": 1.0000077581223077,
+            "verdict": "equivalent"
+          },
+          "peak_memory": {
+            "pairs": 20,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 8.097167761514207e-05,
+            "sd_log_ratio": 0.000249225587790256,
+            "ratio": 1.0000809749559099,
+            "ratio_low": 0.999671274994935,
+            "ratio_high": 1.0004908428261388,
+            "verdict": "equivalent"
+          },
+          "wall": {
+            "pairs": 100,
+            "margin": 0.005,
+            "sigma": 5,
+            "alpha_one_sided": 2.866515718791946e-07,
+            "mean_log_ratio": 0.005518553784046167,
+            "sd_log_ratio": 0.0875486024489489,
+            "ratio": 1.0055338090514077,
+            "ratio_low": 0.9595401428787335,
+            "ratio_high": 1.0537320909910228,
+            "verdict": "inconclusive"
+          }
+        }
+      },
+      "arms": [
+        {
+          "name": "gopatina",
+          "path": "suffix-sum-patina",
+          "size_bytes": 347544,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 180310679.34824482,
+              "low": 177874119.40863055,
+              "high": 182780615.83729228
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 322696847.19988436,
+              "low": 322696702.69525576,
+              "high": 322696991.70457774
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 158086.39753975658,
+              "low": 158039.36490934534,
+              "high": 158133.444167113
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 301743219.3225719,
+              "low": 286334524.79315686,
+              "high": 317981111.3344503
+            }
+          }
+        },
+        {
+          "name": "rust",
+          "path": "suffix-sum",
+          "size_bytes": 446296,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 179986685.64289132,
+              "low": 178017777.63256866,
+              "high": 181977370.12298384
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 322694522.63989466,
+              "low": 322694382.1473305,
+              "high": 322694663.13251996
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 158073.59753716548,
+              "low": 158026.5306251377,
+              "high": 158120.67846768873
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 300082619.4071244,
+              "low": 285659780.0207763,
+              "high": 315233661.74857265
+            }
+          }
+        },
+        {
+          "name": "go",
+          "path": "suffix-sum-go",
+          "size_bytes": 2342634,
+          "estimates": {
+            "cycles": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 191166281.59288675,
+              "low": 187858931.5488297,
+              "high": 194531859.18153664
+            },
+            "instructions": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 434908470.0134058,
+              "low": 434775033.28639644,
+              "high": 435041947.6934569
+            },
+            "peak_kb": {
+              "runs": 20,
+              "sigma": 5,
+              "geomean": 158495.96962881772,
+              "low": 158330.5397126177,
+              "high": 158661.5723926391
+            },
+            "wall": {
+              "runs": 100,
+              "sigma": 5,
+              "geomean": 310751773.52394736,
+              "low": 295604667.4826291,
+              "high": 326675033.8235214
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

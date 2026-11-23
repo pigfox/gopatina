@@ -45,7 +45,7 @@ var pages = []page{
 		Description: "GoPatina's evidence as a scientific report: hypotheses, method, apparatus, TOST equivalence at 5σ, a Six Sigma defect bound at 6σ, every result.",
 	},
 	{
-		Path: "/benchmarks", File: "benchmarks", Kind: "article", Crumb: "Benchmarks", Updated: "2026-11-22",
+		Path: "/benchmarks", File: "benchmarks", Kind: "article", Crumb: "Benchmarks", Updated: "2026-11-23",
 		Title:       "GoPatina benchmarks: Go vs Rust performance, measured",
 		Description: "How fast is Go compiled through Rust? GoPatina's benchmarks against hand-written Rust and plain Go: the method, measured ratios and caveats.",
 	},
