@@ -248,6 +248,15 @@ func (g *gen) identityConversion(e ast.Expr) (ast.Expr, bool) {
 	return x, g.rustType(g.typeOf(e)) == g.rustType(g.typeOf(x))
 }
 
+// bytesOfString returns s when e is the conversion []byte(s) of a string.
+func (g *gen) bytesOfString(e ast.Expr) (ast.Expr, bool) {
+	c, ok := ast.Unparen(e).(*ast.CallExpr)
+	if !ok || !g.info.Types[c.Fun].IsType() || !isSlice(g.typeOf(e)) || !isStringType(g.typeOf(c.Args[0])) {
+		return nil, false
+	}
+	return c.Args[0], true
+}
+
 // conversion renders T(x).
 func (g *gen) conversion(e *ast.CallExpr, to types.Type) node {
 	x := e.Args[0]
@@ -603,6 +612,10 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		// The bytes of a string or []byte in hex.
 		g.rt["hex_bytes"] = true
 		var bytes node
+		if str, ok := g.bytesOfString(e); ok {
+			// []byte(s) is only read: lend s's bytes rather than copy them.
+			e, t = str, g.typeOf(str)
+		}
 		if isStringType(t) {
 			bytes = &call{recv: atom{paren(g.strRef(e), precPostfix), precPostfix}, head: ".as_bytes", open: "(", close: ")"}
 		} else {

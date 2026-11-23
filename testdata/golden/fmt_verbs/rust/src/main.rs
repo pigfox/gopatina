@@ -131,6 +131,15 @@ fn main() {
         rt::hex_bytes(&Vec::new(), false, false),
         rt::hex_bytes(&Vec::new(), false, true),
     );
+    // []byte(s) in hex lends s's bytes; nothing is copied.
+    let word: String = String::from("gö");
+    println!(
+        "|{}|{}|{:>6}|{}|",
+        rt::hex_bytes(word.as_bytes(), false, false),
+        rt::hex_bytes(word.as_bytes(), true, true),
+        rt::hex_bytes("ab".as_bytes(), false, false),
+        rt::hex_bytes(empty.as_bytes(), false, false),
+    );
     let pt = Pt { x: 2 };
     println!(
         "{} {} {} {} {}",
