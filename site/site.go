@@ -229,6 +229,13 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 		return nil, err
 	}
 	routes["/funding.json"] = newResource(funding, "application/json", cacheShort)
+	// The Early Sponsor badge, at a fixed address sponsors can link to
+	// (content/pages/sponsor.md).
+	badge, err := fs.ReadFile(fsys, "static/early-sponsor.svg")
+	if err != nil {
+		return nil, err
+	}
+	routes["/badges/early-sponsor.svg"] = newResource(badge, "image/svg+xml", cacheShort)
 
 	src404, err := fs.ReadFile(fsys, "content/pages/"+notFoundPage.File+".md")
 	if err != nil {

@@ -65,7 +65,7 @@ var pages = []page{
 		Description: "Answers about GoPatina: what it is, whether it works today, whether your Go code still works, whether you need Rust, speed, correctness, license.",
 	},
 	{
-		Path: "/sponsor", File: "sponsor", Kind: "page", Crumb: "Sponsor", Updated: "2026-11-22",
+		Path: "/sponsor", File: "sponsor", Kind: "page", Crumb: "Sponsor", Updated: "2026-11-23",
 		Title:       "Sponsor GoPatina: support Go through Rust, no GC",
 		Description: "Sponsor GoPatina, the open-source Go toolchain front end that compiles Go through Rust: tiers for individuals and companies, and what they pay for.",
 	},

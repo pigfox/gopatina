@@ -335,6 +335,14 @@ named by the `GOPATINA_GO` and `GOPATINA_CARGO` environment variables.
   `-patina` mode with the same rules, and a default mode that keeps ordinary
   Go working.
 
+## Sponsors
+
+GoPatina is sponsored through [gopatina.org/sponsor](https://gopatina.org/sponsor).
+Anyone who sponsors at any tier before GoPatina 1.0 is an Early Sponsor,
+listed permanently on the Founding sponsors wall here and on that page.
+
+**Founding sponsors:** none yet.
+
 ## Contributing
 
 Contributions are welcome, and at this stage critique of the
