@@ -50,7 +50,8 @@ jobs:
         run: |
           toolchain="${{ matrix.rust }}"
           if [ "$toolchain" = msrv ]; then toolchain="$RUST_MSRV"; fi
-          rustup toolchain install "$toolchain" --profile minimal
+          # clippy: TestLibraries lints the library crates and their users.
+          rustup toolchain install "$toolchain" --profile minimal --component clippy
           rustup default "$toolchain"
           echo "RUST_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
       - name: Install the pinned toolchain with rustfmt and clippy
