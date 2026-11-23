@@ -1,6 +1,8 @@
 # RFC 0014: Library crates
 
-- **Status:** Draft
+- **Status:** Accepted (#100). Library mode implemented; `-api-check`,
+  library batches in the generator and the `examples/rust-interop`
+  showcase follow
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
@@ -234,12 +236,35 @@ output for input that is rejected today.
 - Go's own `-buildmode=c-shared` exports Go functions through a C ABI with
   the Go runtime attached.
 
-## Unresolved questions
+## Decisions after review
 
-- Whether `Error` should expose typed errors of the package (an enum of
-  its error types) in a later version.
-- The crate name: the package name (`pricing`) or the last element of its
-  import path, when they differ.
+- **Crate name:** the last element of the package's import path, with `-`
+  turned into `_` as cargo's conventions have it; `-crate-name` overrides
+  it.
+- **Typed errors:** later, in a separate RFC; `Error` is opaque in v1.
+- **api.txt** notes, under each function, every parameter it takes
+  ownership of (`String`, `Vec<T>`, a struct) and why, from `-explain`, so
+  a Rust caller sees why a signature takes ownership.
+
+## What implementing it settled
+
+- A workspace ignores a member crate's profiles, so the library's
+  `Cargo.toml` has none; it shows the one setting its users add, because
+  Go integers wrap: `[profile.dev.package.<crate>] overflow-checks =
+  false` (release builds have overflow checks off by default).
+- The crate's own machinery (`Dyn`, `Iface`, the helpers) lives in a
+  private module, `src/gopatina.rs`, so the API holds only the package's
+  items and `Error`.
+- Exported constants are `pub const`; exported structs whose fields are
+  numbers, strings, slices and structs of them derive `Debug` too.
+- A struct with unexported fields is built in Rust from
+  `T::default()` and its pub fields, as Go code outside the package builds
+  it from the zero value: Rust's `T { .., ..Default::default() }` is not
+  allowed across a crate for a struct with private fields.
+- GoPatina's own panics carry Go's message (a library has no panic hook);
+  Rust's own, for an index out of range or a division by zero, keep Rust's.
+- `gopatina build -patina` of a library is refused: a library has no
+  binary.
 
 ## Future possibilities
 

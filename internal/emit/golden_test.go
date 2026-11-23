@@ -65,7 +65,7 @@ func emitDir(t testing.TB, dir string) *Crate {
 // the crate in its rust directory. Run go test ./internal/emit -update to
 // rewrite them after a deliberate change, and review the diff.
 func TestGolden(t *testing.T) {
-	for _, dir := range programs(t, "golden") {
+	for _, dir := range append(programs(t, "golden"), programs(t, "golden-lib")...) {
 		t.Run(filepath.Base(dir), func(t *testing.T) {
 			c := emitDir(t, dir)
 			want := filepath.Join(dir, "rust")
@@ -108,7 +108,7 @@ func TestGolden(t *testing.T) {
 // TestDeterministic emits every golden program twice, in two different
 // directories, and requires identical manifests (docs/REPRODUCIBLE.md).
 func TestDeterministic(t *testing.T) {
-	for _, dir := range programs(t, "golden") {
+	for _, dir := range append(programs(t, "golden"), programs(t, "golden-lib")...) {
 		t.Run(filepath.Base(dir), func(t *testing.T) {
 			a, b := filepath.Join(t.TempDir(), "a"), filepath.Join(t.TempDir(), "a-longer-directory")
 			for _, out := range []string{a, b} {

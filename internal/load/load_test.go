@@ -176,3 +176,24 @@ func TestRelativeDir(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// TestModuleImportPath checks the import path of a package from its
+// module's go.mod (RFC 0014's crate names).
+func TestModuleImportPath(t *testing.T) {
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, "a", "b"), 0o755)
+	os.WriteFile(filepath.Join(root, "go.mod"), []byte("module \"example.com/m\"\n\ngo 1.25\n"), 0o644)
+	if p := moduleImportPath(filepath.Join(root, "a", "b")); p != "example.com/m/a/b" {
+		t.Errorf("subdirectory: %q", p)
+	}
+	if p := moduleImportPath(root); p != "example.com/m" {
+		t.Errorf("module root: %q", p)
+	}
+	os.WriteFile(filepath.Join(root, "go.mod"), []byte("go 1.25\n"), 0o644)
+	if p := moduleImportPath(filepath.Join(root, "a")); p != "" {
+		t.Errorf("no module line: %q", p)
+	}
+	if p := moduleImportPath(string(filepath.Separator)); p != "" {
+		t.Errorf("no go.mod: %q", p)
+	}
+}

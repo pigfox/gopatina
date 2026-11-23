@@ -191,7 +191,9 @@ func program(dir, cwd string) (*Package, error) {
 		checked[l.ImportPath] = pkg
 		order = append(order, pkg)
 	}
-	return merge(initOrder(order, byPath), order[len(order)-1]), nil
+	m := merge(initOrder(order, byPath), order[len(order)-1])
+	m.ImportPath = main.ImportPath
+	return m, nil
 }
 
 // importFrom imports a translated package already checked from source,

@@ -106,6 +106,10 @@ func (g *gen) globalDecl(s *ast.ValueSpec) {
 		}
 		v := g.info.Defs[n].(*types.Var)
 		name, vis, rt := g.gnames[v], g.vis(v.Exported()), g.rustType(v.Type())
+		sentinel := g.api != nil && g.api.sentinel[v] != ""
+		if sentinel {
+			vis = "" // its pub function is the API (RFC 0014)
+		}
 		switch {
 		case g.localStatic(v):
 			g.fnContext()
@@ -118,6 +122,9 @@ func (g *gen) globalDecl(s *ast.ValueSpec) {
 			g.stmtLine(vis+"static "+name+": "+rt+" = ", init, ";")
 			g.ind--
 			g.line("}")
+			if sentinel {
+				g.sentinelFn(v)
+			}
 		case g.globals[v] == subset.GlobalStatic:
 			g.fnContext()
 			var init node

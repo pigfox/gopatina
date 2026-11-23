@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -30,6 +31,15 @@ func goldenDirs(t *testing.T) []string {
 		t.Fatalf("no golden programs: %v", err)
 	}
 	return append(dirs, filepath.Join(root(), "examples", "hello"))
+}
+
+// libraryDirs returns the golden library packages (RFC 0014).
+func libraryDirs(t *testing.T) []string {
+	dirs, err := filepath.Glob(filepath.Join(root(), "testdata", "golden-lib", "*"))
+	if err != nil || len(dirs) == 0 {
+		t.Fatalf("no golden libraries: %v", err)
+	}
+	return dirs
 }
 
 // realSession uses the cargo on PATH.
@@ -129,7 +139,7 @@ func pinnedEnv() []string {
 // a faithful Go translation cannot avoid.
 func TestGoldenCratesAreClean(t *testing.T) {
 	needRust(t)
-	for _, dir := range goldenDirs(t) {
+	for _, dir := range append(goldenDirs(t), libraryDirs(t)...) {
 		t.Run(filepath.Base(dir), func(t *testing.T) {
 			crate := filepath.Join(dir, "rust")
 			target := t.TempDir()
@@ -172,6 +182,67 @@ func TestVerifyGolden(t *testing.T) {
 			s.Stdout = &out
 			if err := s.Verify(dir); err != nil {
 				t.Fatalf("%v\n%s", err, out.String())
+			}
+		})
+	}
+}
+
+// crateNameRE finds a crate's name in its Cargo.toml.
+var crateNameRE = regexp.MustCompile(`(?m)^name = "([a-z0-9_]+)"`)
+
+// TestLibraries checks each golden library crate (RFC 0014) from the
+// outside, as a Rust project uses it: a cargo workspace with the committed
+// crate and check/main.rs, a hand-written Rust program calling it, built,
+// linted and run with plain cargo, must print what check/main.go prints
+// calling the Go package (a differential test).
+func TestLibraries(t *testing.T) {
+	needRust(t)
+	for _, dir := range libraryDirs(t) {
+		t.Run(filepath.Base(dir), func(t *testing.T) {
+			tmp := t.TempDir()
+			ws := filepath.Join(tmp, "ws")
+			if err := os.CopyFS(filepath.Join(ws, "lib"), os.DirFS(filepath.Join(dir, "rust"))); err != nil {
+				t.Fatal(err)
+			}
+			manifest, _ := os.ReadFile(filepath.Join(dir, "rust", "Cargo.toml"))
+			name := string(crateNameRE.FindSubmatch(manifest)[1])
+			src, err := os.ReadFile(filepath.Join(dir, "check", "main.rs"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			files := map[string]string{
+				"Cargo.toml": "[workspace]\nmembers = [\"lib\", \"check\"]\nresolver = \"3\"\n\n" +
+					"[profile.dev.package." + name + "]\noverflow-checks = false\n",
+				"check/Cargo.toml": "[package]\nname = \"check\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n" +
+					"[dependencies]\n" + name + " = { path = \"../lib\" }\n",
+				"check/src/main.rs": string(src),
+			}
+			for f, data := range files {
+				path := filepath.Join(ws, filepath.FromSlash(f))
+				os.MkdirAll(filepath.Dir(path), 0o755)
+				if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cargo := func(args ...string) {
+				cmd := exec.Command("cargo", args...)
+				cmd.Dir = ws
+				cmd.Env = append(cargoEnv(os.Environ()), "CARGO_TERM_COLOR=never")
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("cargo %s: %v\n%s", strings.Join(args, " "), err, out)
+				}
+			}
+			cargo("clippy", "--quiet", "--workspace", "--", "-D", "warnings")
+			cargo("build", "--quiet", "--workspace")
+			goBin := filepath.Join(tmp, "go-check")
+			build := exec.Command("go", "build", "-gcflags=all=-N -l", "-o", goBin, "./check")
+			build.Dir = dir
+			if out, err := build.CombinedOutput(); err != nil {
+				t.Fatalf("go build: %v\n%s", err, out)
+			}
+			want, got := runBinary(t, goBin), runBinary(t, filepath.Join(ws, "target", "debug", "check"))
+			if got.stdout != want.stdout || got.code != want.code {
+				t.Errorf("Go and the Rust crate differ:\ngo (exit %d):\n%srust (exit %d):\n%s", want.code, want.stdout, got.code, got.stdout)
 			}
 		})
 	}
