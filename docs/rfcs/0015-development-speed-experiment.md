@@ -1,6 +1,6 @@
 # RFC 0015: Measuring development speed
 
-- **Status:** Draft
+- **Status:** Accepted (#111; decisions 2026-11-23)
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
@@ -221,15 +221,28 @@ exist, a site section.
 - Their common weakness is small, student-only samples, which is why
   experience is recorded and reported here.
 
+## Decisions
+
+The project lead answered the three open questions: "Yes to all three."
+(Peter, 2026-11-23).
+
+- **Agent runs.** 10 runs per task and arm, fixed in the harness after a
+  pilot of one run per task and arm (12 runs). The pilot is published and
+  not counted. The agents' turn limit is set from the pilot, before any
+  counted run.
+- **Time cap.** One cap for every task: 2 hours for people, and a fixed
+  turn limit for agents. No per-task caps.
+- **Inviting people.** First a sign-up page on gopatina.org and a blog
+  post. Posts on Go and Rust forums (r/golang, r/rust, the Go forum) come
+  later, after the agent results, and each needs the project lead's yes
+  before it goes out.
+- **Pacing.** Agent runs use the project lead's Claude quota, which is
+  limited, so the 120 counted runs are spread over several days in small
+  daily batches.
+
 ## Unresolved questions
 
-- The agents' turn limit and the number of agent runs per task and arm
-  (proposed: 10). They are fixed in the harness, from a pilot of one run
-  per task and arm, before any counted run; the pilot is published and
-  not counted.
-- Whether the time cap should differ by task.
-- Where human participants are invited (the site, the blog, Go and Rust
-  forums).
+None.
 
 ## Future possibilities
 
