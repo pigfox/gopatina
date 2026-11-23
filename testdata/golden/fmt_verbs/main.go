@@ -42,6 +42,9 @@ func main() {
 	fmt.Printf("|%x|%5x|%-5X|%x|\n", Op(1), Op(2), Op(0), Name("é"))
 	empty := ""
 	fmt.Printf("|%#x|%#08x|%#-8x|%08x|%#08X|%#20x|%x|%#x|\n", empty, "ab", "ab", empty, "ab", "ab", []byte{}, []byte{})
+	// []byte(s) in hex lends s's bytes; nothing is copied.
+	word := "gö"
+	fmt.Printf("|%x|%#X|%6x|%x|\n", []byte(word), []byte(word), []byte("ab"), []byte(empty))
 	pt := Pt{X: 2}
 	fmt.Println([]Op{0, 1, 2}, []E{1, 2}, []Name{"a"}, []Pt{{X: 1}}, pt)
 	fmt.Printf("%v|%s|%6v|%-3v|\n", []Op{0, 1}, []Op{2}, []Op{0}, []E{3})
