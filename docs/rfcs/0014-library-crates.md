@@ -265,6 +265,9 @@ output for input that is rejected today.
   Rust's own, for an index out of range or a division by zero, keep Rust's.
 - `gopatina build -patina` of a library is refused: a library has no
   binary.
+- An `error` crosses the API only as a function's last result: an `error`
+  parameter or exported field would expose the crate's internal interface
+  type, so it is refused by name.
 
 ## Future possibilities
 
