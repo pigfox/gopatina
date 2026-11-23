@@ -1,6 +1,7 @@
 # RFC 0016: Owned pointers and cycle collection
 
-- **Status:** Draft
+- **Status:** Accepted (the project lead, 2026-11-23). Implementation in two
+  steps: owned pointers, then cycle collection
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file
@@ -251,12 +252,21 @@ to hand-written Rust for trees); the goldens record it.
 - Bacon and Rajan, "Concurrent Cycle Collection in Reference Counted
   Systems" (ECOOP 2001), its synchronous algorithm.
 
+## Decisions
+
+The project lead answered both open questions: "Yes, on both." (Peter,
+2026-11-23).
+
+- **Order.** Owned pointers (`Option<Box<T>>` for pointer types that are
+  never shared) come first, cycle collection second.
+- **Collection threshold.** Chosen by the benchmarks: both a fixed
+  candidate count and one that grows with the surviving cells are
+  implemented and measured, and the faster is kept, recorded with its
+  numbers.
+
 ## Unresolved questions
 
-- Which comes first. This RFC proposes owned pointers first (the larger
-  gap in time), then the collector.
-- The collection threshold: a fixed candidate count, or one that grows
-  with the surviving cells, set by the benchmarks.
+None.
 
 ## Future possibilities
 
