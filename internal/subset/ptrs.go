@@ -29,6 +29,12 @@ type PtrPlan struct {
 	// Interior are the &x.f and &s[i] that are heap pointers: pointers
 	// into a struct or a slice that escape, not supported yet.
 	Interior []ast.Expr
+	// owned holds the element types T whose *T is owned (RFC 0016), and
+	// shared why each other heap type is not; both are computed once, on
+	// first use.
+	owned     []types.Type
+	shared    []sharing
+	ownedDone bool
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.
@@ -62,6 +68,7 @@ func Ptrs(pkg *load.Package) *PtrPlan {
 	}
 	p := &PtrPlan{pkg: pkg, Cells: map[*types.Var]bool{}}
 	p.build()
+	p.ownedOnce()
 	ptrPlans[pkg] = p
 	return p
 }
