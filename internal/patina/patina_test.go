@@ -390,3 +390,41 @@ func TestBuildLibrary(t *testing.T) {
 		t.Errorf("Build of a library: %v", err)
 	}
 }
+
+// TestAPICheck checks -api-check from a session: refused for a program, a
+// missing earlier api.txt, a breaking change without a new version, and a
+// clean check (RFC 0014).
+func TestAPICheck(t *testing.T) {
+	lib := filepath.Join(root(), "testdata", "golden-lib", "wordstat")
+	committed := filepath.Join(lib, "rust", "api.txt")
+	s, _, stderr := session(t, "")
+	s.APICheck = committed
+	if err := s.EmitTo(lib, filepath.Join(t.TempDir(), "same")); err != nil {
+		t.Errorf("the committed API: %v", err)
+	}
+	if err := s.EmitTo(golden("hello"), filepath.Join(t.TempDir(), "prog")); err == nil || !strings.Contains(err.Error(), "applies to a library") {
+		t.Errorf("a program: %v", err)
+	}
+	s.APICheck = filepath.Join(t.TempDir(), "missing.txt")
+	if err := s.EmitTo(lib, filepath.Join(t.TempDir(), "x")); err == nil {
+		t.Error("a missing api.txt")
+	}
+	data, _ := os.ReadFile(committed)
+	old := filepath.Join(t.TempDir(), "api.txt")
+	os.WriteFile(old, append(data, []byte("pub fn removed_later() -> i64\n")...), 0o644)
+	s.APICheck = old
+	err := s.EmitTo(lib, filepath.Join(t.TempDir(), "y"))
+	if err == nil || !strings.Contains(err.Error(), "removes or changes 1 item(s)") || !strings.Contains(stderr.String(), "api: removed or changed: pub fn removed_later() -> i64") {
+		t.Errorf("a removed item: %v\n%s", err, stderr.String())
+	}
+	s.CrateVersion = "v1.0.0"
+	if err := s.EmitTo(lib, filepath.Join(t.TempDir(), "z")); err != nil {
+		t.Errorf("a removed item in a new version: %v", err)
+	}
+	header, _, _ := strings.Cut(string(data), "\npub ")
+	os.WriteFile(old, []byte(header+"\n"), 0o644) // an earlier API with no items
+	stderr.Reset()
+	if err := s.EmitTo(lib, filepath.Join(t.TempDir(), "w")); err != nil || !strings.Contains(stderr.String(), "api: added: pub fn top(") {
+		t.Errorf("added items: %v\n%s", err, stderr.String())
+	}
+}

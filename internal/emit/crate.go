@@ -85,7 +85,7 @@ func Emit(pkg *load.Package, res *borrow.Result, opt Options) *Crate {
 		if from == "" {
 			from = "package " + pkg.Name
 		}
-		c.add("api.txt", apiText(name, from, mainRS, api.notes))
+		c.add("api.txt", apiText(name, version, from, mainRS, api.notes))
 	}
 	c.add("Cargo.toml", cargoToml(name, version, api != nil, opt))
 	c.add("Cargo.lock", cargoLock(name, version))

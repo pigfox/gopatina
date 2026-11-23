@@ -99,6 +99,9 @@ in docs/patina-subset.md:
 	-crate-name n   the crate's name (default: for a library, the last element
 	                of its import path, with - as _; RFC 0014)
 	-version vX.Y.Z the crate's version (default 0.0.0)
+	-api-check f    with -emit-rust of a library, compare its API with an
+	                earlier api.txt and refuse a removed or changed item
+	                without a new incompatible version (RFC 0014)
 
 Commands handled by gopatina itself:
 
@@ -166,8 +169,9 @@ type invocation struct {
 	out     string
 	pkg     string
 	args    []string // the program's arguments (run)
-	// The crate's name and version (-crate-name, -version; RFC 0014).
-	crateName, crateVersion string
+	// The crate's name and version (-crate-name, -version; RFC 0014), and
+	// the api.txt its API is checked against (-api-check).
+	crateName, crateVersion, apiCheck string
 }
 
 var (
@@ -196,6 +200,11 @@ loop:
 			i++
 		case strings.HasPrefix(a, "-o=") || strings.HasPrefix(a, "--o="):
 			_, inv.out, _ = strings.Cut(a, "=")
+		case a == "-api-check" && i+1 < len(args):
+			inv.apiCheck = args[i+1]
+			i++
+		case strings.HasPrefix(a, "-api-check="):
+			_, inv.apiCheck, _ = strings.Cut(a, "=")
 		case (a == "-crate-name" || a == "-version") && i+1 < len(args):
 			if !inv.crateFlag(cmd, a, args[i+1], stderr) {
 				return inv, true, exitUsage
@@ -275,7 +284,7 @@ func newSession(stdout, stderr io.Writer, explain bool) *patina.Session {
 // exec runs the invocation.
 func (inv invocation) exec(stdin io.Reader, stdout, stderr io.Writer) int {
 	s := newSession(stdout, stderr, inv.explain)
-	s.CrateName, s.CrateVersion = inv.crateName, inv.crateVersion
+	s.CrateName, s.CrateVersion, s.APICheck = inv.crateName, inv.crateVersion, inv.apiCheck
 	switch {
 	case inv.mode == emitRustMode:
 		out := inv.out

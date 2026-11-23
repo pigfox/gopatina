@@ -238,7 +238,8 @@ func TestEmitLibrary(t *testing.T) {
 	lib := filepath.Join(repoRoot(), "testdata", "golden-lib", "wordstat")
 	for _, args := range [][]string{
 		{"-crate-name", "words", "-version", "v1.2.3"},
-		{"-crate-name=words", "-version=1.2.3"},
+		{"-crate-name=words", "-version=1.2.3", "-api-check=" + filepath.Join(lib, "rust", "api.txt")},
+		{"-crate-name", "words", "-version", "v1.2.3", "-api-check", filepath.Join(lib, "rust", "api.txt")},
 	} {
 		out := filepath.Join(t.TempDir(), "crate")
 		r := runCLI(t, "", append(append([]string{"build", "-emit-rust"}, args...), "-o", out, lib)...)
