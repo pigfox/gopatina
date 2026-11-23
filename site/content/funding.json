@@ -1,0 +1,99 @@
+{
+  "$schema": "https://fundingjson.org/schema/v1.1.0.json",
+  "version": "v1.1.0",
+  "entity": {
+    "type": "individual",
+    "role": "owner",
+    "name": "Peter Sjolin",
+    "email": "sponsors@gopatina.org",
+    "description": "Peter Sjolin leads GoPatina, an open-source project by Pigfox that compiles Go through Rust.",
+    "webpageUrl": {
+      "url": "https://gopatina.org"
+    }
+  },
+  "projects": [
+    {
+      "guid": "gopatina",
+      "name": "GoPatina",
+      "description": "GoPatina is an open-source Go toolchain front end. Without a flag it is plain Go; with an opt-in flag, a defined subset of Go compiles through Rust, with no garbage collector and Rust's memory safety. It is early: phase 1 supports a subset of Go.",
+      "webpageUrl": {
+        "url": "https://gopatina.org"
+      },
+      "repositoryUrl": {
+        "url": "https://github.com/pigfox/gopatina",
+        "wellKnown": "https://github.com/pigfox/gopatina/blob/main/.well-known/funding-manifest-urls"
+      },
+      "licenses": ["spdx:MIT", "spdx:Apache-2.0"],
+      "tags": ["developer-tools", "programming", "software-engineering", "security"]
+    }
+  ],
+  "funding": {
+    "channels": [
+      {
+        "guid": "github-sponsors",
+        "type": "payment-provider",
+        "address": "https://github.com/sponsors/pigfox",
+        "description": "GitHub Sponsors."
+      },
+      {
+        "guid": "invoice",
+        "type": "other",
+        "address": "sponsors@gopatina.org",
+        "description": "Invoiced by Pigfox LLC."
+      }
+    ],
+    "plans": [
+      {
+        "guid": "supporter",
+        "status": "active",
+        "name": "Supporter",
+        "description": "Supports the work, with a sponsor badge on GitHub.",
+        "amount": 5,
+        "currency": "USD",
+        "frequency": "monthly",
+        "channels": ["github-sponsors"]
+      },
+      {
+        "guid": "backer",
+        "status": "active",
+        "name": "Backer",
+        "description": "Your name is listed on gopatina.org/sponsor.",
+        "amount": 25,
+        "currency": "USD",
+        "frequency": "monthly",
+        "channels": ["github-sponsors"]
+      },
+      {
+        "guid": "small-company",
+        "status": "active",
+        "name": "Small company",
+        "description": "A small logo on gopatina.org/sponsor. For startups, consultants and small teams.",
+        "amount": 100,
+        "currency": "USD",
+        "frequency": "monthly",
+        "channels": ["github-sponsors"]
+      },
+      {
+        "guid": "company",
+        "status": "active",
+        "name": "Company",
+        "description": "Your logo on gopatina.org/sponsor.",
+        "amount": 500,
+        "currency": "USD",
+        "frequency": "monthly",
+        "channels": ["invoice"]
+      },
+      {
+        "guid": "company-readme",
+        "status": "active",
+        "name": "Company, README",
+        "description": "Your logo on gopatina.org/sponsor and in the GoPatina README.",
+        "amount": 2500,
+        "currency": "USD",
+        "frequency": "monthly",
+        "channels": ["invoice"]
+      }
+    ],
+    "history": []
+  }
+}

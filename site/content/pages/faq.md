@@ -24,6 +24,10 @@ Yes. Without a patina flag, gopatina runs go with the same arguments, so every G
 
 No. You write Go. Without a garbage collector a few ownership rules remain, but GoPatina's borrow checker infers ownership and borrows, fixes what it safely can, and explains the rest in Go terms.
 
+### Is GoPatina faster to develop with than Rust?
+
+That is its goal, not yet a measured result. Writing Rust means satisfying its borrow checker by hand: choosing moves, clones and borrows and annotating lifetimes until the code compiles. With GoPatina you write Go, its borrow checker makes those decisions and explains them in Go terms (-explain), and the Rust it writes is checked by rustc's borrow checker. No study of development time exists yet; one is being designed (see the roadmap), timing the same programs written in Rust by hand and in Go with GoPatina.
+
 ### How fast is GoPatina?
 
 The bar is equivalence with equivalent hand-written Rust within ±0.5%, shown by a two one-sided tests (TOST) equivalence test at 5σ. On the test server, on 2026-11-22, with one rustc for both, GoPatina executed the same user instructions as the hand-written Rust to within 0.001% on all three benchmarks, at 5σ and at 6σ: the bar is met on its primary metric. Run time, measured under load, is not yet decided and needs a quiet machine. Earlier, the sieve benchmark had run 1.30 times the instructions because of one extra bounds check, which RFC 0006's loop specialization removed.

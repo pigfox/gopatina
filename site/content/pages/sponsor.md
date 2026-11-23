@@ -2,6 +2,8 @@
 
 GoPatina is an open-source project by [Pigfox](https://pigfox.com), licensed under MIT or Apache 2.0, your choice. It is early: today it compiles a subset of Go, phase 1 of the [roadmap](/roadmap), through Rust, and many real programs still use something outside that subset. Sponsorship pays for the work toward the rest.
 
+**For companies:** GoPatina is a path to Rust's performance and safety at Go's development speed: your developers write Go, and what ships is Rust that rustc's borrow checker has verified, with no garbage collector. Sponsoring funds that path, from the current subset toward all of Go.
+
 ## What sponsorship pays for
 
 - Peter Sjolin's time on the [roadmap](/roadmap), toward compiling all of Go through Rust.

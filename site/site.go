@@ -222,6 +222,13 @@ func newHandler(fsys fs.FS) (http.Handler, error) {
 	routes["/robots.txt"] = newResource([]byte("User-agent: *\nAllow: /\n\nSitemap: "+siteURL+"sitemap.xml\n"),
 		"text/plain; charset=utf-8", cacheShort)
 	routes["/healthz"] = newResource([]byte("ok\n"), "text/plain; charset=utf-8", "no-store")
+	// The funding manifest (fundingjson.org), which the repository's
+	// .well-known/funding-manifest-urls names.
+	funding, err := fs.ReadFile(fsys, "content/funding.json")
+	if err != nil {
+		return nil, err
+	}
+	routes["/funding.json"] = newResource(funding, "application/json", cacheShort)
 
 	src404, err := fs.ReadFile(fsys, "content/pages/"+notFoundPage.File+".md")
 	if err != nil {
