@@ -10,23 +10,42 @@ GoPatina is an open-source project by [Pigfox](https://pigfox.com), licensed und
 - The test server that runs the [differential correctness gate](/correctness), which builds generated programs with Go and with GoPatina and compares what they do.
 - The benchmark machine that measures GoPatina against [hand-written Rust](/benchmarks).
 
-## Individuals
+## Early Sponsors
 
-- **$5 a month** (Supporter): supports the work, with a sponsor badge on GitHub.
-- **$25 a month** (Backer): your name is listed on this page.
+Anyone who sponsors GoPatina, at any tier, before GoPatina 1.0 is an **Early Sponsor**, a grassroots sponsor from the start. Early Sponsors get, on top of their tier:
+
+- **The Founding sponsors wall:** your name, or your company's logo, listed permanently below and in the [README](https://github.com/pigfox/gopatina#readme), and kept there after 1.0 and after your sponsorship ends.
+- **The Early Sponsor badge,** for your profile, README or website ([below](#badge)).
+- **Your rate, kept:** if a tier's price rises later, you keep the price you started at for as long as you sponsor without a break.
+
+Sponsorship does not include calls, demos or support.
+
+## Tiers
 
 {{github-sponsors}}
 
-## Small companies
+| Tier | Through | What it adds |
+| --- | --- | --- |
+| $5 a month (Supporter) | GitHub Sponsors | a sponsor badge on GitHub |
+| $25 a month (Backer) | GitHub Sponsors | your name listed on this page |
+| $100 a month (Small company) | GitHub Sponsors | a small logo on this page |
+| $500 a month (Company) | invoice | your logo on this page |
+| $2,500 a month (Company, README) | invoice | your logo on this page and in the [README](https://github.com/pigfox/gopatina#readme) |
+| Early Sponsor: any tier, before 1.0 | either | the Founding sponsors wall, the Early Sponsor badge, your rate kept |
 
-- **$100 a month** (Small company): a small logo on this page. For startups, consultants and small teams, through GitHub Sponsors too.
+The $100 tier is for startups, consultants and small teams. Company sponsorships are invoiced by Pigfox LLC. Corporate sponsorship: [sponsors@gopatina.org](mailto:sponsors@gopatina.org). If your company would rather support GoPatina another way, write to the same address.
 
-## Companies
+## The Early Sponsor badge {#badge}
 
-- **$500 a month**: your logo on this page.
-- **$2,500 a month**: your logo on this page and in the [README](https://github.com/pigfox/gopatina#readme).
+The badge is at [gopatina.org/badges/early-sponsor.svg](/badges/early-sponsor.svg). To show it, in a README (GitHub renders the HTML) or on a website:
 
-Company sponsorships are invoiced by Pigfox LLC. Corporate sponsorship: [sponsors@gopatina.org](mailto:sponsors@gopatina.org). If your company would rather support GoPatina another way, write to the same address.
+```
+<a href="https://gopatina.org/sponsor"><img src="https://gopatina.org/badges/early-sponsor.svg" alt="GoPatina: Early Sponsor" width="196" height="20"></a>
+```
+
+## Founding sponsors {#founding}
+
+There are no Founding sponsors yet: the first sponsors before 1.0 will be listed here, permanently.
 
 ## Sponsors
 

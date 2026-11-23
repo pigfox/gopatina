@@ -463,6 +463,7 @@ func TestNewHandlerErrors(t *testing.T) {
 		"missing 404 page":   without("content/pages/404.md"),
 		"missing llms.txt":   without("content/llms.txt"),
 		"missing funding":    without("content/funding.json"),
+		"missing badge":      without("static/early-sponsor.svg"),
 	} {
 		if _, err := newHandler(fsys); err == nil {
 			t.Errorf("%s: no error", name)
@@ -677,6 +678,20 @@ func TestNavOneRow(t *testing.T) {
 	}
 	if !strings.Contains(b, `<p class="brand"><a href="/">`) {
 		t.Error("the logo does not link home")
+	}
+}
+
+// TestEarlySponsorBadge checks the badge /sponsor tells Early Sponsors to
+// link to: an SVG at a fixed address, which the page names.
+func TestEarlySponsorBadge(t *testing.T) {
+	h := handler(t)
+	rec := get(t, h, "GET", "/badges/early-sponsor.svg", false)
+	if ct := rec.Header().Get("Content-Type"); rec.Code != 200 || ct != "image/svg+xml" || !strings.Contains(rec.Body.String(), "Early Sponsor") {
+		t.Errorf("badge: %d %q", rec.Code, ct)
+	}
+	b := body(t, h, "/sponsor")
+	if !strings.Contains(b, "https://gopatina.org/badges/early-sponsor.svg") || !strings.Contains(b, "Founding sponsors") || !strings.Contains(b, "does not include calls, demos or support") {
+		t.Error("/sponsor does not offer the badge, the Founding sponsors wall and its terms")
 	}
 }
 
