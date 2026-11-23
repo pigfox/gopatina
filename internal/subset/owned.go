@@ -65,7 +65,7 @@ func (p *PtrPlan) ownedOnce() {
 		return
 	}
 	p.ownedDone = true
-	o := &ownership{p: p, info: p.pkg.Info, why: map[types.Type]sharing{}}
+	o := &ownership{p: p, info: p.pkg.Info, why: map[types.Type]sharing{}, boxed: Ifaces(p.pkg).Boxed}
 	o.run()
 	for _, h := range p.heap {
 		if s, ok := o.whyOf(h); ok {
@@ -83,6 +83,9 @@ type ownership struct {
 	why  map[types.Type]sharing // by the type's element, the first reason
 	// params are the parameters and receivers of the program's functions.
 	params map[*types.Var]bool
+	// boxed are the expressions converted to an interface (RFC 0012),
+	// found once: finding them walks the whole program.
+	boxed map[ast.Expr]types.Type
 }
 
 // whyOf returns the reason element type t is shared, if it is.
@@ -333,7 +336,7 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 	if el == nil {
 		return
 	}
-	if _, boxed := Ifaces(o.p.pkg).Boxed[e]; boxed {
+	if _, boxed := o.boxed[e]; boxed {
 		o.share(el, e.Pos(), "an interface value holds it")
 		return
 	}
