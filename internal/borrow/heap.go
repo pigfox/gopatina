@@ -435,10 +435,12 @@ func calleeFunc(info *types.Info, c *ast.CallExpr) *types.Func {
 	return nil
 }
 
-// cycleNotes notes, for -explain, each pointer field (or slice of pointers)
-// of a struct type of the program through which a value can reach a value
-// of the same struct type: a cycle through it is not reclaimed, since a
-// reference count frees no cycle (RFC 0013's known limitation).
+// cycleNotes notes, for -explain, whether the pointers of each struct type
+// of the program that escape are owned or shared, and why (RFC 0016); and
+// for a shared one, each pointer field (or slice of pointers) through
+// which a value can reach a value of the same struct type: a cycle through
+// it is not reclaimed, since a reference count frees no cycle (RFC 0013's
+// known limitation).
 func (a *analyzer) cycleNotes() {
 	info := a.pkg.Info
 	for _, f := range a.pkg.Files {
@@ -456,6 +458,22 @@ func (a *analyzer) cycleNotes() {
 				st, ok := obj.Type().Underlying().(*types.Struct)
 				if !ok {
 					continue
+				}
+				plan := subset.Ptrs(a.pkg)
+				ptr := types.NewPointer(obj.Type())
+				if plan.HeapType(ptr) {
+					if plan.Owned(ptr) {
+						// Every pointer is new and has one owner, so no
+						// cycle can be built of them.
+						a.fix(ts.Name.Pos(), fmt.Sprintf("pointers of type *%s are never shared: each has one owner (RFC 0016)", obj.Name()))
+						continue
+					}
+					pos, why, _ := plan.SharedReason(ptr)
+					where := ""
+					if pos.IsValid() {
+						where = fmt.Sprintf(" (line %d)", a.pkg.Fset.Position(pos).Line)
+					}
+					a.fix(ts.Name.Pos(), fmt.Sprintf("pointers of type *%s are shared: %s%s (RFC 0016)", obj.Name(), why, where))
 				}
 				for i := 0; i < st.NumFields(); i++ {
 					fld := st.Field(i)

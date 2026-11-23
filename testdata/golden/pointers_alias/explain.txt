@@ -1,9 +1,11 @@
+./main.go:5:6: pointers of type *Stack are shared: its field items is of type []int (line 6) (RFC 0016)
 ./main.go:8:2: Stack.top can point back to a Stack: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:11:15: parameter name is owned: NewStack keeps it
 ./main.go:13:7: receiver s is a shared borrow: Push only reads it
 ./main.go:15:7: receiver s is a shared borrow: Pop only reads it
 ./main.go:21:7: receiver s is a shared borrow: Len only reads it
 ./main.go:23:7: receiver s is a shared borrow: Name only reads it
+./main.go:27:6: pointers of type *Tree are shared: it is written through (line 37) (RFC 0016)
 ./main.go:28:2: Tree.Left can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:28:8: Tree.Right can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:32:13: parameter t is owned: insert keeps it

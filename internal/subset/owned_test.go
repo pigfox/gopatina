@@ -1,0 +1,167 @@
+package subset
+
+import (
+	"go/types"
+	"strings"
+	"testing"
+
+	"github.com/pigfox/gopatina/internal/load"
+)
+
+// ownedOf loads src and returns its pointer plan and *Node.
+func ownedOf(t *testing.T, src string) (*PtrPlan, types.Type) {
+	t.Helper()
+	pkg, err := load.Source("/p", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Ptrs(pkg), types.NewPointer(pkg.Types.Scope().Lookup("Node").Type())
+}
+
+// tree is binary-trees' shape: built from fresh pointers, then only read
+// through, tested for nil and lent.
+const tree = `package main
+
+import "fmt"
+
+type Node struct {
+	Left, Right *Node
+	V           int
+	Name        string
+}
+
+func bottomUp(d int) *Node {
+	if d <= 0 {
+		return &Node{V: 1}
+	}
+	if d == 1 {
+		return &Node{bottomUp(0), (bottomUp(0)), 1, "one"}
+	}
+	n := &Node{Left: bottomUp(d - 1), Right: bottomUp(d - 1)}
+	return n
+}
+
+func (n *Node) check() int {
+	if n.Left == nil || nil == n.Right {
+		return n.V
+	}
+	return 1 + n.Left.check() + count(n.Right)
+}
+
+func count(n *Node) int { return n.check() }
+
+var top = count(bottomUp(1))
+
+func main() {
+	long := bottomUp(4)
+	var spare *Node = new(Node)
+	spare = bottomUp(1)
+	spare = nil
+	bottomUp(2)
+	fmt.Println(long.check(), bottomUp(3).check(), count(bottomUp(1)), (long).V, spare == nil)
+}
+`
+
+// TestOwnedTree checks that binary-trees' shape is owned.
+func TestOwnedTree(t *testing.T) {
+	p, node := ownedOf(t, tree)
+	if !p.Owned(node) {
+		pos, why, _ := p.SharedReason(node)
+		t.Fatalf("*Node is shared (%v: %s), want owned", pos, why)
+	}
+	if _, _, ok := p.SharedReason(node); ok {
+		t.Error("SharedReason of an owned type: ok")
+	}
+	if p.Owned(types.Typ[types.Int]) || p.Owned(types.NewPointer(types.Typ[types.Bool])) {
+		t.Error("Owned of a non-heap type: true")
+	}
+	if _, _, ok := p.SharedReason(types.Typ[types.Int]); ok {
+		t.Error("SharedReason of a non-pointer: ok")
+	}
+}
+
+// TestOwnedShared checks each use that shares a pointer type.
+func TestOwnedShared(t *testing.T) {
+	for _, tc := range []struct {
+		name, decl, body, why string
+	}{
+		{"copy", "", "a := bottomUp(1)\n\tb := a\n\t_ = b", "a copy of it is kept"},
+		{"return a place", "func id(n *Node) *Node { return n }", "_ = id(bottomUp(1))", "a copy of it is kept"},
+		{"written", "", "a := bottomUp(1)\n\ta.V = 2", "it is written through"},
+		{"written field", "", "a := bottomUp(1)\n\ta.Left = bottomUp(0)", "written through"},
+		{"incremented", "", "a := bottomUp(1)\n\ta.V++", "written through"},
+		{"address of a field", "", "a := bottomUp(1)\n\tq := &a.V\n\t*q = 1", "written through"},
+		{"compared", "", "a, b := bottomUp(1), bottomUp(1)\n\t_ = a == b", "compared with another pointer"},
+		{"package variable", "var root *Node", "root = bottomUp(1)", "a package-level variable"},
+		{"slice", "", "s := []*Node{bottomUp(1)}\n\t_ = s", "a slice, map, array, channel or struct value"},
+		{"struct value", "type Pair struct{ A *Node }", "var p Pair\n\t_ = p", "a field of a struct that is not boxed"},
+		{"value outside its box", "", "var v Node\n\t_ = v", "held outside its box"},
+		{"dereference", "", "a := bottomUp(1)\n\tv := *a\n\t_ = v", "outside its box"},
+		{"interface", "", "var x any = bottomUp(1)\n\t_ = x", "an interface value holds it"},
+		{"closure", "", "a := bottomUp(1)\n\tf := func() int { return a.V }\n\t_ = f()", "a function literal captures it"},
+		{"method value", "", "a := bottomUp(1)\n\tf := a.check\n\t_ = f", "a copy of it is kept"},
+		{"value method", "func (n Node) get() int { return n.V }", "_ = bottomUp(1).get()", "outside its box"},
+		{"deferred", "func use(n *Node) {}", "a := bottomUp(1)\n\tdefer use(a)", "a copy of it is kept"},
+		{"fresh into a field", "type Box struct{ N *Node }", "b := &Box{}\n\tb.N = bottomUp(1)", "a field of a struct that is not boxed"},
+		{"fresh compared", "", "_ = bottomUp(1) == nil", "a new pointer is stored"},
+		{"function value", "", "f := bottomUp\n\t_ = f(1).V", "computed in a way that may share it"},
+		{"lent to a non-program function", "", "fmt.Sprint(bottomUp(1).V, bottomUp(1))", "a new pointer is stored"},
+		{"lent to a variadic", "func many(ns ...*Node) {}", "many(bottomUp(1))", "a slice"},
+		{"field of another type", "type Other struct{ Items []int }\n\nfunc mk() *Other { return &Other{} }", "_ = mk()", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := strings.Replace(tree, "func main() {\n", tc.decl+"\n\nfunc main() {\n\t"+tc.body+"\n", 1)
+			p, node := ownedOf(t, src)
+			if tc.why == "" {
+				return // checked in TestOwnedFields
+			}
+			if p.Owned(node) {
+				t.Fatalf("*Node owned, want shared: %s", tc.why)
+			}
+			_, why, ok := p.SharedReason(node)
+			if !ok || !strings.Contains(why, tc.why) {
+				t.Errorf("SharedReason = %q, %v; want %q", why, ok, tc.why)
+			}
+		})
+	}
+}
+
+// TestOwnedFields checks the candidates: the element must be a struct of
+// the program whose fields are numbers, strings and heap pointers, and a
+// shared type shares the types its fields point to.
+func TestOwnedFields(t *testing.T) {
+	src := `package main
+
+type Node struct {
+	Items []int
+	Kid   *Kid
+}
+
+type Kid struct{ V int }
+
+func mk() *Node { return &Node{Kid: &Kid{V: 1}} }
+
+func main() { _ = mk().Kid.V }
+`
+	p, node := ownedOf(t, src)
+	if _, why, _ := p.SharedReason(node); !strings.Contains(why, "its field Items is of type []int") {
+		t.Errorf("Node: %q", why)
+	}
+	kid := types.NewPointer(p.pkg.Types.Scope().Lookup("Kid").Type())
+	if _, why, _ := p.SharedReason(kid); !strings.Contains(why, "a field of a shared type holds it") {
+		t.Errorf("Kid: %q", why)
+	}
+	src = `package main
+
+type Node struct{ V int }
+
+func mk() *int { x := 1; return &x }
+
+func main() { _ = *mk() }
+`
+	p, _ = ownedOf(t, src)
+	intPtr := types.NewPointer(types.Typ[types.Int])
+	if _, why, _ := p.SharedReason(intPtr); !strings.Contains(why, "not a struct type of the program") {
+		t.Errorf("*int: %q", why)
+	}
+}

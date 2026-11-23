@@ -1,9 +1,11 @@
 ./main.go:9:7: receiver i is an exclusive borrow: Inc changes it, and the caller sees the change
+./main.go:11:6: pointers of type *T are shared: its field in is of type In (line 12) (RFC 0016)
 ./main.go:18:7: receiver t is a shared borrow: Total only reads it
 ./main.go:20:7: receiver t is an exclusive borrow: Zero changes it, and the caller sees the change
 ./main.go:22:10: parameter s is a shared borrow: sum only reads it
 ./main.go:30:10: parameter s is an exclusive borrow: set changes it, and the caller sees the change
 ./main.go:32:10: parameter x is an exclusive borrow: inc changes it, and the caller sees the change
+./main.go:43:6: pointers of type *Counter are shared: a copy of it is kept (line 45) (RFC 0016)
 ./main.go:45:11: parameter c is owned: hold keeps it
 ./main.go:47:7: receiver c is a shared borrow: Hit only reads it
 ./main.go:67:7: copied x into y: x is used again on line 68; a copy of a pointer points at the same variable, as Go's does (RFC 0013)

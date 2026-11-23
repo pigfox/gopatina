@@ -1,4 +1,5 @@
 ./main.go:10:7: receiver c is a shared borrow: Inc only reads it
 ./main.go:15:7: receiver n is a shared borrow: Up only reads it
+./main.go:17:6: pointers of type *Rect are shared: a value of the type itself is held outside its box (line 19) (RFC 0016)
 ./main.go:21:7: receiver r is owned: Self keeps it
 ./main.go:37:14: parameter n is a shared borrow: newName only reads it

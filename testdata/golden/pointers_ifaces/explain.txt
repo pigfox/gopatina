@@ -1,8 +1,11 @@
+./main.go:16:6: pointers of type *Rect are shared: it is written through (line 19) (RFC 0016)
 ./main.go:18:7: receiver r is a shared borrow: Area only reads it
 ./main.go:19:7: receiver r is a shared borrow: Grow only reads it
+./main.go:21:6: pointers of type *Sq are shared: it is written through (line 24) (RFC 0016)
 ./main.go:23:7: receiver s is a shared borrow: Area only reads it
 ./main.go:24:7: receiver s is a shared borrow: Grow only reads it
 ./main.go:25:7: receiver s is a shared borrow: String only reads it
+./main.go:29:6: pointers of type *NotFound are shared: an interface value holds it (line 37) (RFC 0016)
 ./main.go:31:7: receiver e is a shared borrow: Error only reads it
 ./main.go:33:11: parameter k is owned: find keeps it
 ./main.go:44:20: copied r into a composite literal: r is used again on line 49; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
