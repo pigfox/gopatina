@@ -148,6 +148,11 @@ func (c *checker) globalSpec(s *ast.ValueSpec) {
 			// goroutines choose the shareable form (RFC 0002); inside a
 			// struct or slice it is not supported yet.
 			c.unsupported(n, "a package-level variable holding an interface value in a struct or slice")
+		case !isPointer(t) && holdsPointer(t, map[types.Type]bool{}):
+			// Heap pointers are reference-counted cells, which a static
+			// cannot hold (RFC 0013); a pointer variable itself is
+			// rejected by typ.
+			c.unsupported(n, "a package-level variable holding pointers in a struct or slice")
 		default:
 			c.typ(n, t, false)
 		}
@@ -366,4 +371,28 @@ func programCall(pkg *load.Package, call *ast.CallExpr) bool {
 	}
 	fn, ok := pkg.Info.Uses[id].(*types.Func)
 	return ok && fn.Pkg() != nil && pkg.Local[fn.Pkg()] && !load.IsIntrinsic(fn)
+}
+
+// holdsPointer reports whether a value of type t holds a pointer: in a
+// slice or array element or a struct field, at any depth.
+func holdsPointer(t types.Type, seen map[types.Type]bool) bool {
+	if seen[t] {
+		return false
+	}
+	seen[t] = true
+	switch u := t.Underlying().(type) {
+	case *types.Pointer:
+		return true
+	case *types.Slice:
+		return holdsPointer(u.Elem(), seen)
+	case *types.Array:
+		return holdsPointer(u.Elem(), seen)
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			if holdsPointer(u.Field(i).Type(), seen) {
+				return true
+			}
+		}
+	}
+	return false
 }

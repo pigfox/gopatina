@@ -45,7 +45,7 @@ Status values: **supported** (implemented and tested), **partial**
 | Range over integers | Go 1.22 | supported | 1 | |
 | Range over functions (iterators) | Go 1.23 | open | | |
 | Generic type aliases | Go 1.24 | open | | |
-| Package-level variables | Go 1.0 | partial | 1 | Read-only ones of every supported type, changed numbers, booleans, strings and structs of them, in Go's initialization order (RFC 0010); not changed slices, not their address |
+| Package-level variables | Go 1.0 | partial | 1 | Read-only ones of every supported type, changed numbers, booleans, strings and structs of them, in Go's initialization order (RFC 0010); not changed slices, not their address, not slices or structs holding pointers |
 | Programs of several packages | Go 1.0 | supported | 1 | Every package translated from source, only what `main` reaches (RFC 0009) |
 | Library packages | Go 1.0 | partial | 1 | A package other than `main` as a Rust library crate whose `pub` API is the exported items, with `api.txt` (RFC 0014); not `init` functions, changed package variables, or interfaces and escaping pointers in the API |
 | Standard library | Go 1.0 | partial | 1, 4 | `fmt` printing, a few `strings` functions, `errors.New`, `os.Exit`, `os.Stdout`, `os.Stderr`, `slices.Clone`, `bytes.Clone` |

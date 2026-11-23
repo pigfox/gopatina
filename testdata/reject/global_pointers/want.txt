@@ -1,0 +1,4 @@
+./main.go:10:5: a package-level variable holding pointers in a struct or slice is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
+./main.go:17:5: a package-level variable holding pointers in a struct or slice is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
