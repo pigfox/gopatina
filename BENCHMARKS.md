@@ -6,18 +6,74 @@ maintainer's test server. How the numbers are produced is described in
 [docs/QUALITY.md](docs/QUALITY.md#performance-shadow-rust-and-keep-up) and
 [bench/README.md](bench/README.md).
 
-> **First test-server results, 2026-11-22.** The speed bar is met on its
-> primary metric, user instructions, at 5σ and at 6σ: with one rustc
-> (1.100.0) for both, GoPatina executes the same instructions as hand-written
-> Rust to within 0.001% on every benchmark. On run time (cycles and wall
-> time), measured while the correctness run loaded the machine, the result is
-> not decided; a quiet run is pending. The correctness bar is pending. The
-> local runs further down are earlier evidence from the maintainer's
-> workstation, not official results.
+> **Latest, 2026-11-23: three arms on all five benchmarks.** On `fib`,
+> `sieve` and `suffix-sum`, GoPatina executes the same user instructions as
+> hand-written Rust, and on `fib` it takes 0.53 times plain Go's time. On
+> the two pointer benchmarks it is **slower than both**: `binary-trees` 1.50
+> times Rust's wall time and 1.59 times Go's, `cycles` 2.00 and 2.70 times,
+> and plain Go is the fastest of the three on both. The causes are measured
+> and [RFC 0016](docs/rfcs/0016-owned-pointers-and-cycle-collection.md)
+> fixes them. The correctness bar is pending. The local runs further down
+> are earlier evidence from the maintainer's workstation, not official
+> results.
 
-## Latest official run
+## Latest official run: three arms, 2026-11-23
 
-None yet.
+GoPatina (`gopatina build -patina`), hand-written Rust and plain Go
+(`go build`) on all five benchmarks: `bench/run.sh --equiv --metric perf
+--runs 100 --toolchain same --rust stable`, 100 rounds in ABCCBA order,
+GoPatina commit `d207c32cca6f6aee84a4c7d272c9974bf97e65ad`, rustc 1.100.0
+for both Rust binaries, Go 1.27.1, on the same Xeon Gold 6152 virtual
+server as the runs below, with the correctness run paused. Every table,
+both pairs not shown here and the reading of each case are in the
+[run notes](bench/results/2026-11-23-server-d207c32-three-arm.md); raw
+results:
+[2026-11-23-server-d207c32-three-arm.json](bench/results/2026-11-23-server-d207c32-three-arm.json).
+
+Each program, geometric mean with its 5σ interval:
+
+| Benchmark | Program | Wall time | User instructions | Peak memory | Binary size |
+| --- | --- | --- | --- | --- | --- |
+| `fib` | Go | 2.60 s [2.50, 2.71] | 12.57 G | 1.81 MiB [1.70, 1.91] | 2,287 KiB |
+| `fib` | GoPatina | 1.37 s [1.30, 1.44] | 8.505 G | 1.99 MiB [1.88, 2.10] | 339 KiB |
+| `fib` | Rust | 1.51 s [1.44, 1.59] | 8.505 G | 1.94 MiB [1.83, 2.04] | 435 KiB |
+| `sieve` | Go | 0.266 s [0.251, 0.282] | 0.3847 G | 21.2 MiB [21.1, 21.3] | 2,288 KiB |
+| `sieve` | GoPatina | 0.258 s [0.243, 0.273] | 0.3846 G | 20.9 MiB [20.9, 20.9] | 339 KiB |
+| `sieve` | Rust | 0.262 s [0.249, 0.276] | 0.3846 G | 20.9 MiB [20.9, 20.9] | 435 KiB |
+| `suffix-sum` | Go | 0.311 s [0.296, 0.327] | 0.4349 G | 155 MiB [155, 155] | 2,288 KiB |
+| `suffix-sum` | GoPatina | 0.302 s [0.286, 0.318] | 0.3227 G | 154 MiB [154, 154] | 339 KiB |
+| `suffix-sum` | Rust | 0.300 s [0.286, 0.315] | 0.3227 G | 154 MiB [154, 154] | 436 KiB |
+| `binary-trees` | Go | 3.62 s [3.48, 3.77] | 33.52 G [33.46, 33.59] | 34.5 MiB [32.6, 36.6] | 2,305 KiB |
+| `binary-trees` | GoPatina | 5.76 s [5.47, 6.06] | 26.29 G | 50.0 MiB [49.9, 50.2] | 347 KiB |
+| `binary-trees` | Rust | 3.85 s [3.65, 4.05] | 19.16 G | 33.9 MiB [33.8, 34.1] | 437 KiB |
+| `cycles` | Go | 0.168 s [0.159, 0.177] | 0.6446 G [0.6386, 0.6507] | 7.58 MiB [6.91, 8.32] | 2,288 KiB |
+| `cycles` | GoPatina | 0.453 s [0.430, 0.477] | 0.9095 G | 185 MiB [185, 185] | 346 KiB |
+| `cycles` | Rust | 0.227 s [0.213, 0.241] | 0.9249 G | 2.95 MiB [2.85, 3.05] | 438 KiB |
+
+Instruction intervals not shown are narrower than the digits given. Binary
+sizes are each tool's default: GoPatina's are stripped, the others' are not.
+
+GoPatina against each, ratio with its 5σ interval and TOST verdict at ±0.5%:
+
+| Benchmark | GoPatina / Rust, wall | GoPatina / Rust, instructions | GoPatina / Go, wall | GoPatina / Go, peak memory |
+| --- | --- | --- | --- | --- |
+| `fib` | 0.904 [0.868, 0.941] faster | 1.00000 equivalent | 0.526 [0.498, 0.554] faster | 1.100 [1.013, 1.195] larger |
+| `sieve` | 0.984 [0.931, 1.039] inconclusive | 1.00001 equivalent | 0.968 [0.909, 1.031] inconclusive | 0.985 [0.980, 0.990] smaller |
+| `suffix-sum` | 1.006 [0.960, 1.054] inconclusive | 1.00001 equivalent | 0.971 [0.920, 1.025] inconclusive | 0.997 [0.996, 0.998] equivalent |
+| `binary-trees` | 1.496 [1.422, 1.574] slower | 1.372 slower | 1.591 [1.523, 1.662] slower | 1.448 [1.366, 1.535] larger |
+| `cycles` | 1.999 [1.890, 2.114] slower | 0.983 faster | 2.701 [2.532, 2.882] slower | 24.4 [22.2, 26.8] larger |
+
+- **`fib`, `sieve`, `suffix-sum`**: the same instructions as hand-written
+  Rust. `fib`'s 10% fewer cycles than Rust with the same instructions also
+  appeared on 2026-11-22; its cause is not established, and it is not taken
+  as GoPatina being faster than Rust.
+- **`binary-trees`**: plain Go is the fastest, 0.94 times Rust's wall time,
+  its collector running concurrently with the program. GoPatina's shared
+  `Rc<RefCell<T>>` cells, where the hand-written Rust uses `Box`, cost it
+  1.50 times Rust's time.
+- **`cycles`**: plain Go is the fastest, 0.74 times Rust's wall time.
+  GoPatina never frees the lists (RFC 0013's known limitation): 185 MiB at
+  peak, and twice Rust's time spent on that fresh memory.
 
 ## The goal
 
@@ -26,7 +82,7 @@ with the latest stable Rust. That is a goal, not a claim.
 
 | Bar | Definition | Test | Status |
 | --- | --- | --- | --- |
-| Speed | Equivalent to hand-written Rust within ±0.5% (ratio in (1/1.005, 1.005)) | TOST on paired log ratios at 5σ, one-sided α = Φ(−5) ≈ 2.87 × 10⁻⁷ per bound | **Met on user instructions, the primary metric, at 5σ and 6σ** (2026-11-22, test server); on run time pending a quiet run |
+| Speed | Equivalent to hand-written Rust within ±0.5% (ratio in (1/1.005, 1.005)) | TOST on paired log ratios at 5σ, one-sided α = Φ(−5) ≈ 2.87 × 10⁻⁷ per bound | `fib`, `sieve`, `suffix-sum`: **met on user instructions, the primary metric, at 5σ and 6σ** (2026-11-22, again 2026-11-23); wall time inconclusive or faster. `binary-trees`, `cycles`: **not met**, 1.50 and 2.00 times Rust's wall time (2026-11-23; RFC 0016) |
 | Correctness (Six Sigma) | At most 3.4 defects per million tests (4.5σ, after the conventional 1.5σ shift), shown at 6σ confidence | 0 defects in ≥ 6,099,050 differential tests against Go: one-sided upper bound 1 − α^(1/N) < −ln(α) / N with α = Φ(−6) ≈ 9.87 × 10⁻¹⁰. Milestone: 0 defects in ≥ 881,098 tests, the same bound at 95% | Target; both the milestone and the bar are pending on the test server |
 
 Hypotheses, formulas and their limits are in
@@ -184,28 +240,10 @@ same workstation and toolchains, before the idiomatic-emission change (#31).
 `suffix-sum` exercises the read-only `s[i:]` path: it fills a large `[]int`,
 passes `s[start:]` to a one-argument proven reader and checks a checksum.
 
-## Future official runs
-
-When the dedicated test server exists, results will be shown in this form:
-
-| Field | Value |
-| --- | --- |
-| Date | YYYY-MM-DD |
-| GoPatina | version and full commit sha |
-| Machine | CPU, cores, memory, operating system |
-| Go | output of `go version` |
-| Rust | output of `rustc --version` (latest stable at the time of the run) |
-| Raw results | link to `bench/results/<date>-<gopatina version>.json` |
-
-| Benchmark | GoPatina `-patina` (median) | Hand-written Rust (median) | Plain Go (median) | GoPatina / Rust | GoPatina / Go |
-| --- | --- | --- | --- | --- | --- |
-| *(every benchmark in the suite, one row each)* | | | | | |
-
 ## History
 
+- 2026-11-23: the first three-arm run (GoPatina, hand-written Rust, plain Go) on all five benchmarks (test server): `binary-trees` and `cycles` slower than both.
 - 2026-11-22: the speed bar met on user instructions at 5σ and 6σ (test server, one rustc for both); run time pending.
 - 2026-11-22: the test-server pilot, wall time, inconclusive from noise.
 - 2026-11-21: a local equivalence run with CPU counters, a wall-clock run and a machine-code comparison (not official).
 - 2026-11-18: two local verification runs (not official).
-
-Official runs: none yet.

@@ -264,17 +264,21 @@ checks both, and CI runs it on every golden program; see
 
 ## Benchmarks
 
-**First test-server results, 2026-11-22**: user instructions, GoPatina /
-hand-written Rust, both built by rustc 1.100.0, 100 runs each, equivalence
-at ±0.5% and 6σ. Run time (cycles and wall time) is not decided yet: it was
-measured under load and needs a quiet run. Details, raw results and every
-earlier run are in [BENCHMARKS.md](BENCHMARKS.md).
+**Latest test-server run, 2026-11-23**: GoPatina, hand-written Rust and
+plain Go, all five benchmarks, both Rust binaries built by rustc 1.100.0,
+100 rounds, ratios with 5σ intervals and equivalence tests at ±0.5%. On
+the two pointer benchmarks GoPatina is slower than both, and plain Go is
+the fastest; [RFC 0016](docs/rfcs/0016-owned-pointers-and-cycle-collection.md)
+fixes the causes. Details, peak memory, binary sizes, raw results and
+every earlier run are in [BENCHMARKS.md](BENCHMARKS.md).
 
-| Benchmark | GoPatina / Rust, user instructions | 6σ interval | Verdict |
+| Benchmark | GoPatina / Rust, instructions | GoPatina / Rust, wall time | GoPatina / Go, wall time |
 | --- | --- | --- | --- |
-| `fib` | 1.0000082 | [1.0000074, 1.0000090] | equivalent |
-| `sieve` | 1.0000062 | [1.0000056, 1.0000069] | equivalent |
-| `suffix-sum` | 1.0000071 | [1.0000061, 1.0000082] | equivalent |
+| `fib` | 1.00000: equivalent | 0.904 [0.868, 0.941] | 0.526 [0.498, 0.554] |
+| `sieve` | 1.00001: equivalent | 0.984 [0.931, 1.039] | 0.968 [0.909, 1.031] |
+| `suffix-sum` | 1.00001: equivalent | 1.006 [0.960, 1.054] | 0.971 [0.920, 1.025] |
+| `binary-trees` | 1.372: slower | 1.496 [1.422, 1.574] | 1.591 [1.523, 1.662] |
+| `cycles` | 0.983 | 1.999 [1.890, 2.114] | 2.701 [2.532, 2.882] |
 
 ## Supported toolchains
 
