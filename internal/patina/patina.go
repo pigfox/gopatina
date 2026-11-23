@@ -36,6 +36,9 @@ type Session struct {
 	// CrateName and CrateVersion set the emitted crate's name and version
 	// (-crate-name, -version; RFC 0014); empty for the defaults.
 	CrateName, CrateVersion string
+	// APICheck is an earlier api.txt a library's new API is checked
+	// against (-api-check; RFC 0014), or "".
+	APICheck string
 	// Getenv reads the environment (os.Getenv, replaceable in tests).
 	Getenv func(string) string
 }
@@ -255,10 +258,45 @@ func (s *Session) EmitTo(dir, out string) error {
 	if err != nil {
 		return err
 	}
+	if s.APICheck != "" {
+		if err := s.checkAPI(c); err != nil {
+			return err
+		}
+	}
 	if err := c.Write(out); err != nil {
 		return err
 	}
 	fmt.Fprintf(s.Stderr, "wrote crate %s (%d files, listed in %s)\n", diag.RelPath(s.Cwd, out), len(c.Files), emit.ManifestName)
+	return nil
+}
+
+// checkAPI compares the library's new api.txt with the one at s.APICheck
+// and refuses a removed or changed item in a version cargo would still
+// take as compatible (RFC 0014).
+func (s *Session) checkAPI(c *emit.Crate) error {
+	if !c.Library {
+		return errors.New("-api-check applies to a library, whose crate has an api.txt (RFC 0014)")
+	}
+	old, err := os.ReadFile(s.APICheck)
+	if err != nil {
+		return err
+	}
+	var cur string
+	for _, f := range c.Files {
+		if f.Path == "api.txt" {
+			cur = string(f.Data)
+		}
+	}
+	ch := emit.CheckAPI(string(old), cur)
+	for _, r := range ch.Removed {
+		fmt.Fprintf(s.Stderr, "api: removed or changed: %s\n", r)
+	}
+	for _, a := range ch.Added {
+		fmt.Fprintf(s.Stderr, "api: added: %s\n", a)
+	}
+	if ch.Breaking {
+		return fmt.Errorf("the API of %s removes or changes %d item(s) without a new incompatible version (-version; RFC 0014)", c.Name, len(ch.Removed))
+	}
 	return nil
 }
 

@@ -1,8 +1,8 @@
 # RFC 0014: Library crates
 
-- **Status:** Accepted (#100). Library mode implemented; `-api-check`,
-  library batches in the generator and the `examples/rust-interop`
-  showcase follow
+- **Status:** Accepted (#100). Library mode (#102), the
+  `examples/rust-interop` showcase (#105) and `-api-check` implemented;
+  library batches in the generator follow
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
@@ -172,10 +172,13 @@ parameter from `&str` to `String`. So:
 - the crate's version comes from `-version vX.Y.Z` (default `0.0.0`), and
   `Cargo.toml` records the GoPatina version and the Go package path;
 - the crate includes `api.txt`, every `pub` item's Rust signature, one per
-  line, sorted. `gopatina build -emit-rust -api-check old/api.txt` fails if
-  the new API removes or changes a signature without a new major version
-  (adding items is allowed in a minor version), so a mode change cannot
-  ship silently;
+  line, sorted, with the crate's version in its header.
+  `gopatina build -emit-rust -api-check old/api.txt` fails if the new API
+  removes or changes a signature in a version cargo would still take as
+  compatible with the old one (a caret requirement: the same major
+  version, or for `0.y` the same minor), so a mode change cannot ship
+  silently; adding items is always allowed, and the notes under a
+  signature are not part of the API;
 - the generated crate is regenerated in CI and must match the committed
   one byte for byte, as the golden crates do today.
 
