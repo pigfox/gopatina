@@ -147,8 +147,8 @@ func (w *walker) place(e ast.Expr) (ev event, ok bool) {
 		case *ast.StarExpr:
 			ev.whole = false
 			deref = true
-			if KindOf(w.info().Types[x.X].Type) != PointerKind {
-				ev.heap = true
+			if t := w.info().Types[x.X].Type; KindOf(t) != PointerKind && !subset.Ptrs(w.a.pkg).Owned(t) {
+				ev.heap = true // an owned pointer's value has one owner: no cell (RFC 0017)
 			}
 			e = x.X
 		default:
@@ -342,6 +342,10 @@ func (w *walker) receiver(ops *operands, x ast.Expr, callee *Func) {
 		ops.add(x, true, false, false, func() { w.read(x) })
 	case r.Mode == RefMut:
 		ops.add(x, true, true, false, func() { w.expr(x, evMut) })
+	case r.Mode == Owned && !isPointerT(r.Var.Type()) && subset.Ptrs(w.a.pkg).Owned(w.info().TypeOf(x)):
+		// A value method through an owned pointer (RFC 0017) takes a copy
+		// of the box's value: the pointer is only read.
+		ops.add(x, true, false, false, func() { w.read(x) })
 	case r.Mode == Owned:
 		ops.add(x, false, false, false, func() { w.consume(x, exprString(x)+"'s method "+callee.Obj.Name(), r) })
 	case r.Mode == Ref:

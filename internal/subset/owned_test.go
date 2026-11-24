@@ -220,6 +220,7 @@ func TestOwnedShared(t *testing.T) {
 		{"struct value holding a struct of more than data", "type In struct{ X any }\n\ntype Pair struct {\n\tA  *Node\n\tIn In\n}", "var p Pair\n\t_ = p", "a field of a struct that is not boxed"},
 		{"struct value holding more than data", "type Pair struct {\n\tA *Node\n\tX any\n}", "var p Pair\n\t_ = p", "a field of a struct that is not boxed"},
 		{"value outside its box", "", "var v Node\n\t_ = v", "held outside its box"},
+		{"address of a dereference", "", "a := bottomUp(1)\n\tq := &*a\n\t_ = q", "computed in a way that may share it"},
 		{"dereference", "", "a := bottomUp(1)\n\tv := *a\n\t_ = v", "outside its box"},
 		{"interface", "", "var x any = bottomUp(1)\n\t_ = x", "an interface value holds it"},
 		{"closure", "", "a := bottomUp(1)\n\tf := func() int { return a.V }\n\t_ = f()", "a function literal captures it"},
@@ -294,5 +295,26 @@ func main() { _ = *mk() }
 	intPtr := types.NewPointer(types.Typ[types.Int])
 	if _, why, _ := p.SharedReason(intPtr); !strings.Contains(why, "not a struct type of the program") {
 		t.Errorf("*int: %q", why)
+	}
+}
+
+// TestValueData checks which types copy without sharing: numbers,
+// booleans, strings, and structs of them, but no slice.
+func TestValueData(t *testing.T) {
+	str := types.NewStruct([]*types.Var{types.NewField(0, nil, "S", types.Typ[types.String], false)}, nil)
+	slice := types.NewSlice(types.Typ[types.Int])
+	for _, tc := range []struct {
+		t    types.Type
+		want bool
+	}{
+		{types.Typ[types.Int], true},
+		{str, true},
+		{slice, false},
+		{types.NewStruct([]*types.Var{types.NewField(0, nil, "S", slice, false)}, nil), false},
+		{types.NewMap(types.Typ[types.Int], types.Typ[types.Int]), false},
+	} {
+		if got := valueData(tc.t); got != tc.want {
+			t.Errorf("valueData(%s) = %v, want %v", tc.t, got, tc.want)
+		}
 	}
 }

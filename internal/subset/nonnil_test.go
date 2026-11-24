@@ -221,6 +221,13 @@ type Node struct {
 	V     int
 }
 
+type Pt struct{ V int }
+
+func (p Pt) get() int             { return p.V }
+func valueFirst(p *Pt) int        { return p.get() + 1 }       // the value method copies *p first
+func valueLater(p *Pt) int        { return pass(1) + p.get() } // another call first: no
+func pass(x int) int              { return x }
+func mkPt() *Pt                   { return &Pt{V: 1} }
 func appendFirst(n *Node)           { n.Items = append(n.Items, 1) } // reads n.Items first
 func appendOther(n *Node, s []int)  { n.Items = append(s, 1) }       // the call reads nothing of n first: no
 func two(n *Node, s []int) (x int)  { n.V, x = len(n.Items), 1; return } // two places: no
@@ -230,9 +237,11 @@ func main() {
 	appendFirst(a)
 	appendOther(a, nil)
 	_ = two(a, nil)
+	pt := mkPt()
+	_ = valueFirst(pt) + valueLater(pt)
 	_ = a.V
 }
-`, "appendFirst.n main.a"})
+`, "appendFirst.n main.a main.pt result mkPt valueFirst.p"})
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if got := nonNilOf(t, c.src); got != c.want {

@@ -146,6 +146,9 @@ func (g *gen) isPlace(e ast.Expr) bool {
 
 // place renders a place expression.
 func (g *gen) place(e ast.Expr) node {
+	if st, ok := ast.Unparen(e).(*ast.StarExpr); ok && g.ownPtr(g.typeOf(st.X)) {
+		return g.boxContents(st.X) // *p of an owned pointer: the value in its box
+	}
 	if v := g.globalOf(e); v != nil {
 		// Only a static or a variable read into a local is a place
 		// (isPlace); a changed one's fields are read through value.
