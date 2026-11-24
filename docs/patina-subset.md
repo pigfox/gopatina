@@ -142,6 +142,17 @@ It also rejects, in Go terms:
   replaces it; and copying a Shared element out of a range loop that then
   changes it.
 
+Within one expression, such as the operands of `+` or an `if` condition,
+a read of a variable, or of a place under one (a field, an element, `*p`),
+before a call that changes it reads the changed value: gc makes an
+expression's calls before it reads the variables. The Go spec leaves that
+order unspecified; GoPatina matches gc. The generated Rust makes such calls
+first, into locals (`let call = add(&mut a, 10); a.n + call`), a
+`switch` tag's before the `match`, and an `else if` condition's inside its
+`else`. A loop condition of that shape, evaluated again each time round,
+and a `case` expression, evaluated only when the cases before it do not
+match, are not supported yet.
+
 A range loop over a slice that the body does not change iterates over a
 borrow of it; one that the body changes iterates over the indices of the
 length it had when the loop started, as Go does.

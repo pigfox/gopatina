@@ -10,6 +10,19 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- **Wrong output**: an expression that read a variable, or a place under
+  one, and then called a function or method that changed it printed a
+  different result from Go. `fmt.Println(p.V+inc(p))` printed the old `p.V`
+  plus the call's result; Go (gc) makes the call first and reads the new
+  `p.V`. The same held for a slice element (`xs[0]+first(xs)`), a local
+  through `&x` (`x+addTo(&x, 3)`), a receiver (`q.X+q.Inc()`), an element's
+  receiver, an `if` condition and a `switch` tag. The Go spec leaves the
+  order unspecified; GoPatina matches gc. The calls are now made first,
+  into locals; a loop condition or `case` expression of that shape is not
+  supported yet. Golden `call_before_read`, reject golden
+  `call_before_read_loop`; the generator writes each shape in every
+  program. The benchmark crates' Rust is unchanged, so the published
+  numbers stand.
 - A call of another package's function returning an error was left out of
   the error lowering, and its `Result` destructured as a tuple, so the crate
   did not build; such calls are now lowered like calls in the same package.

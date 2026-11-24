@@ -1016,6 +1016,14 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// A local lent to calls that keep nothing, and a value parameter
 	// returned by address (RFC 0017): &mut pt_l, pt_l.inc(), Box::new(p).
 	fmt.Fprintf(b, "\nfunc ptAdd%d(p *Pt%d, x int) { p.X += x }\n\nfunc (p *Pt%d) Inc() { p.Y++ }\n\nfunc ptBox%d(p Pt%d) *Pt%d { return &p }\n", k, k, k, k, k, k)
+	// A call that changes through an owned pointer, beside a read through
+	// it: gc makes the call first, so Rust computes it into a local first.
+	fmt.Fprintf(b, "\nfunc chInc%d(c *Ch%d) int {\n\tc.V += 7\n\treturn c.V\n}\n", k, k)
+	// Reads of a place beside calls that change that same place, in one
+	// expression: a slice element, a local through &x, a receiver and an
+	// element's receiver. gc makes the calls first (the spec leaves the
+	// order unspecified), so Rust makes them first too.
+	fmt.Fprintf(b, "\nfunc ordFirst%d(s []int) int {\n\ts[0] += 100\n\treturn s[0]\n}\n\nfunc ordAdd%d(p *int) int {\n\t*p += 3\n\treturn *p\n}\n\nfunc (p *Pt%d) Next() int {\n\tp.X++\n\treturn p.X\n}\n\ntype Ord%d struct{ X int }\n\nfunc (o *Ord%d) Next() int {\n\to.X += 2\n\treturn o.X\n}\n", k, k, k, k, k)
 	// A struct value owning a chain (RFC 0017): built by a literal, read
 	// and changed through, and moved whole.
 	fmt.Fprintf(b, "\ntype Hold%d struct {\n\tH *Ch%d\n\tN int\n}\n", k, k)
@@ -1114,6 +1122,30 @@ func (g *gen) ptrUses() {
 	g.line("for chP := chC; chP != nil; chP = chP.N {")
 	g.depth++
 	g.line("chT += chP.V %s %s", op(), v())
+	g.depth--
+	g.line("}")
+	g.line("fmt.Println(chC.V+chInc%d(chC), chC.V)", k)
+	g.line("ordS := []int{%s, %s}", v(), v())
+	g.line("fmt.Println(ordS[0]%sordFirst%d(ordS), ordS[0])", op(), k)
+	g.line("ordX := %s", v())
+	g.line("fmt.Println(ordX%sordAdd%d(&ordX), ordX)", op(), k)
+	g.line("var ordP Pt%d", k)
+	g.line("fmt.Println(ordP.X%sordP.Next(), ordP.X)", op())
+	g.line("ordE := []Ord%d{{X: %s}, {X: %s}}", k, v(), v())
+	g.line("fmt.Println(ordE[1].X%sordE[1].Next(), ordE[1].X)", op())
+	g.line("switch ordX%sordAdd%d(&ordX) {", op(), k)
+	g.line("case %s:", v())
+	g.depth++
+	g.line("fmt.Println(\"ord case\", ordX)")
+	g.depth--
+	g.line("default:")
+	g.depth++
+	g.line("fmt.Println(\"ord default\", ordX)")
+	g.depth--
+	g.line("}")
+	g.line("if ordX%sordAdd%d(&ordX) > %s {", op(), k, v())
+	g.depth++
+	g.line("fmt.Println(\"ord\", ordX)")
 	g.depth--
 	g.line("}")
 	g.line("chQ := chC.N")

@@ -1099,6 +1099,11 @@ func (g *gen) ifChain(s *ast.IfStmt, prefix string) {
 	if g.ifSome(s, prefix) {
 		return
 	}
+	if prefix == "" && borrow.ChangedBeforeRead(g.info, g.res.Funcs, s.Cond) {
+		// A condition that reads a variable before a call that changes
+		// it: gc makes the call first (RFC 0017).
+		g.hoistCalls(&ast.ExprStmt{X: s.Cond}, true)
+	}
 	g.stmtLine(prefix+"if ", g.value(s.Cond), " {")
 	g.block(s.Body)
 	g.elseOf(s)
@@ -1258,7 +1263,7 @@ func (g *gen) elseOf(s *ast.IfStmt) {
 	case nil:
 		g.line("}")
 	case *ast.IfStmt:
-		if e.Init != nil || g.errs.Calls[e] != nil {
+		if e.Init != nil || g.errs.Calls[e] != nil || borrow.ChangedBeforeRead(g.info, g.res.Funcs, e.Cond) {
 			g.line("} else {")
 			g.ind++
 			g.body([]ast.Stmt{e}, false)
@@ -1555,6 +1560,11 @@ func (g *gen) switchStmt(s *ast.SwitchStmt) {
 		g.line("{")
 		g.ind++
 		g.stmt(s.Init)
+	}
+	if s.Tag != nil && borrow.ChangedBeforeRead(g.info, g.res.Funcs, s.Tag) {
+		// A tag that reads a variable before a call that changes it: gc
+		// makes the call first (RFC 0017).
+		g.hoistCalls(&ast.ExprStmt{X: s.Tag}, true)
 	}
 	if g.matchable(s) {
 		g.match(s)

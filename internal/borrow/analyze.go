@@ -82,6 +82,7 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 	}
 	a.checkSuffixes()
 	a.checkHeap(decls)
+	a.checkOrder(decls)
 	a.cycleNotes()
 	// A variable changed through a pointer to it is changed too.
 	for _, p := range a.pointers {

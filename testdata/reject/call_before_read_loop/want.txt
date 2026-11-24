@@ -1,0 +1,6 @@
+./main.go:18:6: a loop condition that reads a variable before a call that changes it is not supported in patina mode yet
+    Go (gc) makes the call first; compute the call into a variable before the loop and at the end of its body, or read the variable after the call
+    see docs/compat.md for what patina mode supports
+./main.go:22:7: a switch case that reads a variable before a call that changes it is not supported in patina mode yet
+    Go (gc) makes the call first; compute the call into a variable before the switch, or read the variable after the call
+    see docs/compat.md for what patina mode supports
