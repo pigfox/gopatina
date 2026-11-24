@@ -287,6 +287,9 @@ func (o *ownership) vars() {
 		if !v.IsField() && v.Parent() != v.Pkg().Scope() && o.ptrSlice(t) {
 			continue // a local Vec owning each (RFC 0017, step 9)
 		}
+		if o.escapeVar(v) {
+			continue // moved into a new box at its & (escapes.go)
+		}
 		o.heldIn(t, id.Pos(), map[types.Type]bool{})
 	}
 }
@@ -641,6 +644,9 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 	// composite literal not under &.
 	for _, h := range o.p.heap {
 		if types.Identical(h, t) {
+			if o.escapeValue(e) {
+				return // a local moved into a new box at its & (escapes.go)
+			}
 			par, child, _ := parent(stack)
 			if _, lit := e.(*ast.CompositeLit); lit {
 				if u, ok := par.(*ast.UnaryExpr); ok && u.Op == token.AND && u.X == child {
@@ -693,7 +699,7 @@ func (o *ownership) fresh(e ast.Expr) bool {
 	switch x := e.(type) {
 	case *ast.UnaryExpr:
 		_, lit := ast.Unparen(x.X).(*ast.CompositeLit)
-		return x.Op == token.AND && lit
+		return x.Op == token.AND && (lit || o.p.escapes[x] != nil)
 	case *ast.CallExpr:
 		if id, ok := ast.Unparen(x.Fun).(*ast.Ident); ok {
 			if b, ok := o.info.Uses[id].(*types.Builtin); ok {
@@ -701,6 +707,30 @@ func (o *ownership) fresh(e ast.Expr) bool {
 			}
 		}
 		return o.programCallee(x) != nil
+	}
+	return false
+}
+
+// escapeValue reports whether e, a value of a candidate's element type,
+// is a variable moved into a new box at its & (escapes.go) or the literal
+// declaring one: a plain local until then.
+func (o *ownership) escapeValue(e ast.Expr) bool {
+	if lit, ok := e.(*ast.CompositeLit); ok {
+		return o.p.escapeInits[lit]
+	}
+	id, ok := e.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	return o.escapeVar(o.localOf(id))
+}
+
+// escapeVar reports whether v is moved into a new box at its &.
+func (o *ownership) escapeVar(v *types.Var) bool {
+	for _, w := range o.p.escapes {
+		if w == v {
+			return true
+		}
 	}
 	return false
 }
@@ -1077,7 +1107,10 @@ func (o *ownership) localVar(e ast.Expr) bool {
 // box.
 func (o *ownership) boxedLit(stack []ast.Node) bool {
 	for i := len(stack) - 1; ; i-- {
-		if _, ok := stack[i].(*ast.CompositeLit); ok {
+		if c, ok := stack[i].(*ast.CompositeLit); ok {
+			if o.p.escapeInits[c] {
+				return true // a local's value, moved into a box at its & (escapes.go)
+			}
 			par, child, _ := parent(stack[:i+1])
 			u, ok := par.(*ast.UnaryExpr)
 			return ok && u.Op == token.AND && u.X == child

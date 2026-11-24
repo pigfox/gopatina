@@ -255,7 +255,7 @@ func (a *nonNilAnalysis) isNew(e ast.Expr, plan *nonNilPlan) bool {
 	switch x := ast.Unparen(e).(type) {
 	case *ast.UnaryExpr:
 		_, lit := ast.Unparen(x.X).(*ast.CompositeLit)
-		return x.Op == token.AND && lit
+		return x.Op == token.AND && (lit || a.p.EscapeBox(x) != nil)
 	case *ast.CallExpr:
 		if id, ok := ast.Unparen(x.Fun).(*ast.Ident); ok {
 			if b, ok := a.info.Uses[id].(*types.Builtin); ok {

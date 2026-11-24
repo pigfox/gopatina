@@ -632,6 +632,9 @@ func (g *gen) heapAddr(e *ast.UnaryExpr) node {
 	if x, ok := ast.Unparen(e.X).(*ast.CompositeLit); ok {
 		return g.ptrNew(g.typeOf(e), g.composite(x))
 	}
+	if v := g.ptrs.EscapeBox(e); v != nil {
+		return g.ptrNew(g.typeOf(e), text(g.varName(v))) // x moves into its box
+	}
 	return &call{recv: text(g.varName(g.localVar(ast.Unparen(e.X).(*ast.Ident)))), head: ".clone", open: "(", close: ")"}
 }
 

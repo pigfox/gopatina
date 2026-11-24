@@ -1,0 +1,14 @@
+./main.go:11:6: pointers of type *Item are never shared: each has one owner (RFC 0016)
+./main.go:24:21: parameter name is owned: newItem keeps it
+./main.go:26:12: moved name into it.Name: name is not used afterwards
+./main.go:28:10: moved it into a new pointer: it is not used afterwards
+./main.go:32:11: parameter head is owned: push keeps it
+./main.go:34:12: moved head into it.Next: head is not used afterwards
+./main.go:36:10: moved it into a new pointer: it is not used afterwards
+./main.go:40:11: parameter b is an exclusive borrow: fill changes it, and the caller sees the change
+./main.go:40:19: parameter vs is a shared borrow: fill only reads it
+./main.go:43:30: moved it into a new pointer: it is not used afterwards
+./main.go:48:13: parameter l is a shared borrow: length only reads it
+./main.go:58:17: moved a into push: a is not used afterwards
+./main.go:64:13: moved first into a new pointer: first is not used afterwards
+./main.go:68:8: moved last into a new pointer: last is not used afterwards

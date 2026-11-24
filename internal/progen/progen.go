@@ -1003,6 +1003,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// Temporary borrows (RFC 0017, step 5): a walk of the chain, while
 	// let Some(n) = p in Rust, with a second borrow kept.
 	fmt.Fprintf(b, "\nfunc chSum%d(c *Ch%d) int {\n\ts := 0\n\tvar last *Ch%d\n\tfor p := c; p != nil; p = p.N {\n\t\tif p.V%%3 == 0 {\n\t\t\tcontinue\n\t\t}\n\t\ts += p.V\n\t\tlast = p\n\t}\n\tif last != nil {\n\t\ts += last.V\n\t}\n\treturn s\n}\n", k, k, k)
+	// A local value whose address is handed on (RFC 0017): moved into a new
+	// box at the &, Box::new(x), since nothing uses it after.
+	fmt.Fprintf(b, "\nfunc chCons%d(v int, rest *Ch%d) *Ch%d {\n\tvar c Ch%d\n\tc.N = rest\n\tc.V += v + 1\n\treturn &c\n}\n", k, k, k, k)
 	// A struct value owning a chain (RFC 0017): built by a literal, read
 	// and changed through, and moved whole.
 	fmt.Fprintf(b, "\ntype Hold%d struct {\n\tH *Ch%d\n\tN int\n}\n", k, k)
@@ -1073,6 +1076,8 @@ func (g *gen) ptrUses() {
 	g.line("chC := &Ch%d{V: %s, N: chB}", k, v())
 	g.line("fmt.Println(chLen%d(chC), chC.V, chC.N.V)", k)
 	// A local slice of owned pointers (RFC 0017): a Vec owning each.
+	g.line("chE := chCons%d(%s, chPush%d(%d))", k, v(), k, 1+g.qr.IntN(4))
+	g.line("fmt.Println(chE.V, chLen%d(chE))", k)
 	g.line("chS := []*Ch%d{chPush%d(%d), chPush%d(%d)}", k, k, 1+g.qr.IntN(4), k, 1+g.qr.IntN(4))
 	g.line("chS = append(chS, chPush%d(%d))", k, 1+g.qr.IntN(4))
 	g.line("chS[1].V %s= %s", op(), v())
