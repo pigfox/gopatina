@@ -2,7 +2,10 @@
 
 This is where GoPatina's official benchmark results are published: GoPatina
 against equivalent hand-written Rust and plain Go, measured on the
-maintainer's test server. How the numbers are produced is described in
+maintainer's test server. Both Rust sides are built by the same rustc:
+GoPatina's is the Rust it generates from the Go program, the other is
+written by hand, so a difference between them is a difference in the Rust
+code, not in the compiler. How the numbers are produced is described in
 [docs/QUALITY.md](docs/QUALITY.md#performance-shadow-rust-and-keep-up) and
 [bench/README.md](bench/README.md).
 
