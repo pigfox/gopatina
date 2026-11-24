@@ -407,8 +407,22 @@ owns the object, and the field never names it meanwhile. Rust writes
 `let l = t.left.take();`, which leaves `None`, so a refill with `nil` is
 already done; another value is stored after it.
 
-Moving a pointer out of an element, or keeping a parameter, still makes
-the type shared: those are later steps.
+**Slices of owned pointers** ([RFC 0017](rfcs/0017-one-owner.md), step
+7). A struct whose pointers have one owner may hold a slice of them in a
+field (`Kids []*Node`): a `Vec<Option<Box<T>>>` owning each. `x.f =
+append(x.f, ...)` pushes new pointers or moves local ones in
+(`x.kids.push(Some(...))`). An element is read, changed in place and lent
+by index (`x.kids[i].as_ref().unwrap().v`), and through elements of
+elements. The value of a `range` over the slice borrows each element in
+turn (`for k in &x.kids`), and it must be a temporary borrow: one kept
+elsewhere would give the element two owners, and keeps the type shared.
+A cycle, such as vertices whose edges point back at them, has no single
+owner, and is refused once its types are owned
+(`testdata/reject/owned_graph_cycle`).
+
+Moving a pointer out of an element, a slice of pointers held anywhere
+but a field, or keeping a parameter, still makes the type shared: those
+are later steps.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

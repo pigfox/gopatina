@@ -101,6 +101,9 @@ func (g *gen) ptrRep(e ast.Expr) ptrRep {
 			return g.paramRep(v) // lent: an owned pointer is never kept
 		}
 		if g.isBorrow(v) {
+			if g.ptrs.RangeElem(v) {
+				return repOptBox // &Option<Box<T>>, an element: read through as a field (step 7)
+			}
 			return repOptRef // a temporary borrow (RFC 0017, step 5)
 		}
 		if g.ptrs.NonNilVar(v) {

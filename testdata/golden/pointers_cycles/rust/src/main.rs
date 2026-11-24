@@ -32,7 +32,9 @@
 
 mod rt;
 
-/// Edge and Vertex can point at each other.
+/// Edge and Vertex can point at each other. Compared as pointers, they keep
+/// their cells (RFC 0013) for now; under one owner per object such a graph
+/// is refused (testdata/reject/owned_graph_cycle).
 #[derive(Clone, Default, PartialEq)]
 pub struct Edge {
     pub to: rt::Ptr<Vertex>,
@@ -42,7 +44,7 @@ pub struct Edge {
 #[derive(Clone, Default, PartialEq)]
 pub struct Vertex {
     pub name: String,
-    pub out: Vec<rt::Ptr<Edge>>,
+    pub out: Vec<Option<Box<Edge>>>,
 }
 
 /// Outer reaches itself through a struct value.
@@ -121,28 +123,25 @@ fn main() {
         name: String::from("b"),
         ..Default::default()
     });
-    let val = rt::Ptr::new(Edge {
+    let val = Some(Box::new(Edge {
         to: b.clone(),
         cost: 2,
-    });
+    }));
     a.with_mut(|v| v.out.push(val));
-    let val_2 = rt::Ptr::new(Edge {
+    let val_2 = Some(Box::new(Edge {
         to: a.clone(),
         cost: 3,
-    });
+    }));
     b.with_mut(|v| v.out.push(val_2));
     println!(
-        "{} {} {}",
-        a.with(|v| v.out[0].clone())
-            .with(|v| v.to.clone())
+        "{} {} {} {}",
+        a.with(|v| v.out[0].as_ref().unwrap().to.clone())
             .with(|v| v.name.clone()),
-        a.with(|v| v.out[0].clone())
-            .with(|v| v.to.clone())
-            .with(|v| v.out[0].clone())
-            .with(|v| v.to.clone())
+        a.with(|v| v.out[0].as_ref().unwrap().to.clone())
+            .with(|v| v.out[0].as_ref().unwrap().to.clone())
             .with(|v| v.name.clone()),
-        a.with(|v| v.out[0].clone()).with(|v| v.cost)
-            + b.with(|v| v.out[0].clone()).with(|v| v.cost),
+        a.with(|v| v.out[0].as_ref().unwrap().cost) + b.with(|v| v.out[0].as_ref().unwrap().cost),
+        a.with(|v| v.out[0].as_ref().unwrap().to.clone()) == b,
     );
     let o = rt::Ptr::new(Outer {
         n: 1,

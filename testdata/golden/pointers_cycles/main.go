@@ -5,7 +5,9 @@ package main
 
 import "fmt"
 
-// Edge and Vertex can point at each other.
+// Edge and Vertex can point at each other. Compared as pointers, they keep
+// their cells (RFC 0013) for now; under one owner per object such a graph
+// is refused (testdata/reject/owned_graph_cycle).
 type Edge struct {
 	To   *Vertex
 	Cost int
@@ -56,7 +58,7 @@ func main() {
 	b := &Vertex{Name: "b"}
 	a.Out = append(a.Out, &Edge{To: b, Cost: 2})
 	b.Out = append(b.Out, &Edge{To: a, Cost: 3})
-	fmt.Println(a.Out[0].To.Name, a.Out[0].To.Out[0].To.Name, a.Out[0].Cost+b.Out[0].Cost)
+	fmt.Println(a.Out[0].To.Name, a.Out[0].To.Out[0].To.Name, a.Out[0].Cost+b.Out[0].Cost, a.Out[0].To == b)
 	o := &Outer{N: 1}
 	o.In.Back = o
 	fmt.Println(o.In.Back.In.Back.N, o.In.Back == o)

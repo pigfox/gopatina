@@ -69,4 +69,9 @@ func main() {
 	if want := "p<head> q<head> r<head> y<x>"; strings.Join(got, " ") != want {
 		t.Errorf("borrows = %s, want %s", strings.Join(got, " "), want)
 	}
+	for _, obj := range pkg.Info.Defs {
+		if v, ok := obj.(*types.Var); ok && p.RangeElem(v) {
+			t.Errorf("RangeElem(%s): there is no range", v.Name())
+		}
+	}
 }

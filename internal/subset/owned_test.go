@@ -164,6 +164,7 @@ func TestOwnedShared(t *testing.T) {
 		{"function value", "", "f := bottomUp\n\t_ = f(1).V", "computed in a way that may share it"},
 		{"lent to a non-program function", "", "fmt.Sprint(bottomUp(1).V, bottomUp(1))", "a new pointer is stored"},
 		{"field of a call's result", "", "bottomUp(1).Left = bottomUp(0)", "written through"},
+		{"appended, not to a field", "type Box struct{ Kids []*Node }\n\nfunc mkBox() *Box { return &Box{} }", "b := mkBox()\n\tfmt.Println(len(append(b.Kids, bottomUp(1))))", "a new pointer is stored"},
 		{"lent to a variadic", "func many(ns ...*Node) {}", "many(bottomUp(1))", "a slice"},
 		{"field of another type", "type Other struct{ Items []int }\n\nfunc mk() *Other { return &Other{} }", "_ = mk()", ""},
 	} {
