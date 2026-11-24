@@ -995,14 +995,15 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// its tree, given a child taken out of the field its result refills.
 	fmt.Fprintf(b, "\nfunc trIns%d(t *Tr%d, v int) *Tr%d {\n\tif t == nil {\n\t\treturn &Tr%d{V: v}\n\t}\n\tif v < t.V {\n\t\tt.L = trIns%d(t.L, v)\n\t} else {\n\t\tt.R = trIns%d(t.R, v)\n\t}\n\treturn t\n}\n", k, k, k, k, k, k)
 	fmt.Fprintf(b, "\nfunc trPair%d(v int) *Tr%d {\n\tp := &Tr%d{V: v, L: mkTr%d(0, v), R: &Tr%d{V: v + 1}}\n\treturn p\n}\n", k, k, k, k, k)
-	fmt.Fprintf(b, "\ntype Ch%d struct {\n\tV int\n\tN *Ch%d\n}\n", k, k)
+	// Vs is plain data the box owns (RFC 0017), changed in place.
+	fmt.Fprintf(b, "\ntype Ch%d struct {\n\tV  int\n\tVs []int\n\tN  *Ch%d\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc chain%d(n int) *Ch%d {\n\tif n == 0 {\n\t\treturn nil\n\t}\n\treturn &Ch%d{V: n, N: chain%d(n - 1)}\n}\n", k, k, k, k)
 	// Moves (RFC 0017, step 4): a chain built in a loop, each new link
 	// taking the chain, so Ch frees its links in a loop too.
-	fmt.Fprintf(b, "\nfunc chPush%d(n int) *Ch%d {\n\tvar h *Ch%d\n\tfor i := 0; i < n; i++ {\n\t\tx := &Ch%d{V: i}\n\t\tx.N = h\n\t\th = x\n\t}\n\treturn h\n}\n", k, k, k, k)
+	fmt.Fprintf(b, "\nfunc chPush%d(n int) *Ch%d {\n\tvar h *Ch%d\n\tfor i := 0; i < n; i++ {\n\t\tx := &Ch%d{V: i}\n\t\tx.Vs = append(x.Vs, i*2)\n\t\tx.N = h\n\t\th = x\n\t}\n\treturn h\n}\n", k, k, k, k)
 	// Temporary borrows (RFC 0017, step 5): a walk of the chain, while
 	// let Some(n) = p in Rust, with a second borrow kept.
-	fmt.Fprintf(b, "\nfunc chSum%d(c *Ch%d) int {\n\ts := 0\n\tvar last *Ch%d\n\tfor p := c; p != nil; p = p.N {\n\t\tif p.V%%3 == 0 {\n\t\t\tcontinue\n\t\t}\n\t\ts += p.V\n\t\tlast = p\n\t}\n\tif last != nil {\n\t\ts += last.V\n\t}\n\treturn s\n}\n", k, k, k)
+	fmt.Fprintf(b, "\nfunc chSum%d(c *Ch%d) int {\n\ts := 0\n\tvar last *Ch%d\n\tfor p := c; p != nil; p = p.N {\n\t\tif p.V%%3 == 0 {\n\t\t\tcontinue\n\t\t}\n\t\ts += p.V + len(p.Vs)\n\t\tlast = p\n\t}\n\tif last != nil {\n\t\ts += last.V\n\t}\n\treturn s\n}\n", k, k, k)
 	// A local value whose address is handed on (RFC 0017): moved into a new
 	// box at the &, Box::new(x), since nothing uses it after.
 	fmt.Fprintf(b, "\nfunc chCons%d(v int, rest *Ch%d) *Ch%d {\n\tvar c Ch%d\n\tc.N = rest\n\tc.V += v + 1\n\treturn &c\n}\n", k, k, k, k)

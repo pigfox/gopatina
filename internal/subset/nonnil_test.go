@@ -214,6 +214,25 @@ func main() {
 }
 `, "argFirst.n assign.n cond.n constDiv.n conv.n exprFirst.n get.n incFirst.n indexFirst.n late.n lenOf.n lit.n litPlain.n main.a nested.n paren.n printed.n quietArgs.n recvFirst.n result fresh result viaCall result viaLit result viaLocal result viaNew result viaVar second.n setFirst.n unary.n viaLocal.n viaVar.n"},
 	}
+	cases = append(cases, struct{ name, src, want string }{"a field given a value that reads it", `package main
+
+type Node struct {
+	Items []int
+	V     int
+}
+
+func appendFirst(n *Node)           { n.Items = append(n.Items, 1) } // reads n.Items first
+func appendOther(n *Node, s []int)  { n.Items = append(s, 1) }       // the call reads nothing of n first: no
+func two(n *Node, s []int) (x int)  { n.V, x = len(n.Items), 1; return } // two places: no
+
+func main() {
+	a := &Node{}
+	appendFirst(a)
+	appendOther(a, nil)
+	_ = two(a, nil)
+	_ = a.V
+}
+`, "appendFirst.n main.a"})
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if got := nonNilOf(t, c.src); got != c.want {

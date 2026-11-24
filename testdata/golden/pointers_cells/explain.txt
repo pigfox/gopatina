@@ -1,5 +1,5 @@
 ./main.go:9:7: receiver i is an exclusive borrow: Inc changes it, and the caller sees the change
-./main.go:11:6: pointers of type *T are shared: its field in is of type In (line 12) (RFC 0016)
+./main.go:11:6: pointers of type *T are shared: a value of the type itself is held outside its box (line 18) (RFC 0016)
 ./main.go:18:7: receiver t is a shared borrow: Total only reads it
 ./main.go:20:7: receiver t is an exclusive borrow: Zero changes it, and the caller sees the change
 ./main.go:22:10: parameter s is a shared borrow: sum only reads it

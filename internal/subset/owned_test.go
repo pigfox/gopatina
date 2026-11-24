@@ -258,7 +258,7 @@ func TestOwnedFields(t *testing.T) {
 	src := `package main
 
 type Node struct {
-	Items []int
+	Items map[string]int
 	Kid   *Kid
 }
 
@@ -268,8 +268,14 @@ func mk() *Node { return &Node{Kid: &Kid{V: 1}} }
 
 func main() { _ = mk().Kid.V }
 `
+	plain := strings.Replace(src, "Items map[string]int", "Items []int\n\tAt    struct{ X, Y int }", 1)
+	plain = strings.Replace(plain, "func main() { _ = mk().Kid.V }", "func main() {\n\tn := mk()\n\tn.Items = append(n.Items, 1)\n\tn.Items[0] = 2\n\tn.At.X++\n\t_ = n.Kid.V\n}", 1)
+	if p, node := ownedOf(t, plain); !p.Owned(node) {
+		_, why, _ := p.SharedReason(node)
+		t.Errorf("plain-data fields changed in place: Node shared (%s), want owned", why)
+	}
 	p, node := ownedOf(t, src)
-	if _, why, _ := p.SharedReason(node); !strings.Contains(why, "its field Items is of type []int") {
+	if _, why, _ := p.SharedReason(node); !strings.Contains(why, "its field Items is of type map[string]int") {
 		t.Errorf("Node: %q", why)
 	}
 	kid := types.NewPointer(p.pkg.Types.Scope().Lookup("Kid").Type())

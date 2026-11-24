@@ -352,10 +352,12 @@ func (a *nonNilAnalysis) firstRead(v *types.Var, fd *ast.FuncDecl) bool {
 			return true // v.f = x, v.f += x: nothing before the write through v
 		}
 		for _, l := range s.Lhs {
-			if _, ok := ast.Unparen(l).(*ast.Ident); !ok {
+			if _, ok := ast.Unparen(l).(*ast.Ident); !ok && !(len(s.Lhs) == 1 && a.writesThrough(l, v)) {
 				return false
 			}
 		}
+		// v.f = g(v.f, ...): the value is evaluated first, and a read
+		// through v in it panics before anything else is done.
 		exprs = s.Rhs
 	case *ast.IncDecStmt:
 		return a.writesThrough(s.X, v) // v.f++
