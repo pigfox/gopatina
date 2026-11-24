@@ -1003,6 +1003,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// Temporary borrows (RFC 0017, step 5): a walk of the chain, while
 	// let Some(n) = p in Rust, with a second borrow kept.
 	fmt.Fprintf(b, "\nfunc chSum%d(c *Ch%d) int {\n\ts := 0\n\tvar last *Ch%d\n\tfor p := c; p != nil; p = p.N {\n\t\tif p.V%%3 == 0 {\n\t\t\tcontinue\n\t\t}\n\t\ts += p.V\n\t\tlast = p\n\t}\n\tif last != nil {\n\t\ts += last.V\n\t}\n\treturn s\n}\n", k, k, k)
+	// A struct value owning a chain (RFC 0017): built by a literal, read
+	// and changed through, and moved whole.
+	fmt.Fprintf(b, "\ntype Hold%d struct {\n\tH *Ch%d\n\tN int\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc chLen%d(c *Ch%d) int {\n\tif c == nil {\n\t\treturn 0\n\t}\n\treturn c.V %% 3 + chLen%d(c.N)\n}\n", k, k, k)
 	// A call that prints, beside a read through a nil owned pointer: gc
 	// makes the call first (panicking).
@@ -1074,6 +1077,10 @@ func (g *gen) ptrUses() {
 	g.line("chS = append(chS, chPush%d(%d))", k, 1+g.qr.IntN(4))
 	g.line("chS[1].V %s= %s", op(), v())
 	g.line("fmt.Println(len(chS), chLen%d(chS[0]), chS[1].V, chSum%d(chS[2]))", k, k)
+	g.line("hold := Hold%d{H: chPush%d(%d), N: %s}", k, k, 1+g.qr.IntN(5), v())
+	g.line("hold.H.V %s= hold.N", op())
+	g.line("held := hold")
+	g.line("fmt.Println(chLen%d(held.H), held.H.V, held.N)", k)
 	g.line("chT := 0")
 	g.line("for chP := chC; chP != nil; chP = chP.N {")
 	g.depth++

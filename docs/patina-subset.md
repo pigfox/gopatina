@@ -440,10 +440,17 @@ pointers or moved locals (`vec![Some(...), ...]`), appended to
 slice that is still used is an error: Go's copy shares the elements, so
 each would have two owners.
 
+**Struct values owning pointers** ([RFC 0017](rfcs/0017-one-owner.md)).
+A struct of the program that is not behind a pointer, and whose fields
+are owned pointers, slices of them and plain data, owns its pointers as a
+Rust struct owns its `Box` fields: built by a literal, given new pointers
+in its fields, lent, returned and moved whole. A copy of one that is still
+used is an error, as for a slice of pointers: each pointer would have two
+owners.
+
 Moving a pointer out of an element, a slice of pointers held in a
-package-level variable, a struct value (not behind a pointer) holding a
-pointer, and a field handed to a keeper without being refilled still
-make the type shared: those are later steps.
+package-level variable, and a field handed to a keeper without being
+refilled still make the type shared: those are later steps.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

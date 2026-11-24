@@ -124,6 +124,30 @@ func main() {
 	}
 }
 
+// TestOwnerStruct checks that struct values holding owned pointers and
+// data own them (RFC 0017): declared, built by a literal, given a new
+// pointer in a field.
+func TestOwnerStruct(t *testing.T) {
+	src := strings.Replace(tree, "func main() {\n", `type Pair struct {
+	A, B *Node
+	N    int
+	Kids []*Node
+}
+
+func main() {
+	var p Pair
+	p.A = bottomUp(1)
+	q := Pair{A: bottomUp(2), N: 1}
+	r := &Pair{}
+	r.B = bottomUp(0)
+	_, _ = q.A.V, r.B.V
+`, 1)
+	if p, node := ownedOf(t, src); !p.Owned(node) {
+		_, why, _ := p.SharedReason(node)
+		t.Fatalf("*Node shared (%s), want owned", why)
+	}
+}
+
 // TestOwnedKept checks parameters their function keeps (RFC 0017, step
 // 8): a tree's insert, given a child taken out of the field its result
 // refills, and a parameter passed on to another keeper stay owned; a
@@ -193,7 +217,8 @@ func TestOwnedShared(t *testing.T) {
 		{"package variable", "var root *Node", "root = bottomUp(1)", "a package-level variable"},
 		{"package-level slice", "var all []*Node", "all = append(all, bottomUp(1))", "a slice, map, array, channel or struct value"},
 		{"element of a call's result", "func some() []*Node { return nil }", "_ = some()[0].V", "a pointer is computed in a way that may share it"},
-		{"struct value", "type Pair struct{ A *Node }", "var p Pair\n\t_ = p", "a field of a struct that is not boxed"},
+		{"struct value holding a struct of more than data", "type In struct{ X any }\n\ntype Pair struct {\n\tA  *Node\n\tIn In\n}", "var p Pair\n\t_ = p", "a field of a struct that is not boxed"},
+		{"struct value holding more than data", "type Pair struct {\n\tA *Node\n\tX any\n}", "var p Pair\n\t_ = p", "a field of a struct that is not boxed"},
 		{"value outside its box", "", "var v Node\n\t_ = v", "held outside its box"},
 		{"dereference", "", "a := bottomUp(1)\n\tv := *a\n\t_ = v", "outside its box"},
 		{"interface", "", "var x any = bottomUp(1)\n\t_ = x", "an interface value holds it"},
@@ -201,7 +226,6 @@ func TestOwnedShared(t *testing.T) {
 		{"method value", "", "a := bottomUp(1)\n\tf := a.check\n\t_ = f", "a copy of it is kept"},
 		{"value method", "func (n Node) get() int { return n.V }", "_ = bottomUp(1).get()", "outside its box"},
 		{"deferred", "func use(n *Node) {}", "a := bottomUp(1)\n\tdefer use(a)", "a copy of it is kept"},
-		{"fresh into a field", "type Box struct{ N *Node }", "b := &Box{}\n\tb.N = bottomUp(1)", "a field of a struct that is not boxed"},
 		{"fresh compared", "", "_ = bottomUp(1) == nil", "a new pointer is stored"},
 		{"function value", "", "f := bottomUp\n\t_ = f(1).V", "computed in a way that may share it"},
 		{"lent to a non-program function", "", "fmt.Sprint(bottomUp(1).V, bottomUp(1))", "a new pointer is stored"},

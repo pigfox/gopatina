@@ -29,14 +29,14 @@ func (l *live) handOff(ev event, lv set) {
 		}
 		return
 	}
-	if ownedSlice(a, t) && needCopy {
+	if (ownedSlice(a, t) || ownerValue(a, t)) && needCopy {
 		// A copy of a slice of owned pointers would give each element two
 		// owners (Go's copy shares them): moved, or refused (RFC 0017).
 		a.res.Actions[ev.e] = Move
 		if usedLater {
-			a.report(next.pos, a.errorf(next.pos, "%s is used after its elements moved into %s on line %d", ev.v.Name(), ev.into, a.line(ev.pos)).With(
-				"in patina mode an object has one owner (RFC 0017): a copy of a slice of pointers would give each element two",
-				fmt.Sprintf("use the slice through its new owner, or lend %s instead of copying it", ev.v.Name())))
+			a.report(next.pos, a.errorf(next.pos, "%s is used after its pointers moved into %s on line %d", ev.v.Name(), ev.into, a.line(ev.pos)).With(
+				"in patina mode an object has one owner (RFC 0017): a copy of a value holding pointers would give each two",
+				fmt.Sprintf("use the value through its new owner, or lend %s instead of copying it", ev.v.Name())))
 		}
 		return
 	}
@@ -182,6 +182,22 @@ func copyExpr(x string, t types.Type) string {
 		fields = append(fields, f.Name()+": "+v)
 	}
 	return types.Unalias(t).(*types.Named).Obj().Name() + "{" + strings.Join(fields, ", ") + "}"
+}
+
+// ownerValue reports whether t is a struct value that holds owned
+// pointers (RFC 0017): a copy of it would give them two owners.
+func ownerValue(a *analyzer, t types.Type) bool {
+	st, ok := t.Underlying().(*types.Struct)
+	if !ok {
+		return false
+	}
+	plan := subset.Ptrs(a.pkg)
+	for i := 0; i < st.NumFields(); i++ {
+		if ft := st.Field(i).Type(); plan.Owned(ft) || ownedSlice(a, ft) {
+			return true
+		}
+	}
+	return false
 }
 
 // ownedSlice reports whether t is a slice of owned pointers.

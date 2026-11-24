@@ -1,0 +1,5 @@
+./main.go:10:6: pointers of type *Item are never shared: each has one owner (RFC 0016)
+./main.go:23:15: parameter name is owned: newOwner keeps it
+./main.go:31:12: parameter o is a shared borrow: total only reads it
+./main.go:43:11: parameter o is an exclusive borrow: bump changes it, and the caller sees the change
+./main.go:52:7: moved a into b: a is not used afterwards
