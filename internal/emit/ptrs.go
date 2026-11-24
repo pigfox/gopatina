@@ -329,7 +329,8 @@ func (g *gen) heapOrder(s ast.Stmt) {
 	default:
 		return // a condition is checked for this by the subset checker
 	}
-	if !g.readsHeap(s) || len(subset.HoistableCalls(g.pkg, s)) == 0 {
+	calls := subset.HoistableCalls(g.pkg, s)
+	if len(calls) == 0 || !g.readsHeap(s) && !g.ownedBeforeCall(s, calls) {
 		return
 	}
 	roots := 0
@@ -340,6 +341,80 @@ func (g *gen) heapOrder(s ast.Stmt) {
 		roots = len(s.Results)
 	}
 	g.hoistCalls(s, roots > 1)
+}
+
+// ownedBeforeCall reports whether statement s reads through an owned
+// pointer (RFC 0016) before one of calls, the program's calls in s, in
+// Rust's order (left to right) but after it in Go's: gc makes an
+// expression's calls before it reads the variables, so a nil pointer read
+// there panics only after the call's effects. A read inside a call's
+// arguments comes before the calls after that call, as in Go. A read
+// through a variable p comes before a call that reads through p itself in
+// both, since that call panics on the same nil before it runs.
+func (g *gen) ownedBeforeCall(s ast.Stmt, calls []*ast.CallExpr) bool {
+	var reads []*ast.SelectorExpr
+	var all []*ast.CallExpr // every call, of the program or not
+	var walk func(n ast.Node)
+	walk = func(n ast.Node) {
+		ast.Inspect(n, func(x ast.Node) bool {
+			switch x := x.(type) {
+			case *ast.BinaryExpr:
+				if x.Op == token.LAND || x.Op == token.LOR {
+					walk(x.X) // the right side runs after, in both
+					return false
+				}
+			case *ast.CallExpr:
+				all = append(all, x)
+			case *ast.SelectorExpr:
+				if sel := g.info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal && g.ownPtr(g.typeOf(x.X)) {
+					reads = append(reads, x)
+				}
+			}
+			return true
+		})
+	}
+	walk(s)
+	within := func(n, outer ast.Node) bool { return outer.Pos() <= n.Pos() && n.End() <= outer.End() }
+	for _, r := range reads {
+		var d *ast.CallExpr // the innermost call r is an argument of
+		for _, c := range all {
+			if within(r, c) && r != c.Fun && (d == nil || within(c, d)) {
+				d = c
+			}
+		}
+		for _, c := range calls {
+			if c.Pos() < r.Pos() || within(r, c) || d != nil && !within(c, d) {
+				continue // in Go too, r is read before c is made
+			}
+			if g.readsThrough(c, ast.Unparen(r.X)) {
+				continue
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// readsThrough reports whether call c reads a field through p, a local
+// variable, in its receiver or arguments: it panics there for a nil p,
+// before it runs.
+func (g *gen) readsThrough(c *ast.CallExpr, p ast.Expr) bool {
+	id, ok := p.(*ast.Ident)
+	if !ok || g.localVar(id) == nil {
+		return false
+	}
+	found := false
+	ast.Inspect(c, func(x ast.Node) bool {
+		if sel, ok := x.(*ast.SelectorExpr); ok && !found {
+			if b, ok := ast.Unparen(sel.X).(*ast.Ident); ok && g.localVar(b) == g.localVar(id) {
+				if k := g.info.Selections[sel]; k != nil && k.Kind() == types.FieldVal {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 // heapAddr renders &x for a heap pointer: a new cell for &T{...}, the cell

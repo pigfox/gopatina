@@ -182,13 +182,16 @@ fn main() {
             .with(|v| v.label.clone()),
     );
     let p = pair(3, 4);
+    let call_4 = Node::sum(&p);
+    let call_5 = Node::depth(&p);
+    let call_6 = label(&p);
     println!(
         "{} {} {} {} {}",
-        Node::sum(&p),
+        call_4,
         p.get().left.get().key,
         p.get().right.get().key,
-        Node::depth(&p),
-        label(&p),
+        call_5,
+        call_6,
     );
     t = build(1, 5, &tags);
     println!(
