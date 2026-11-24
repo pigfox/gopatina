@@ -61,39 +61,109 @@ func (g *gen) ptrNil(t types.Type) node {
 }
 
 // ptrNew renders a new heap pointer of type t holding v: Go's &T{...}.
+// An owned one is a Box<T>, never nil (RFC 0017, step 2); value wraps it
+// in Some where an Option<Box<T>> is wanted.
 func (g *gen) ptrNew(t types.Type, v node) node {
 	if g.ownPtr(t) {
-		return &call{head: "Some", open: "(", close: ")", args: []node{&call{head: "Box::new", open: "(", close: ")", args: []node{v}}}}
+		return &call{head: "Box::new", open: "(", close: ")", args: []node{v}}
 	}
 	return &call{head: "rt::" + g.ptrKind(t) + "::new", open: "(", close: ")", args: []node{v}}
 }
 
-// ownBorrow reports whether e names a parameter that borrows an owned
-// pointer: an Option<&T>, which is Copy, so it is passed on as it is and
-// read through with unwrap().
-func (g *gen) ownBorrow(e ast.Expr) bool {
-	id, ok := ast.Unparen(e).(*ast.Ident)
-	if !ok || !g.ownPtr(g.typeOf(e)) {
-		return false
+// ptrRep is how an owned pointer (RFC 0016) is held in Rust: in an
+// Option where it may be nil, owned or borrowed.
+type ptrRep int
+
+const (
+	repOptBox ptrRep = iota // Option<Box<T>>: a field, or a variable that may be nil
+	repBox                  // Box<T>: a new pointer, never nil (RFC 0017, step 2)
+	repOptRef               // Option<&T>: a parameter that may be nil
+	repRef                  // &T: a parameter or receiver never nil
+)
+
+// ptrRep returns how owned pointer e is held.
+func (g *gen) ptrRep(e ast.Expr) ptrRep {
+	if g.bound[types.ExprString(ast.Unparen(e))] != "" {
+		return repRef // bound by an if let Some
 	}
-	v := g.localVar(id)
-	return v != nil && g.bindingOf(v) == bRef
+	switch x := ast.Unparen(e).(type) {
+	case *ast.Ident:
+		v := g.localVar(x) // a variable: nil is never asked, a global never owned
+		if g.res.Param(v) != nil {
+			return g.paramRep(v) // lent: an owned pointer is never kept
+		}
+		if g.ptrs.NonNilVar(v) {
+			return repBox
+		}
+	case *ast.CallExpr:
+		if fn := g.programFunc(x); fn != nil && g.ptrs.NonNilResult(fn.Obj) {
+			return repBox
+		}
+	case *ast.UnaryExpr:
+		return repBox // &T{...}, the only owned pointer taken
+	}
+	return repOptBox
 }
 
-// ownRef renders e, an owned pointer, lent to a parameter that borrows
-// it: the parameter's own Option<&T> as it is, or the place's
-// Option<Box<T>> as_deref.
-func (g *gen) ownRef(e ast.Expr) node {
-	if g.ownBorrow(e) {
-		return text(g.varName(g.localVar(ast.Unparen(e).(*ast.Ident))))
+// paramRep returns how parameter v, of an owned pointer type, is held.
+func (g *gen) paramRep(v *types.Var) ptrRep {
+	if g.ptrs.NonNilVar(v) {
+		return repRef
 	}
-	var b node
+	return repOptRef
+}
+
+// rawPtr renders owned pointer e as it is held (ptrRep), without the Some
+// that value adds to a Box.
+func (g *gen) rawPtr(e ast.Expr) node {
+	e = ast.Unparen(e)
+	if name := g.bound[types.ExprString(e)]; name != "" {
+		return text(name)
+	}
 	if g.isPlace(e) {
-		b = g.place(e)
-	} else {
-		b = g.value(e)
+		return g.place(e)
 	}
-	return &call{recv: b, head: ".as_deref", open: "(", close: ")"}
+	g.raw[e] = true
+	n := g.value(e)
+	delete(g.raw, e)
+	return n
+}
+
+// ptrAs renders owned pointer e held as want: a borrow lent to a
+// parameter, or the value read through.
+func (g *gen) ptrAs(e ast.Expr, want ptrRep) node {
+	if g.info.Types[e].IsNil() {
+		return text("None") // nil lent to a parameter that may be nil
+	}
+	have := g.ptrRep(e)
+	n := g.rawPtr(e)
+	method := func(m string) node { return &call{recv: n, head: m, open: "(", close: ")"} }
+	switch {
+	case have == want:
+		return n
+	case want == repOptRef && have == repOptBox:
+		return method(".as_deref")
+	case want == repOptRef && have == repBox:
+		return &call{head: "Some", open: "(", close: ")", args: []node{atom{"&*" + paren(n, precUnary), precUnary}}}
+	case want == repOptRef: // a &T parameter passed on
+		return &call{head: "Some", open: "(", close: ")", args: []node{n}}
+	case have == repOptBox:
+		// Unwrapping None is Go's nil dereference.
+		return &call{recv: method(".as_ref"), head: ".unwrap", open: "(", close: ")"}
+	case have == repOptRef:
+		return method(".unwrap")
+	}
+	return &addrOf{"&", n} // a Box lent as &T: deref coercion
+}
+
+// ptrThrough renders owned pointer e as the base of a field read or a
+// method call: whatever derefs to T.
+func (g *gen) ptrThrough(e ast.Expr) node {
+	switch g.ptrRep(e) {
+	case repBox, repRef:
+		return g.rawPtr(e)
+	}
+	return g.ptrAs(e, repRef) // unwrapped
 }
 
 // heapRoot returns the point where place e goes through a heap pointer:
@@ -413,7 +483,9 @@ func (g *gen) ownedBeforeCall(s ast.Stmt, calls []*ast.CallExpr) bool {
 				all = append(all, x)
 			case *ast.SelectorExpr:
 				if sel := g.info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal && g.ownPtr(g.typeOf(x.X)) {
-					reads = append(reads, x)
+					if r := g.ptrRep(x.X); r == repOptBox || r == repOptRef {
+						reads = append(reads, x) // one never nil cannot panic
+					}
 				}
 			}
 			return true
@@ -429,8 +501,8 @@ func (g *gen) ownedBeforeCall(s ast.Stmt, calls []*ast.CallExpr) bool {
 			}
 		}
 		for _, c := range calls {
-			if c.Pos() < r.Pos() || within(r, c) || d != nil && !within(c, d) {
-				continue // in Go too, r is read before c is made
+			if c.Pos() < r.Pos() || within(r, c) || within(c, r) || d != nil && !within(c, d) {
+				continue // in Go too, r is read before c is made, or after
 			}
 			if g.readsThrough(c, ast.Unparen(r.X)) {
 				continue
@@ -492,11 +564,9 @@ func (g *gen) heapCompare(e *ast.BinaryExpr) node {
 			if e.Op == token.NEQ {
 				test = ".is_some"
 			}
-			b := operand(x)
-			if g.isPlace(x) {
-				b = g.place(x)
-			}
-			return &call{recv: b, head: test, open: "(", close: ")"}
+			// Only an Option is tested: a new pointer compared with nil is
+			// shared (RFC 0016), and one never nil is never compared.
+			return &call{recv: g.rawPtr(x), head: test, open: "(", close: ")"}
 		}
 		var n node = &call{recv: operand(x), head: ".is_nil", open: "(", close: ")"}
 		if root, ptr, ok := g.heapRoot(x); ok && ast.Unparen(x) != root {
@@ -517,7 +587,14 @@ func (g *gen) heapCompare(e *ast.BinaryExpr) node {
 // each their own borrow.
 func (g *gen) heapRecv(m *types.Func) bool {
 	r := m.Signature().Recv()
-	return r != nil && isPointerType(r.Type()) && g.heapPtr(r.Type())
+	return r != nil && isPointerType(r.Type()) && g.heapPtr(r.Type()) && !g.ownSelf(m)
+}
+
+// ownSelf reports whether method m's receiver is an owned pointer that is
+// never nil: &self (RFC 0017, step 2).
+func (g *gen) ownSelf(m *types.Func) bool {
+	r := m.Signature().Recv()
+	return r != nil && g.ownPtr(r.Type()) && g.ptrs.NonNilVar(r)
 }
 
 // heapRecvArg renders the receiver of a call of a method with a heap

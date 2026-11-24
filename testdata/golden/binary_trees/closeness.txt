@@ -4,5 +4,5 @@
 # go test ./internal/emit -update (TestReferenceCloseness).
 reference lines: 40
 generated lines: 77
-lines in common, in order: 14
-closeness (2 x common / both): 0.24
+lines in common, in order: 20
+closeness (2 x common / both): 0.34

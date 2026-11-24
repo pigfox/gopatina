@@ -60,7 +60,12 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		if p.Mut && (p.Mode == borrow.ByValue || p.Mode == borrow.Owned) && !g.cellVar(p.Var) {
 			name = "mut " + name
 		}
-		params = append(params, name+": "+g.paramType(p.Var.Type(), p.Mode))
+		t := g.paramType(p.Var.Type(), p.Mode)
+		if g.ownPtr(p.Var.Type()) && g.ptrs.NonNilVar(p.Var) {
+			// Never nil (RFC 0017, step 2): a plain borrow.
+			t = "&" + g.rustType(types.Unalias(p.Var.Type()).(*types.Pointer).Elem())
+		}
+		params = append(params, name+": "+t)
 	}
 	vis := g.vis(obj.Exported() && obj.Name() != "main")
 	if g.apiName(obj) != "" {
@@ -167,7 +172,11 @@ func (g *gen) resultType(fn *types.Func) string {
 		n--
 	}
 	for i := 0; i < n; i++ {
-		ts = append(ts, g.rustType(res.At(i).Type()))
+		t := g.rustType(res.At(i).Type())
+		if g.ownPtr(res.At(i).Type()) && g.ptrs.NonNilResult(fn) {
+			t = "Box<" + g.rustType(types.Unalias(res.At(i).Type()).(*types.Pointer).Elem()) + ">" // RFC 0017, step 2
+		}
+		ts = append(ts, t)
 	}
 	t := strings.Join(ts, ", ")
 	if len(ts) != 1 {
@@ -418,6 +427,9 @@ func (g *gen) exprStmt(e ast.Expr) {
 func (g *gen) returnValue(r *ast.ReturnStmt) node {
 	sig := g.fn.Obj.Signature()
 	results := r.Results
+	if len(results) == 1 && g.ownPtr(g.typeOf(results[0])) && g.ptrs.NonNilResult(g.fn.Obj) {
+		g.boxSlot[ast.Unparen(results[0])] = true // returned as the Box it is
+	}
 	if len(results) == 0 && sig.Results().Len() > 0 {
 		// A bare return of named results.
 		var ns []node
@@ -513,8 +525,16 @@ func (g *gen) let(v *types.Var, e ast.Expr, typed bool) {
 		return
 	}
 	prefix := "let " + g.mutPrefix(v) + g.varName(v)
+	box := g.ownPtr(v.Type()) && g.ptrs.NonNilVar(v)
+	if box {
+		g.boxSlot[ast.Unparen(e)] = true // a Box<T>, never nil (RFC 0017, step 2)
+	}
 	if typed || g.needsType(e) {
-		prefix += ": " + g.rustType(v.Type())
+		t := g.rustType(v.Type())
+		if box {
+			t = "Box<" + g.rustType(types.Unalias(v.Type()).(*types.Pointer).Elem()) + ">"
+		}
+		prefix += ": " + t
 	}
 	g.stmtLine(prefix+" = ", g.owned(e), ";")
 }
@@ -772,8 +792,138 @@ func (g *gen) ifStmt(s *ast.IfStmt) {
 // ifChain writes if ... else if ... else, starting with prefix ("" or
 // "} else ").
 func (g *gen) ifChain(s *ast.IfStmt, prefix string) {
+	if g.ifSome(s, prefix) {
+		return
+	}
 	g.stmtLine(prefix+"if ", g.value(s.Cond), " {")
 	g.block(s.Body)
+	g.elseOf(s)
+}
+
+// ifSome writes if p != nil { ... }, for an owned pointer p that may be
+// nil (RFC 0017, step 2), as Rust does: if let Some(p) = p.as_deref() {
+// ... }, where the body reads through the binding. if p != nil && c { ...
+// } with no else is if let Some(p) = ... { if c { ... } }; Rust 1.85, the
+// crates' oldest, has no let chains. It reports false for any other if.
+func (g *gen) ifSome(s *ast.IfStmt, prefix string) bool {
+	test, rest := s.Cond, ast.Expr(nil)
+	if b, ok := ast.Unparen(s.Cond).(*ast.BinaryExpr); ok && b.Op == token.LAND && s.Else == nil {
+		test, rest = b.X, b.Y
+	}
+	x, ok := g.someTest(test)
+	if !ok || g.assignsRoot(s.Body, x) || rest != nil && g.assignsRoot(rest, x) {
+		return false
+	}
+	src := g.ptrAs(x, repOptRef)
+	name := g.bindName(x)
+	key := types.ExprString(x)
+	g.bound[key] = name
+	g.stmtLine(prefix+"if let Some("+name+") = ", src, " {")
+	if rest != nil {
+		g.ind++
+		g.stmtLine("if ", g.value(rest), " {")
+		g.block(s.Body)
+		g.line("}")
+		g.ind--
+	} else {
+		g.block(s.Body)
+	}
+	delete(g.bound, key)
+	g.elseOf(s)
+	return true
+}
+
+// someTest returns p for a test p != nil of an owned pointer p that may be
+// nil, held in a variable, a parameter or a field of one.
+func (g *gen) someTest(e ast.Expr) (ast.Expr, bool) {
+	b, ok := ast.Unparen(e).(*ast.BinaryExpr)
+	if !ok || b.Op != token.NEQ {
+		return nil, false
+	}
+	x, y := ast.Unparen(b.X), ast.Unparen(b.Y)
+	if g.info.Types[x].IsNil() {
+		x, y = y, x
+	}
+	if !g.info.Types[y].IsNil() || !g.ownPtr(g.typeOf(x)) {
+		return nil, false
+	}
+	// x is an Option: a pointer never nil is never compared with nil, and
+	// a bound one is never tested again (assignsRoot).
+	root := x
+	for {
+		sel, ok := root.(*ast.SelectorExpr)
+		if !ok {
+			break
+		}
+		root = ast.Unparen(sel.X) // a field: an owned pointer is in no package variable
+	}
+	id, ok := root.(*ast.Ident)
+	return x, ok && g.localVar(id) != nil
+}
+
+// assignsRoot reports whether s, an if statement's body or the rest of
+// its condition, assigns the variable that place x starts from, so that x
+// may change under the binding, or uses x as a whole where an Option is
+// wanted, or tests it again. (A pointer's address is never taken: that
+// would be a pointer to a pointer.)
+func (g *gen) assignsRoot(s ast.Node, x ast.Expr) bool {
+	root := x
+	for {
+		sel, ok := root.(*ast.SelectorExpr)
+		if !ok {
+			break
+		}
+		root = ast.Unparen(sel.X)
+	}
+	v := g.localVar(root.(*ast.Ident))
+	key := types.ExprString(x)
+	found := false
+	var stack []ast.Node
+	ast.Inspect(s, func(n ast.Node) bool {
+		if n == nil {
+			stack = stack[:len(stack)-1]
+			return true
+		}
+		stack = append(stack, n)
+		if e, ok := n.(ast.Expr); ok && types.ExprString(e) == key && len(stack) > 1 {
+			// x itself, used other than read through, passed to a call or
+			// tested for nil, would be the binding where the Option is
+			// wanted: returned or stored.
+			switch p := stack[len(stack)-2].(type) {
+			case *ast.SelectorExpr:
+				found = found || p.X != e
+			case *ast.CallExpr:
+			default:
+				found = true // returned, stored, or tested for nil again
+			}
+		}
+		if a, ok := n.(*ast.AssignStmt); ok {
+			for _, l := range a.Lhs {
+				if id, ok := ast.Unparen(l).(*ast.Ident); ok && g.localVar(id) == v {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return found
+}
+
+// bindName names the binding of if let Some(..) = x: the variable's own
+// name, or the field's.
+func (g *gen) bindName(x ast.Expr) string {
+	goName := ""
+	switch q := x.(type) {
+	case *ast.Ident:
+		return g.varName(g.localVar(q)) // shadowed by its own binding
+	case *ast.SelectorExpr:
+		goName = q.Sel.Name
+	}
+	return g.lnames.name("", func(string) string { return snake(goName) })
+}
+
+// elseOf writes the else branch of if statement s and closes it.
+func (g *gen) elseOf(s *ast.IfStmt) {
 	switch e := s.Else.(type) {
 	case nil:
 		g.line("}")
@@ -1556,6 +1706,9 @@ func (g *gen) foldTailLetReturn(s ast.Stmt, r *ast.ReturnStmt) (node, *ast.Retur
 	}
 	if t := g.typeOf(id); g.errs.Calls[as] != nil || isPointerType(t) && !g.heapPtr(t) {
 		return nil, nil, false // a borrow; a heap pointer is a value (RFC 0013)
+	}
+	if g.ownPtr(g.typeOf(id)) && g.ptrs.NonNilResult(g.fn.Obj) {
+		g.boxSlot[ast.Unparen(as.Rhs[0])] = true // returned as the Box it is
 	}
 	return g.owned(as.Rhs[0]), r, true
 }

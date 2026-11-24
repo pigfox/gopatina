@@ -969,6 +969,12 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc mkTr%d(d, v int) *Tr%d {\n\tif d <= 0 {\n\t\treturn &Tr%d{V: v, S: fmt.Sprint(\"t\", v)}\n\t}\n\tt := &Tr%d{L: mkTr%d(d-1, v %s %d), R: mkTr%d(d-1, v+1), V: v}\n\treturn t\n}\n", k, k, k, k, k, op(), 1+g.qr.IntN(9), k)
 	fmt.Fprintf(b, "\nfunc (t *Tr%d) Sum() int {\n\tif t == nil {\n\t\treturn 0\n\t}\n\treturn t.V %s t.L.Sum() + t.R.Sum()\n}\n", k, op())
 	fmt.Fprintf(b, "\nfunc trDepth%d(t *Tr%d) int {\n\tif t.L == nil {\n\t\treturn 1\n\t}\n\treturn 1 + trDepth%d(t.L)\n}\n", k, k, k)
+	// Pointers never nil (RFC 0017, step 2): a receiver and a parameter
+	// read through first (&self, &T), a result always new (Box), and
+	// nil tests that bind the pointer (if let Some), with && after.
+	fmt.Fprintf(b, "\nfunc (t *Tr%d) Leaf() bool { return t.L == nil && t.R == nil }\n", k)
+	fmt.Fprintf(b, "\nfunc trRight%d(t *Tr%d, x int) int {\n\tif t.R != nil && t.R.V > x {\n\t\treturn trRight%d(t.R, x) + 1\n\t}\n\tif t.L != nil {\n\t\treturn t.L.V %s x\n\t}\n\treturn t.V\n}\n", k, k, k, op())
+	fmt.Fprintf(b, "\nfunc trPair%d(v int) *Tr%d {\n\tp := &Tr%d{V: v, L: mkTr%d(0, v), R: &Tr%d{V: v + 1}}\n\treturn p\n}\n", k, k, k, k, k)
 	fmt.Fprintf(b, "\ntype Ch%d struct {\n\tV int\n\tN *Ch%d\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc chain%d(n int) *Ch%d {\n\tif n == 0 {\n\t\treturn nil\n\t}\n\treturn &Ch%d{V: n, N: chain%d(n - 1)}\n}\n", k, k, k, k)
 	fmt.Fprintf(b, "\nfunc chLen%d(c *Ch%d) int {\n\tif c == nil {\n\t\treturn 0\n\t}\n\treturn c.V %% 3 + chLen%d(c.N)\n}\n", k, k, k)
@@ -1033,6 +1039,8 @@ func (g *gen) ptrUses() {
 	g.line("fmt.Println(trT.Sum(), trDepth%d(trT), trT.S, trT.L.V, trT.R == nil, nil != trT.L.L, len(trT.R.S))", k)
 	g.line("trT = mkTr%d(0, %s)", k, v())
 	g.line("fmt.Println(trT.Sum(), trT.L == nil, chLen%d(chain%d(%d)))", k, k, 1100+g.qr.IntN(900))
+	g.line("trP := trPair%d(%s)", k, v())
+	g.line("fmt.Println(trP.Leaf(), trP.R.Leaf(), trRight%d(trP, %s), trRight%d(mkTr%d(%d, %s), %s), trDepth%d(trP), trP.Sum())", k, v(), k, k, 1+g.qr.IntN(4), v(), v(), k)
 	// Slices of pointers, and pointers in interfaces (RFC 0013, step 2).
 	g.line("ptrL.Kids = append(ptrL.Kids, ptrA, newNd%d(%s, nil), ptrL.Next)", k, v())
 	g.line("ptrK := []*Nd%d{ptrL.Next, nil, ptrN}", k)

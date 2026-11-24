@@ -188,13 +188,14 @@ func (g *gen) place(e ast.Expr) node {
 		if g.ownPtr(g.typeOf(base)) {
 			// Through an owned pointer (RFC 0016): n.unwrap().f for a
 			// borrowed Option<&T>, p.as_ref().unwrap().f for an
-			// Option<Box<T>>; unwrapping nil is Go's nil dereference. Each
-			// call is a link of the chain, as rustfmt breaks it.
-			if !g.ownBorrow(base) {
-				b = &call{recv: b, head: ".as_ref", open: "(", close: ")"}
+			// Option<Box<T>>, plain p.f for a Box or a &T that is never
+			// nil; unwrapping nil is Go's nil dereference. Each call is a
+			// link of the chain, as rustfmt breaks it.
+			b = g.ptrThrough(base)
+			if _, isCall := b.(*call); isCall {
+				return &call{recv: b, head: "." + field}
 			}
-			b = &call{recv: b, head: ".unwrap", open: "(", close: ")"}
-			return &call{recv: b, head: "." + field}
+			return atom{paren(b, precPostfix) + "." + field, precPostfix}
 		}
 		return atom{paren(b, precPostfix) + "." + field, precPostfix}
 	case *ast.IndexExpr:
@@ -249,6 +250,10 @@ func (g *gen) value(e ast.Expr) node {
 	}
 	e = ast.Unparen(e)
 	t := tv.Type
+	if g.ownPtr(t) && !g.raw[e] && !g.boxSlot[e] && g.ptrRep(e) == repBox {
+		// A pointer never nil, where an Option<Box<T>> may hold nil.
+		return &call{head: "Some", open: "(", close: ")", args: []node{g.rawPtr(e)}}
+	}
 	if c, ok := e.(*ast.CallExpr); ok && g.callTemps[c] != "" {
 		return text(g.callTemps[c])
 	}
@@ -357,9 +362,6 @@ func (g *gen) ref(e ast.Expr) node {
 		return &addrOf{"&", g.box(e)}
 	}
 	e = ast.Unparen(e)
-	if g.ownPtr(g.typeOf(e)) {
-		return g.ownRef(e)
-	}
 	if name, ok := g.temps[e]; ok {
 		return text("&" + name)
 	}

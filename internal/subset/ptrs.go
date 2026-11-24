@@ -35,6 +35,9 @@ type PtrPlan struct {
 	owned     []types.Type
 	shared    []sharing
 	ownedDone bool
+	// nonNil holds the owned pointers that are never nil (RFC 0017,
+	// step 2), computed on first use.
+	nonNil *nonNilPlan
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.

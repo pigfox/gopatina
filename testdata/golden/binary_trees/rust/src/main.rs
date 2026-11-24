@@ -39,24 +39,24 @@ pub struct Node {
 }
 
 impl Node {
-    fn check(n: Option<&Node>) -> i64 {
-        if n.unwrap().left.is_none() {
+    fn check(&self) -> i64 {
+        if self.left.is_none() {
             return 1;
         }
-        1 + Node::check(n.unwrap().left.as_deref()) + Node::check(n.unwrap().right.as_deref())
+        1 + self.left.as_ref().unwrap().check() + self.right.as_ref().unwrap().check()
     }
 }
 
-fn bottom_up(depth: i64) -> Option<Box<Node>> {
+fn bottom_up(depth: i64) -> Box<Node> {
     if depth <= 0 {
-        return Some(Box::new(Node {
+        return Box::new(Node {
             ..Default::default()
-        }));
+        });
     }
-    Some(Box::new(Node {
-        left: bottom_up(depth - 1),
-        right: bottom_up(depth - 1),
-    }))
+    Box::new(Node {
+        left: Some(bottom_up(depth - 1)),
+        right: Some(bottom_up(depth - 1)),
+    })
 }
 
 fn run(max_depth: i64) {
@@ -66,7 +66,7 @@ fn run(max_depth: i64) {
         let iters = rt::shl(1, (max_depth - d + 4) as i128);
         let mut total: i64 = 0;
         for _ in 0..iters {
-            total += Node::check(bottom_up(d).as_deref());
+            total += bottom_up(d).check();
         }
         println!("{} trees of depth {} check: {}", iters, d, total);
         d += 2;
@@ -74,7 +74,7 @@ fn run(max_depth: i64) {
     println!(
         "long lived tree of depth {} check: {}",
         max_depth,
-        Node::check(long.as_deref()),
+        long.check(),
     );
 }
 
