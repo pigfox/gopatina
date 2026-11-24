@@ -1013,6 +1013,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// Value data behind an owned pointer (RFC 0017): copied out (*p, Copy
 	// in Rust), replaced whole, and read by a value method.
 	fmt.Fprintf(b, "\ntype Pt%d struct{ X, Y int }\n\nfunc (p Pt%d) Sum() int { return p.X*3 + p.Y }\n\nfunc mkPt%d(x int) *Pt%d { return &Pt%d{X: x, Y: x + 1} }\n", k, k, k, k, k)
+	// A local lent to calls that keep nothing, and a value parameter
+	// returned by address (RFC 0017): &mut pt_l, pt_l.inc(), Box::new(p).
+	fmt.Fprintf(b, "\nfunc ptAdd%d(p *Pt%d, x int) { p.X += x }\n\nfunc (p *Pt%d) Inc() { p.Y++ }\n\nfunc ptBox%d(p Pt%d) *Pt%d { return &p }\n", k, k, k, k, k, k)
 	// A struct value owning a chain (RFC 0017): built by a literal, read
 	// and changed through, and moved whole.
 	fmt.Fprintf(b, "\ntype Hold%d struct {\n\tH *Ch%d\n\tN int\n}\n", k, k)
@@ -1090,6 +1093,13 @@ func (g *gen) ptrUses() {
 	g.line("pc.X %s= %s", op(), v())
 	g.line("*pt = Pt%d{X: %s, Y: pc.Y}", k, v())
 	g.line("fmt.Println(pt.Sum(), pc.Sum(), pt.X)")
+	g.line("var ptL Pt%d", k)
+	g.line("ptL.X = %s", v())
+	g.line("ptAdd%d(&ptL, %s)", k, v())
+	g.line("ptL.Inc()")
+	g.line("ptB := ptBox%d(ptL)", k)
+	g.line("ptB.Inc()")
+	g.line("fmt.Println(ptL.X, ptL.Y, ptB.Sum())")
 	g.line("chE := chCons%d(%s, chPush%d(%d))", k, v(), k, 1+g.qr.IntN(4))
 	g.line("fmt.Println(chE.V, chLen%d(chE))", k)
 	g.line("chS := []*Ch%d{chPush%d(%d), chPush%d(%d)}", k, k, 1+g.qr.IntN(4), k, 1+g.qr.IntN(4))

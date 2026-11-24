@@ -222,15 +222,22 @@ func (o *ownership) run() {
 			}
 		}
 	}
-	// A variable whose address is kept while the variable is still used
-	// lives in a cell the two names share (not an escape box).
-	for v := range o.p.Cells {
-		if el := o.elemOf(types.NewPointer(v.Type())); el != nil && !o.escapeVar(v) {
-			o.share(el, v.Pos(), "its address is kept while the variable is still used")
-		}
-	}
 	o.vars()
 	o.keptParams()
+	// A variable whose address is kept while the variable is still used
+	// lives in a cell the two names share: not an escape box, nor only
+	// lent to callees that keep nothing.
+	for v := range o.p.Cells {
+		el := o.elemOf(types.NewPointer(v.Type()))
+		if el == nil || o.escapeVar(v) {
+			continue
+		}
+		if ps := o.p.lends[v]; len(ps) > 0 && !o.keepsAny(ps) {
+			o.p.lentOK[v] = true
+			continue
+		}
+		o.share(el, v.Pos(), "its address is kept while the variable is still used")
+	}
 	o.ranges()
 	for _, f := range o.p.pkg.Files {
 		var stack []ast.Node
@@ -704,6 +711,12 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 		o.freshUse(el, e, stack)
 		return
 	}
+	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
+		if id, ok := ast.Unparen(u.X).(*ast.Ident); ok && len(o.p.lends[o.localOf(id)]) > 0 {
+			o.placeUse(el, e, stack) // &x lent to a call (escapes.go)
+			return
+		}
+	}
 	switch e.(type) {
 	case *ast.Ident, *ast.SelectorExpr:
 		if id, ok := e.(*ast.Ident); ok {
@@ -758,6 +771,16 @@ func (o *ownership) escapeValue(e ast.Expr) bool {
 		return false
 	}
 	return o.escapeVar(o.localOf(id))
+}
+
+// keepsAny reports whether a callee keeps any of params (keptParams).
+func (o *ownership) keepsAny(params []*types.Var) bool {
+	for _, p := range params {
+		if o.kept[p] {
+			return true
+		}
+	}
+	return false
 }
 
 // escapeVar reports whether v is moved into a new box at its &.

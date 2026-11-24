@@ -85,6 +85,15 @@ func (g *gen) boxContents(p ast.Expr) node {
 	return atom{"*" + paren(g.rawPtr(p), precUnary), precUnary}
 }
 
+// lentVar returns the local that e, &x or x, lends (LentAddr).
+func (g *gen) lentVar(e ast.Expr) *types.Var {
+	e = ast.Unparen(e)
+	if u, ok := e.(*ast.UnaryExpr); ok {
+		e = ast.Unparen(u.X)
+	}
+	return g.localVar(e.(*ast.Ident))
+}
+
 // ptrRep is how an owned pointer (RFC 0016) is held in Rust: in an
 // Option where it may be nil, owned or borrowed, and a borrow shared or
 // exclusive.
@@ -170,6 +179,18 @@ func (g *gen) rawPtr(e ast.Expr) node {
 func (g *gen) ptrAs(e ast.Expr, want ptrRep) node {
 	if g.info.Types[e].IsNil() {
 		return text("None") // nil lent to a parameter that may be nil
+	}
+	if g.ptrs.LentAddr(e) {
+		// &x of a plain local lent to the call (subset.PtrPlan.LentAddr).
+		ref := "&"
+		if want.mut() {
+			ref = "&mut "
+		}
+		n := node(text(ref + g.varName(g.lentVar(e))))
+		if want.optional() {
+			n = &call{head: "Some", open: "(", close: ")", args: []node{n}}
+		}
+		return n
 	}
 	have := g.ptrRep(e)
 	if have == want && !have.mut() {
@@ -264,6 +285,9 @@ func (g *gen) usedAfterPos(id *ast.Ident, pos token.Pos) bool {
 // write, or of a method call: whatever derefs to T, exclusively when the
 // place is being written (g.writing).
 func (g *gen) ptrThrough(e ast.Expr) node {
+	if g.ptrs.LentAddr(e) {
+		return text(g.varName(g.lentVar(e))) // x itself, which Rust borrows for the call
+	}
 	switch r := g.ptrRep(e); {
 	case !r.optional():
 		return g.rawPtr(e) // a Box, a &T or a &mut T

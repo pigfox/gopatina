@@ -1,0 +1,7 @@
+./main.go:12:6: pointers of type *Counter are never shared: each has one owner (RFC 0016)
+./main.go:18:7: receiver c is an exclusive borrow: Hit changes it, and the caller sees the change
+./main.go:24:17: parameter name is owned: newCounter keeps it
+./main.go:27:11: parameter c is a shared borrow: peek only reads it
+./main.go:30:12: parameter c is an exclusive borrow: reset changes it, and the caller sees the change
+./main.go:33:13: parameter c is a shared borrow: hitsOr only reads it
+./main.go:41:13: parameter c is an exclusive borrow: bumpIf changes it, and the caller sees the change

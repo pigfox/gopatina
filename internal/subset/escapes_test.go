@@ -3,8 +3,11 @@ package subset
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strings"
 	"testing"
+
+	"github.com/pigfox/gopatina/internal/load"
 )
 
 // TestEscapeBoxes checks which &x move a local value into a new box: x is
@@ -34,7 +37,7 @@ func TestEscapeBoxes(t *testing.T) {
 		{"a field's address", "func mk() *int {\n\tn := Node{V: 1}\n\treturn &n.V\n}", 0, false},
 		{"declared from another value", "func mk() *Node {\n\tn := *bottomUp(1)\n\treturn &n\n}", 0, false},
 		{"one of several names", "func mk() *Node {\n\tvar n, m Node\n\t_ = m.V\n\treturn &n\n}", 0, false},
-		{"a parameter", "func mk(n Node) *Node {\n\treturn &n\n}", 0, false},
+		{"a parameter", "func mk(n Node) *Node {\n\treturn &n\n}", 1, true},
 		{"shared for another reason", "func mk() *Node {\n\tn := Node{V: 1}\n\treturn &n\n}\n\nfunc same(a, b *Node) bool { return a == b }", 1, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -62,4 +65,76 @@ func TestEscapeBoxes(t *testing.T) {
 	if p.EscapeBox(&ast.Ident{Name: "x"}) != nil || p.EscapeBox(&ast.UnaryExpr{Op: token.AND, X: &ast.Ident{Name: "x"}}) != nil {
 		t.Error("EscapeBox of an expression that is not an escape box is not nil")
 	}
+}
+
+// TestLentAddrs checks which locals stay plain when their address is
+// taken: every & lent to a call of the program, as an argument or a
+// pointer receiver, where no callee keeps it.
+func TestLentAddrs(t *testing.T) {
+	const pt = `package main
+
+type Pt struct{ V int }
+
+func mkPt() *Pt { return &Pt{V: 1} }
+
+func (n *Pt) bump() { n.V++ }
+
+func (n *Pt) self() *Pt { return n }
+
+func (n *Pt) add(o *Pt) { n.V += o.V }
+
+func peek(n *Pt) int { return n.V }
+
+func keep(n *Pt) *Pt { return n }
+
+func many(ns ...*Pt) {}
+
+func main() {
+	_ = mkPt().V
+	BODY
+}
+`
+	for _, tc := range []struct {
+		name, body  string
+		lent, owned bool
+	}{
+		{"a pointer receiver", "var n Pt\n\tn.bump()\n\t(&n).bump()\n\t_ = n.V", true, true},
+		{"an argument", "n := Pt{V: 1}\n\t_ = peek(&n) + peek((&n))\n\tn.V++", true, true},
+		{"kept by a method", "var n Pt\n\tm := n.self()\n\t_ = m.V + n.V", false, false},
+		{"kept by a function", "var n Pt\n\tm := keep(&n)\n\t_ = m.V + n.V", false, false},
+		{"lent to a variadic", "var n Pt\n\tmany(&n)\n\t_ = n.V", false, false},
+		{"lent to a method's argument", "n := Pt{V: 1}\n\tm := Pt{V: 2}\n\tm.add(&n)\n\t_ = n.V + m.V", true, true},
+		{"lent to a function literal", "var n Pt\n\tfunc(p *Pt) { p.V++ }(&n)\n\t_ = n.V", false, false},
+		{"a field's address", "var n Pt\n\t_ = peek(&n)\n\tq := &n.V\n\t*q = 1", false, false},
+		{"in a function literal", "var n Pt\n\tf := func() int { return peek(&n) }\n\t_ = f() + n.V", false, false},
+		{"lent to a function value", "var n Pt\n\tf := peek\n\t_ = f(&n) + n.V", false, false},
+		{"a pointer computed", "var n Pt\n\t_ = peek(&n)\n\tq := &n\n\t_ = q.V", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pkg, err := load.Source("/p", "main.go", strings.Replace(pt, "BODY", tc.body, 1), "go1.25")
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := Ptrs(pkg)
+			ptr := types.NewPointer(pkg.Types.Scope().Lookup("Pt").Type())
+			if p.Owned(ptr) != tc.owned {
+				_, why, _ := p.SharedReason(ptr)
+				t.Fatalf("owned = %v, want %v (%s)", p.Owned(ptr), tc.owned, why)
+			}
+			if got := len(p.lentOK) > 0 && !p.Cells[firstKey(p.lentOK)]; got != tc.lent {
+				t.Errorf("lent = %v, want %v", got, tc.lent)
+			}
+		})
+	}
+	p, _ := ownedOf(t, tree)
+	if p.LentAddr(&ast.BasicLit{}) || p.LentAddr(&ast.UnaryExpr{Op: token.AND, X: &ast.Ident{Name: "x"}}) {
+		t.Error("LentAddr of an expression that lends nothing")
+	}
+}
+
+func firstKey(m map[*types.Var]bool) *types.Var {
+	for v := range m {
+		return v
+	}
+	return nil
 }
