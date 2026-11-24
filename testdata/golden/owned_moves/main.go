@@ -80,6 +80,7 @@ func main() {
 	big := push(1000000)
 	fmt.Println(big.V, big.Next.V)
 	var keep = big // a declaration moves it too
+	keep.V = -1
 	fmt.Println(keep.V)
 	tall := spine(500000)
 	fmt.Println(tall.V, tall.Left.V, tall.Right.V)

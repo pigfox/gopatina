@@ -1,0 +1,7 @@
+./main.go:10:6: pointers of type *List are never shared: each has one owner (RFC 0016)
+./main.go:19:12: moved head into x.Next: head is not used afterwards
+./main.go:20:10: moved x into head: x is not used afterwards
+./main.go:26:12: parameter head is a shared borrow: total only reads it
+./main.go:35:12: parameter n is a shared borrow: value only reads it
+./main.go:38:12: parameter head is a shared borrow: evens only reads it
+./main.go:53:11: parameter head is a shared borrow: last only reads it

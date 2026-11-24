@@ -100,6 +100,9 @@ func (g *gen) ptrRep(e ast.Expr) ptrRep {
 		if g.res.Param(v) != nil {
 			return g.paramRep(v) // lent: an owned pointer is never kept
 		}
+		if g.isBorrow(v) {
+			return repOptRef // a temporary borrow (RFC 0017, step 5)
+		}
 		if g.ptrs.NonNilVar(v) {
 			return repBox
 		}

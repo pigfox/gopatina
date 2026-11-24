@@ -232,7 +232,17 @@ func (g *gen) letZero(v *types.Var) {
 		g.cellDecl(v, g.zero(v.Type()))
 		return
 	}
-	g.line("let " + g.mutPrefix(v) + g.varName(v) + ": " + g.rustType(v.Type()) + " = " + g.zero(v.Type()).flat() + ";")
+	t := g.rustType(v.Type())
+	if g.isBorrow(v) {
+		t = "Option<&" + g.rustType(types.Unalias(v.Type()).(*types.Pointer).Elem()) + ">" // a temporary borrow, nil for now
+	}
+	g.line("let " + g.mutPrefix(v) + g.varName(v) + ": " + t + " = " + g.zero(v.Type()).flat() + ";")
+}
+
+// isBorrow reports whether v is a temporary borrow of an owned pointer
+// (RFC 0017, step 5): an Option<&T>.
+func (g *gen) isBorrow(v *types.Var) bool {
+	return v != nil && g.ownPtr(v.Type()) && g.ptrs.BorrowVar(v)
 }
 
 func (g *gen) mutPrefix(v *types.Var) string {
@@ -560,6 +570,14 @@ func (g *gen) let(v *types.Var, e ast.Expr, typed bool) {
 		return
 	}
 	prefix := "let " + g.mutPrefix(v) + g.varName(v)
+	if g.isBorrow(v) {
+		// A temporary borrow (RFC 0017, step 5): an Option<&T>.
+		if g.info.Types[e].IsNil() {
+			prefix += ": Option<&" + g.rustType(types.Unalias(v.Type()).(*types.Pointer).Elem()) + ">"
+		}
+		g.stmtLine(prefix+" = ", g.ptrAs(e, repOptRef), ";")
+		return
+	}
 	box := g.ownPtr(v.Type()) && g.ptrs.NonNilVar(v)
 	if box {
 		g.boxSlot[ast.Unparen(e)] = true // a Box<T>, never nil (RFC 0017, step 2)
@@ -643,6 +661,10 @@ func (g *gen) assign(s *ast.AssignStmt) {
 				g.let(v, r, false)
 				return
 			}
+		}
+		if id, ok := l.(*ast.Ident); ok && g.isBorrow(g.localVar(id)) {
+			g.stmtLine(g.varName(g.localVar(id))+" = ", g.ptrAs(r, repOptRef), ";") // a borrow lent anew
+			return
 		}
 		g.stmtLine(g.lhsPlace(l).flat()+" = ", g.owned(r), ";")
 		return
@@ -934,6 +956,21 @@ func (g *gen) ifSome(s *ast.IfStmt, prefix string) bool {
 	return true
 }
 
+// walkTest returns p for a loop whose condition is p != nil, p a
+// temporary borrow (RFC 0017, step 5) that the body does not assign or
+// test again: the loop binds it, while let Some(n) = p.
+func (g *gen) walkTest(s *ast.ForStmt) (ast.Expr, bool) {
+	x, ok := g.someTest(s.Cond)
+	if !ok {
+		return nil, false
+	}
+	id, ok := x.(*ast.Ident)
+	if !ok || !g.isBorrow(g.localVar(id)) || g.assignsRoot(s.Body, x) {
+		return nil, false
+	}
+	return x, true
+}
+
 // someTest returns p for a test p != nil of an owned pointer p that may be
 // nil, held in a variable, a parameter or a field of one.
 func (g *gen) someTest(e ast.Expr) (ast.Expr, bool) {
@@ -1103,9 +1140,20 @@ func (g *gen) forBody(s *ast.ForStmt) {
 	if s.Init != nil {
 		g.stmt(s.Init)
 	}
-	if s.Cond == nil {
+	key := ""
+	switch x, ok := g.walkTest(s); {
+	case ok:
+		// for p := head; p != nil; p = p.Next: Rust's while let Some(n) = p,
+		// the body and the step reading through the binding (RFC 0017,
+		// step 5).
+		elem := types.Unalias(g.typeOf(x)).(*types.Pointer).Elem().(*types.Named).Obj().Name()
+		name := g.lnames.name("", func(string) string { return snake(elem) })
+		key = types.ExprString(x)
+		g.bound[key] = boundPtr{name: name, rep: repRef}
+		g.line("while let Some(" + name + ") = " + g.varName(g.localVar(x.(*ast.Ident))) + " {")
+	case s.Cond == nil:
 		g.line("loop {")
-	} else {
+	default:
 		g.stmtLine("while ", g.value(s.Cond), " {")
 	}
 	g.labels = append(g.labels, label{post: s.Post})
@@ -1115,6 +1163,7 @@ func (g *gen) forBody(s *ast.ForStmt) {
 		g.stmt(s.Post)
 		g.ind--
 	}
+	delete(g.bound, key)
 	g.labels = g.labels[:len(g.labels)-1]
 	g.line("}")
 	if wrap {

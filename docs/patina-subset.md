@@ -383,8 +383,24 @@ the links taken out one at a time in a loop (with a stack of links for
 two or more such fields), and its literals name every field, since a type
 with a `Drop` has no `..Default::default()`.
 
+**Temporary borrows** ([RFC 0017](rfcs/0017-one-owner.md), step 5). A
+local variable that only ever holds a pointer another place owns (it is
+assigned a variable, a field read through one, or `nil`, and at least
+once something other than `nil`), and that only reads through it (fields
+read, methods that only read, tests for `nil`, lent to functions that
+only read it, assigned to another such variable) borrows it, as Rust's
+`let mut p = head.as_deref()` does: an `Option<&T>`. Its owner keeps the
+object, and is still usable after the borrow's last use. `for p :=
+head; p != nil; p = p.next { ... }` is Rust's `while let Some(n) = p {
+...; p = n.next.as_deref(); }`, the body reading through the binding.
+Changing or moving the owner while the borrow is still in use is an
+error, as in Rust: "head is changed on line 9 while p, a borrow of it,
+is still in use on line 10". A borrow given another borrow (`end = p`)
+shares what that one borrows, so moving on to the next node is no
+change to the owner.
+
 Moving a pointer out of a field, an element or a parameter (`x :=
-t.left`, keeping a parameter) still makes the type shared: those are
+t.left` kept, a parameter kept) still makes the type shared: those are
 later steps.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
