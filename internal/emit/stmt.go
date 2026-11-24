@@ -431,13 +431,26 @@ func (g *gen) letWithFields(stmts, rest []ast.Stmt) {
 	v := g.zeroStruct(stmts[0])
 	st := v.Type().Underlying().(*types.Struct)
 	lit := &structLit{name: g.rustType(v.Type())}
+	set := map[*types.Var]bool{}
 	for _, s := range stmts[1:] {
 		as := s.(*ast.AssignStmt)
 		sel := ast.Unparen(as.Lhs[0]).(*ast.SelectorExpr)
-		lit.fields = append(lit.fields, fieldInit{name: g.fields[g.info.Selections[sel].Obj().(*types.Var)], value: g.owned(as.Rhs[0])})
+		f := g.info.Selections[sel].Obj().(*types.Var)
+		set[f] = true
+		lit.fields = append(lit.fields, fieldInit{name: g.fields[f], value: g.owned(as.Rhs[0])})
 	}
 	if len(lit.fields) < st.NumFields() {
-		lit.base = "Default::default()"
+		if n, ok := types.Unalias(v.Type()).(*types.Named); ok && len(g.dropFields(n.Obj())) > 0 {
+			// A type with a Drop has no ..Default::default() (E0509):
+			// every field, the others zero.
+			for i := 0; i < st.NumFields(); i++ {
+				if f := st.Field(i); !set[f] {
+					lit.fields = append(lit.fields, fieldInit{name: g.fields[f], value: g.zero(f.Type())})
+				}
+			}
+		} else {
+			lit.base = "Default::default()"
+		}
 	}
 	mut := ""
 	for _, s := range rest {
@@ -476,7 +489,9 @@ func (g *gen) changes(s ast.Node, v *types.Var) bool {
 		case *ast.IncDecStmt:
 			found = found || rooted(x.X)
 		case *ast.UnaryExpr:
-			found = found || x.Op == token.AND && rooted(x.X)
+			// &v moving v into a new box (subset.PtrPlan.EscapeBox) does
+			// not change it.
+			found = found || x.Op == token.AND && rooted(x.X) && g.ptrs.EscapeBox(x) == nil
 		case *ast.CallExpr:
 			// A method that changes its receiver: an exclusive borrow.
 			if sel, ok := ast.Unparen(x.Fun).(*ast.SelectorExpr); ok && rooted(sel.X) {

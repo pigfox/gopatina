@@ -448,6 +448,16 @@ in its fields, lent, returned and moved whole. A copy of one that is still
 used is an error, as for a slice of pointers: each pointer would have two
 owners.
 
+**The address of a local value handed on** ([RFC 0017](rfcs/0017-one-owner.md)).
+A local struct value whose address is returned, assigned, put in a
+literal or appended moves into a new box at the `&` when nothing uses it
+after: `n := Node{V: 1}; n.Name = "n"; return &n` is
+`let mut n = Node { .. }; n.name = ..; Some(Box::new(n))`. Until the `&`
+it is a plain local, read and changed through its fields. The `&` must be
+its only one, and must not run again with the value already moved: not in
+a loop or function literal the value is declared outside of. Other
+addresses of locals still make the type shared.
+
 Moving a pointer out of an element, a slice of pointers held in a
 package-level variable, and a field handed to a keeper without being
 refilled still make the type shared: those are later steps.

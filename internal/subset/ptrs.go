@@ -51,6 +51,10 @@ type PtrPlan struct {
 	rangeElems map[*types.Var]bool
 	// takes are the fields moved out and refilled at once (step 6).
 	takes map[ast.Expr]*ast.AssignStmt
+	// escapes are the &x that move a local value into a new box, and
+	// escapeInits the literals declaring those variables (escapes.go).
+	escapes     map[*ast.UnaryExpr]*types.Var
+	escapeInits map[*ast.CompositeLit]bool
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.
@@ -84,7 +88,13 @@ func Ptrs(pkg *load.Package) *PtrPlan {
 	}
 	p := &PtrPlan{pkg: pkg, Cells: map[*types.Var]bool{}}
 	p.build()
+	p.escapeBoxes()
 	p.ownedOnce()
+	for _, v := range p.escapes {
+		if p.Owned(types.NewPointer(v.Type())) {
+			delete(p.Cells, v) // a plain local, moved into its box (escapes.go)
+		}
+	}
 	ptrPlans[pkg] = p
 	return p
 }

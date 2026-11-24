@@ -10,8 +10,9 @@
   temporary borrows of locals (decision 1), with the change-while-borrowed
   error; step 6, takes out of a field refilled at once; step 7, slices of
   owned pointers held in fields; step 8, parameters a function keeps,
-  moved in; then local slices of owned pointers, and struct values owning
-  pointers (docs/patina-subset.md)
+  moved in; then local slices of owned pointers, struct values owning
+  pointers, and the address of a local value handed on, moved into a new
+  box (docs/patina-subset.md)
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file

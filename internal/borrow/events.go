@@ -189,6 +189,10 @@ func (w *walker) expr(e ast.Expr, kind evKind) {
 		w.read(e.X)
 		w.read(e.Index)
 	case *ast.UnaryExpr:
+		if subset.Ptrs(w.a.pkg).EscapeBox(e) != nil {
+			w.consume(e.X, "a new pointer", nil) // x moves into its box
+			return
+		}
 		w.read(e.X) // &x appears only as an argument or a pointer's start
 	case *ast.BinaryExpr:
 		if KindOf(w.info().Types[e.X].Type) == Copy {

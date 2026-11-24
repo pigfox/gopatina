@@ -143,7 +143,7 @@ func (w *walker) decl(d *ast.GenDecl) {
 // define walks the value assigned to a new or existing variable name.
 func (w *walker) define(name *ast.Ident, value ast.Expr) {
 	v := w.localVar(name)
-	if u, ok := ast.Unparen(value).(*ast.UnaryExpr); ok && u.Op == token.AND && v != nil {
+	if u, ok := ast.Unparen(value).(*ast.UnaryExpr); ok && u.Op == token.AND && v != nil && subset.Ptrs(w.a.pkg).EscapeBox(u) == nil {
 		if _, isPtr := v.Type().(*types.Pointer); isPtr && KindOf(v.Type()) == PointerKind {
 			ptr := w.a.pointers[v]
 			if ptr == nil {
