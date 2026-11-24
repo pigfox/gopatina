@@ -462,6 +462,9 @@ func (l *live) mutability(ev event) {
 		return
 	}
 	v := ev.v
+	if plan := subset.Ptrs(a.pkg); ev.kind == evMut && plan.LocalRef(v) {
+		a.res.Mut[plan.RefSource(v)] = true // changed through p := &mut x
+	}
 	if p := a.params[v]; p != nil {
 		return // decided by the parameter's mode
 	}
@@ -500,23 +503,143 @@ func (l *live) conflicts(ev event, lv set) {
 // temporary borrow of it (RFC 0017, step 5) is still in use: in Rust the
 // borrow's owner cannot change until the borrow's last use.
 func (l *live) borrowConflicts(ev event, lv set) {
-	if ev.kind != evMut && ev.kind != evConsume && ev.kind != evDef {
+	if ev.kind != evMut && ev.kind != evConsume && ev.kind != evDef && ev.kind != evRead {
 		return
 	}
 	a := l.a
 	plan := subset.Ptrs(a.pkg)
+	if ev.kind == evRead {
+		l.sameStatement(ev, plan)
+	}
 	for q, u := range lv {
-		if q == ev.v || !plan.Owned(q.Type()) || !plan.BorrowVar(q) || !plan.BorrowSources(q)[ev.v] {
+		if q == ev.v || !plan.Owned(q.Type()) {
 			continue
 		}
+		local := plan.LocalRef(q) && plan.RefSource(q) == ev.v
+		if !local && (!plan.BorrowVar(q) || !plan.BorrowSources(q)[ev.v]) {
+			continue
+		}
+		if ev.kind == evRead && !(local && l.changesThrough(q)) {
+			continue // read while a shared borrow of it is in use
+		}
 		what := "changed"
-		if ev.kind == evConsume {
+		switch ev.kind {
+		case evConsume:
 			what = "moved"
+		case evRead:
+			what = "used"
+		}
+		why := fmt.Sprintf("%s only borrows %s (it is never stored or returned), so %s cannot change until %s's last use (RFC 0017)", q.Name(), ev.v.Name(), ev.v.Name(), q.Name())
+		fix := fmt.Sprintf("finish with %s before %s changes, or read what you need from %s into a variable first", q.Name(), ev.v.Name(), q.Name())
+		if ev.kind == evRead {
+			why = fmt.Sprintf("%s changes %s through its borrow, so %s cannot be used until %s's last use (RFC 0017)", q.Name(), ev.v.Name(), ev.v.Name(), q.Name())
+			fix = fmt.Sprintf("finish with %s before %s is used, or use %s through %s", q.Name(), ev.v.Name(), ev.v.Name(), q.Name())
 		}
 		a.report(ev.pos, a.errorf(ev.pos, "%s is %s on line %d while %s, a borrow of it, is still in use on line %d",
-			ev.v.Name(), what, a.line(ev.pos), q.Name(), a.line(u.pos)).With(
-			fmt.Sprintf("%s only borrows %s (it is never stored or returned), so %s cannot change until %s's last use (RFC 0017)", q.Name(), ev.v.Name(), ev.v.Name(), q.Name()),
-			fmt.Sprintf("finish with %s before %s changes, or read what you need from %s into a variable first", q.Name(), ev.v.Name(), q.Name())))
+			ev.v.Name(), what, a.line(ev.pos), q.Name(), a.line(u.pos)).With(why, fix))
 		return
 	}
+}
+
+// changesThrough reports whether local borrow q (subset.PtrPlan.LocalRef)
+// is exclusive: its function writes through it (*q = v, q.f++) or lends
+// it to a receiver or parameter that changes it. While it is in use, its
+// source cannot even be read.
+func (l *live) changesThrough(q *types.Var) bool {
+	info := l.a.pkg.Info
+	under := func(e ast.Expr) bool {
+		for e = ast.Unparen(e); ; {
+			switch x := e.(type) {
+			case *ast.Ident:
+				return info.Uses[x] == q
+			case *ast.SelectorExpr:
+				e = ast.Unparen(x.X)
+			case *ast.StarExpr:
+				e = ast.Unparen(x.X)
+			default:
+				return false
+			}
+		}
+	}
+	found := false
+	ast.Inspect(l.fn.Decl.Body, func(n ast.Node) bool {
+		switch y := n.(type) {
+		case *ast.AssignStmt:
+			for _, x := range y.Lhs {
+				_, plain := ast.Unparen(x).(*ast.Ident)
+				found = found || !plain && under(x)
+			}
+		case *ast.IncDecStmt:
+			_, plain := ast.Unparen(y.X).(*ast.Ident)
+			found = found || !plain && under(y.X)
+		case *ast.CallExpr:
+			fn := l.a.funcs[calleeFunc(info, y)]
+			if fn == nil {
+				break
+			}
+			if sel, ok := ast.Unparen(y.Fun).(*ast.SelectorExpr); ok && fn.Recv != nil && fn.Recv.Mode == RefMut {
+				found = found || under(sel.X)
+			}
+			for i, a := range y.Args {
+				if i < len(fn.Params) && fn.Params[i].Mode == RefMut {
+					found = found || under(a)
+				}
+			}
+		}
+		return !found
+	})
+	return found
+}
+
+// sameStatement reports a read of x in a statement that handed a place
+// through p, an exclusive local borrow of x, to a call that is not the
+// program's, earlier: a print borrows all its arguments at once, so Rust
+// refuses the read (println!("{} {}", p.n, x.n)).
+func (l *live) sameStatement(ev event, plan *subset.PtrPlan) {
+	info := l.a.pkg.Info
+	var stmt ast.Stmt
+	ast.Inspect(l.fn.Decl.Body, func(n ast.Node) bool {
+		if s, ok := n.(ast.Stmt); ok && n.Pos() <= ev.pos && ev.pos < n.End() {
+			if _, block := s.(*ast.BlockStmt); !block {
+				stmt = s
+			}
+		}
+		return true
+	})
+	var stack []ast.Node // ev is in a statement of its function
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if n == nil {
+			stack = stack[:len(stack)-1]
+			return true
+		}
+		stack = append(stack, n)
+		id, ok := n.(*ast.Ident)
+		if !ok || id.Pos() >= ev.pos {
+			return true
+		}
+		q, ok := info.Uses[id].(*types.Var)
+		if !ok || !plan.LocalRef(q) || plan.RefSource(q) != ev.v || !l.changesThrough(q) {
+			return true
+		}
+		// Held only as a place (p, p.f, *p, p[i]) handed straight to a call
+		// that is not the program's, as a print borrows its arguments; a
+		// value computed from it, or a program call's argument, is done.
+		i := len(stack) - 2
+		for ; i >= 0; i-- {
+			switch stack[i].(type) {
+			case *ast.SelectorExpr, *ast.IndexExpr, *ast.StarExpr, *ast.ParenExpr:
+				continue
+			}
+			break
+		}
+		c, ok := stack[i].(*ast.CallExpr)
+		if !ok || l.a.funcs[calleeFunc(info, c)] != nil || c.Fun == stack[i+1] {
+			return true
+		}
+		l.a.report(ev.pos, l.a.errorf(ev.pos, "%s is used on line %d while %s, a borrow of it, is still in use in the same statement",
+			ev.v.Name(), l.a.line(ev.pos), q.Name()).With(
+			fmt.Sprintf("%s changes %s through its borrow, and the statement holds that borrow while it reads %s (RFC 0017)", q.Name(), ev.v.Name(), ev.v.Name()),
+			fmt.Sprintf("read %s through %s, or copy what you need from %s into a variable first", ev.v.Name(), q.Name(), q.Name())))
+		return false
+	})
 }

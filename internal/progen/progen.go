@@ -1139,6 +1139,13 @@ func (g *gen) ptrUses() {
 	g.line("fmt.Println(chC.V+chInc%d(chC), chC.V)", k)
 	g.line("ordS := []int{%s, %s}", v(), v())
 	g.line("fmt.Println(ordS[0]%sordFirst%d(ordS), ordS[0])", op(), k)
+	// A local borrow (RFC 0017): p := &x, changed through and lent, and x
+	// read after p's last use: let p = &mut x in Rust.
+	g.line("lbX := %s", v())
+	g.line("lbP := &lbX")
+	g.line("*lbP %s= %s", op(), v())
+	g.line("fmt.Println(ordAdd%d(lbP), *lbP)", k)
+	g.line("fmt.Println(lbX)")
 	g.line("ordX := %s", v())
 	g.line("fmt.Println(ordX%sordAdd%d(&ordX), ordX)", op(), k)
 	g.line("var ordP Pt%d", k)

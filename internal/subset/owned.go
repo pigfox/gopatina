@@ -716,6 +716,9 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 	}
 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
 		if id, ok := ast.Unparen(u.X).(*ast.Ident); ok && len(o.p.lends[o.localOf(id)]) > 0 {
+			if as, ok := stack[len(stack)-2].(*ast.AssignStmt); ok && as.Tok == token.DEFINE {
+				return // p := &x, a local borrow (escapes.go): checked through p
+			}
 			o.placeUse(el, e, stack) // &x lent to a call (escapes.go)
 			return
 		}
@@ -776,11 +779,19 @@ func (o *ownership) escapeValue(e ast.Expr) bool {
 	return o.escapeVar(o.localOf(id))
 }
 
-// keepsAny reports whether a callee keeps any of params (keptParams).
+// keepsAny reports whether a callee keeps any of params (keptParams), or
+// a local they are lent to is more than a local borrow (localRefs) that
+// lends on only to callees keeping nothing.
 func (o *ownership) keepsAny(params []*types.Var) bool {
 	for _, p := range params {
-		if o.kept[p] {
+		if o.inputs[p] && o.kept[p] {
 			return true
+		}
+		if !o.inputs[p] && !o.params[p] {
+			ps, ok := o.p.refs[p]
+			if !ok || o.keepsAny(ps) {
+				return true // a variable that keeps it
+			}
 		}
 	}
 	return false

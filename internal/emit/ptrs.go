@@ -122,6 +122,15 @@ func (g *gen) boxOf(t types.Type) string {
 	return "Box<" + elem + ">"
 }
 
+// localRefRep returns how local borrow v (subset.PtrPlan.LocalRef) is held:
+// &mut T where its function changes through it, &T otherwise.
+func (g *gen) localRefRep(v *types.Var) ptrRep {
+	if g.changesThrough(g.fn.Decl.Body, &ast.Ident{Name: v.Name()}) {
+		return repRefMut
+	}
+	return repRef
+}
+
 // lentVar returns the local that e, &x or x, lends (LentAddr).
 func (g *gen) lentVar(e ast.Expr) *types.Var {
 	e = ast.Unparen(e)
@@ -158,6 +167,9 @@ func (g *gen) ptrRep(e ast.Expr) ptrRep {
 	switch x := ast.Unparen(e).(type) {
 	case *ast.Ident:
 		v := g.localVar(x) // a variable: nil is never asked, a global never owned
+		if g.ptrs.LocalRef(v) {
+			return g.localRefRep(v) // p := &x: &x or &mut x
+		}
 		if g.res.Param(v) != nil {
 			return g.paramRep(v) // lent: an owned pointer is never kept
 		}
@@ -320,18 +332,54 @@ func (g *gen) usedAfterPos(id *ast.Ident, pos token.Pos) bool {
 	var loops []ast.Node
 	ast.Inspect(g.fn.Decl.Body, func(n ast.Node) bool {
 		switch x := n.(type) {
+		case *ast.AssignStmt:
+			// The values are evaluated before the places are written, so
+			// a place naming v comes after a use of v among the values.
+			for _, r := range x.Rhs {
+				if r.Pos() <= id.Pos() && id.End() <= r.End() {
+					for _, l := range x.Lhs {
+						ast.Inspect(l, func(m ast.Node) bool {
+							if y, ok := m.(*ast.Ident); ok && g.localVar(y) == v {
+								again = true
+							}
+							return !again
+						})
+					}
+				}
+			}
 		case *ast.ForStmt, *ast.RangeStmt:
 			if x.Pos() <= id.Pos() && id.End() <= x.End() {
 				loops = append(loops, x)
 			}
 		case *ast.Ident:
-			if x.Pos() > pos && g.localVar(x) == v {
+			if x.Pos() > pos && g.localVar(x) == v && !g.inValuesOf(x, id) {
 				again = true
 			}
 		}
 		return true
 	})
 	return again || len(loops) > 0
+}
+
+// inValuesOf reports whether x is among the values of the assignment
+// whose places hold id: evaluated before id's place is written.
+func (g *gen) inValuesOf(x, id *ast.Ident) bool {
+	found := false
+	ast.Inspect(g.fn.Decl.Body, func(n ast.Node) bool {
+		as, ok := n.(*ast.AssignStmt)
+		if !ok || found {
+			return !found
+		}
+		inLhs := false
+		for _, l := range as.Lhs {
+			inLhs = inLhs || l.Pos() <= id.Pos() && id.End() <= l.End()
+		}
+		for _, r := range as.Rhs {
+			found = found || inLhs && r.Pos() <= x.Pos() && x.End() <= r.End()
+		}
+		return !found
+	})
+	return found
 }
 
 // ptrThrough renders owned pointer e as the base of a field read or

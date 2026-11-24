@@ -1,0 +1,4 @@
+./main.go:11:6: pointers of type *Counter are never shared: each has one owner (RFC 0016)
+./main.go:14:7: receiver c is an exclusive borrow: Inc changes it, and the caller sees the change
+./main.go:21:10: parameter p is an exclusive borrow: add changes it, and the caller sees the change
+./main.go:24:11: parameter p is a shared borrow: read only reads it
