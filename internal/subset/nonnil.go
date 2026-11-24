@@ -387,6 +387,9 @@ func (a *nonNilAnalysis) firstRead(v *types.Var, fd *ast.FuncDecl) bool {
 		var parts []ast.Expr
 		if sel, ok := ast.Unparen(first.Fun).(*ast.SelectorExpr); ok {
 			if s := a.info.Selections[sel]; s != nil && s.Kind() == types.MethodVal {
+				if id, ok := ast.Unparen(sel.X).(*ast.Ident); ok && a.info.Uses[id] == v && !isPointer(s.Obj().(*types.Func).Signature().Recv().Type()) {
+					return true // v.M() of a value method copies *v first
+				}
 				parts = append(parts, sel.X)
 			}
 		}

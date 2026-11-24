@@ -222,6 +222,13 @@ func (o *ownership) run() {
 			}
 		}
 	}
+	// A variable whose address is kept while the variable is still used
+	// lives in a cell the two names share (not an escape box).
+	for v := range o.p.Cells {
+		if el := o.elemOf(types.NewPointer(v.Type())); el != nil && !o.escapeVar(v) {
+			o.share(el, v.Pos(), "its address is kept while the variable is still used")
+		}
+	}
 	o.vars()
 	o.keptParams()
 	o.ranges()
@@ -330,6 +337,27 @@ func (o *ownership) borrowedBy(l ast.Expr) bool {
 // strings, and slices and structs of them, with no pointer, interface,
 // map or channel inside.
 func plainData(t types.Type) bool { return plainDataIn(t, map[types.Type]bool{}) }
+
+// valueData reports whether t is plain data with no slice inside:
+// numbers, booleans, strings, and structs of them. Go's copy of
+// one shares nothing, as Rust's copy or clone does; a copy of a slice
+// shares its elements.
+func valueData(t types.Type) bool {
+	if !plainData(t) {
+		return false
+	}
+	switch u := t.Underlying().(type) {
+	case *types.Slice:
+		return false
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			if !valueData(u.Field(i).Type()) {
+				return false
+			}
+		}
+	}
+	return true
+}
 
 func plainDataIn(t types.Type, seen map[types.Type]bool) bool {
 	if seen[t] {
@@ -577,8 +605,10 @@ func (o *ownership) heldIn(t types.Type, pos token.Pos, seen map[types.Type]bool
 	}
 	for _, h := range o.p.heap {
 		if types.Identical(h, t) {
-			o.share(h, pos, "a value of the type itself is held outside its box")
-			return
+			if !plainData(h) {
+				o.share(h, pos, "a value of the type itself is held outside its box")
+			}
+			return // plain data: a copy of it shares nothing (RFC 0017)
 		}
 	}
 	switch u := t.Underlying().(type) {
@@ -656,8 +686,10 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 					return
 				}
 			}
-			o.share(h, e.Pos(), "a value of the type itself is used outside its box")
-			return
+			if !plainData(h) {
+				o.share(h, e.Pos(), "a value of the type itself is used outside its box")
+			}
+			return // plain data: a copy of it shares nothing (RFC 0017)
 		}
 	}
 	el := o.elemOf(t)
@@ -869,6 +901,14 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 // call of a program function, neither of which keeps it.
 func (o *ownership) readOrLend(par, child ast.Node, stack []ast.Node) bool {
 	switch p := par.(type) {
+	case *ast.StarExpr:
+		// *p of value data: a copy out of the box, or the box's value
+		// replaced, either sharing nothing (RFC 0017). Not &*p.
+		above, _, _ := parent(stack)
+		if u, ok := above.(*ast.UnaryExpr); ok && u.Op == token.AND {
+			return false
+		}
+		return valueData(o.info.TypeOf(p))
 	case *ast.SelectorExpr:
 		// child is p.X: the name selected is skipped in expr, and a
 		// pointer's selector is a field or a method.
@@ -884,7 +924,9 @@ func (o *ownership) readOrLend(par, child ast.Node, stack []ast.Node) bool {
 			}
 			recv := s.Obj().(*types.Func).Signature().Recv()
 			_, ptrRecv := types.Unalias(recv.Type()).(*types.Pointer)
-			return ptrRecv && o.programCallee(call) != nil && !o.deferred(stack)
+			// A value method copies a value-data value out for the call
+			// (RFC 0017), sharing nothing.
+			return (ptrRecv || valueData(recv.Type())) && o.programCallee(call) != nil && !o.deferred(stack)
 		}
 	case *ast.CallExpr:
 		for _, a := range p.Args {

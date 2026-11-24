@@ -129,11 +129,29 @@ func (g *gen) recvArg(x ast.Expr, p *borrow.Param) node {
 	return g.arg(x, p)
 }
 
+// ownedCopy renders a clone of the value owned pointer x points to, a
+// type that is not Copy: through a borrow of the value, not of the Box.
+func (g *gen) ownedCopy(x ast.Expr) node {
+	if g.ptrRep(x).optional() {
+		lent := &call{recv: &call{recv: g.rawPtr(x), head: ".as_deref", open: "(", close: ")"}, head: ".unwrap", open: "(", close: ")"}
+		return &call{recv: lent, head: ".clone", open: "(", close: ")"}
+	}
+	return &call{recv: atom{"(" + g.boxContents(x).flat() + ")", precAtom}, head: ".clone", open: "(", close: ")"}
+}
+
 // receiver renders the receiver of a method call.
 func (g *gen) receiver(x ast.Expr, p *borrow.Param) node {
 	x = ast.Unparen(x)
 	if name, ok := g.cellRoot[x]; ok {
 		return text(name) // *p, inside its cell
+	}
+	if g.ownPtr(g.typeOf(x)) && !isPointerType(p.Var.Type()) {
+		// A value receiver called through an owned pointer (plain data,
+		// RFC 0017): the method borrows the box's value, or takes a copy.
+		if p.Mode == borrow.Ref || borrow.KindOf(p.Var.Type()) == borrow.Copy {
+			return g.ptrThrough(x)
+		}
+		return g.ownedCopy(x)
 	}
 	if g.heapPtr(g.typeOf(x)) {
 		// A value receiver called through a heap pointer: a copy.

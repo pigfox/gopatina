@@ -70,6 +70,21 @@ func (g *gen) ptrNew(t types.Type, v node) node {
 	return &call{head: "rt::" + g.ptrKind(t) + "::new", open: "(", close: ")", args: []node{v}}
 }
 
+// boxContents renders *p for owned pointer p (plain data, RFC 0017): the
+// value in its box, as a place. An Option is unwrapped, Go's nil
+// dereference; a Box or a borrow is dereferenced.
+func (g *gen) boxContents(p ast.Expr) node {
+	if g.ptrRep(p).optional() {
+		m := ".as_deref"
+		if g.writing {
+			m = ".as_deref_mut"
+		}
+		n := &call{recv: &call{recv: g.rawPtr(p), head: m, open: "(", close: ")"}, head: ".unwrap", open: "(", close: ")"}
+		return atom{"*" + n.flat(), precUnary}
+	}
+	return atom{"*" + paren(g.rawPtr(p), precUnary), precUnary}
+}
+
 // ptrRep is how an owned pointer (RFC 0016) is held in Rust: in an
 // Option where it may be nil, owned or borrowed, and a borrow shared or
 // exclusive.
@@ -276,7 +291,7 @@ func (g *gen) heapRoot(e ast.Expr) (root, ptr ast.Expr, ok bool) {
 			}
 			return nil, nil, false
 		case *ast.StarExpr:
-			if g.heapPtr(g.typeOf(x.X)) {
+			if g.heapPtr(g.typeOf(x.X)) && !g.ownPtr(g.typeOf(x.X)) {
 				return x, x.X, true
 			}
 			return nil, nil, false

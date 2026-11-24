@@ -899,14 +899,19 @@ func (g *gen) changesThrough(n ast.Node, x ast.Expr) bool {
 	key := types.ExprString(x)
 	under := func(e ast.Expr) bool {
 		for e = ast.Unparen(e); ; {
-			sel, ok := e.(*ast.SelectorExpr)
-			if !ok {
+			var base ast.Expr
+			switch x := e.(type) {
+			case *ast.SelectorExpr:
+				base = x.X
+			case *ast.StarExpr:
+				base = x.X // *p = v replaces the value in p's box
+			default:
 				return false
 			}
-			if types.ExprString(ast.Unparen(sel.X)) == key {
+			if types.ExprString(ast.Unparen(base)) == key {
 				return true
 			}
-			e = ast.Unparen(sel.X)
+			e = ast.Unparen(base)
 		}
 	}
 	found := false
@@ -1211,6 +1216,8 @@ func (g *gen) assignsRoot(s ast.Node, x ast.Expr) bool {
 			case *ast.SelectorExpr:
 				found = found || p.X != e
 			case *ast.CallExpr:
+			case *ast.StarExpr:
+				// *x, read or replaced through the binding (RFC 0017)
 			default:
 				found = true // returned, stored, or tested for nil again
 			}

@@ -1,0 +1,10 @@
+./main.go:10:6: pointers of type *Rect are never shared: each has one owner (RFC 0016)
+./main.go:23:6: pointers of type *Label are never shared: each has one owner (RFC 0016)
+./main.go:29:7: receiver l is a shared borrow: Show only reads it
+./main.go:32:7: receiver l is owned: Renamed keeps it
+./main.go:32:24: parameter s is owned: Renamed keeps it
+./main.go:33:11: moved s into l.Text: s is not used afterwards
+./main.go:39:15: parameter s is owned: newLabel keeps it
+./main.go:50:17: parameter s is owned: maybeLabel keeps it
+./main.go:58:11: parameter r is a shared borrow: area only reads it
+./main.go:69:7: copied *l into c: l is borrowed, so its value cannot be moved out; Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning
