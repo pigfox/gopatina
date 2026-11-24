@@ -1,12 +1,13 @@
 # RFC 0017: One owner: assignment moves a pointer
 
-- **Status:** Draft, for the project lead's decision. No code until then.
+- **Status:** Accepted (the project lead, 2026-11-23), with the
+  recommended option on each of the four decisions below. Implementation
+  in small steps, each its own pull request
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file
-- **Supersedes / superseded by:** would replace RFC 0013's shared cells
-  and withdraw RFC 0016's step 2 (cycle collection), if decision 2 below
-  is "replace"
+- **Supersedes / superseded by:** replaces RFC 0013's shared cells and
+  withdraws RFC 0016's step 2 (cycle collection)
 
 ## Summary
 
@@ -449,6 +450,32 @@ That measurement would come first, as its own PR.
   index-based graphs in Rust.
 
 ## Decisions for the project lead
+
+The project lead, 2026-11-23, after seeing the four decisions with their
+recommendations:
+
+> "Yes, one owner per object. You don't fucking stop. Keep moving. You
+> know what the end goal is. Don't stop for me to give you micromanagement
+> instructions. Keep moving, okay?"
+
+So each takes its recommendation: temporary borrows of locals are
+allowed; the shared cells are replaced, with no flag; the packages that
+share pointers are measured first; and a returned field is a borrow.
+
+The acceptance bar, the project lead, 2026-11-23:
+
+> "Yes. Make it look like Rust. Okay? That's the whole point of this
+> exercise. Otherwise, it's a waste of time."
+
+So the generated Rust is held to what a Rust programmer would write for
+the same program: owned values and `Box`, `&` and `&mut` borrows,
+`Option` instead of nil checks through runtime cells, plain structs and
+`Vec`, methods on `&self` or `&mut self`, and no `rt::` wrapper type where
+`std` does the job. A test fails if `Rc`, `RefCell` or a runtime cell type
+appears in patina-mode output. Side-by-side goldens (the Go, the generated
+Rust and a hand-written reference) show how close it reads, starting with
+`binary-trees` and one pointer golden. The output stays clippy-clean and
+rustfmt leaves it unchanged.
 
 1. **Temporary borrows of locals** (section 2): allow them, inferred as
    Rust does (recommended), or every `b := a` is a move.
