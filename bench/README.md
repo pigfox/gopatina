@@ -38,7 +38,7 @@ added as the patina subset grows to support them:
 | `spectral-norm` | slices, nested loops | 2 |
 | `fannkuch-redux` | slices, permutations, mutation through borrows | 2 |
 | `binary-trees` | allocation and freeing of many small trees through pointers (where a GC would run); hand-written Rust uses `Box` | RFC 0013 (in place) |
-| `cycles` | doubly linked lists built and dropped: Go's collector reclaims their cycles, GoPatina's reference counts do not (RFC 0013's known limitation), so its peak memory is the point; hand-written Rust uses `Weak` back pointers | RFC 0013 (in place) |
+| `cycles` | doubly linked lists built and dropped, their nodes in one slice and linked by index, as one owner per object requires (RFC 0017) and as Rust programmers write them; hand-written Rust does the same with `Vec` and `Option<usize>` | RFC 0017 (in place) |
 | `json-roundtrip` | strings, maps, the standard library subset | 4 |
 | `chan-pipeline` | goroutines and channels | 3 |
 
@@ -54,11 +54,16 @@ Rust developer would write them, not tuned to make GoPatina look good.
 - `suffix-sum`: one allocation, then reads through `s[i:]` views: bounds
   checks and slicing, not the collector.
 - `binary-trees`: millions of small allocations and frees: Go's collector
-  against `Rc` (GoPatina) and `Box` (hand-written Rust). This is the case
-  where memory management decides.
-- `cycles`: lists with cycles, built and dropped: Go's collector reclaims
-  cycles, GoPatina's reference counts don't (RFC 0013), so peak memory is
-  the point, not time.
+  against `Box` (GoPatina and hand-written Rust). This is the case where
+  memory management decides.
+- `cycles`: doubly linked lists built and dropped. Until 2026-11-23 their
+  nodes linked by pointer, both ways, which GoPatina kept in
+  reference-counted cells it never freed (62 times the hand-written Rust's
+  peak memory). Under one owner per object (RFC 0017) a node cannot have
+  two names, so the program keeps the nodes in one slice and links them by
+  index, the way Rust programmers write such a list, and the hand-written
+  Rust does the same. Peak memory and time are the point: one slice per
+  list, freed when it is dropped.
 
 **Why `fib(42)` and not `fib(1000)`.** A case should run for a few seconds,
 so that start-up time is a small part of what is measured. `fib(42)` takes
