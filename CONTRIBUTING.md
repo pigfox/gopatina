@@ -128,6 +128,12 @@ git commit -s
 The name and email must match the commit author. If you forgot, amend with
 `git commit --amend -s` (or `git rebase --signoff main` for several commits).
 
+CI checks every commit of a pull request, but the squash commit on `main` is
+written at merge time. Maintainers merge through
+[scripts/merge-pr.sh](scripts/merge-pr.sh), which refuses a squash whose body
+lacks the head commit author's `Signed-off-by` line (and a pull request whose
+checks have not passed), then checks the commit that landed on `main`.
+
 ## RFC process
 
 Changes to the language subset accepted in patina mode, its ownership rules,
