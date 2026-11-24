@@ -174,9 +174,8 @@ pub struct Big {
     n: i64,
 }
 
-fn boxed(b: &Big) -> rt::Ptr<Big> {
-    let b = rt::Ptr::new(b.clone());
-    b.clone()
+fn boxed(b: Big) -> Box<Big> {
+    Box::new(b)
 }
 
 fn pair_of(t: &rt::Ptr<Tree>) -> (i64, i64) {
@@ -287,12 +286,12 @@ fn main() {
         self_.with(|v| v.hits),
     );
 
-    let b = boxed(&Big {
+    let mut b = boxed(Big {
         name: String::from("b"),
         n: 1,
     });
-    b.with_mut(|v| v.n += 2);
-    println!("{} {}", b.with(|v| v.name.clone()), b.with(|v| v.n));
+    b.n += 2;
+    println!("{} {}", b.name, b.n);
 
     let (k, mut extra) = pair_of(&forest);
     let k = rt::Ptr::new(k);

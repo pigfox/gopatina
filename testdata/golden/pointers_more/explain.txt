@@ -13,8 +13,9 @@
 ./main.go:66:8: Tree.Right can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:75:7: receiver t is a shared borrow: depth only reads it
 ./main.go:88:11: parameter t is owned: push keeps it
-./main.go:96:6: pointers of type *Big are shared: its address is kept while the variable is still used (line 101) (RFC 0016)
-./main.go:101:12: parameter b is a shared borrow: boxed only reads it
+./main.go:96:6: pointers of type *Big are never shared: each has one owner (RFC 0016)
+./main.go:101:12: parameter b is owned: boxed keeps it
+./main.go:101:34: moved b into a new pointer: b is not used afterwards
 ./main.go:103:13: parameter t is a shared borrow: pairOf only reads it
 ./main.go:105:11: parameter s is an exclusive borrow: addN changes it, and the caller sees the change
 ./main.go:105:27: parameter name is a shared borrow: addN only reads it

@@ -55,6 +55,10 @@ type PtrPlan struct {
 	// escapeInits the literals declaring those variables (escapes.go).
 	escapes     map[*ast.UnaryExpr]*types.Var
 	escapeInits map[*ast.CompositeLit]bool
+	// lends are the variables whose every address is lent to a call, with
+	// the parameters lent to, and lentOK those no callee keeps.
+	lends  map[*types.Var][]*types.Var
+	lentOK map[*types.Var]bool
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.
@@ -93,6 +97,11 @@ func Ptrs(pkg *load.Package) *PtrPlan {
 	for _, v := range p.escapes {
 		if p.Owned(types.NewPointer(v.Type())) {
 			delete(p.Cells, v) // a plain local, moved into its box (escapes.go)
+		}
+	}
+	for v := range p.lentOK {
+		if p.Owned(types.NewPointer(v.Type())) {
+			delete(p.Cells, v) // a plain local, lent (escapes.go)
 		}
 	}
 	ptrPlans[pkg] = p

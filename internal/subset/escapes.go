@@ -18,17 +18,26 @@ import (
 // n itself stays a plain local, not a cell.
 
 // escapeBoxes finds the &x of the program that move x into a new box: x is
-// a local variable of a struct type whose pointer type is a heap type,
-// declared in the function with a composite literal or no value; every
+// a local variable or value parameter of a struct type whose pointer type
+// is a heap type, declared with a composite literal or no value; every
 // other use of x is a field selection (read or written), none of them
 // after the &; the & is the only one of x and hands the pointer on (a
 // result, an assignment, a declaration, a literal's element or an
 // append); and it is not inside a loop or function literal that x is
 // declared outside of, where it would run again with x already moved.
-// Whether the pointer type is owned is decided later, so EscapeBox asks.
+//
+// It also finds the variables whose every address is lent to a call of
+// the program: &x as an argument, or x.M() and (&x).M() for a method with
+// a pointer receiver. Each stays a plain local, lent as &x or &mut x, if
+// no callee keeps the parameter it is lent to (lentVar).
+//
+// Whether the pointer type is owned is decided later, so EscapeBox and
+// LentAddr ask.
 func (p *PtrPlan) escapeBoxes() {
 	p.escapes = map[*ast.UnaryExpr]*types.Var{}
 	p.escapeInits = map[*ast.CompositeLit]bool{}
+	p.lends = map[*types.Var][]*types.Var{}
+	p.lentOK = map[*types.Var]bool{}
 	info := p.pkg.Info
 	for _, f := range p.pkg.Files {
 		for _, d := range f.Decls {
@@ -39,7 +48,16 @@ func (p *PtrPlan) escapeBoxes() {
 			addrs := map[*types.Var][]*ast.UnaryExpr{}
 			inits := map[*types.Var]*ast.CompositeLit{}
 			declared := map[*types.Var]bool{}
-			bad := map[*types.Var]bool{}
+			bad := map[*types.Var]bool{}     // not an escape box
+			lendBad := map[*types.Var]bool{} // an address not lent
+			lends := map[*types.Var][]*types.Var{}
+			for _, fl := range fd.Type.Params.List {
+				for _, name := range fl.Names {
+					if v, ok := info.Defs[name].(*types.Var); ok && p.escapable(v) {
+						declared[v] = true // a value parameter: the caller's copy
+					}
+				}
+			}
 			var fieldUses []struct {
 				v   *types.Var
 				pos token.Pos
@@ -71,15 +89,23 @@ func (p *PtrPlan) escapeBoxes() {
 					return true
 				}
 				if inFuncLit(stack) {
-					bad[v] = true
+					bad[v], lendBad[v] = true, true
 					return true
 				}
 				switch q := stack[len(stack)-2].(type) {
 				case *ast.UnaryExpr:
-					if q.Op == token.AND && handsOn(stack[:len(stack)-1]) && !loopedOutside(stack, v) {
+					// & is the only unary operator of a struct value.
+					if handsOn(stack[:len(stack)-1]) && !loopedOutside(stack, v) {
 						addrs[v] = append(addrs[v], q)
+						lendBad[v] = true
 						return true
 					}
+					if par := p.lentTo(stack[:len(stack)-1]); par != nil {
+						lends[v] = append(lends[v], par)
+						bad[v] = true
+						return true
+					}
+					lendBad[v] = true
 				case *ast.SelectorExpr:
 					s := info.Selections[q]
 					if u, ok := stack[len(stack)-3].(*ast.UnaryExpr); !(ok && u.Op == token.AND) && s != nil && s.Kind() == types.FieldVal {
@@ -88,6 +114,14 @@ func (p *PtrPlan) escapeBoxes() {
 							pos token.Pos
 						}{v, id.Pos()})
 						return true
+					}
+					if par := p.lentTo(stack); par != nil {
+						lends[v] = append(lends[v], par) // x.M(), M with a pointer receiver
+						bad[v] = true
+						return true
+					}
+					if s == nil || s.Kind() != types.MethodVal {
+						lendBad[v] = true // &x.f
 					}
 				}
 				bad[v] = true // a whole-value use, a method, &x.f, or & kept back
@@ -107,8 +141,86 @@ func (p *PtrPlan) escapeBoxes() {
 					p.escapeInits[lit] = true
 				}
 			}
+			for v, ps := range lends {
+				if !lendBad[v] && declared[v] {
+					p.lends[v] = ps
+				}
+			}
 		}
 	}
+}
+
+// lentTo returns the parameter that the address on top of stack is lent
+// to: &x as an argument of a function of the program, or x (or &x) as the
+// receiver of a method of the program with a pointer receiver. It is nil
+// for anything else.
+func (p *PtrPlan) lentTo(stack []ast.Node) *types.Var {
+	info := p.pkg.Info
+	child := stack[len(stack)-1]
+	i := len(stack) - 2
+	for ; i > 0; i-- {
+		if _, ok := stack[i].(*ast.ParenExpr); !ok {
+			break
+		}
+		child = stack[i]
+	}
+	switch q := stack[i].(type) {
+	case *ast.CallExpr:
+		fn := p.programFunc(q.Fun)
+		if fn == nil || fn.Signature().Variadic() {
+			return nil
+		}
+		for j, a := range q.Args {
+			if a == child {
+				return fn.Signature().Params().At(j)
+			}
+		}
+	case *ast.SelectorExpr:
+		s := info.Selections[q]
+		call, ok := stack[i-1].(*ast.CallExpr)
+		if s == nil || s.Kind() != types.MethodVal || !ok || call.Fun != q {
+			return nil // a method value keeps its receiver
+		}
+		fn := s.Obj().(*types.Func)
+		if r := fn.Signature().Recv(); fn.Pkg() == p.pkg.Types && isPointer(r.Type()) {
+			return r
+		}
+	}
+	return nil
+}
+
+// programFunc returns the function of the program that fun names, or nil.
+func (p *PtrPlan) programFunc(fun ast.Expr) *types.Func {
+	var id *ast.Ident
+	switch f := ast.Unparen(fun).(type) {
+	case *ast.Ident:
+		id = f
+	case *ast.SelectorExpr:
+		id = f.Sel
+	default:
+		return nil
+	}
+	fn, ok := p.pkg.Info.Uses[id].(*types.Func)
+	if !ok || fn.Pkg() != p.pkg.Types {
+		return nil
+	}
+	return fn
+}
+
+// LentAddr reports whether e, &x or the receiver x of a method with a
+// pointer receiver, lends a plain local (see escapeBoxes) that is not a
+// cell: Rust lends &x or &mut x.
+func (p *PtrPlan) LentAddr(e ast.Expr) bool {
+	e = ast.Unparen(e)
+	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
+		e = ast.Unparen(u.X)
+	}
+	id, ok := e.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	v, _ := p.pkg.Info.Uses[id].(*types.Var)
+	return v != nil && p.lentOK[v] && p.Owned(types.NewPointer(v.Type()))
 }
 
 // escapable reports whether v is a local variable of a struct type whose
