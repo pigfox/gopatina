@@ -8,7 +8,10 @@ package main
 import "fmt"
 
 // Counter counts.
-type Counter struct{ N int }
+type Counter struct {
+	N    int
+	Name string
+}
 
 // Inc changes the counter through its receiver.
 func (c *Counter) Inc() { c.N++ }
@@ -24,6 +27,9 @@ func add(p *int, v int) { *p += v }
 func read(p *int) int { return *p }
 
 func two() int { return 2 }
+
+// seen is a package-level variable the program changes.
+var seen int
 
 func main() {
 	fmt.Println(newCounter().N, *newInt(0)) // pointers of both types escape
@@ -44,6 +50,11 @@ func main() {
 	pc.Inc()
 	(*pc).N += 10
 	pc.N++
-	fmt.Println(pc.N)
-	fmt.Println(c.N)
+	pc.Name = "pc"
+	fmt.Println(pc.N, pc.Name, c.N) // the print reads pc.N and pc.Name first
+	fmt.Println(c.N, c.Name)
+	seen++
+	pc2 := &c
+	pc2.Inc()
+	fmt.Println(pc2.N, c.N, seen) // with a changed package-level variable too
 }

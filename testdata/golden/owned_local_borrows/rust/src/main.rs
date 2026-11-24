@@ -33,9 +33,10 @@
 mod rt;
 
 /// Counter counts.
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Counter {
     pub n: i64,
+    pub name: String,
 }
 
 impl Counter {
@@ -69,6 +70,10 @@ fn two() -> i64 {
     2
 }
 
+thread_local! {
+    static SEEN: std::cell::Cell<i64> = const { std::cell::Cell::new(0) };
+}
+
 fn main() {
     rt::exit_on_panic();
     println!("{} {}", new_counter().n, new_int(0)); // pointers of both types escape
@@ -89,6 +94,16 @@ fn main() {
     pc.inc();
     pc.n += 10;
     pc.n += 1;
-    println!("{}", pc.n);
-    println!("{}", c.n);
+    pc.name = String::from("pc");
+    let n = pc.n;
+    let name = pc.name.clone();
+    println!("{} {} {}", n, name, c.n); // the print reads pc.N and pc.Name first
+    println!("{} {}", c.n, c.name);
+    let mut seen = SEEN.get();
+    seen += 1;
+    SEEN.set(seen);
+    let pc2 = &mut c;
+    pc2.inc();
+    let n_2 = pc2.n;
+    println!("{} {} {}", n_2, c.n, SEEN.get()); // with a changed package-level variable too
 }
