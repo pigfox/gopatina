@@ -38,7 +38,7 @@ static B: std::sync::LazyLock<i64> = std::sync::LazyLock::new(|| f("b"));
 
 static C: std::sync::LazyLock<i64> = std::sync::LazyLock::new(|| f("c"));
 
-static D: std::sync::LazyLock<i64> = std::sync::LazyLock::new(|| 3);
+static D: i64 = 3;
 
 thread_local! {
     static COUNT: std::cell::Cell<i64> = const { std::cell::Cell::new(0) };
@@ -98,8 +98,8 @@ fn f(s: &str) -> i64 {
     let mut count = COUNT.get();
     count += 1;
     COUNT.set(count);
-    println!("init {} {} {}", s, COUNT.get(), *D);
-    *D * COUNT.get()
+    println!("init {} {} {}", s, COUNT.get(), D);
+    D * COUNT.get()
 }
 
 fn init1() {
@@ -167,7 +167,7 @@ fn main() {
         *A,
         *B,
         *C,
-        *D,
+        D,
         next(),
         next(),
         (*NAMES)[1],
@@ -267,7 +267,6 @@ fn main() {
 }
 
 fn init_vars() {
-    std::sync::LazyLock::force(&D);
     std::sync::LazyLock::force(&B);
     std::sync::LazyLock::force(&C);
     std::sync::LazyLock::force(&A);

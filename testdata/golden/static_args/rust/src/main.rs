@@ -52,7 +52,7 @@ fn greet(s: &str) -> String {
     format!("hello {}", s)
 }
 
-static LIMIT: std::sync::LazyLock<i64> = std::sync::LazyLock::new(|| 7);
+static LIMIT: i64 = 7;
 
 static NAME: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| String::from("go"));
 
@@ -65,10 +65,10 @@ fn main() {
     init_vars();
     println!(
         "{} {} {} {}",
-        double(*LIMIT),
+        double(LIMIT),
         greet(&NAME),
-        -*LIMIT,
-        *LIMIT * *LIMIT + 1,
+        -LIMIT,
+        LIMIT * LIMIT + 1,
     );
     println!(
         "{} {} {} {} {}",
@@ -76,15 +76,14 @@ fn main() {
         ORIGIN.x,
         (*TABLE)[1],
         (*TABLE).len() as i64,
-        (*TABLE)[(*LIMIT % 3) as usize],
+        (*TABLE)[(LIMIT % 3) as usize],
     );
-    let n = *LIMIT;
+    let n = LIMIT;
     let s = (*NAME).clone();
-    println!("{} {} {}", n, s, double(double(*LIMIT)));
+    println!("{} {} {}", n, s, double(double(LIMIT)));
 }
 
 fn init_vars() {
-    std::sync::LazyLock::force(&LIMIT);
     std::sync::LazyLock::force(&NAME);
     std::sync::LazyLock::force(&ORIGIN);
     std::sync::LazyLock::force(&TABLE);

@@ -42,8 +42,11 @@ type gen struct {
 	// Package-level variables (RFC 0010): their kinds and Rust names, each
 	// package's initVars, the locals changed ones are read into for one
 	// statement, and the calls computed into locals first.
-	globals      map[*types.Var]subset.GlobalKind
-	gnames       map[*types.Var]string
+	globals map[*types.Var]subset.GlobalKind
+	gnames  map[*types.Var]string
+	// globalInit is each package-level variable's initializer, when its
+	// spec gives each name one.
+	globalInit   map[*types.Var]ast.Expr
 	initVarsName map[*types.Package]string
 	galias       map[*types.Var]string
 	callTemps    map[*ast.CallExpr]string
@@ -130,6 +133,21 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 		rawCalls:   map[*ast.CallExpr]bool{},
 	}
 	g.globals = subset.Globals(pkg)
+	g.globalInit = map[*types.Var]ast.Expr{}
+	for _, f := range pkg.Files {
+		for _, d := range f.Decls {
+			if gd, ok := d.(*ast.GenDecl); ok && gd.Tok == token.VAR {
+				for _, sp := range gd.Specs {
+					vs := sp.(*ast.ValueSpec)
+					for i, n := range vs.Names {
+						if v, ok := g.info.Defs[n].(*types.Var); ok && len(vs.Values) == len(vs.Names) {
+							g.globalInit[v] = vs.Values[i]
+						}
+					}
+				}
+			}
+		}
+	}
 	if subset.Library(pkg) {
 		g.api = &apiItems{names: map[*types.Func]string{}, sentinel: map[*types.Var]string{}, notes: map[string][]string{}}
 	}

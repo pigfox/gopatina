@@ -3,6 +3,6 @@
 # their indentation; blank lines and comments are left out. Written by
 # go test ./internal/emit -update (TestReferenceCloseness).
 reference lines: 40
-generated lines: 77
+generated lines: 73
 lines in common, in order: 20
-closeness (2 x common / both): 0.34
+closeness (2 x common / both): 0.35
