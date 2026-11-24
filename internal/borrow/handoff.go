@@ -29,6 +29,17 @@ func (l *live) handOff(ev event, lv set) {
 		}
 		return
 	}
+	if ownedSlice(a, t) && needCopy {
+		// A copy of a slice of owned pointers would give each element two
+		// owners (Go's copy shares them): moved, or refused (RFC 0017).
+		a.res.Actions[ev.e] = Move
+		if usedLater {
+			a.report(next.pos, a.errorf(next.pos, "%s is used after its elements moved into %s on line %d", ev.v.Name(), ev.into, a.line(ev.pos)).With(
+				"in patina mode an object has one owner (RFC 0017): a copy of a slice of pointers would give each element two",
+				fmt.Sprintf("use the slice through its new owner, or lend %s instead of copying it", ev.v.Name())))
+		}
+		return
+	}
 	if subset.Ptrs(a.pkg).Owned(t) {
 		if _, taken := subset.Ptrs(a.pkg).Take(ev.e); taken {
 			a.res.Actions[ev.e] = Move // taken out of a field refilled at once (RFC 0017, step 6)
@@ -171,6 +182,12 @@ func copyExpr(x string, t types.Type) string {
 		fields = append(fields, f.Name()+": "+v)
 	}
 	return types.Unalias(t).(*types.Named).Obj().Name() + "{" + strings.Join(fields, ", ") + "}"
+}
+
+// ownedSlice reports whether t is a slice of owned pointers.
+func ownedSlice(a *analyzer, t types.Type) bool {
+	s, ok := types.Unalias(t).Underlying().(*types.Slice)
+	return ok && subset.Ptrs(a.pkg).Owned(s.Elem())
 }
 
 // ownedHandOff reports an owned pointer (RFC 0016) that is still used

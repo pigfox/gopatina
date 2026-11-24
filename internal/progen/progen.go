@@ -1069,6 +1069,11 @@ func (g *gen) ptrUses() {
 	g.line("chB := chA")
 	g.line("chC := &Ch%d{V: %s, N: chB}", k, v())
 	g.line("fmt.Println(chLen%d(chC), chC.V, chC.N.V)", k)
+	// A local slice of owned pointers (RFC 0017): a Vec owning each.
+	g.line("chS := []*Ch%d{chPush%d(%d), chPush%d(%d)}", k, k, 1+g.qr.IntN(4), k, 1+g.qr.IntN(4))
+	g.line("chS = append(chS, chPush%d(%d))", k, 1+g.qr.IntN(4))
+	g.line("chS[1].V %s= %s", op(), v())
+	g.line("fmt.Println(len(chS), chLen%d(chS[0]), chS[1].V, chSum%d(chS[2]))", k, k)
 	g.line("chT := 0")
 	g.line("for chP := chC; chP != nil; chP = chP.N {")
 	g.depth++
