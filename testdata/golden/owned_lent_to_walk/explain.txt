@@ -1,0 +1,5 @@
+./main.go:11:6: pointers of type *Link are never shared: each has one owner (RFC 0016)
+./main.go:17:6: pointers of type *Lists are never shared: each has one owner (RFC 0016)
+./main.go:23:12: parameter l is a shared borrow: count only reads it
+./main.go:43:12: moved h into x.Next: h is not used afterwards
+./main.go:44:7: moved x into h: x is not used afterwards

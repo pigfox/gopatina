@@ -310,6 +310,13 @@ func (o *ownership) ranges() {
 	}
 }
 
+// borrowedBy reports whether l, assigned, is a local temporary borrow
+// (RFC 0017, step 5): the value it is given is lent to it, not moved.
+func (o *ownership) borrowedBy(l ast.Expr) bool {
+	id, ok := ast.Unparen(l).(*ast.Ident)
+	return ok && o.p.BorrowVar(o.localOf(id))
+}
+
 // keptVar reports whether e names a kept parameter.
 func (o *ownership) keptVar(e ast.Expr) bool {
 	v, _ := o.info.Uses[ast.Unparen(e).(*ast.Ident)].(*types.Var) // asked only of a local variable
@@ -371,7 +378,10 @@ func (o *ownership) keptParams() {
 						mark(keeps(r))
 					}
 				case *ast.AssignStmt:
-					for _, r := range x.Rhs {
+					for i, r := range x.Rhs {
+						if len(x.Lhs) == len(x.Rhs) && o.borrowedBy(x.Lhs[i]) {
+							continue // lent to a temporary borrow (step 5), not kept
+						}
 						mark(keeps(r))
 					}
 				case *ast.KeyValueExpr:

@@ -145,6 +145,14 @@ func main() {
 		_, why, _ := p.SharedReason(node)
 		t.Fatalf("*Node shared (%s), want owned", why)
 	}
+	walk := strings.Replace(src, "func main() {\n", "func walk(t *Node) int {\n\tn := 0\n\tfor p := t; p != nil; p = p.Left {\n\t\tn++\n\t}\n\treturn n\n}\n\nfunc main() {\n\t_ = walk(root.Left)\n", 1)
+	walk = strings.Replace(walk, "_ = walk(root.Left)\n", "", 1)
+	walk = strings.Replace(walk, "\troot = relay(root)\n", "\troot = relay(root)\n\t_ = walk(root.Left)\n", 1)
+	p, node := ownedOf(t, walk)
+	if !p.Owned(node) {
+		_, why, _ := p.SharedReason(node)
+		t.Errorf("a field lent to a parameter only a temporary borrow takes: *Node shared (%s), want owned", why)
+	}
 	src = strings.Replace(src, "func main() {\n", "func lend(t *Node) int { return insert(t.Left, 1).V }\n\nfunc main() {\n\t_ = lend(bottomUp(1))\n", 1)
 	if p, node := ownedOf(t, src); p.Owned(node) {
 		t.Error("a field not refilled handed to a keeper: *Node owned")
