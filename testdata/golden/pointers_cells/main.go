@@ -49,7 +49,25 @@ func (c *Counter) Hit() int {
 	return c.hits
 }
 
+// Tag is a named string whose pointers are shared: an interface holds one.
+type Tag string
+
+// Len reads a copy.
+func (t Tag) Len() int { return len(t) }
+
+// Up changes its copy and returns it.
+func (t Tag) Up() Tag { return t + "!" }
+
+func newTag(s string) *Tag {
+	t := Tag(s)
+	return &t
+}
+
 func main() {
+	ta := newTag("ab")
+	var held any = newTag("in an interface")
+	*ta += "c"
+	fmt.Println(ta.Len(), ta.Up(), *ta, held != nil)
 	p := keep(4)
 	p.in.Inc()
 	p.in.Inc()

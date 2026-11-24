@@ -34,17 +34,16 @@ mod rt;
 
 pub type Num = i64;
 
-pub fn num_inc(n: &rt::Ptr<i64>) {
-    n.with_mut(|v| *v += 1);
+pub fn num_inc(n: &mut i64) {
+    *n += 1;
 }
 
 pub fn num_get(n: i64) -> i64 {
     n * 10
 }
 
-fn new_num(v: i64) -> rt::Ptr<i64> {
-    let v = rt::Ptr::new(v);
-    v.clone()
+fn new_num(v: i64) -> i64 {
+    v
 }
 
 pub type Name = String;
@@ -53,9 +52,8 @@ pub fn name_up(n: &str) -> String {
     format!("{}!", n)
 }
 
-fn new_name() -> rt::Ptr<String> {
-    let n: rt::Ptr<String> = rt::Ptr::new(String::from("go"));
-    n.clone()
+fn new_name() -> String {
+    String::from("go")
 }
 
 pub type Nums = Vec<i64>;
@@ -215,12 +213,11 @@ fn set(s: &mut [i64]) {
 
 fn main() {
     rt::exit_on_panic();
-    let n = new_num(4);
-    num_inc(&n);
-    let call = num_get(n.load());
-    println!("{} {}", n.with(|v| *v), call);
+    let mut n = new_num(4);
+    num_inc(&mut n);
+    println!("{} {}", n, num_get(n));
     let nm = new_name();
-    println!("{}", name_up(&nm.load()));
+    println!("{}", name_up(&nm));
     let ns = new_nums();
     ns.with_mut(|v| nums_set(v));
     println!("{}", rt::Slice(&ns.load()));
@@ -242,9 +239,9 @@ fn main() {
             .with(|v| v.left.is_nil()),
         forest.with(|v| v.left.clone()).with(|v| v.right.is_nil()),
     );
-    let call_2 = Tree::depth(&forest);
-    let call_3 = Tree::depth(&forest.with(|v| v.left.clone()).with(|v| v.left.clone()));
-    println!("{} {}", call_2, call_3);
+    let call = Tree::depth(&forest);
+    let call_2 = Tree::depth(&forest.with(|v| v.left.clone()).with(|v| v.left.clone()));
+    println!("{} {}", call, call_2);
     let tr = forest.with(|v| v.left.clone()).with(|v| v.left.clone());
     println!(
         "{} {}",
@@ -257,12 +254,12 @@ fn main() {
     );
     forest.with_mut(|v| v.r#in.inc());
     forest.with_mut(|v| v.r#in.inc());
-    let call_4 = forest.with(|v| v.r#in).get();
-    let call_5 = forest.with(|v| v.bag.sum());
+    let call_3 = forest.with(|v| v.r#in).get();
+    let call_4 = forest.with(|v| v.bag.sum());
     println!(
         "{} {} {} {}",
+        call_3,
         call_4,
-        call_5,
         forest.with(|v| v.name.clone()).as_bytes()[0],
         forest.with(|v| v.name.clone()) == tr.with(|v| v.name.clone()),
     );
@@ -275,14 +272,14 @@ fn main() {
     Counter::hit(&c);
     Counter::hit(&c);
     let self_ = Counter::self_(c.clone());
-    let call_6 = c.load().double();
-    let call_7 = self_.load().double();
-    let call_8 = show(&c.clone());
+    let call_5 = c.load().double();
+    let call_6 = self_.load().double();
+    let call_7 = show(&c.clone());
     println!(
         "{} {} {} {}",
+        call_5,
         call_6,
         call_7,
-        call_8,
         self_.with(|v| v.hits),
     );
 
@@ -299,8 +296,8 @@ fn main() {
     let (val_3, val_4) = pair_of(&tr);
     k.with_mut(|v| *v = val_3);
     extra = val_4;
-    let call_9 = ptr_to(6);
-    println!("{} {} {}", cell.with(|v| *v), extra, call_9.with(|v| *v));
+    let call_8 = ptr_to(6);
+    println!("{} {} {}", cell.with(|v| *v), extra, call_8.with(|v| *v));
     let (val_5, val_6) = pair_of(&forest);
     k.with_mut(|v| *v = val_5);
     let more = val_6;

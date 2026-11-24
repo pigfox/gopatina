@@ -94,7 +94,9 @@ func (p *PtrPlan) escapeBoxes() {
 				}
 				switch q := stack[len(stack)-2].(type) {
 				case *ast.UnaryExpr:
-					// & is the only unary operator of a struct value.
+					if q.Op != token.AND {
+						break // -x, ^x, !x of a number or a boolean: a read
+					}
 					if handsOn(stack[:len(stack)-1]) && !loopedOutside(stack, v) {
 						addrs[v] = append(addrs[v], q)
 						lendBad[v] = true
@@ -123,6 +125,15 @@ func (p *PtrPlan) escapeBoxes() {
 					if s == nil || s.Kind() != types.MethodVal {
 						lendBad[v] = true // &x.f
 					}
+				}
+				if valueData(v.Type()) {
+					// A value read or written whole before its &: a plain
+					// local until then.
+					fieldUses = append(fieldUses, struct {
+						v   *types.Var
+						pos token.Pos
+					}{v, id.Pos()})
+					return true
 				}
 				bad[v] = true // a whole-value use, a method, &x.f, or & kept back
 				return true
@@ -230,13 +241,33 @@ func (p *PtrPlan) escapable(v *types.Var) bool {
 		return false
 	}
 	_, st := v.Type().Underlying().(*types.Struct)
-	return st && p.HeapType(types.NewPointer(v.Type()))
+	return (st || valueData(v.Type())) && p.HeapType(types.NewPointer(v.Type()))
 }
 
 // declInit returns the composite literal declaring id (nil for none),
 // with ok false when id is declared another way: from another value, or
 // as a parameter, a range variable or one of several names.
 func (p *PtrPlan) declInit(id *ast.Ident, stack []ast.Node) (*ast.CompositeLit, bool) {
+	if v, _ := p.pkg.Info.Defs[id].(*types.Var); valueData(v.Type()) {
+		// A number, a string or a struct of them, declared from any one
+		// value: a copy of it shares nothing.
+		switch d := stack[len(stack)-2].(type) {
+		case *ast.AssignStmt:
+			if len(d.Lhs) == 1 && len(d.Rhs) == 1 {
+				lit, _ := ast.Unparen(d.Rhs[0]).(*ast.CompositeLit)
+				return lit, true
+			}
+		case *ast.ValueSpec:
+			if len(d.Names) == 1 && len(d.Values) <= 1 {
+				var lit *ast.CompositeLit
+				if len(d.Values) == 1 {
+					lit, _ = ast.Unparen(d.Values[0]).(*ast.CompositeLit)
+				}
+				return lit, true
+			}
+		}
+		return nil, false
+	}
 	switch d := stack[len(stack)-2].(type) {
 	case *ast.AssignStmt:
 		if len(d.Lhs) == 1 && len(d.Rhs) == 1 {

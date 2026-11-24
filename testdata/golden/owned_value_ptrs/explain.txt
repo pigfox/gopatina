@@ -1,0 +1,10 @@
+./main.go:22:7: receiver s is an exclusive borrow: Add changes it, and the caller sees the change
+./main.go:28:7: receiver t is a shared borrow: Loud only reads it
+./main.go:31:7: receiver t is owned: Shout keeps it
+./main.go:37:17: parameter s is a shared borrow: maybeTitle only reads it
+./main.go:42:10: moved t into a new pointer: t is not used afterwards
+./main.go:59:15: parameter s is a shared borrow: newTitle only reads it
+./main.go:61:10: moved t into a new pointer: t is not used afterwards
+./main.go:73:13: parameter p is a shared borrow: orZero only reads it
+./main.go:86:7: copied *t into u: t is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:100:12: moved name into a new pointer: name is not used afterwards

@@ -179,6 +179,9 @@ func (o *ownership) run() {
 	for _, h := range o.p.heap {
 		named, ok := types.Unalias(h).(*types.Named)
 		st, isStruct := h.Underlying().(*types.Struct)
+		if !isStruct && plainData(h) {
+			continue // a number, a string, a slice of data: a Box<i64>, a Box<String> (RFC 0017)
+		}
 		if !ok || !isStruct || named.Obj().Pkg() != o.p.pkg.Types {
 			o.share(h, token.NoPos, "its element is not a struct type of the program")
 			continue

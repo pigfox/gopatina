@@ -287,14 +287,14 @@ func main() { _ = mk().Kid.V }
 
 type Node struct{ V int }
 
-func mk() *int { x := 1; return &x }
+func mk() *map[int]int { m := map[int]int{}; return &m }
 
-func main() { _ = *mk() }
+func main() { _ = len(*mk()) }
 `
 	p, _ = ownedOf(t, src)
-	intPtr := types.NewPointer(types.Typ[types.Int])
-	if _, why, _ := p.SharedReason(intPtr); !strings.Contains(why, "not a struct type of the program") {
-		t.Errorf("*int: %q", why)
+	mapPtr := types.NewPointer(types.NewMap(types.Typ[types.Int], types.Typ[types.Int]))
+	if _, why, _ := p.SharedReason(mapPtr); !strings.Contains(why, "not a struct type of the program") {
+		t.Errorf("*map[int]int: %q", why)
 	}
 }
 
