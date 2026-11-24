@@ -121,6 +121,9 @@ func (g *gen) ptrRep(e ast.Expr) ptrRep {
 
 // paramRep returns how parameter v, of an owned pointer type, is held.
 func (g *gen) paramRep(v *types.Var) ptrRep {
+	if p := g.res.Param(v); p != nil && p.Mode == borrow.Owned {
+		return repOptBox // kept: moved in (RFC 0017, step 8)
+	}
 	r := repOptRef
 	if g.ptrs.NonNilVar(v) {
 		r = repRef

@@ -68,7 +68,10 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 			// A borrowed owned pointer: &T, &mut T, or in an Option where
 			// it may be nil (RFC 0017, steps 2 and 3).
 			elem := g.rustType(types.Unalias(p.Var.Type()).(*types.Pointer).Elem())
-			t = map[ptrRep]string{repRef: "&", repOptRef: "Option<&", repRefMut: "&mut ", repOptRefMut: "Option<&mut "}[g.paramRep(p.Var)] + elem
+			t = map[ptrRep]string{repRef: "&", repOptRef: "Option<&", repRefMut: "&mut ", repOptRefMut: "Option<&mut ", repOptBox: "Option<Box<"}[g.paramRep(p.Var)] + elem
+			if g.paramRep(p.Var) == repOptBox {
+				t += ">" // kept: Option<Box<T>> (RFC 0017, step 8)
+			}
 			if g.paramRep(p.Var).optional() {
 				t += ">"
 			}

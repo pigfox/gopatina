@@ -135,9 +135,11 @@ func (a *analyzer) newParam(v *types.Var) *Param {
 // mode derives a parameter's mode from what the callee does with it.
 func (p *Param) mode() Mode {
 	if p.owned {
-		// An owned pointer (RFC 0016) is lent, never kept: changed
-		// through, or only read (RFC 0017, step 3). Assigned another
-		// pointer, it is a new local from there (subset).
+		// An owned pointer (RFC 0016) is lent: changed through, or only
+		// read (RFC 0017, step 3); or kept, moved in (step 8).
+		if p.escapes {
+			return Owned
+		}
 		if p.changesShared || p.changesFields {
 			return RefMut
 		}

@@ -75,35 +75,46 @@ pub struct Pair {
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Tree {
-    pub left: rt::Ptr<Tree>,
-    pub right: rt::Ptr<Tree>,
+    pub left: Option<Box<Tree>>,
+    pub right: Option<Box<Tree>>,
     pub key: i64,
 }
 
-fn insert(t: rt::Ptr<Tree>, k: i64) -> rt::Ptr<Tree> {
-    if t.is_nil() {
-        return rt::Ptr::new(Tree {
-            key: k,
-            ..Default::default()
-        });
+/// Frees a chain one link at a time, so a long one cannot overflow
+/// the stack.
+impl Drop for Tree {
+    fn drop(&mut self) {
+        let mut links: Vec<Box<Tree>> = Vec::new();
+        links.extend(self.left.take());
+        links.extend(self.right.take());
+        while let Some(mut link) = links.pop() {
+            links.extend(link.left.take());
+            links.extend(link.right.take());
+        }
     }
-    if k < t.with(|v| v.key) {
-        let val = insert(t.with(|v| v.left.clone()), k);
-        t.with_mut(|v| v.left = val);
+}
+
+fn insert(mut t: Option<Box<Tree>>, k: i64) -> Option<Box<Tree>> {
+    if t.is_none() {
+        return Some(Box::new(Tree {
+            key: k,
+            left: None,
+            right: None,
+        }));
+    }
+    if k < t.as_ref().unwrap().key {
+        t.as_mut().unwrap().left = insert(t.as_mut().unwrap().left.take(), k);
     } else {
-        let val_2 = insert(t.with(|v| v.right.clone()), k);
-        t.with_mut(|v| v.right = val_2);
+        t.as_mut().unwrap().right = insert(t.as_mut().unwrap().right.take(), k);
     }
     t
 }
 
-fn walk(t: &rt::Ptr<Tree>) -> i64 {
-    if t.is_nil() {
+fn walk(t: Option<&Tree>) -> i64 {
+    if t.is_none() {
         return 0;
     }
-    let call = walk(&t.with(|v| v.left.clone()));
-    let call_2 = walk(&t.with(|v| v.right.clone()));
-    call + t.with(|v| v.key) + call_2
+    walk(t.unwrap().left.as_deref()) + t.unwrap().key + walk(t.unwrap().right.as_deref())
 }
 
 fn addr(x: i64) -> rt::Ptr<i64> {
@@ -155,30 +166,29 @@ fn main() {
     let q = p.clone();
     Stack::push(&q.a, 9);
     println!("{} {} {}", Stack::len(&p.a), p == q, p.b == q.b);
-    let mut root: rt::Ptr<Tree> = rt::Ptr::nil();
+    let mut root: Option<Box<Tree>> = None;
     for k in vec![5, 3, 8, 1, 4] {
         root = insert(root, k);
     }
-    let call = walk(&root);
     println!(
         "{} {} {}",
-        call,
-        root.with(|v| v.left.clone()).with(|v| v.key),
-        root.with(|v| v.right.clone()).with(|v| v.key),
+        walk(root.as_deref()),
+        root.as_ref().unwrap().left.as_ref().unwrap().key,
+        root.as_ref().unwrap().right.as_ref().unwrap().key,
     );
     let (a, b) = (addr(1), addr(2));
     swap(&a, &b);
     println!("{} {}", a.with(|v| *v), b.with(|v| *v));
     let n: rt::Ptr<i64> = rt::Ptr::new(1);
     let m = n.clone();
+    let call = bump(&m);
+    let r = call + n.with(|v| *v);
     let call_2 = bump(&m);
-    let r = call_2 + n.with(|v| *v);
-    let call_3 = bump(&m);
     println!(
         "{} {} {} {}",
         r,
         n.with(|v| *v),
-        m.with(|v| *v) + call_3,
+        m.with(|v| *v) + call_2,
         n.with(|v| *v),
     );
     let mut e: rt::Ptr<Stack> = rt::Ptr::nil();

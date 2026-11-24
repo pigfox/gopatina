@@ -121,6 +121,36 @@ func main() {
 	}
 }
 
+// TestOwnedKept checks parameters their function keeps (RFC 0017, step
+// 8): a tree's insert, given a child taken out of the field its result
+// refills, and a parameter passed on to another keeper stay owned; a
+// field not refilled cannot be handed to a keeper.
+func TestOwnedKept(t *testing.T) {
+	src := strings.Replace(tree, "func main() {\n", `func insert(t *Node, v int) *Node {
+	if t == nil {
+		return &Node{V: v}
+	}
+	t.Left = insert(t.Left, v)
+	return t
+}
+
+func relay(t *Node) *Node { return insert(t, 1) }
+
+func main() {
+	var root *Node
+	root = insert(root, 2)
+	root = relay(root)
+`, 1)
+	if p, node := ownedOf(t, src); !p.Owned(node) {
+		_, why, _ := p.SharedReason(node)
+		t.Fatalf("*Node shared (%s), want owned", why)
+	}
+	src = strings.Replace(src, "func main() {\n", "func lend(t *Node) int { return insert(t.Left, 1).V }\n\nfunc main() {\n\t_ = lend(bottomUp(1))\n", 1)
+	if p, node := ownedOf(t, src); p.Owned(node) {
+		t.Error("a field not refilled handed to a keeper: *Node owned")
+	}
+}
+
 // TestOwnerErrors checks that assigning a parameter a new pointer keeps
 // the type owned and is refused, and that it is not refused where the
 // type is shared anyway (its cells express it).
@@ -145,7 +175,7 @@ func TestOwnedShared(t *testing.T) {
 		name, decl, body, why string
 	}{
 		{"copy", "", "a := bottomUp(1)\n\tb := a\n\t_ = b", "a copy of it is kept"},
-		{"return a place", "func id(n *Node) *Node { return n }", "_ = id(bottomUp(1))", "a copy of it is kept"},
+		{"return a place", "func first(n *Node) *Node { return n.Left }", "_ = first(bottomUp(1)).V", "a copy of it is kept"},
 		{"parameter assigned a variable", "func swap(n *Node, m *Node) int { n = m; return n.V }", "_ = swap(bottomUp(1), bottomUp(1))", "a copy of it is kept"},
 		{"address of a field", "", "a := bottomUp(1)\n\tq := &a.V\n\t*q = 1", "written through"},
 		{"compared", "", "a, b := bottomUp(1), bottomUp(1)\n\t_ = a == b", "compared with another pointer"},

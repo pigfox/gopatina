@@ -420,9 +420,21 @@ A cycle, such as vertices whose edges point back at them, has no single
 owner, and is refused once its types are owned
 (`testdata/reject/owned_graph_cycle`).
 
+**Kept parameters** ([RFC 0017](rfcs/0017-one-owner.md), step 8). A
+parameter that its function keeps (returns, moves into a variable, a
+field, a literal or a slice, or passes to a parameter kept in turn) is
+moved in: an `Option<Box<T>>` by value, `mut` where the function changes
+through it. Its caller gives it a new pointer, a local variable or kept
+parameter (dead from there: a later use is the use-after-move error), or
+the field the call's result is assigned back to, taken out for the call
+(`t.left = insert(t.left.take(), v)`). A take may also move into a field
+(`n.next = s.top.take(); s.top = n`). A search tree's insert and a stack's
+push read as Rust writes them.
+
 Moving a pointer out of an element, a slice of pointers held anywhere
-but a field, or keeping a parameter, still makes the type shared: those
-are later steps.
+but a field, a struct value (not behind a pointer) holding a pointer,
+and a field handed to a keeper without being refilled still make the
+type shared: those are later steps.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

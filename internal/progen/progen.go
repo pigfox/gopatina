@@ -982,6 +982,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc (t *Tr%d) Bump(d int) {\n\tt.V %s= d\n\tif t.L != nil {\n\t\tt.L.V++\n\t}\n}\n", k, op())
 	fmt.Fprintf(b, "\nfunc trName%d(t *Tr%d, s string) {\n\tt.S += s\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc trMaybe%d(t *Tr%d, d int) {\n\tif t == nil {\n\t\treturn\n\t}\n\tt.V -= d\n\ttrName%d(t, \"m\")\n}\n", k, k, k)
+	// A kept parameter (RFC 0017, step 8): a search tree's insert keeps
+	// its tree, given a child taken out of the field its result refills.
+	fmt.Fprintf(b, "\nfunc trIns%d(t *Tr%d, v int) *Tr%d {\n\tif t == nil {\n\t\treturn &Tr%d{V: v}\n\t}\n\tif v < t.V {\n\t\tt.L = trIns%d(t.L, v)\n\t} else {\n\t\tt.R = trIns%d(t.R, v)\n\t}\n\treturn t\n}\n", k, k, k, k, k, k)
 	fmt.Fprintf(b, "\nfunc trPair%d(v int) *Tr%d {\n\tp := &Tr%d{V: v, L: mkTr%d(0, v), R: &Tr%d{V: v + 1}}\n\treturn p\n}\n", k, k, k, k, k)
 	fmt.Fprintf(b, "\ntype Ch%d struct {\n\tV int\n\tN *Ch%d\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc chain%d(n int) *Ch%d {\n\tif n == 0 {\n\t\treturn nil\n\t}\n\treturn &Ch%d{V: n, N: chain%d(n - 1)}\n}\n", k, k, k, k)
@@ -1077,6 +1080,13 @@ func (g *gen) ptrUses() {
 	g.line("trP.K = append(trP.K, mkTr%d(%d, %s), &Tr%d{V: %s})", k, g.qr.IntN(3), v(), k, v())
 	g.line("trP.K[0].V %s= %s", op(), v())
 	g.line("fmt.Println(trKids%d(trP), len(trP.K), trP.K[1].V)", k)
+	g.line("var trB *Tr%d", k)
+	g.line("for i := 0; i < %d; i++ {", 3+g.qr.IntN(6))
+	g.depth++
+	g.line("trB = trIns%d(trB, (i*%d %s %s) %% 17)", k, 1+g.qr.IntN(9), op(), v())
+	g.depth--
+	g.line("}")
+	g.line("fmt.Println(trB.Sum(), trB.V)")
 	g.line("trL := trP.L")
 	g.line("trP.L = nil")
 	g.line("trR := trP.R")
