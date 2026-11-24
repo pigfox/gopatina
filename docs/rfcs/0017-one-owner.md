@@ -477,6 +477,21 @@ Rust and a hand-written reference) show how close it reads, starting with
 `binary-trees` and one pointer golden. The output stays clippy-clean and
 rustfmt leaves it unchanged.
 
+The standing rule this RFC is the first step of, the project lead,
+2026-11-23:
+
+> "Okay, so the Gopatina project needs to keep rolling, and the standing
+> rule is that you're gonna the user writes Go, and the compiler infers
+> everything and then writes Rust code. Everything has to be Rust
+> compatible, and you must understand that. Confirm."
+
+The writer writes plain Go, with no annotations, lifetimes or ownership
+markers. The compiler infers ownership, borrows, moves, mutability and
+lifetimes, then writes Rust that reads as written by hand. A Go program
+whose meaning cannot be expressed as safe, idiomatic Rust is a compile
+error with a clear message, never a runtime workaround such as a
+reference-counted cell.
+
 1. **Temporary borrows of locals** (section 2): allow them, inferred as
    Rust does (recommended), or every `b := a` is a move.
 2. **Replace or flag** (above): replace today's shared cells (recommended),
