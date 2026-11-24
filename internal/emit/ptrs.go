@@ -234,6 +234,13 @@ func (g *gen) ptrAs(e ast.Expr, want ptrRep) node {
 // round to it again.
 func (g *gen) usedAfter(e ast.Expr) bool {
 	id := ast.Unparen(e).(*ast.Ident) // an Option<&mut T> is a parameter
+	return g.usedAfterPos(id, id.Pos())
+}
+
+// usedAfterPos reports whether id's variable may be used again after pos:
+// named later in its function, or id is inside a loop, which may come
+// round to it again.
+func (g *gen) usedAfterPos(id *ast.Ident, pos token.Pos) bool {
 	v := g.localVar(id)
 	again := false
 	var loops []ast.Node
@@ -244,7 +251,7 @@ func (g *gen) usedAfter(e ast.Expr) bool {
 				loops = append(loops, x)
 			}
 		case *ast.Ident:
-			if x.Pos() > id.Pos() && g.localVar(x) == v {
+			if x.Pos() > pos && g.localVar(x) == v {
 				again = true
 			}
 		}

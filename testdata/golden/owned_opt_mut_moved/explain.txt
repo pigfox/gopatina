@@ -1,0 +1,6 @@
+./main.go:11:6: pointers of type *Acc are never shared: each has one owner (RFC 0016)
+./main.go:16:12: parameter a is an exclusive borrow: addIf changes it, and the caller sees the change
+./main.go:23:15: parameter a is an exclusive borrow: addTwice changes it, and the caller sees the change
+./main.go:34:14: parameter a is an exclusive borrow: addEach changes it, and the caller sees the change
+./main.go:34:22: parameter vs is a shared borrow: addEach only reads it
+./main.go:43:18: parameter a is an exclusive borrow: addPositive changes it, and the caller sees the change

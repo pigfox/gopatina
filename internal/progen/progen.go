@@ -990,6 +990,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// and Option<&mut T>, and an if let Some whose body changes the node.
 	fmt.Fprintf(b, "\nfunc (t *Tr%d) Bump(d int) {\n\tt.V %s= d\n\tif t.L != nil {\n\t\tt.L.V++\n\t}\n}\n", k, op())
 	fmt.Fprintf(b, "\nfunc trName%d(t *Tr%d, s string) {\n\tt.S += s\n}\n", k, k)
+	// A change through a pointer that may be nil, not used after the if:
+	// if let Some(t) = t in Rust, the Option<&mut T> moved in.
+	fmt.Fprintf(b, "\nfunc trAddIf%d(t *Tr%d, x int) {\n\tif t != nil {\n\t\tt.V += x\n\t}\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc trMaybe%d(t *Tr%d, d int) {\n\tif t == nil {\n\t\treturn\n\t}\n\tt.V -= d\n\ttrName%d(t, \"m\")\n}\n", k, k, k)
 	// A kept parameter (RFC 0017, step 8): a search tree's insert keeps
 	// its tree, given a child taken out of the field its result refills.
@@ -1073,6 +1076,8 @@ func (g *gen) ptrUses() {
 	g.line("fmt.Println(ndLen%d(ptrL), ptrN == nil, ptrN != ptrL, ptrA == ptrL, ptrL.Next.Next == nil, ptrL.in.Get())", k)
 	g.line("trT := mkTr%d(%d, %s)", k, 1+g.qr.IntN(4), v())
 	g.line("fmt.Println(trT.Sum(), trDepth%d(trT), trT.S, trT.L.V, trT.R == nil, nil != trT.L.L, len(trT.R.S))", k)
+	g.line("trAddIf%d(trT, %s)", k, v())
+	g.line("trAddIf%d(nil, %s)", k, v())
 	g.line("trT = mkTr%d(0, %s)", k, v())
 	g.line("fmt.Println(trT.Sum(), trT.L == nil, chLen%d(chain%d(%d)))", k, k, 1100+g.qr.IntN(900))
 	g.line("chA := chPush%d(%d)", k, 1+g.qr.IntN(3000))

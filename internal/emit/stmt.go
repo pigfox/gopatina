@@ -1123,6 +1123,11 @@ func (g *gen) ifSome(s *ast.IfStmt, prefix string) bool {
 		want, rep = repOptRefMut, repRefMut // the body changes it: as_deref_mut
 	}
 	src := g.ptrAs(x, want)
+	if id, ok := ast.Unparen(x).(*ast.Ident); ok && want == repOptRefMut && g.ptrRep(x) == repOptRefMut && !g.usedAfterPos(id, s.End()) {
+		// An Option<&mut T> not used after the if: moved into the
+		// binding, not reborrowed (clippy's needless_option_as_deref).
+		src = g.rawPtr(x)
+	}
 	name := g.bindName(x)
 	key := types.ExprString(x)
 	g.bound[key] = boundPtr{name: name, rep: rep}
