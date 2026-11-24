@@ -30,7 +30,8 @@ GoPatina's goal is Go's development speed with Rust's output, but no study has m
 
 ## Optimizations {#optimizations}
 
-- **Single-owner pointers as `Box`.** A pointer that escapes is a reference-counted cell today, where hand-written Rust would often use a `Box`; the [`binary-trees` benchmark](/benchmarks#results) measures the cost. Where the analysis proves a pointer has one owner, it can be a `Box` instead.
+- **Single-owner pointers as `Box`: done.** A pointer that escapes and has one owner is a `Box`, as hand-written Rust would write it, and only a shared one stays a reference-counted cell ([RFC 0016](https://github.com/pigfox/gopatina/blob/main/docs/rfcs/0016-owned-pointers-and-cycle-collection.md), step 1). On the [`binary-trees` benchmark](/benchmarks#results) GoPatina's peak memory now matches the hand-written Rust's, and its time fell from 1.50 to 1.19 times Rust's.
+- **Collecting cycles.** Shared pointers that form cycles are never freed today; the [`cycles` benchmark](/benchmarks#results) measures the cost, 185 MiB at peak against Rust's 3 MiB. RFC 0016's step 2 collects them.
 
 ## The design documents {#rfcs}
 
