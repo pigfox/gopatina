@@ -2,6 +2,10 @@
 
 How fast is Go when it is compiled through Rust? GoPatina's goal is identical speed to equivalent hand-written Rust on every benchmark, built with the latest stable Rust, where identical means equivalent within ±0.5% at 5σ. Each benchmark is also built with plain `go build`, so every result shows Go too. **On 2026-11-23 the test server measured all five benchmarks three ways, after GoPatina's owned pointers.** On three, GoPatina executes the same user instructions as hand-written Rust. On `binary-trees` its peak memory now matches Rust's, and its wall time fell from 1.50 to 1.19 times Rust's. On the two pointer benchmarks it is still slower than both Rust and Go, and plain Go is the fastest of the three. The statistics behind every verdict are in [the evidence](/evidence#statistics).
 
+## What is compared {#compared}
+
+Both sides are Rust. GoPatina translates the Go program into a Rust crate, and rustc builds it; the other side is Rust written by hand for the same task, built by the same rustc (1.100.0 in the latest run). So a difference between the two is a difference in the Rust code, not in the compiler. Where GoPatina's generated Rust does what a person would write, the two execute the same instructions, as on `fib`, `sieve` and `suffix-sum`. Where it still does something a person would not, it is slower. On `binary-trees` the generated Rust still executes 19% more instructions than the hand-written Rust; the cause is not yet measured. On `cycles` it keeps shared lists in reference-counted cells that are never freed, where the hand-written Rust uses `Weak` back pointers. Plain Go, built by `go build`, is the third column, for reference.
+
 ## The suite {#suite}
 
 | Benchmark | What it measures against plain Go |

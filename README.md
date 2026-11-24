@@ -274,6 +274,14 @@ checks both, and CI runs it on every golden program; see
 
 ## Benchmarks
 
+**What is compared:** the Rust that GoPatina generates from a Go program,
+built by rustc, against Rust written by hand for the same task, built by
+the same rustc. Both are Rust binaries, so a gap between them is a gap in
+the Rust code: where the generated Rust does what a person would write,
+the two execute the same instructions; where it does not yet (the two
+pointer benchmarks), it is slower. Plain Go (`go build`) is shown for
+reference.
+
 **Latest test-server run, 2026-11-23, after owned pointers**: GoPatina,
 hand-written Rust and plain Go, all five benchmarks, both Rust binaries
 built by rustc 1.100.0, 100 rounds, ratios with 5σ intervals and
