@@ -132,7 +132,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		g.ind--
 		g.line(")" + ret + " {")
 	}
-	g.out.WriteString(body.String())
+	g.out.WriteString(reborrowedMut(body.String()))
 	g.line("}")
 	if g.inAPI(obj) {
 		g.apiTail(fd, obj, params, ret)
@@ -523,6 +523,28 @@ func (g *gen) changes(s ast.Node, v *types.Var) bool {
 	return found
 }
 
+// reborrowedMut resolves the marks let \x01name of a function's body: an
+// Option<&mut T> local is mut where the body reborrows it (name.as_mut(),
+// name.as_deref_mut()), and not where it only moves it.
+func reborrowedMut(body string) string {
+	for {
+		i := strings.Index(body, "\x01")
+		if i < 0 {
+			return body
+		}
+		j := i + 1
+		for j < len(body) && (body[j] == '_' || body[j] >= 'a' && body[j] <= 'z' || body[j] >= '0' && body[j] <= '9') {
+			j++
+		}
+		name := body[i+1 : j]
+		mut := ""
+		if strings.Contains(body, name+".as_mut()") || strings.Contains(body, name+".as_deref_mut()") {
+			mut = "mut "
+		}
+		body = body[:i] + mut + body[i+1:]
+	}
+}
+
 // copyFirst reads into locals, before simple statement s, the places s
 // hands to a print through an exclusive local borrow whose source it
 // reads after (borrow.Result.CopyFirst): let n = p.n; println!("{} {}",
@@ -799,8 +821,13 @@ func (g *gen) let(v *types.Var, e ast.Expr, typed bool) {
 		return
 	}
 	if g.ptrs != nil && g.ptrs.LocalRef(v) {
-		// p := &x, a local borrow (RFC 0017): let p = &mut x, or &x.
-		g.stmtLine("let "+g.varName(v)+" = ", g.ptrAs(e, g.localRefRep(v)), ";")
+		// p := &x, a local borrow (RFC 0017): let p = &mut x, or &x; or p
+		// := f(x), held as f returns it.
+		mut := ""
+		if g.localRefRep(v) == repOptRefMut {
+			mut = "\x01" // mut if the body reborrows it (reborrowedMut)
+		}
+		g.stmtLine("let "+mut+g.varName(v)+" = ", g.ptrAs(e, g.localRefRep(v)), ";")
 		return
 	}
 	prefix := "let " + g.mutPrefix(v) + g.varName(v)

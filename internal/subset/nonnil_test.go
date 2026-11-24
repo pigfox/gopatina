@@ -259,16 +259,24 @@ func first(a, b *Node) *Node { // two inputs: lent back from a
 	return a
 }
 
-func bump(n *Node) *Node { // changed through: returned, not lent back
+func bump(n *Node) *Node { // changed through: lent back exclusively
 	n.V++
 	return n
 }
 
+func either(a, b *Node, c bool) *Node { // two inputs returned: not lent back
+	_ = a.V
+	if c {
+		return a
+	}
+	return b
+}
+
 func main() {
 	n := mk()
-	_ = same(n).V + first(n, mk()).V + bump(mk()).V
+	_ = same(n).V + first(n, mk()).V + bump(mk()).V + either(mk(), mk(), true).V
 }
-`, "first.a main.n result mk same.n"})
+`, "bump.n first.a main.n result mk same.n"})
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if got := nonNilOf(t, c.src); got != c.want {

@@ -188,7 +188,20 @@ func (a *analyzer) summarize(fn *Func) bool {
 			changed = true
 		}
 	}
+	plan := subset.Ptrs(a.pkg)
 	for _, ev := range w.evs {
+		if c := plan.RefCall(ev.v); c != nil && ev.kind == evMut && plan.LocalRef(ev.v) {
+			// s := c.Self(); s.Hit(): a change through the borrow a call
+			// returned changes the call's input (RFC 0017, decision 4).
+			if fn := a.funcs[calleeFunc(a.pkg.Info, c)]; fn != nil {
+				in := plan.RetBorrow(fn.Obj)
+				for _, p := range a.allParams(fn) {
+					if p.Var == in {
+						set(&p.changesShared)
+					}
+				}
+			}
+		}
 		if p := a.params[ev.v]; p != nil && p.Kind != Copy {
 			switch ev.kind {
 			case evMut:

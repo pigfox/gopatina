@@ -1,0 +1,6 @@
+./main.go:23:2: c is changed on line 23 while s, a borrow of it, is still in use on line 24
+    s only borrows c (it is never stored or returned), so c cannot change until s's last use (RFC 0017)
+    finish with s before c changes, or read what you need from s into a variable first
+./main.go:25:14: c is used on line 25 while s, a borrow of it, is still in use on line 25
+    s changes c through its borrow, so c cannot be used until s's last use (RFC 0017)
+    finish with s before c is used, or use c through s

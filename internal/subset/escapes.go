@@ -227,6 +227,7 @@ func (p *PtrPlan) lentTo(stack []ast.Node) *types.Var {
 func (p *PtrPlan) localRefs() {
 	p.refs = map[*types.Var][]*types.Var{}
 	p.refSources = map[*types.Var]*types.Var{}
+	p.refCalls = map[*types.Var]*ast.CallExpr{}
 	info := p.pkg.Info
 	cand := map[*types.Var]bool{}
 	bad := map[*types.Var]bool{}
@@ -244,6 +245,15 @@ func (p *PtrPlan) localRefs() {
 			}
 			if v, ok := info.Defs[id].(*types.Var); ok && isPointer(v.Type()) && !v.IsField() {
 				if as, ok := stack[len(stack)-2].(*ast.AssignStmt); ok && as.Tok == token.DEFINE && len(as.Lhs) == 1 && len(as.Rhs) == 1 {
+					if c, ok := ast.Unparen(as.Rhs[0]).(*ast.CallExpr); ok && p.retBorrowCall(c) != nil {
+						// p := f(x), f lending x back: a borrow of x's root.
+						if xv := placeRoot(info, p.retBorrowCall(c)); xv != nil && !xv.IsField() && xv.Parent() != xv.Pkg().Scope() {
+							cand[v] = true
+							p.refSources[v] = xv
+							p.refCalls[v] = c
+							return true
+						}
+					}
 					if u, ok := ast.Unparen(as.Rhs[0]).(*ast.UnaryExpr); ok && u.Op == token.AND {
 						if x, ok := ast.Unparen(u.X).(*ast.Ident); ok {
 							if xv, ok := info.Uses[x].(*types.Var); ok && !xv.IsField() && xv.Parent() != xv.Pkg().Scope() {
@@ -291,6 +301,9 @@ func (p *PtrPlan) localRefs() {
 					return true
 				}
 			}
+			if b, ok := stack[i].(*ast.BinaryExpr); ok && p.refCalls[v] != nil && (b.Op == token.EQL || b.Op == token.NEQ) && (info.Types[b.X].IsNil() || info.Types[b.Y].IsNil()) {
+				return true // p := f(x) compared with nil: a borrow that may be none
+			}
 			bad[v] = true // assigned, compared, returned, stored or copied
 			return true
 		})
@@ -316,8 +329,21 @@ func (p *PtrPlan) localRefs() {
 // or &mut x.
 func (p *PtrPlan) LocalRef(v *types.Var) bool {
 	_, ok := p.refs[v]
-	return ok && p.lentOK[p.refSources[v]] && p.Owned(v.Type())
+	src := p.refSources[v]
+	if !ok || !p.Owned(v.Type()) {
+		return false
+	}
+	if p.lentOK[src] {
+		return true // p := &x
+	}
+	// p := f(x), x an owned pointer: a borrow of it, unless only read,
+	// where a shared returned borrow is a temporary borrow (step 5).
+	return src != nil && p.Owned(src.Type()) && !p.Cells[src] && !p.BorrowVar(v)
 }
+
+// RefCall returns the call that local borrow v is declared from, p :=
+// f(x) with f lending x back (returns.go), or nil for p := &x.
+func (p *PtrPlan) RefCall(v *types.Var) *ast.CallExpr { return p.refCalls[v] }
 
 // RefSource returns the local that local borrow v borrows.
 func (p *PtrPlan) RefSource(v *types.Var) *types.Var { return p.refSources[v] }

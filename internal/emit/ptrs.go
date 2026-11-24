@@ -125,6 +125,9 @@ func (g *gen) boxOf(t types.Type) string {
 // localRefRep returns how local borrow v (subset.PtrPlan.LocalRef) is held:
 // &mut T where its function changes through it, &T otherwise.
 func (g *gen) localRefRep(v *types.Var) ptrRep {
+	if c := g.ptrs.RefCall(v); c != nil {
+		return g.ptrRep(c) // p := f(x): held as f returns it
+	}
 	if g.changesThrough(g.fn.Decl.Body, &ast.Ident{Name: v.Name()}) {
 		return repRefMut
 	}
@@ -237,13 +240,17 @@ func (g *gen) retRep(fn *types.Func) ptrRep {
 	if itself {
 		return r
 	}
+	if r.mut() {
+		return repOptRefMut // lent exclusively: changed through, here or by a caller
+	}
 	return repOptRef
 }
 
-// borrowType renders the Rust type of a shared borrow of pointer type t
-// held as r: &T or Option<&T>, with lifetime life ("" or "'a ").
+// borrowType renders the Rust type of a borrow of pointer type t held as
+// r: &T, &mut T, Option<&T> or Option<&mut T>, with lifetime life ("" or
+// "'a ").
 func (g *gen) borrowType(t types.Type, r ptrRep, life string) string {
-	inner := "&" + life + g.rustType(types.Unalias(t).(*types.Pointer).Elem())
+	inner := "&" + life + map[bool]string{false: "", true: "mut "}[r.mut()] + g.rustType(types.Unalias(t).(*types.Pointer).Elem())
 	if r.optional() {
 		return "Option<" + inner + ">"
 	}
@@ -376,8 +383,8 @@ func (g *gen) ptrAs(e ast.Expr, want ptrRep) node {
 // use: named later in its function, or used inside a loop, which may come
 // round to it again.
 func (g *gen) usedAfter(e ast.Expr) bool {
-	id := ast.Unparen(e).(*ast.Ident) // an Option<&mut T> is a parameter
-	return g.usedAfterPos(id, id.Pos())
+	id, ok := ast.Unparen(e).(*ast.Ident) // a parameter, a borrow, or a call's temporary
+	return ok && g.usedAfterPos(id, id.Pos())
 }
 
 // usedAfterPos reports whether id's variable may be used again after pos:

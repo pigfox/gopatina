@@ -10,4 +10,7 @@
 ./main.go:43:22: parameter n is a shared borrow: named only reads it
 ./main.go:49:7: receiver n is a shared borrow: Pick only reads it
 ./main.go:49:21: parameter m is a shared borrow: Pick only reads it
-./main.go:55:12: parameter n is a shared borrow: total only reads it
+./main.go:56:13: parameter n is an exclusive borrow: bumped changes it, and the caller sees the change
+./main.go:62:7: receiver n is an exclusive borrow: Me changes it, and the caller sees the change
+./main.go:65:7: receiver n is an exclusive borrow: Add changes it, and the caller sees the change
+./main.go:68:12: parameter n is a shared borrow: total only reads it

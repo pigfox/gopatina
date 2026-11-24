@@ -535,10 +535,41 @@ func (l *live) borrowConflicts(ev event, lv set) {
 			why = fmt.Sprintf("%s changes %s through its borrow, so %s cannot be used until %s's last use (RFC 0017)", q.Name(), ev.v.Name(), ev.v.Name(), q.Name())
 			fix = fmt.Sprintf("finish with %s before %s is used, or use %s through %s", q.Name(), ev.v.Name(), ev.v.Name(), q.Name())
 		}
+		notes := []string{why, fix}
+		if name := l.lentExclusiveByCaller(ev); name != "" {
+			notes = append(notes, fmt.Sprintf("%s only reads %s, but lends it exclusively because a caller elsewhere changes through the borrow it returns; a reading %s beside a changing one, a pair like get and get_mut, is not supported yet (RFC 0017)", name, ev.v.Name(), name))
+		}
 		a.report(ev.pos, a.errorf(ev.pos, "%s is %s on line %d while %s, a borrow of it, is still in use on line %d",
-			ev.v.Name(), what, a.line(ev.pos), q.Name(), a.line(u.pos)).With(why, fix))
+			ev.v.Name(), what, a.line(ev.pos), q.Name(), a.line(u.pos)).With(notes...))
 		return
 	}
+}
+
+// lentExclusiveByCaller returns the name of the function whose call at
+// ev lends ev's variable exclusively although the function itself only
+// reads it: it returns a borrow of it, and another caller changes through
+// that borrow (RFC 0017, decision 4). It returns "" for any other change.
+func (l *live) lentExclusiveByCaller(ev event) string {
+	plan := subset.Ptrs(l.a.pkg)
+	info := l.a.pkg.Info
+	name := ""
+	ast.Inspect(l.fn.Decl.Body, func(n ast.Node) bool {
+		c, ok := n.(*ast.CallExpr)
+		if !ok || name != "" || ev.pos < c.Pos() || ev.pos >= c.End() {
+			return name == ""
+		}
+		fn := l.a.funcs[calleeFunc(info, c)]
+		if fn == nil || plan.RetBorrow(fn.Obj) == nil || plan.RetMut(fn.Obj) {
+			return true
+		}
+		for _, p := range l.a.allParams(fn) {
+			if p.Var == plan.RetBorrow(fn.Obj) && p.Mode == RefMut {
+				name = fn.Obj.Name()
+			}
+		}
+		return name == ""
+	})
+	return name
 }
 
 // changesThrough reports whether local borrow q (subset.PtrPlan.LocalRef)

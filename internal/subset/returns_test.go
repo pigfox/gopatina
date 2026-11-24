@@ -17,6 +17,8 @@ import (
 func TestRetBorrows(t *testing.T) {
 	const src = `package main
 
+import "fmt"
+
 type Node struct {
 	V    int
 	Left *Node
@@ -54,11 +56,12 @@ func other(n *Node) *Node { return mk() } // another pointer: no
 func none(n *Node) *Node  { return nil }  // nil only: no
 func count() int          { return 1 }
 func value(n Node) *Node  { return n.Left } // no pointer input: no
-func inc(n *Node) *Node   { n.V++; return n } // changed through: no
-func lend(n *Node) *Node  { touch(n); return n } // lent to a call: no
-func meth(n *Node) *Node  { n.touch(); return n } // a method on it: no
+func inc(n *Node) *Node   { n.V++; return n }        // changed through: lent back exclusively
+func lend(n *Node) *Node  { touch(n); return n }     // lent to a call: exclusively
+func meth(n *Node) *Node  { n.touch(); return n }    // a method on it: exclusively
 func chain(n *Node) *Node { _ = second(n); return n } // lent back by second
 func touch(n *Node)       {}
+func shown(n *Node) *Node { _ = fmt.Sprint(n); return n } // handed to fmt: no
 type Holder struct{ N *Node }
 func store(n *Node) *Node { h := &Holder{N: n}; _ = h; return n } // stored: no
 func alias(n *Node) *Node { m := n; _ = m; return n }             // copied: no
@@ -77,6 +80,7 @@ func main() {
 	_, _, _ = count(), value(*n), n.val()
 	_, _, _, _ = inc(n), lend(n), meth(n), chain(n)
 	_, _, _, _ = store(n), alias(n), same(n, n), reads(n)
+	_ = shown(n)
 }
 `
 	pkg, err := load.Source("/p", "main.go", src, "go1.25")
@@ -89,8 +93,18 @@ func main() {
 		got = append(got, fn.Name()+"."+v.Name())
 	}
 	sort.Strings(got)
-	if want := "chain.n deref.pp kid.n maybe.n pick.a reads.n second.n self.n"; strings.Join(got, " ") != want {
+	if want := "chain.n deref.pp inc.n kid.n lend.n maybe.n meth.n pick.a reads.n second.n self.n"; strings.Join(got, " ") != want {
 		t.Errorf("retBorrow = %s\nwant       %s", strings.Join(got, " "), want)
+	}
+	var mut []string
+	for fn := range p.retBorrow {
+		if p.RetMut(fn) {
+			mut = append(mut, fn.Name())
+		}
+	}
+	sort.Strings(mut)
+	if want := "inc lend meth"; strings.Join(mut, " ") != want {
+		t.Errorf("RetMut = %s, want %s", strings.Join(mut, " "), want)
 	}
 	// *Node is shared here (compared with another pointer), so no
 	// function's result is an owned borrow.
@@ -141,11 +155,21 @@ func second(k int, n *Node) *Node { return n.Left }
 
 func third(n *Node) *Node { return second(0, n) }
 
+func bump(n *Node) *Node {
+	n.V++
+	return n
+}
+
 func main() {
 	n := mk()
 	t := third(n)
 	_ = t.V + n.V
 	_ = second(1, n) == nil
+	b := bump(n)
+	if b != nil {
+		b.V++
+	}
+	_ = n.V
 }
 `
 	pkg, err := load.Source("/p", "main.go", src, "go1.25")
@@ -161,6 +185,11 @@ func main() {
 	second := pkg.Types.Scope().Lookup("second").(*types.Func)
 	if v := p.RetBorrow(second); v == nil || v.Name() != "n" {
 		t.Errorf("RetBorrow(second) = %v, want n", v)
+	}
+	for v := range p.refs {
+		if v.Name() == "b" && (!p.LocalRef(v) || p.RefCall(v) == nil || p.RefSource(v).Name() != "n") {
+			t.Errorf("b := bump(n): LocalRef = %v, RefSource = %v", p.LocalRef(v), p.RefSource(v))
+		}
 	}
 	lit := strings.Replace(src, "func main() {\n", "func main() {\n\tf := func(n *Node) *Node { return n.Left }\n\t_ = f\n", 1)
 	pkg, err = load.Source("/p", "main.go", lit, "go1.25")

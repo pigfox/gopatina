@@ -22,22 +22,24 @@ import (
 // changed through in the function: the input whose borrow is returned.
 func (p *PtrPlan) retBorrows() {
 	p.retBorrow = map[*types.Func]*types.Var{}
+	p.retMut = map[*types.Func]bool{}
 	for changed := true; changed; {
-		// to a fixed point: return second(n) lends n back once second does
-		changed = false
-		for fn, v := range p.retBorrowsOf() {
-			if p.retBorrow[fn] == nil {
-				p.retBorrow[fn] = v
-				changed = true
-			}
+		// to a fixed point: return second(n) lends n back once second
+		// does, and lends it exclusively only if second does
+		found, mut := p.retBorrowsOf()
+		changed = len(found) != len(p.retBorrow) || len(mut) != len(p.retMut)
+		for fn, v := range found {
+			changed = changed || p.retBorrow[fn] != v || p.retMut[fn] != mut[fn]
 		}
+		p.retBorrow, p.retMut = found, mut
 	}
 }
 
-// retBorrowsOf finds the functions that return a borrow of an input, the
-// ones found so far taken as doing so.
-func (p *PtrPlan) retBorrowsOf() map[*types.Func]*types.Var {
-	found := map[*types.Func]*types.Var{}
+// retBorrowsOf finds the functions that return a borrow of an input, and
+// those lending it back exclusively, the ones found so far taken as doing
+// so.
+func (p *PtrPlan) retBorrowsOf() (found map[*types.Func]*types.Var, exclusive map[*types.Func]bool) {
+	found, exclusive = map[*types.Func]*types.Var{}, map[*types.Func]bool{}
 	info := p.pkg.Info
 	for _, f := range p.pkg.Files {
 		for _, d := range f.Decls {
@@ -60,23 +62,27 @@ func (p *PtrPlan) retBorrowsOf() map[*types.Func]*types.Var {
 				}
 			}
 			for _, input := range inputs {
-				if p.returnsBorrowOf(fd, input) {
+				if ok, mut := p.returnsBorrowOf(fd, input); ok {
 					found[fn] = input // the emitter names a lifetime where elision would not give it
+					if mut {
+						exclusive[fn] = true
+					}
 					break
 				}
 			}
 		}
 	}
-	return found
+	return found, exclusive
 }
 
 // returnsBorrowOf reports whether every return of fd gives nil or a place
-// rooted at input, at least one of them the latter, and fd only reads
-// through input otherwise: input lends nothing else, so the result is a
-// shared borrow of it.
-func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) bool {
+// rooted at input, at least one of them the latter, and fd otherwise only
+// reads or changes through input, or lends it to a call (ok), and whether
+// it changes through it or lends it on (mut): an exclusive borrow returned.
+func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) (ok, mut bool) {
 	info := p.pkg.Info
-	ok, some := true, false
+	ok = true
+	some := false
 	var stack []ast.Node
 	ast.Inspect(fd.Body, func(n ast.Node) bool {
 		if n == nil {
@@ -101,23 +107,27 @@ func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) bool {
 			some = true
 		case *ast.Ident:
 			if info.Uses[x] == input {
-				ok = ok && p.readOnly(stack)
+				read, changes := p.lendsBack(stack)
+				ok = ok && read
+				mut = mut || changes
 			}
 		}
 		return ok
 	})
-	return ok && some
+	return ok && some, mut
 }
 
-// readOnly reports whether the use of an input on top of stack only reads
-// through it, or lends it back: the place it starts (x.f, x[i], *x) is
-// returned, given to a call that lends it back, compared with nil, or a
-// value read; not written, its address taken, a method called on it, or a
-// pointer kept, nor inside a function literal.
-func (p *PtrPlan) readOnly(stack []ast.Node) bool {
+// lendsBack reports whether the use of an input on top of stack keeps the
+// input lent (ok): the place it starts (x.f, x[i], *x) is returned, given
+// to a call that lends it back, compared with nil, read as a value,
+// written, or lent to a call of the program (whose keeping is checked with
+// the ownership); not its address taken, nor a pointer copied or kept,
+// nor inside a function literal. changes reports a write through it or a
+// lend to a call, which make the borrow returned exclusive.
+func (p *PtrPlan) lendsBack(stack []ast.Node) (ok, changes bool) {
 	info := p.pkg.Info
 	if inFuncLit(stack) {
-		return false
+		return false, false
 	}
 	i := len(stack) - 1
 	place := stack[i].(ast.Expr)
@@ -142,28 +152,36 @@ func (p *PtrPlan) readOnly(stack []ast.Node) bool {
 	pointer := isPointer(info.TypeOf(place))
 	switch q := stack[i].(type) {
 	case *ast.ReturnStmt:
-		return true // checked with the returns
+		return true, false // checked with the returns
 	case *ast.AssignStmt:
 		for _, l := range q.Lhs {
 			if l == place {
-				return false // written
+				return place != stack[len(stack)-1], true // written through, not assigned
 			}
 		}
-		return !pointer
+		return !pointer, false
 	case *ast.IncDecStmt:
-		return false
+		return true, true
 	case *ast.UnaryExpr:
-		return q.Op != token.AND && !pointer
+		return q.Op != token.AND && !pointer, false
 	case *ast.SelectorExpr:
-		return false // a method called on it
+		// A method called on it: lent to the program's method.
+		call, isCall := stack[i-1].(*ast.CallExpr)
+		return isCall && call.Fun == q && p.programFunc(q) != nil, true
 	case *ast.CallExpr:
-		return p.retBorrowCall(q) == place || !pointer && q.Fun != place
+		if p.retBorrowCall(q) == place {
+			return true, p.retMut[p.programFunc(q.Fun)]
+		}
+		if q.Fun != place && p.programFunc(q.Fun) != nil {
+			return true, pointer // lent to the program's function
+		}
+		return !pointer && q.Fun != place, false
 	case *ast.BinaryExpr:
 		if q.Op == token.EQL || q.Op == token.NEQ {
-			return !pointer || info.Types[q.X].IsNil() || info.Types[q.Y].IsNil()
+			return !pointer || info.Types[q.X].IsNil() || info.Types[q.Y].IsNil(), false
 		}
 	}
-	return !pointer
+	return !pointer, false
 }
 
 // placeRoot returns the variable that place e starts from, through field
@@ -188,6 +206,10 @@ func placeRoot(info *types.Info, e ast.Expr) *types.Var {
 
 // PlaceRoot is placeRoot, for the borrow checker.
 func PlaceRoot(info *types.Info, e ast.Expr) *types.Var { return placeRoot(info, e) }
+
+// RetMut reports whether fn changes through the input it lends back
+// (retBorrows): the borrow it returns is exclusive.
+func (p *PtrPlan) RetMut(fn *types.Func) bool { return p.retMut[fn] }
 
 // RetBorrow returns the input whose borrow fn returns (retBorrows), when
 // the result's pointer type is owned, or nil.

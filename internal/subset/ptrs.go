@@ -63,9 +63,13 @@ type PtrPlan struct {
 	// lent to, and refSources the x each borrows (escapes.go).
 	refs       map[*types.Var][]*types.Var
 	refSources map[*types.Var]*types.Var
+	refCalls   map[*types.Var]*ast.CallExpr
 	// retBorrow holds, by function, the input whose borrow it returns
 	// (returns.go).
 	retBorrow map[*types.Func]*types.Var
+	// retMut holds the functions that change through the input they lend
+	// back: an exclusive borrow returned.
+	retMut map[*types.Func]bool
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.
