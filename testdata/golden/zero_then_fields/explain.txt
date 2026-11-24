@@ -1,0 +1,1 @@
+./main.go:24:7: receiver c is an exclusive borrow: Inc changes it, and the caller sees the change

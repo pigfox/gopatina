@@ -296,7 +296,17 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 		var b strings.Builder
 		out := g.out
 		g.out = &b
-		switch {
+		switch n := g.zeroThenFields(list, i); {
+		case n > 0:
+			// var p T; p.f = x: the fields given at once, as clippy asks
+			// (field_reassign_with_default).
+			g.letWithFields(list[i:i+n+1], list[i+n+1:])
+			i += n
+			last = list[i]
+		case i+1 < len(list) && g.fieldStoreNext(list[i], list[i+1]):
+			// var p T; p.f = p.g: every field zero, spelled out, since a
+			// store after T::default() is clippy's field_reassign_with_default.
+			g.letZeroFields(g.zeroStruct(s))
 		case g.errs.Calls[s] != nil:
 			ec := g.errs.Calls[s]
 			g.errCall(s, ec)
@@ -329,6 +339,155 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 		g.commentsBefore(end)
 	}
 	g.lastLine = saved
+}
+
+// zeroThenFields returns how many statements after list[i], a var
+// declaration of one struct variable with no value, assign its fields
+// directly, each a different field, from values that do not read the
+// variable, with no comment between: Rust gives them in the initializer.
+func (g *gen) zeroThenFields(list []ast.Stmt, i int) int {
+	v := g.zeroStruct(list[i])
+	if v == nil {
+		return 0
+	}
+	seen := map[string]bool{}
+	n := 0
+	for j := i + 1; j < len(list); j++ {
+		as, ok := list[j].(*ast.AssignStmt)
+		if !ok || as.Tok != token.ASSIGN || len(as.Lhs) != 1 || len(as.Rhs) != 1 || g.hasLineCommentsBetween(list[j-1].End(), as.Pos()) {
+			break
+		}
+		sel, ok := ast.Unparen(as.Lhs[0]).(*ast.SelectorExpr)
+		if !ok {
+			break
+		}
+		id, ok := ast.Unparen(sel.X).(*ast.Ident)
+		if !ok || g.localVar(id) != v || seen[sel.Sel.Name] || g.mentions(as.Rhs[0], v) {
+			break
+		}
+		seen[sel.Sel.Name] = true
+		n++
+	}
+	return n
+}
+
+// zeroStruct returns the variable s declares, when s is var v T with no
+// value, T a struct of the program held as a plain value, or nil.
+func (g *gen) zeroStruct(s ast.Stmt) *types.Var {
+	d, ok := s.(*ast.DeclStmt)
+	if !ok {
+		return nil
+	}
+	gd := d.Decl.(*ast.GenDecl)
+	if gd.Tok != token.VAR || len(gd.Specs) != 1 {
+		return nil
+	}
+	vs := gd.Specs[0].(*ast.ValueSpec)
+	if len(vs.Names) != 1 || len(vs.Values) != 0 {
+		return nil
+	}
+	v := g.localVar(vs.Names[0])
+	if v == nil || g.cellVar(v) {
+		return nil
+	}
+	if _, ok := v.Type().Underlying().(*types.Struct); !ok {
+		return nil
+	}
+	return v
+}
+
+// fieldStoreNext reports whether s is var v T for a struct (zeroStruct)
+// and next assigns a field of v.
+func (g *gen) fieldStoreNext(s, next ast.Stmt) bool {
+	v := g.zeroStruct(s)
+	as, ok := next.(*ast.AssignStmt)
+	if v == nil || !ok {
+		return false
+	}
+	for _, l := range as.Lhs {
+		if sel, ok := ast.Unparen(l).(*ast.SelectorExpr); ok {
+			if id, ok := ast.Unparen(sel.X).(*ast.Ident); ok && g.localVar(id) == v {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// letZeroFields declares v, a struct, with every field's zero value.
+func (g *gen) letZeroFields(v *types.Var) {
+	st := v.Type().Underlying().(*types.Struct)
+	lit := &structLit{name: g.rustType(v.Type())}
+	for i := 0; i < st.NumFields(); i++ {
+		lit.fields = append(lit.fields, fieldInit{name: g.fields[st.Field(i)], value: g.zero(st.Field(i).Type())})
+	}
+	g.stmtLine("let "+g.mutPrefix(v)+g.varName(v)+" = ", lit, ";")
+}
+
+// letWithFields writes stmts, var v T and the field assignments after it,
+// as one let with a struct literal; rest are the statements after, which
+// decide whether v is still changed (mut).
+func (g *gen) letWithFields(stmts, rest []ast.Stmt) {
+	v := g.zeroStruct(stmts[0])
+	st := v.Type().Underlying().(*types.Struct)
+	lit := &structLit{name: g.rustType(v.Type())}
+	for _, s := range stmts[1:] {
+		as := s.(*ast.AssignStmt)
+		sel := ast.Unparen(as.Lhs[0]).(*ast.SelectorExpr)
+		lit.fields = append(lit.fields, fieldInit{name: g.fields[g.info.Selections[sel].Obj().(*types.Var)], value: g.owned(as.Rhs[0])})
+	}
+	if len(lit.fields) < st.NumFields() {
+		lit.base = "Default::default()"
+	}
+	mut := ""
+	for _, s := range rest {
+		if g.changes(s, v) {
+			mut = "mut "
+			break
+		}
+	}
+	g.stmtLine("let "+mut+g.varName(v)+" = ", lit, ";")
+}
+
+// changes reports whether s may change v: assigns or increments a place
+// rooted at v, takes its address, or calls a method that changes it.
+func (g *gen) changes(s ast.Node, v *types.Var) bool {
+	rooted := func(e ast.Expr) bool {
+		for {
+			switch x := ast.Unparen(e).(type) {
+			case *ast.Ident:
+				return g.localVar(x) == v
+			case *ast.SelectorExpr:
+				e = x.X
+			case *ast.IndexExpr:
+				e = x.X
+			default:
+				return false
+			}
+		}
+	}
+	found := false
+	ast.Inspect(s, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.AssignStmt:
+			for _, l := range x.Lhs {
+				found = found || rooted(l)
+			}
+		case *ast.IncDecStmt:
+			found = found || rooted(x.X)
+		case *ast.UnaryExpr:
+			found = found || x.Op == token.AND && rooted(x.X)
+		case *ast.CallExpr:
+			// A method that changes its receiver: an exclusive borrow.
+			if sel, ok := ast.Unparen(x.Fun).(*ast.SelectorExpr); ok && rooted(sel.X) {
+				if fn := g.programFunc(x); fn != nil && fn.Recv != nil && fn.Recv.Mode == borrow.RefMut {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 func isReturn(s ast.Stmt) bool {
