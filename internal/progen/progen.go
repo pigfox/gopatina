@@ -806,8 +806,8 @@ func (g *gen) expr(depth int, local bool) string {
 }
 
 // panicking writes the panic case's failing statement, chosen at random;
-// one choice in eight panics nowhere. Values are computed at run time (z is
-// 0 but not a constant), so the Go compiler cannot reject them.
+// one choice in twenty-seven panics nowhere. Values are computed at run
+// time (z is 0 but not a constant), so the Go compiler cannot reject them.
 func (g *gen) panicking() {
 	g.line("z := %s - %s", g.vars[0], g.vars[0])
 	k := g.r.IntN(5)
@@ -832,13 +832,19 @@ func (g *gen) panicking() {
 	case 7:
 		g.cube("2097153 + z", "bool")
 	default:
-		if g.qr.IntN(2) == 0 {
+		switch g.qr.IntN(3) {
+		case 0:
 			// A nil pointer dereferenced (RFC 0013).
 			g.line("var ptrZ *Nd%d", g.k)
 			g.line("fmt.Println(z, ptrZ.V)")
-			return
+		case 1:
+			// A nil owned pointer (RFC 0016) read before a call that
+			// prints, which gc makes first.
+			g.line("var trZ *Tr%d", g.k)
+			g.line("fmt.Println(z, trZ.V+trSay%d(\"before the panic\"))", g.k)
+		default:
+			g.line("fmt.Println(z)")
 		}
-		g.line("fmt.Println(z)")
 	}
 }
 
@@ -966,6 +972,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\ntype Ch%d struct {\n\tV int\n\tN *Ch%d\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc chain%d(n int) *Ch%d {\n\tif n == 0 {\n\t\treturn nil\n\t}\n\treturn &Ch%d{V: n, N: chain%d(n - 1)}\n}\n", k, k, k, k)
 	fmt.Fprintf(b, "\nfunc chLen%d(c *Ch%d) int {\n\tif c == nil {\n\t\treturn 0\n\t}\n\treturn c.V %% 3 + chLen%d(c.N)\n}\n", k, k, k)
+	// A call that prints, beside a read through a nil owned pointer: gc
+	// makes the call first (panicking).
+	fmt.Fprintf(b, "\nfunc trSay%d(s string) int {\n\tfmt.Println(\"say\", s)\n\treturn len(s)\n}\n", k)
 	fmt.Fprintf(b, "\nfunc fill%d(s []int, x int) {\n\tfor i := range s {\n\t\ts[i] = s[i]%sx + i\n\t}\n}\n", k, op())
 }
 
