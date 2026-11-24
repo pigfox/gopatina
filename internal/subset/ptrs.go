@@ -39,8 +39,10 @@ type PtrPlan struct {
 	// nonNil holds the owned pointers that are never nil (RFC 0017,
 	// step 2), computed on first use.
 	nonNil *nonNilPlan
-	// ownerErrs are the uses of owned pointers refused (RFC 0017).
+	// ownerErrs are the uses of owned pointers refused (RFC 0017), and
+	// chained the element types moved into fields (Chained).
 	ownerErrs []ownerError
+	chained   []types.Type
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.

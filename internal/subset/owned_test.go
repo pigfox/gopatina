@@ -96,6 +96,11 @@ func main() {
 	w.Name += "x"
 	w.Left.V--
 	(w.Left).V = 1
+	w.Left = bottomUp(0)
+	x := bottomUp(1)
+	w.Right = x
+	var y = bottomUp(1)
+	w.Left = y
 	set(w, 3)
 	set(w.Left, w.Right.V)
 	w.rename("w")
@@ -106,6 +111,13 @@ func main() {
 	if !p.Owned(node) {
 		pos, why, _ := p.SharedReason(node)
 		t.Fatalf("*Node is shared (%v: %s), want owned", pos, why)
+	}
+	elem := node.(*types.Pointer).Elem()
+	if !p.Chained(elem) {
+		t.Error("*Node moved into a field: not Chained")
+	}
+	if p, node := ownedOf(t, tree); p.Chained(node.(*types.Pointer).Elem()) {
+		t.Error("binary-trees' Node, built only by new nested pointers: Chained")
 	}
 }
 
@@ -134,7 +146,6 @@ func TestOwnedShared(t *testing.T) {
 	}{
 		{"copy", "", "a := bottomUp(1)\n\tb := a\n\t_ = b", "a copy of it is kept"},
 		{"return a place", "func id(n *Node) *Node { return n }", "_ = id(bottomUp(1))", "a copy of it is kept"},
-		{"written field", "", "a := bottomUp(1)\n\ta.Left = bottomUp(0)", "written through"},
 		{"parameter assigned a variable", "func swap(n *Node, m *Node) int { n = m; return n.V }", "_ = swap(bottomUp(1), bottomUp(1))", "a copy of it is kept"},
 		{"address of a field", "", "a := bottomUp(1)\n\tq := &a.V\n\t*q = 1", "written through"},
 		{"compared", "", "a, b := bottomUp(1), bottomUp(1)\n\t_ = a == b", "compared with another pointer"},
@@ -152,6 +163,7 @@ func TestOwnedShared(t *testing.T) {
 		{"fresh compared", "", "_ = bottomUp(1) == nil", "a new pointer is stored"},
 		{"function value", "", "f := bottomUp\n\t_ = f(1).V", "computed in a way that may share it"},
 		{"lent to a non-program function", "", "fmt.Sprint(bottomUp(1).V, bottomUp(1))", "a new pointer is stored"},
+		{"field of a call's result", "", "bottomUp(1).Left = bottomUp(0)", "written through"},
 		{"lent to a variadic", "func many(ns ...*Node) {}", "many(bottomUp(1))", "a slice"},
 		{"field of another type", "type Other struct{ Items []int }\n\nfunc mk() *Other { return &Other{} }", "_ = mk()", ""},
 	} {

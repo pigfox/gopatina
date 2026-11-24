@@ -5,7 +5,8 @@
   in small steps, each its own pull request: step 1, owned pointers as
   plain `Option<Box<T>>` (#133); step 2, pointers never nil as `Box<T>`,
   `&T` and `&self`, and `if let Some` (#136); step 3, changes through an
-  owned pointer as `&mut T`, `Option<&mut T>` and `&mut self`
+  owned pointer as `&mut T`, `Option<&mut T>` and `&mut self`; step 4,
+  moves of local variables, with the use-after-move error
   (docs/patina-subset.md)
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23

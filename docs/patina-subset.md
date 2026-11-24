@@ -368,8 +368,24 @@ the line, why, and the rewrite:
   the caller's object, which a new object cannot replace; a new local
   variable can.
 
-Storing a pointer into a field (`p.next = q`) still makes the type
-shared: that is a move, a later step.
+**Moves** ([RFC 0017](rfcs/0017-one-owner.md), step 4). An owned
+pointer held in a local variable moves to a new owner when it is assigned
+to another variable (`b := a`, `b = a`, `var b = a`), to a field
+(`x.next = head`), or given to a new pointer's literal
+(`&T{next: head}`). From there its old name is dead: using it is an
+error that names the line it moved on, until the variable is assigned
+again. A field may also be assigned a new pointer
+(`t.next = &T{...}`), which frees the old one. In Rust these are plain
+moves (`x.next = head;`, `head = Some(x);`). A struct type whose
+pointers are moved into its fields can form a chain longer than any call
+depth, so it gets the `Drop` a Rust programmer writes for a linked list:
+the links taken out one at a time in a loop (with a stack of links for
+two or more such fields), and its literals name every field, since a type
+with a `Drop` has no `..Default::default()`.
+
+Moving a pointer out of a field, an element or a parameter (`x :=
+t.left`, keeping a parameter) still makes the type shared: those are
+later steps.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

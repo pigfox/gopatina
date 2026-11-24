@@ -982,6 +982,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc trPair%d(v int) *Tr%d {\n\tp := &Tr%d{V: v, L: mkTr%d(0, v), R: &Tr%d{V: v + 1}}\n\treturn p\n}\n", k, k, k, k, k)
 	fmt.Fprintf(b, "\ntype Ch%d struct {\n\tV int\n\tN *Ch%d\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc chain%d(n int) *Ch%d {\n\tif n == 0 {\n\t\treturn nil\n\t}\n\treturn &Ch%d{V: n, N: chain%d(n - 1)}\n}\n", k, k, k, k)
+	// Moves (RFC 0017, step 4): a chain built in a loop, each new link
+	// taking the chain, so Ch frees its links in a loop too.
+	fmt.Fprintf(b, "\nfunc chPush%d(n int) *Ch%d {\n\tvar h *Ch%d\n\tfor i := 0; i < n; i++ {\n\t\tx := &Ch%d{V: i}\n\t\tx.N = h\n\t\th = x\n\t}\n\treturn h\n}\n", k, k, k, k)
 	fmt.Fprintf(b, "\nfunc chLen%d(c *Ch%d) int {\n\tif c == nil {\n\t\treturn 0\n\t}\n\treturn c.V %% 3 + chLen%d(c.N)\n}\n", k, k, k)
 	// A call that prints, beside a read through a nil owned pointer: gc
 	// makes the call first (panicking).
@@ -1044,6 +1047,10 @@ func (g *gen) ptrUses() {
 	g.line("fmt.Println(trT.Sum(), trDepth%d(trT), trT.S, trT.L.V, trT.R == nil, nil != trT.L.L, len(trT.R.S))", k)
 	g.line("trT = mkTr%d(0, %s)", k, v())
 	g.line("fmt.Println(trT.Sum(), trT.L == nil, chLen%d(chain%d(%d)))", k, k, 1100+g.qr.IntN(900))
+	g.line("chA := chPush%d(%d)", k, 1+g.qr.IntN(3000))
+	g.line("chB := chA")
+	g.line("chC := &Ch%d{V: %s, N: chB}", k, v())
+	g.line("fmt.Println(chLen%d(chC), chC.V, chC.N.V)", k)
 	g.line("trP := trPair%d(%s)", k, v())
 	g.line("trP.Bump(%s)", v())
 	g.line("trP.R.Bump(%s)", v())

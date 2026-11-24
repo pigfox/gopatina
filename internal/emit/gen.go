@@ -568,7 +568,69 @@ func (g *gen) typeDecl(d *ast.GenDecl, s *ast.TypeSpec) {
 		g.ind--
 		g.line("}")
 	}
+	g.chainDrop(obj, st)
 	g.methods(obj)
+}
+
+// dropFields returns the fields of struct type obj that own another
+// value of obj's own type, when such chains can be built in a loop
+// (subset.PtrPlan.Chained): freeing one must not recurse per link.
+func (g *gen) dropFields(obj *types.TypeName) []*types.Var {
+	if g.ptrs == nil || !g.ownPtr(types.NewPointer(obj.Type())) || !g.ptrs.Chained(obj.Type()) {
+		return nil
+	}
+	st := obj.Type().Underlying().(*types.Struct)
+	var out []*types.Var
+	for i := 0; i < st.NumFields(); i++ {
+		if p, ok := types.Unalias(st.Field(i).Type()).(*types.Pointer); ok && types.Identical(p.Elem(), obj.Type()) {
+			out = append(out, st.Field(i))
+		}
+	}
+	return out
+}
+
+// chainDrop writes, for a struct type whose chains can be longer than any
+// call depth, the Drop a Rust programmer writes for a linked list: the
+// links taken out one at a time in a loop, not freed one call deeper
+// each, which would overflow the stack.
+func (g *gen) chainDrop(obj *types.TypeName, st *types.Struct) {
+	fs := g.dropFields(obj)
+	if len(fs) == 0 {
+		return
+	}
+	name := g.types[obj]
+	g.line("")
+	g.line("/// Frees a chain one link at a time, so a long one cannot overflow")
+	g.line("/// the stack.")
+	g.line("impl Drop for " + name + " {")
+	g.ind++
+	g.line("fn drop(&mut self) {")
+	g.ind++
+	if len(fs) == 1 {
+		f := g.fields[fs[0]]
+		g.line("let mut next = self." + f + ".take();")
+		g.line("while let Some(mut link) = next {")
+		g.ind++
+		g.line("next = link." + f + ".take();")
+		g.ind--
+		g.line("}")
+	} else {
+		g.line("let mut links: Vec<Box<" + name + ">> = Vec::new();")
+		for _, f := range fs {
+			g.line("links.extend(self." + g.fields[f] + ".take());")
+		}
+		g.line("while let Some(mut link) = links.pop() {")
+		g.ind++
+		for _, f := range fs {
+			g.line("links.extend(link." + g.fields[f] + ".take());")
+		}
+		g.ind--
+		g.line("}")
+	}
+	g.ind--
+	g.line("}")
+	g.ind--
+	g.line("}")
 }
 
 // A fieldLine is a struct field with a trailing comment, and its doc

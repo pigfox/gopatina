@@ -322,6 +322,10 @@ func (g *gen) owned(e ast.Expr) node {
 	if g.boxedExpr(e) {
 		return g.box(e)
 	}
+	if x := ast.Unparen(e); g.ownPtr(g.typeOf(x)) && !g.raw[x] && !g.boxSlot[x] && g.ptrRep(x) == repBox {
+		// A pointer never nil moved where an Option<Box<T>> holds it.
+		return &call{head: "Some", open: "(", close: ")", args: []node{g.rawPtr(x)}}
+	}
 	if name, ok := g.temps[ast.Unparen(e)]; ok {
 		return text(name)
 	}
@@ -866,6 +870,16 @@ func (g *gen) compositeOf(e *ast.CompositeLit, t types.Type) node {
 		lit.fields = append(lit.fields, fieldInit{name: g.fields[u.Field(idx)], value: g.owned(val)})
 	}
 	if len(set) < u.NumFields() {
+		if n, ok := types.Unalias(t).(*types.Named); ok && len(g.dropFields(n.Obj())) > 0 {
+			// A type with a Drop has no ..Default::default() (E0509):
+			// every field, the others zero.
+			for j := 0; j < u.NumFields(); j++ {
+				if !set[j] {
+					lit.fields = append(lit.fields, fieldInit{name: g.fields[u.Field(j)], value: g.zero(u.Field(j).Type())})
+				}
+			}
+			return lit
+		}
 		lit.base = "Default::default()"
 	}
 	return lit

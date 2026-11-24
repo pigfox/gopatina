@@ -5,7 +5,7 @@
 ./main.go:15:7: receiver s is a shared borrow: Pop only reads it
 ./main.go:21:7: receiver s is a shared borrow: Len only reads it
 ./main.go:23:7: receiver s is a shared borrow: Name only reads it
-./main.go:27:6: pointers of type *Tree are shared: it is written through (line 37) (RFC 0016)
+./main.go:27:6: pointers of type *Tree are shared: a copy of it is kept (line 41) (RFC 0016)
 ./main.go:28:2: Tree.Left can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:28:8: Tree.Right can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:32:13: parameter t is owned: insert keeps it
