@@ -12,3 +12,16 @@ pub(crate) fn new() -> i64 {
 pub(crate) fn string() -> i64 {
     42
 }
+
+/// trace prints as a package-level variable initializes.
+pub(crate) fn trace(s: &str) -> i64 {
+    println!("init var {}", s);
+    s.len() as i64
+}
+
+pub(crate) static REGISTERED: std::sync::LazyLock<i64> =
+    std::sync::LazyLock::new(|| trace("registered"));
+
+pub(crate) fn init_vars() {
+    std::sync::LazyLock::force(&REGISTERED);
+}

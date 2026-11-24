@@ -39,6 +39,7 @@ mod z_1;
 
 fn main() {
     rt::exit_on_panic();
+    crate::c_0::init_vars();
     crate::c_0::init1();
     crate::z_1::init2();
     crate::a_2::init3();

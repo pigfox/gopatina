@@ -369,6 +369,12 @@ func reach(pkgs []*Package, main *Package, info *types.Info) (map[ast.Node]bool,
 							for _, n := range s.Names {
 								decl[info.Defs[n]] = s
 							}
+							if mayAct(info, s) {
+								// Go initializes every package-level variable,
+								// used or not: one whose initializer can do
+								// something (call a function, panic) is kept.
+								work = append(work, s)
+							}
 						}
 					}
 				}
@@ -403,8 +409,9 @@ func reach(pkgs []*Package, main *Package, info *types.Info) (map[ast.Node]bool,
 			}
 			return true
 		})
-		if fd, ok := n.(*ast.FuncDecl); ok {
-			keep[fd] = true
+		switch n.(type) {
+		case *ast.FuncDecl, *ast.ValueSpec:
+			keep[n] = true // a root: an init function, or a variable whose initializer acts
 		}
 	}
 	return keep, via
@@ -524,3 +531,47 @@ func checkWith(dir, cwd, path, goVersion string, srcs map[string][]byte, fset *t
 	}
 	return pkg, nil
 }
+
+// mayAct reports whether initializing the variables of spec s can do
+// something a program can observe: call a function (not a conversion or a
+// builtin that cannot fail), or panic (index, slice, divide, assert,
+// dereference, receive). A spec whose initializers can do neither is
+// translated only if the program uses it, since leaving it out changes
+// nothing.
+func mayAct(info *types.Info, s *ast.ValueSpec) bool {
+	act := false
+	for _, v := range s.Values {
+		ast.Inspect(v, func(n ast.Node) bool {
+			switch x := n.(type) {
+			case *ast.FuncLit:
+				return false // its body runs only when it is called
+			case *ast.CallExpr:
+				if tv := info.Types[x.Fun]; tv.IsType() {
+					return true // a conversion
+				}
+				if id, ok := ast.Unparen(x.Fun).(*ast.Ident); ok {
+					if b, ok := info.Uses[id].(*types.Builtin); ok && pureBuiltins[b.Name()] {
+						return true
+					}
+				}
+				act = true
+			case *ast.IndexExpr, *ast.SliceExpr, *ast.TypeAssertExpr, *ast.StarExpr:
+				act = true
+			case *ast.BinaryExpr:
+				if (x.Op == token.QUO || x.Op == token.REM) && info.Types[x].Value == nil {
+					act = true // a division that is not constant
+				}
+			case *ast.UnaryExpr:
+				if x.Op == token.ARROW {
+					act = true
+				}
+			}
+			return !act
+		})
+	}
+	return act
+}
+
+// pureBuiltins are the builtins that cannot panic or do anything else a
+// program can observe.
+var pureBuiltins = map[string]bool{"len": true, "cap": true, "complex": true, "real": true, "imag": true, "min": true, "max": true}

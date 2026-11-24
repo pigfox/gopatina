@@ -31,7 +31,7 @@ func TestProgram(t *testing.T) {
 		"main.go": "package main\n\nimport (\n\t\"fmt\"\n\n\t\"example.com/p/a\"\n\t\"example.com/p/c\"\n)\n\nfunc main() { fmt.Println(a.F(), c.K) }\n",
 		"a/a.go":  "package a\n\nimport (\n\t\"math/bits\"\n\n\t\"example.com/p/z\"\n)\n\ntype T int\n\nfunc (t T) String() string { return \"t\" }\n\nfunc (t *T) Error() string { return \"e\" }\n\nfunc (t T) Other() int { return 1 }\n\nvar V = 1\n\nconst C, D = 1, 2\n\nfunc F() T {\n\tx := T(z.G() + bits.OnesCount(1))\n\t_ = x.Other()\n\treturn x\n}\n\nfunc Unused() {}\n\nfunc init() {}\n",
 		"c/c.go":  "package c\n\nimport \"example.com/p/z\"\n\nconst K = z.N\n",
-		"z/z.go":  "package z\n\nimport \"fmt\"\n\nconst N = 3\n\nfunc G() int { return len(fmt.Sprint(2)) }\n",
+		"z/z.go":  "package z\n\nimport \"fmt\"\n\nconst N = 3\n\nfunc G() int { return len(fmt.Sprint(2)) }\n\nvar Acts = G()\n",
 	})
 	pkg, err := Dir(dir, dir)
 	if err != nil {
@@ -59,11 +59,12 @@ func TestProgram(t *testing.T) {
 			decls = append(decls, fmt.Sprintf("%s:%d:%d", rel, pos.Line, pos.Column))
 		}
 	}
-	// math/bits keeps nothing (OnesCount is an intrinsic); z keeps N and G;
+	// math/bits keeps nothing (OnesCount is an intrinsic); z keeps N and G,
+	// and Acts, which nothing uses but whose initializer calls G;
 	// a keeps T, String and Error (fmt may call them), Other (F calls it),
 	// F and init, not V, C, D or Unused; c keeps K.
 	got := strings.Join(decls, " ")
-	want := "z/z.go:5:1 z/z.go:7:1 c/c.go:5:1 a/a.go:9:1 a/a.go:11:1 a/a.go:13:1 a/a.go:15:1 a/a.go:21:1 a/a.go:29:1 main.go:3:1 main.go:10:1"
+	want := "z/z.go:5:1 z/z.go:7:1 z/z.go:9:1 c/c.go:5:1 a/a.go:9:1 a/a.go:11:1 a/a.go:13:1 a/a.go:15:1 a/a.go:21:1 a/a.go:29:1 main.go:3:1 main.go:10:1"
 	if got != want {
 		t.Errorf("declarations %s, want %s", got, want)
 	}
