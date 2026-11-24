@@ -1,0 +1,4 @@
+./main.go:22:14: a method expression is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
+./main.go:22:14: calling a function value is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports
