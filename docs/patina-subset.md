@@ -316,6 +316,32 @@ through it is `n.unwrap().f`, through a variable or field
 message. Such a tree can only be built by nested new pointers, so a chain
 is never deeper than the calls that built it, and Rust's own drop frees
 it.
+
+**Pointers never nil** ([RFC 0017](rfcs/0017-one-owner.md), step 2).
+Where the program shows that an owned pointer is never `nil`, it is held
+without the `Option`, as Rust writes it:
+
+- a function whose every `return` is a new pointer (`&T{...}`, `new(T)`,
+  a call of such a function, or a local variable holding one) returns a
+  `Box<T>`, and `Some(...)` wraps it where an `Option` holds it;
+- a local variable declared from such a value, never assigned again and
+  never compared with `nil`, is a `Box<T>`;
+- a parameter or receiver that the function only reads through or lends,
+  never compares with `nil` or assigns, and reads through before anything
+  else it does could be seen (in Go's order: an expression's calls first)
+  is a `&T`, and a method with such a receiver takes `&self`. A caller
+  holding an `Option` unwraps it at the call, which panics exactly where
+  Go's callee would. So every call must pass it with nothing to see after
+  it among the arguments (only constants and variables), or pass a
+  pointer that is itself never `nil`, and never pass `nil` itself.
+
+`if p != nil { ... }`, for an owned pointer `p` that may be `nil` (a
+variable, a parameter or a field of one), is `if let Some(p) =
+p.as_deref() { ... }`, the body reading through the binding;
+`if p != nil && c { ... }` with no `else` nests `if c` inside it (Rust
+1.85, the crates' oldest, has no let chains). The binding is not made
+when the body assigns the variable, returns or stores `p` itself, or
+tests it again.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

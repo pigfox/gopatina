@@ -58,41 +58,43 @@ impl Node {
             + Node::sum(n.unwrap().right.as_deref())
     }
 
-    fn depth(n: Option<&Node>) -> i64 {
-        if n.unwrap().left.is_none() && n.unwrap().right.is_none() {
+    fn depth(&self) -> i64 {
+        if self.left.is_none() && self.right.is_none() {
             return 1;
         }
         let mut d: i64 = 0;
-        if n.unwrap().left.is_some() {
-            d = Node::depth(n.unwrap().left.as_deref());
+        if let Some(left) = self.left.as_deref() {
+            d = left.depth();
         }
-        if n.unwrap().right.is_some() && Node::depth(n.unwrap().right.as_deref()) > d {
-            d = Node::depth(n.unwrap().right.as_deref());
+        if let Some(right) = self.right.as_deref() {
+            if right.depth() > d {
+                d = right.depth();
+            }
         }
         d + 1
     }
 }
 
-fn build(depth: i64, key: i64, tags: &[rt::Ptr<Tag>]) -> Option<Box<Node>> {
+fn build(depth: i64, key: i64, tags: &[rt::Ptr<Tag>]) -> Box<Node> {
     if depth == 0 {
-        return Some(Box::new(Node {
+        return Box::new(Node {
             key,
             name: format!("leaf{}", key),
             tag: tags[(key % 2) as usize].clone(),
             ..Default::default()
-        }));
+        });
     }
-    Some(Box::new(Node {
-        left: build(depth - 1, 2 * key, tags),
-        right: build(depth - 1, 2 * key + 1, tags),
+    Box::new(Node {
+        left: Some(build(depth - 1, 2 * key, tags)),
+        right: Some(build(depth - 1, 2 * key + 1, tags)),
         key,
         name: String::from("inner"),
         ..Default::default()
-    }))
+    })
 }
 
-fn pair(a: i64, b: i64) -> Option<Box<Node>> {
-    Some(Box::new(Node {
+fn pair(a: i64, b: i64) -> Box<Node> {
+    Box::new(Node {
         left: Some(Box::new(Node {
             key: a,
             ..Default::default()
@@ -104,21 +106,21 @@ fn pair(a: i64, b: i64) -> Option<Box<Node>> {
         key: a + b,
         name: String::from("pair"),
         tag: rt::Ptr::nil(),
-    }))
+    })
 }
 
-fn leftmost(n: Option<&Node>) -> String {
-    if n.unwrap().left.is_none() {
-        return n.unwrap().name.clone();
+fn leftmost(n: &Node) -> String {
+    if n.left.is_none() {
+        return n.name.clone();
     }
-    leftmost(n.unwrap().left.as_deref())
+    leftmost(n.left.as_ref().unwrap())
 }
 
-fn label(n: Option<&Node>) -> String {
-    if n.unwrap().tag.is_nil() {
+fn label(n: &Node) -> String {
+    if n.tag.is_nil() {
         return String::from("none");
     }
-    n.unwrap().tag.with(|v| v.label.clone())
+    n.tag.with(|v| v.label.clone())
 }
 
 /// List is a long chain of owned pointers: dropping it must not need one
@@ -156,16 +158,16 @@ fn main() {
             label: String::from("odd"),
         }),
     ];
-    let mut t = build(3, 1, &tags);
+    let mut t = Some(build(3, 1, &tags));
     println!(
         "{} {} {} {} {}",
         Node::sum(t.as_deref()),
-        Node::depth(t.as_deref()),
-        leftmost(t.as_deref()),
+        t.as_ref().unwrap().depth(),
+        leftmost(t.as_ref().unwrap()),
         t.as_ref().unwrap().key,
         t.as_ref().unwrap().name,
     );
-    let call = label(t.as_deref());
+    let call = label(t.as_ref().unwrap());
     let call_2 = label(
         t.as_ref()
             .unwrap()
@@ -176,7 +178,8 @@ fn main() {
             .as_ref()
             .unwrap()
             .left
-            .as_deref(),
+            .as_ref()
+            .unwrap(),
     );
     let call_3 = label(
         t.as_ref()
@@ -188,7 +191,8 @@ fn main() {
             .as_ref()
             .unwrap()
             .right
-            .as_deref(),
+            .as_ref()
+            .unwrap(),
     );
     println!(
         "{} {} {} {}",
@@ -210,18 +214,18 @@ fn main() {
             .with(|v| v.label.clone()),
     );
     let p = pair(3, 4);
-    let call_4 = Node::sum(p.as_deref());
-    let call_5 = Node::depth(p.as_deref());
-    let call_6 = label(p.as_deref());
+    let call_4 = Node::sum(Some(&*p));
+    let call_5 = p.depth();
+    let call_6 = label(&p);
     println!(
         "{} {} {} {} {}",
         call_4,
-        p.as_ref().unwrap().left.as_ref().unwrap().key,
-        p.as_ref().unwrap().right.as_ref().unwrap().key,
+        p.left.as_ref().unwrap().key,
+        p.right.as_ref().unwrap().key,
         call_5,
         call_6,
     );
-    t = build(1, 5, &tags);
+    t = Some(build(1, 5, &tags));
     println!(
         "{} {} {} {}",
         Node::sum(t.as_deref()),
@@ -233,8 +237,8 @@ fn main() {
     println!("{} {}", Node::sum(empty.as_deref()), empty.is_none());
     println!(
         "{} {}",
-        Node::sum(build(2, 3, &tags).as_deref()),
+        Node::sum(Some(&*build(2, 3, &tags))),
         length(chain(5000).as_deref()),
     );
-    println!("{}", Node::depth(empty.as_deref()));
+    println!("{}", empty.as_ref().unwrap().depth());
 }

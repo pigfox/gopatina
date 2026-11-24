@@ -1,0 +1,10 @@
+./main.go:12:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:36:10: parameter n is a shared borrow: val only reads it
+./main.go:40:12: parameter n is a shared borrow: twice only reads it
+./main.go:48:12: parameter n is a shared borrow: later only reads it
+./main.go:51:12: parameter n is a shared borrow: count only reads it
+./main.go:59:7: receiver n is a shared borrow: sum only reads it
+./main.go:67:11: parameter n is a shared borrow: last only reads it
+./main.go:94:12: parameter n is a shared borrow: again only reads it
+./main.go:104:7: receiver n is a shared borrow: add only reads it
+./main.go:109:11: parameter n is a shared borrow: both only reads it

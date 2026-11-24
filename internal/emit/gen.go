@@ -60,7 +60,14 @@ type gen struct {
 	inCellWrite bool
 	cellName    string
 	temps       map[ast.Expr]string
-	inCellCall  map[*ast.CallExpr]bool
+	// raw are the owned pointers being rendered as they are held, and
+	// boxSlot those stored where a Box<T> is held (RFC 0017, step 2):
+	// value wraps any other Box in Some.
+	raw, boxSlot map[ast.Expr]bool
+	// bound are the owned pointers (by their source text) that an
+	// if let Some(name) binds in the statements being written.
+	bound      map[string]string
+	inCellCall map[*ast.CallExpr]bool
 	// rawCalls are calls of functions lowered to Result being rendered as
 	// the Result (errvals.go).
 	rawCalls map[*ast.CallExpr]bool
@@ -126,6 +133,7 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	g.ptrs = subset.Ptrs(pkg)
 	borrow.SetHeap(g.ptrs.HeapType)
 	g.cellRoot, g.temps = map[ast.Expr]string{}, map[ast.Expr]string{}
+	g.raw, g.boxSlot, g.bound = map[ast.Expr]bool{}, map[ast.Expr]bool{}, map[string]string{}
 	g.inCellCall = map[*ast.CallExpr]bool{}
 	g.gnames, g.initVarsName = map[*types.Var]string{}, map[*types.Package]string{}
 	g.galias, g.callTemps = map[*types.Var]string{}, map[*ast.CallExpr]string{}

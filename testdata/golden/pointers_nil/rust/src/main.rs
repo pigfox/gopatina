@@ -38,8 +38,8 @@ pub struct T {
 }
 
 impl T {
-    pub fn get(t: Option<&T>) -> i64 {
-        t.unwrap().n
+    pub fn get(&self) -> i64 {
+        self.n
     }
 
     pub fn safe(t: Option<&T>) -> i64 {
@@ -55,5 +55,5 @@ fn main() {
     let p: Option<Box<T>> = None;
     println!("{}", T::safe(p.as_deref()));
     println!("before");
-    println!("{}", T::get(p.as_deref()));
+    println!("{}", p.as_ref().unwrap().get());
 }
