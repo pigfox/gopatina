@@ -502,6 +502,9 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	if o.lentToBorrow(par, child) {
 		return // a temporary borrow takes it for a while (RFC 0017, step 5)
 	}
+	if _, taken := o.p.Take(e); taken {
+		return // moved out of its field, which is refilled at once (step 6)
+	}
 	if as, ok := par.(*ast.AssignStmt); ok && as.Tok == token.ASSIGN {
 		for _, l := range as.Lhs {
 			if l == child {

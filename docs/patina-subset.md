@@ -399,9 +399,16 @@ is still in use on line 10". A borrow given another borrow (`end = p`)
 shares what that one borrows, so moving on to the next node is no
 change to the owner.
 
-Moving a pointer out of a field, an element or a parameter (`x :=
-t.left` kept, a parameter kept) still makes the type shared: those are
-later steps.
+**Takes** ([RFC 0017](rfcs/0017-one-owner.md), step 6). A pointer moved
+out of a field into a local variable (`l := t.left`, `l = t.left`, `var
+l = t.left`) whose very next statement in the same block assigns that
+field again (`t.left = nil`, `t.left = &T{...}`) is a take: the variable
+owns the object, and the field never names it meanwhile. Rust writes
+`let l = t.left.take();`, which leaves `None`, so a refill with `nil` is
+already done; another value is stored after it.
+
+Moving a pointer out of an element, or keeping a parameter, still makes
+the type shared: those are later steps.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

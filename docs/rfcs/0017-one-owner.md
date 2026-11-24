@@ -8,7 +8,8 @@
   owned pointer as `&mut T`, `Option<&mut T>` and `&mut self`; step 4,
   moves of local variables, with the use-after-move error; step 5,
   temporary borrows of locals (decision 1), with the change-while-borrowed
-  error (docs/patina-subset.md)
+  error; step 6, takes out of a field refilled at once
+  (docs/patina-subset.md)
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file

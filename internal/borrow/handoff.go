@@ -30,6 +30,10 @@ func (l *live) handOff(ev event, lv set) {
 		return
 	}
 	if subset.Ptrs(a.pkg).Owned(t) {
+		if _, taken := subset.Ptrs(a.pkg).Take(ev.e); taken {
+			a.res.Actions[ev.e] = Move // taken out of a field refilled at once (RFC 0017, step 6)
+			return
+		}
 		l.ownedHandOff(ev, usedLater, next)
 		return
 	}

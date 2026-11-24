@@ -70,6 +70,9 @@ type gen struct {
 	// bound are the owned pointers (by their source text) that an
 	// if let Some(name) binds in the statements being written.
 	bound map[string]boundPtr
+	// skip are statements already written by another: a field set to nil
+	// just after its take.
+	skip map[ast.Stmt]bool
 	// writing is set while a place being assigned is written: the owned
 	// pointers it goes through are reached exclusively (RFC 0017, step 3).
 	writing    bool
@@ -155,6 +158,7 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	borrow.SetHeap(g.ptrs.HeapType)
 	g.cellRoot, g.temps = map[ast.Expr]string{}, map[ast.Expr]string{}
 	g.raw, g.boxSlot, g.bound = map[ast.Expr]bool{}, map[ast.Expr]bool{}, map[string]boundPtr{}
+	g.skip = map[ast.Stmt]bool{}
 	g.inCellCall = map[*ast.CallExpr]bool{}
 	g.gnames, g.initVarsName = map[*types.Var]string{}, map[*types.Package]string{}
 	g.galias, g.callTemps = map[*types.Var]string{}, map[*ast.CallExpr]string{}

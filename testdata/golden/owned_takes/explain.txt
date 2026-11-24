@@ -1,0 +1,2 @@
+./main.go:9:6: pointers of type *Tree are never shared: each has one owner (RFC 0016)
+./main.go:16:11: parameter t is a shared borrow: size only reads it

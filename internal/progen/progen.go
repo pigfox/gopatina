@@ -1070,6 +1070,12 @@ func (g *gen) ptrUses() {
 	g.line("trMaybe%d(trP.L, %s)", k, v())
 	g.line("trMaybe%d(trP.L.L, %s)", k, v())
 	g.line("trP.V %s= trP.R.V", op())
+	// Takes (RFC 0017, step 6): a field moved out and refilled at once.
+	g.line("trL := trP.L")
+	g.line("trP.L = nil")
+	g.line("trR := trP.R")
+	g.line("trP.R = mkTr%d(%d, %s)", k, g.qr.IntN(3), v())
+	g.line("fmt.Println(trL.Sum(), trR.V, trP.L == nil, trDepth%d(trR))", k)
 	g.line("fmt.Println(trP.Leaf(), trP.R.Leaf(), trRight%d(trP, %s), trRight%d(mkTr%d(%d, %s), %s), trDepth%d(trP), trP.Sum())", k, v(), k, k, 1+g.qr.IntN(4), v(), v(), k)
 	// Slices of pointers, and pointers in interfaces (RFC 0013, step 2).
 	g.line("ptrL.Kids = append(ptrL.Kids, ptrA, newNd%d(%s, nil), ptrL.Next)", k, v())

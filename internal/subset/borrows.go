@@ -237,6 +237,9 @@ func (b *borrowFinder) lendable(e ast.Expr, cand map[*types.Var]bool) bool {
 		v := b.localOf(x)
 		return v != nil
 	case *ast.SelectorExpr:
+		if _, taken := b.p.Take(x); taken {
+			return false // taken out of the field: the variable owns it
+		}
 		s := b.info.Selections[x]
 		return s != nil && s.Kind() == types.FieldVal && rootVar(b.info, x) != nil
 	}
