@@ -293,8 +293,8 @@ func (a *nonNilAnalysis) returnsNew(fd *ast.FuncDecl, plan *nonNilPlan) bool {
 // nilCompared reports whether v is compared with nil.
 func (a *nonNilAnalysis) nilCompared(v *types.Var) bool {
 	for _, id := range a.uses[v] {
-		if b, ok := a.above(id).(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
-			return true
+		if b, ok := a.above(id).(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) && (a.info.Types[b.X].IsNil() || a.info.Types[b.Y].IsNil()) {
+			return true // compared with another pointer: by address, not a nil test
 		}
 	}
 	return false
@@ -327,6 +327,13 @@ func (a *nonNilAnalysis) onlyReadThrough(v *types.Var) bool {
 		case *ast.CallExpr:
 			// Lent to a call: of a program function, as any other call
 			// would share v's type (RFC 0016).
+		case *ast.BinaryExpr:
+			// Compared by address with another pointer (std::ptr::eq); a
+			// nil test is no read through it.
+			b := a.above(id).(*ast.BinaryExpr)
+			if a.info.Types[b.X].IsNil() || a.info.Types[b.Y].IsNil() {
+				return false
+			}
 		default:
 			return false
 		}

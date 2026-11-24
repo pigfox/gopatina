@@ -5,9 +5,9 @@ package main
 
 import "fmt"
 
-// Edge and Vertex can point at each other. Compared as pointers, they keep
-// their cells (RFC 0013) for now; under one owner per object such a graph
-// is refused (testdata/reject/owned_graph_cycle).
+// Edge and Vertex can point at each other. Here each Vertex has one owner,
+// the Edge leading to it; a graph whose edges close a cycle is refused
+// (testdata/reject/owned_graph_cycle).
 type Edge struct {
 	To   *Vertex
 	Cost int
@@ -40,6 +40,21 @@ type Start struct{ Head *Chain }
 type Ring struct {
 	V          int
 	Prev, Next *Ring
+	Seen       []int
+	H          *Hand
+}
+
+// Note clears the last value seen, written through the ring's cell.
+func (r *Ring) Note(v int) {
+	r.Seen = append(r.Seen, v)
+	r.Seen[len(r.Seen)-1] = 0
+}
+
+// Hand holds a place on a ring, and the ring node it is at holds it back:
+// Ring.H leads back to a Ring through Hand.At.
+type Hand struct {
+	At *Ring
+	N  int
 }
 
 func ring(n int) *Ring {
@@ -56,9 +71,9 @@ func ring(n int) *Ring {
 func main() {
 	a := &Vertex{Name: "a"}
 	b := &Vertex{Name: "b"}
+	b.Out = append(b.Out, &Edge{To: &Vertex{Name: "c"}, Cost: 3})
 	a.Out = append(a.Out, &Edge{To: b, Cost: 2})
-	b.Out = append(b.Out, &Edge{To: a, Cost: 3})
-	fmt.Println(a.Out[0].To.Name, a.Out[0].To.Out[0].To.Name, a.Out[0].Cost+b.Out[0].Cost, a.Out[0].To == b)
+	fmt.Println(a.Out[0].To.Name, a.Out[0].To.Out[0].To.Name, a.Out[0].Cost+a.Out[0].To.Out[0].Cost, a.Out[0].To == a.Out[0].To.Out[0].To)
 	o := &Outer{N: 1}
 	o.In.Back = o
 	fmt.Println(o.In.Back.In.Back.N, o.In.Back == o)
@@ -73,4 +88,8 @@ func main() {
 		}
 	}
 	fmt.Println(sum)
+	h := &Hand{At: ring(3), N: 1}
+	h.At.H = h
+	h.At.Next.Note(h.N)
+	fmt.Println(h.At.Next.V, len(h.At.Next.Seen), h.At.Next.Seen[0], h.At.Prev.Next == h.At, h.At.H.N)
 }

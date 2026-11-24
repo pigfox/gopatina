@@ -10,6 +10,18 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- Owned pointers compare by address without sharing their type (RFC 0017):
+  `a == b` is `std::ptr::eq(&*a, &*b)` for two never nil,
+  `a.is_some_and(|p| std::ptr::eq(p, b))` where one may be nil, and
+  `a.map(std::ptr::from_ref) == b.map(std::ptr::from_ref)` where both may
+  be, for owners, borrows (parameters, local and returned borrows) and new
+  pointers alike. Until now a comparison with another pointer made the type
+  a shared cell. A parameter compared that way stays a `&T`, and a local
+  compared that way stays a `Box<T>`. Programs that kept a second pointer to
+  an object beside its first, and compared the two, were compiling only
+  because of that comparison; they are now refused as the aliasing they are
+  (reject golden `owned_aliases_compared`).
+
 - A loop condition or `switch` case that reads a variable before a call
   that changes it (`for x+addTo(&x, 1) < 20 { .. }`), refused until now,
   compiles: Rust's `loop { let call = ..; if x + call >= 20 { break; } .. }`

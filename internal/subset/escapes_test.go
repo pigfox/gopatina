@@ -38,7 +38,7 @@ func TestEscapeBoxes(t *testing.T) {
 		{"declared from another value", "func mk() *Node {\n\tn := *bottomUp(1)\n\treturn &n\n}", 0, false},
 		{"one of several names", "func mk() *Node {\n\tvar n, m Node\n\t_ = m.V\n\treturn &n\n}", 0, false},
 		{"a parameter", "func mk(n Node) *Node {\n\treturn &n\n}", 1, true},
-		{"shared for another reason", "func mk() *Node {\n\tn := Node{V: 1}\n\treturn &n\n}\n\nfunc same(a, b *Node) bool { return a == b }", 1, false},
+		{"shared for another reason", "func mk() *Node {\n\tn := Node{V: 1}\n\treturn &n\n}\n\nvar kept *Node\n\nfunc keep(a *Node) { kept = a }", 1, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := strings.Replace(tree, "func main() {\n", tc.decl+"\n\nfunc main() {\n", 1)

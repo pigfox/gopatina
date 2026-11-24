@@ -859,6 +859,10 @@ func (o *ownership) freshUse(el types.Type, e ast.Expr, stack []ast.Node) {
 		if o.boxedLit(stack[:len(stack)-1]) || o.ptrSlice(o.info.TypeOf(p)) || o.ownerStruct(o.info.TypeOf(p)) {
 			return // a field of a new pointer or struct value, or an element of a new Vec (step 9)
 		}
+	case *ast.BinaryExpr:
+		if (p.Op == token.EQL || p.Op == token.NEQ) && !o.info.Types[p.X].IsNil() && !o.info.Types[p.Y].IsNil() {
+			return // compared by address with another pointer: a temporary (std::ptr::eq)
+		}
 	case *ast.CallExpr:
 		if p.Args[0] != child && o.appendedToField(p, stack[:at+1]) {
 			o.chained[el] = true
@@ -930,14 +934,9 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 		return // moved to a new owner; the borrow checker refuses a later use (RFC 0017, step 4)
 	}
 	if b, ok := par.(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
-		other := b.X
-		if other == child {
-			other = b.Y
-		}
-		if o.isNil(other) {
-			return
-		}
-		o.share(el, e.Pos(), "it is compared with another pointer")
+		// Compared with nil, or with another pointer: a read of both
+		// addresses, std::ptr::eq in Rust; two owners are never equal
+		// (RFC 0017).
 		return
 	}
 	o.share(el, e.Pos(), "a copy of it is kept")
@@ -981,13 +980,7 @@ func (o *ownership) borrowUse(el types.Type, e ast.Expr, stack []ast.Node) {
 		return // lent back on: return second(n) in a function lending n
 	}
 	if b, ok := par.(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
-		other := b.X
-		if other == child {
-			other = b.Y
-		}
-		if o.isNil(other) {
-			return
-		}
+		return // compared: a read of its address (std::ptr::eq)
 	}
 	o.share(el, e.Pos(), "a borrow a call returns is kept")
 }
@@ -1287,14 +1280,4 @@ func (o *ownership) input(e ast.Expr) bool {
 	}
 	v, _ := o.info.Uses[id].(*types.Var)
 	return o.inputs[v]
-}
-
-// isNil reports whether e is the predeclared nil.
-func (o *ownership) isNil(e ast.Expr) bool {
-	id, ok := ast.Unparen(e).(*ast.Ident)
-	if !ok {
-		return false
-	}
-	_, isNil := o.info.Uses[id].(*types.Nil)
-	return isNil
 }

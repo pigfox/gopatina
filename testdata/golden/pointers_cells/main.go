@@ -118,9 +118,9 @@ func main() {
 	p.n -= p.n / 4
 	fmt.Println(p.items, p.name, p.n)
 	x := addr(5)
-	y := x
+	y := addr(5)
 	*y += *x
-	fmt.Println(*x, *y, x == y, addr(1) == addr(1))
+	fmt.Println(*x, *y, x == y, addr(1) == addr(1), x == x)
 	a, b := pair()
 	*a, *b = *b, *a
 	fmt.Println(*a, *b)

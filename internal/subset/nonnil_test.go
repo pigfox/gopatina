@@ -264,6 +264,22 @@ func bump(n *Node) *Node { // changed through: lent back exclusively
 	return n
 }
 
+func cmp(a, b *Node) bool { // a read, then compared by address: never nil
+	_ = a.V
+	return a == b
+}
+
+func chk(n *Node) bool { // read, then tested for nil: may be nil
+	_ = n.V
+	return n == nil
+}
+
+func moved(n *Node) int { // read, then moved: kept, so may be nil
+	_ = n.V
+	m := n
+	return m.V
+}
+
 func either(a, b *Node, c bool) *Node { // two inputs returned: not lent back
 	_ = a.V
 	if c {
@@ -275,8 +291,10 @@ func either(a, b *Node, c bool) *Node { // two inputs returned: not lent back
 func main() {
 	n := mk()
 	_ = same(n).V + first(n, mk()).V + bump(mk()).V + either(mk(), mk(), true).V
+	_, _ = cmp(n, n), chk(n)
+	_ = moved(mk())
 }
-`, "bump.n first.a main.n result mk same.n"})
+`, "bump.n cmp.a first.a main.n result mk same.n"})
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if got := nonNilOf(t, c.src); got != c.want {

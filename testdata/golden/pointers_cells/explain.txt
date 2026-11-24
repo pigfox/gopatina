@@ -17,4 +17,3 @@
 ./main.go:79:7: receiver s is owned: Keep keeps it
 ./main.go:82:11: parameter s is a shared borrow: show only reads it
 ./main.go:85:11: parameter s is a shared borrow: both only reads it
-./main.go:121:7: copied x into y: x is used again on line 122; a copy of a pointer points at the same variable, as Go's does (RFC 0013)

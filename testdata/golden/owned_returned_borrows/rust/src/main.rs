@@ -115,6 +115,13 @@ fn bumped(n: &mut Node) -> Option<&mut Node> {
     n.next.as_deref_mut()
 }
 
+/// alike compares two nodes it reads by address: std::ptr::eq on two
+/// borrows.
+fn alike(a: &Node, b: Option<&Node>) -> bool {
+    let _ = a.v + b.unwrap().v;
+    b.is_some_and(|p| std::ptr::eq(p, a))
+}
+
 /// total adds up a list.
 fn total(n: Option<&Node>) -> i64 {
     let mut t: i64 = 0;
@@ -151,6 +158,14 @@ fn main() {
     if second(t.unwrap()).is_some() {
         println!("more after {}", t.unwrap().v);
     }
+    println!(
+        "{} {} {} {} {}",
+        alike(&l, Some(&*l)),
+        alike(&l, Some(&*other)),
+        t.is_some_and(|p| std::ptr::eq(p, &*l)),
+        !t.is_some_and(|p_2| std::ptr::eq(p_2, &*l)),
+        std::ptr::eq(same(&l), same(&l)),
+    );
 
     let mut b = bumped(&mut l); // l is in use only through b until b's last use
     b.as_mut().unwrap().v += 5;

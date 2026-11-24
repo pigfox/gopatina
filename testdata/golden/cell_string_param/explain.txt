@@ -1,4 +1,4 @@
-./main.go:9:14: parameter n is a shared borrow: newName only reads it
-./main.go:11:12: parameter s is owned: label keeps it
-./main.go:11:40: moved s into a new pointer: s is not used afterwards
-./main.go:15:7: copied n into m: n is used again on line 18; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
+./main.go:10:14: parameter n is owned: newName keeps it
+./main.go:10:38: moved n into a new pointer: n is not used afterwards
+./main.go:12:12: parameter s is owned: label keeps it
+./main.go:12:40: moved s into a new pointer: s is not used afterwards

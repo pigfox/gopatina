@@ -32,12 +32,12 @@
 
 mod rt;
 
-/// Edge and Vertex can point at each other. Compared as pointers, they keep
-/// their cells (RFC 0013) for now; under one owner per object such a graph
-/// is refused (testdata/reject/owned_graph_cycle).
+/// Edge and Vertex can point at each other. Here each Vertex has one owner,
+/// the Edge leading to it; a graph whose edges close a cycle is refused
+/// (testdata/reject/owned_graph_cycle).
 #[derive(Clone, Default, PartialEq)]
 pub struct Edge {
-    pub to: rt::Ptr<Vertex>,
+    pub to: Option<Box<Vertex>>,
     pub cost: i64,
 }
 
@@ -87,6 +87,25 @@ pub struct Ring {
     pub v: i64,
     pub prev: rt::Ptr<Ring>,
     pub next: rt::Ptr<Ring>,
+    pub seen: Vec<i64>,
+    pub h: rt::Ptr<Hand>,
+}
+
+impl Ring {
+    /// Note clears the last value seen, written through the ring's cell.
+    pub fn note(r: &rt::Ptr<Ring>, v: i64) {
+        r.with_mut(|v_2| v_2.seen.push(v));
+        let idx = r.with(|v_2| v_2.seen.len() as i64) - 1;
+        r.with_mut(|v_2| v_2.seen[idx as usize] = 0);
+    }
+}
+
+/// Hand holds a place on a ring, and the ring node it is at holds it back:
+/// Ring.H leads back to a Ring through Hand.At.
+#[derive(Clone, Default, PartialEq)]
+pub struct Hand {
+    pub at: rt::Ptr<Ring>,
+    pub n: i64,
 }
 
 fn ring(n: i64) -> rt::Ptr<Ring> {
@@ -103,6 +122,7 @@ fn ring(n: i64) -> rt::Ptr<Ring> {
             v: i,
             prev: first.with(|v| v.prev.clone()),
             next: first.clone(),
+            ..Default::default()
         });
         let val_3 = r.clone();
         let ptr = first.with(|v| v.prev.clone());
@@ -115,40 +135,59 @@ fn ring(n: i64) -> rt::Ptr<Ring> {
 
 fn main() {
     rt::exit_on_panic();
-    let a = rt::Ptr::new(Vertex {
+    let mut a = Box::new(Vertex {
         name: String::from("a"),
         ..Default::default()
     });
-    let b = rt::Ptr::new(Vertex {
+    let mut b = Box::new(Vertex {
         name: String::from("b"),
         ..Default::default()
     });
-    let val = Some(Box::new(Edge {
-        to: b.clone(),
-        cost: 2,
-    }));
-    a.with_mut(|v| v.out.push(val));
-    let val_2 = Some(Box::new(Edge {
-        to: a.clone(),
+    b.out.push(Some(Box::new(Edge {
+        to: Some(Box::new(Vertex {
+            name: String::from("c"),
+            ..Default::default()
+        })),
         cost: 3,
-    }));
-    b.with_mut(|v| v.out.push(val_2));
+    })));
+    a.out.push(Some(Box::new(Edge {
+        to: Some(b),
+        cost: 2,
+    })));
     println!(
         "{} {} {} {}",
-        a.with(|v| v.out[0].as_ref().unwrap().to.clone())
-            .with(|v| v.name.clone()),
-        a.with(|v| v.out[0].as_ref().unwrap().to.clone())
-            .with(|v| v.out[0].as_ref().unwrap().to.clone())
-            .with(|v| v.name.clone()),
-        a.with(|v| v.out[0].as_ref().unwrap().cost) + b.with(|v| v.out[0].as_ref().unwrap().cost),
-        a.with(|v| v.out[0].as_ref().unwrap().to.clone()) == b,
+        a.out[0].as_ref().unwrap().to.as_ref().unwrap().name,
+        a.out[0].as_ref().unwrap().to.as_ref().unwrap().out[0]
+            .as_ref()
+            .unwrap()
+            .to
+            .as_ref()
+            .unwrap()
+            .name,
+        a.out[0].as_ref().unwrap().cost
+            + a.out[0].as_ref().unwrap().to.as_ref().unwrap().out[0]
+                .as_ref()
+                .unwrap()
+                .cost,
+        a.out[0]
+            .as_ref()
+            .unwrap()
+            .to
+            .as_deref()
+            .map(std::ptr::from_ref)
+            == a.out[0].as_ref().unwrap().to.as_ref().unwrap().out[0]
+                .as_ref()
+                .unwrap()
+                .to
+                .as_deref()
+                .map(std::ptr::from_ref),
     );
     let o = rt::Ptr::new(Outer {
         n: 1,
         ..Default::default()
     });
-    let val_3 = o.clone();
-    o.with_mut(|v| v.r#in.back = val_3);
+    let val = o.clone();
+    o.with_mut(|v| v.r#in.back = val);
     println!(
         "{} {}",
         o.with(|v| v.r#in.back.clone())
@@ -188,4 +227,29 @@ fn main() {
         }
     }
     println!("{}", sum);
+    let h = rt::Ptr::new(Hand { at: ring(3), n: 1 });
+    let val_2 = h.clone();
+    let ptr = h.with(|v| v.at.clone());
+    ptr.with_mut(|v| v.h = val_2);
+    Ring::note(
+        &h.with(|v| v.at.clone()).with(|v| v.next.clone()),
+        h.with(|v| v.n),
+    );
+    println!(
+        "{} {} {} {} {}",
+        h.with(|v| v.at.clone())
+            .with(|v| v.next.clone())
+            .with(|v| v.v),
+        h.with(|v| v.at.clone())
+            .with(|v| v.next.clone())
+            .with(|v| v.seen.len() as i64),
+        h.with(|v| v.at.clone())
+            .with(|v| v.next.clone())
+            .with(|v| v.seen[0]),
+        h.with(|v| v.at.clone())
+            .with(|v| v.prev.clone())
+            .with(|v| v.next.clone())
+            == h.with(|v| v.at.clone()),
+        h.with(|v| v.at.clone()).with(|v| v.h.clone()).with(|v| v.n),
+    );
 }

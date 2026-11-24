@@ -301,8 +301,8 @@ func (p *PtrPlan) localRefs() {
 					return true
 				}
 			}
-			if b, ok := stack[i].(*ast.BinaryExpr); ok && p.refCalls[v] != nil && (b.Op == token.EQL || b.Op == token.NEQ) && (info.Types[b.X].IsNil() || info.Types[b.Y].IsNil()) {
-				return true // p := f(x) compared with nil: a borrow that may be none
+			if b, ok := stack[i].(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
+				return true // compared, with nil or by address (std::ptr::eq): a read
 			}
 			bad[v] = true // assigned, compared, returned, stored or copied
 			return true

@@ -34,9 +34,8 @@ mod rt;
 
 pub type Name = String;
 
-fn new_name(n: &str) -> rt::Ptr<String> {
-    let n = rt::Ptr::new(n.to_string());
-    n.clone()
+fn new_name(n: String) -> String {
+    n
 }
 
 fn label(s: String) -> String {
@@ -45,17 +44,17 @@ fn label(s: String) -> String {
 
 fn main() {
     rt::exit_on_panic();
-    let n = new_name("go");
-    let m = n.clone();
-    m.with_mut(|v| *v += "pher");
+    let mut n = new_name(String::from("go"));
+    n += "pher";
     let mut l = label(String::from("x"));
-    l = format!("{}{}", l, n.load());
+    l = format!("{}{}", l, n);
+    let k = label(String::from("x"));
     println!(
         "{} {} {} {} {}",
-        n.load(),
-        m.load(),
-        n == m,
+        n,
         l,
+        std::ptr::eq(&l, &k),
+        k,
         l.len() as i64,
     );
 }

@@ -64,6 +64,13 @@ func (n *Node) Me() *Node { return n }
 // Add changes the node through its receiver.
 func (n *Node) Add(v int) { n.V += v }
 
+// alike compares two nodes it reads by address: std::ptr::eq on two
+// borrows.
+func alike(a, b *Node) bool {
+	_ = a.V + b.V
+	return a == b
+}
+
 // total adds up a list.
 func total(n *Node) int {
 	t := 0
@@ -83,6 +90,7 @@ func main() {
 	if second(t) != nil {
 		fmt.Println("more after", t.V)
 	}
+	fmt.Println(alike(l, l), alike(l, other), l == t, t != l, same(l) == same(l))
 
 	b := bumped(l) // l is in use only through b until b's last use
 	b.V += 5
