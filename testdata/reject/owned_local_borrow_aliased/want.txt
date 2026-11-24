@@ -1,0 +1,15 @@
+./main.go:25:17: n is used on line 25 while m, a borrow of it, is still in use on line 26
+    m changes n through its borrow, so n cannot be used until m's last use (RFC 0017)
+    finish with m before n is used, or use n through m
+./main.go:26:17: n is used on line 26 while m, a borrow of it, is still in use on line 26
+    m changes n through its borrow, so n cannot be used until m's last use (RFC 0017)
+    finish with m before n is used, or use n through m
+./main.go:30:2: k is changed on line 30 while cell, a borrow of it, is still in use on line 31
+    cell only borrows k (it is never stored or returned), so k cannot change until cell's last use (RFC 0017)
+    finish with cell before k changes, or read what you need from cell into a variable first
+./main.go:36:17: fresh is used on line 36 while cell2, a borrow of it, is still in use on line 36
+    cell2 changes fresh through its borrow, so fresh cannot be used until cell2's last use (RFC 0017)
+    finish with cell2 before fresh is used, or use fresh through cell2
+./main.go:41:20: c is used on line 41 while pc, a borrow of it, is still in use in the same statement
+    pc changes c through its borrow, and the statement holds that borrow while it reads c (RFC 0017)
+    read c through pc, or copy what you need from pc into a variable first

@@ -132,8 +132,33 @@ fn new_tag(s: &str) -> rt::Ptr<String> {
     t.clone()
 }
 
+/// twice returns a tag and its length.
+fn twice(s: &str) -> (String, i64) {
+    (format!("{}{}", s, s), 2 * s.len() as i64)
+}
+
+/// both returns two tags.
+fn both(s: &str) -> (String, String) {
+    (s.to_string(), format!("{}!", s))
+}
+
 fn main() {
     rt::exit_on_panic();
+    let (kv, mut ke) = twice("a");
+    let kv = rt::Ptr::new(kv);
+    let any_k: Iface = boxed(Dyn::PtrTag(kv.clone())); // an interface holds a *Tag: its pointers are cells
+    let (val, val_2) = twice("b");
+    kv.with_mut(|v| *v = val);
+    ke = val_2;
+    println!("{} {} {}", kv.load(), ke, any_k.is_some());
+    let (val_3, val_4) = twice("c");
+    kv.with_mut(|v| *v = val_3);
+    let kf = val_4; // kv an existing cell, kf new
+    let (val_5, val_6) = both("d");
+    kv.with_mut(|v| *v = val_5);
+    let kw: rt::Ptr<String> = rt::Ptr::new(val_6); // kw new, and a cell too
+    let any_w: Iface = boxed(Dyn::PtrTag(kw.clone()));
+    println!("{} {} {} {}", kv.load(), kf, kw.load(), any_w.is_some());
     let ta = new_tag("ab");
     let held: Iface = boxed(Dyn::PtrTag(new_tag("in an interface")));
     ta.with_mut(|v| *v += "c");
@@ -162,15 +187,15 @@ fn main() {
         v.items.push(8);
     });
     p.with_mut(|v| v.name += "ab");
-    let val = format!(
+    let val_7 = format!(
         "{}{}",
         p.with(|v| v.name.clone()),
         p.with(|v| v.name.clone()),
     );
-    p.with_mut(|v| v.name = val);
+    p.with_mut(|v| v.name = val_7);
     p.with_mut(|v| v.n *= 3);
-    let val_2 = p.with(|v| v.n) / 4;
-    p.with_mut(|v| v.n -= val_2);
+    let val_8 = p.with(|v| v.n) / 4;
+    p.with_mut(|v| v.n -= val_8);
     println!(
         "{} {} {}",
         rt::Slice(&p.with(|v| v.items.clone())),
@@ -179,8 +204,8 @@ fn main() {
     );
     let x = addr(5.0);
     let y = x.clone();
-    let val_3 = x.with(|v| *v);
-    y.with_mut(|v| *v += val_3);
+    let val_9 = x.with(|v| *v);
+    y.with_mut(|v| *v += val_9);
     let call_5 = addr(1.0);
     let call_6 = addr(1.0);
     println!(
@@ -191,10 +216,10 @@ fn main() {
         call_5 == call_6,
     );
     let (a, b) = pair();
-    let val_4 = b.load();
-    let val_5 = a.load();
-    a.with_mut(|v| *v = val_4);
-    b.with_mut(|v| *v = val_5);
+    let val_10 = b.load();
+    let val_11 = a.load();
+    a.with_mut(|v| *v = val_10);
+    b.with_mut(|v| *v = val_11);
     println!("{} {}", a.load(), b.load());
     let c: rt::Ptr<Counter> = rt::Ptr::new(Counter::default());
     let keep_c = hold(c.clone());

@@ -117,21 +117,17 @@ fn walk(t: Option<&Tree>) -> i64 {
     walk(t.unwrap().left.as_deref()) + t.unwrap().key + walk(t.unwrap().right.as_deref())
 }
 
-fn addr(x: i64) -> rt::Ptr<i64> {
-    let x = rt::Ptr::new(x);
-    x.clone()
+fn addr(x: i64) -> i64 {
+    x
 }
 
-fn swap(a: &rt::Ptr<i64>, b: &rt::Ptr<i64>) {
-    let val = b.with(|v| *v);
-    let val_2 = a.with(|v| *v);
-    a.with_mut(|v| *v = val);
-    b.with_mut(|v| *v = val_2);
+fn swap(a: Option<&mut i64>, b: Option<&mut i64>) {
+    (*a.unwrap(), *b.unwrap()) = (*b.as_deref().unwrap(), *a.as_deref().unwrap());
 }
 
-fn bump(p: &rt::Ptr<i64>) -> i64 {
-    p.with_mut(|v| *v += 10);
-    p.with(|v| *v)
+fn bump(p: &mut i64) -> i64 {
+    *p += 10;
+    *p
 }
 
 fn main() {
@@ -176,21 +172,14 @@ fn main() {
         root.as_ref().unwrap().left.as_ref().unwrap().key,
         root.as_ref().unwrap().right.as_ref().unwrap().key,
     );
-    let (a, b) = (addr(1), addr(2));
-    swap(&a, &b);
-    println!("{} {}", a.with(|v| *v), b.with(|v| *v));
-    let n: rt::Ptr<i64> = rt::Ptr::new(1);
-    let m = n.clone();
-    let call = bump(&m);
-    let r = call + n.with(|v| *v);
-    let call_2 = bump(&m);
-    println!(
-        "{} {} {} {}",
-        r,
-        n.with(|v| *v),
-        m.with(|v| *v) + call_2,
-        n.with(|v| *v),
-    );
+    let (mut a, mut b) = (addr(1), addr(2));
+    swap(Some(&mut a), Some(&mut b));
+    println!("{} {}", a, b);
+    let mut n: i64 = 1;
+    let m = &mut n;
+    let r = bump(m);
+    let call = bump(m);
+    println!("{} {} {}", r, *m + call, n);
     let mut e: rt::Ptr<Stack> = rt::Ptr::nil();
     println!("{} {} {}", e.is_nil(), !e.is_nil(), !s.is_nil());
     e = s.clone();

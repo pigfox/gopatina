@@ -470,6 +470,21 @@ its only one, and must not run again with the value already moved: not in
 a loop or function literal the value is declared outside of. Other
 addresses of locals still make the type shared.
 
+**Local borrows** ([RFC 0017](rfcs/0017-one-owner.md)). A pointer to a
+local, `p := &x`, that the function uses itself (through `*p` and `p.f`,
+by a method with a pointer receiver, or lent to a function that keeps
+nothing) and never assigns, returns or stores is a Rust borrow of `x` for
+its life: `let p = &mut x` where something changes through it, `&x` where
+it only reads. While `p` is still in use, `x` is not: changing `x` is an
+error, and so is reading it beside an exclusive `p`, including in the same
+statement where a print holds a place through `p`:
+
+```
+./main.go:24:17: n is used on line 24 while m, a borrow of it, is still in use on line 25
+    m changes n through its borrow, so n cannot be used until m's last use (RFC 0017)
+    finish with m before n is used, or use n through m
+```
+
 Moving a pointer out of an element, a slice of pointers held in a
 package-level variable, and a field handed to a keeper without being
 refilled still make the type shared: those are later steps.

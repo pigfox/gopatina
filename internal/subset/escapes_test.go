@@ -108,7 +108,9 @@ func main() {
 		{"a field's address", "var n Pt\n\t_ = peek(&n)\n\tq := &n.V\n\t*q = 1", false, false},
 		{"in a function literal", "var n Pt\n\tf := func() int { return peek(&n) }\n\t_ = f() + n.V", false, false},
 		{"lent to a function value", "var n Pt\n\tf := peek\n\t_ = f(&n) + n.V", false, false},
-		{"a pointer computed", "var n Pt\n\t_ = peek(&n)\n\tq := &n\n\t_ = q.V", false, false},
+		{"a local borrow", "var n Pt\n\t_ = peek(&n)\n\tq := &n\n\t_ = q.V", true, true},
+		{"a local borrow kept", "var n Pt\n\tq := &n\n\tm := keep(q)\n\t_ = m.V + n.V", false, false},
+		{"a pointer computed", "var n Pt\n\t_ = peek(&n)\n\tq := &n\n\tr := q\n\t_ = r.V", false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			pkg, err := load.Source("/p", "main.go", strings.Replace(pt, "BODY", tc.body, 1), "go1.25")
@@ -123,6 +125,11 @@ func main() {
 			}
 			if got := len(p.lentOK) > 0 && !p.Cells[firstKey(p.lentOK)]; got != tc.lent {
 				t.Errorf("lent = %v, want %v", got, tc.lent)
+			}
+			for v := range p.refs {
+				if p.LocalRef(v) != tc.lent || tc.lent && p.RefSource(v) == nil {
+					t.Errorf("LocalRef(%s) = %v, RefSource = %v", v.Name(), p.LocalRef(v), p.RefSource(v))
+				}
 			}
 		})
 	}

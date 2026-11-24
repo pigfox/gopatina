@@ -155,14 +155,15 @@ func main() {
 
 	k, extra := pairOf(forest)
 	cell := &k
-	k, extra = pairOf(tr)
 	fmt.Println(*cell, extra, *ptrTo(6))
+	k, extra = pairOf(tr)
 	k, more := pairOf(forest)
-	fmt.Println(k, more, *cell)
+	fmt.Println(k, more, extra)
 	k, fresh := pairOf(tr)
 	cell2 := &fresh
 	*cell2 += k
-	fmt.Println(k, fresh, *cell2)
+	fmt.Println(k, *cell2)
+	fmt.Println(fresh)
 	forest.Key, _ = pairOf(tr)
 	forest.Key, extra = 7, forest.Key
 	fmt.Println(forest.Key, extra)

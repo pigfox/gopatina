@@ -97,6 +97,11 @@ func (p *PtrPlan) escapeBoxes() {
 					if q.Op != token.AND {
 						break // -x, ^x, !x of a number or a boolean: a read
 					}
+					if par := p.lentTo(stack[:len(stack)-1]); par != nil && p.refs[par] != nil && plainData(v.Type()) {
+						lends[v] = append(lends[v], par) // p := &x, a local borrow
+						bad[v] = true
+						return true
+					}
 					if handsOn(stack[:len(stack)-1]) && !loopedOutside(stack, v) {
 						addrs[v] = append(addrs[v], q)
 						lendBad[v] = true
@@ -176,6 +181,14 @@ func (p *PtrPlan) lentTo(stack []ast.Node) *types.Var {
 		child = stack[i]
 	}
 	switch q := stack[i].(type) {
+	case *ast.AssignStmt:
+		// p := &x: lent to p, a local borrow if p keeps to localRef.
+		if q.Tok == token.DEFINE && len(q.Lhs) == 1 && len(q.Rhs) == 1 && q.Rhs[0] == child {
+			if id, ok := q.Lhs[0].(*ast.Ident); ok {
+				v, _ := info.Defs[id].(*types.Var)
+				return v
+			}
+		}
 	case *ast.CallExpr:
 		fn := p.programFunc(q.Fun)
 		if fn == nil || fn.Signature().Variadic() {
@@ -199,6 +212,110 @@ func (p *PtrPlan) lentTo(stack []ast.Node) *types.Var {
 	}
 	return nil
 }
+
+// localRefs finds the local borrows: a pointer variable declared p := &x
+// (x a local) and never assigned again, whose every use reads or writes
+// through it (*p, p.f), calls a method with a pointer receiver on it, or
+// lends it to a function of the program, outside any function literal.
+// Rust holds it as &x or &mut x. The parameters it is lent to are kept in
+// refParams; ownership checks that no callee keeps them.
+func (p *PtrPlan) localRefs() {
+	p.refs = map[*types.Var][]*types.Var{}
+	p.refSources = map[*types.Var]*types.Var{}
+	info := p.pkg.Info
+	cand := map[*types.Var]bool{}
+	bad := map[*types.Var]bool{}
+	for _, f := range p.pkg.Files {
+		var stack []ast.Node
+		ast.Inspect(f, func(n ast.Node) bool {
+			if n == nil {
+				stack = stack[:len(stack)-1]
+				return true
+			}
+			stack = append(stack, n)
+			id, ok := n.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			if v, ok := info.Defs[id].(*types.Var); ok && isPointer(v.Type()) && !v.IsField() {
+				if as, ok := stack[len(stack)-2].(*ast.AssignStmt); ok && as.Tok == token.DEFINE && len(as.Lhs) == 1 && len(as.Rhs) == 1 {
+					if u, ok := ast.Unparen(as.Rhs[0]).(*ast.UnaryExpr); ok && u.Op == token.AND {
+						if x, ok := ast.Unparen(u.X).(*ast.Ident); ok {
+							if xv, ok := info.Uses[x].(*types.Var); ok && !xv.IsField() && xv.Parent() != xv.Pkg().Scope() {
+								cand[v] = true
+								p.refSources[v] = xv
+								return true
+							}
+						}
+					}
+				}
+				return true
+			}
+			v, ok := info.Uses[id].(*types.Var)
+			if !ok || !isPointer(v.Type()) {
+				return true
+			}
+			if inFuncLit(stack) {
+				bad[v] = true
+				return true
+			}
+			i := len(stack) - 2
+			for ; i > 0; i-- {
+				if _, ok := stack[i].(*ast.ParenExpr); !ok {
+					break
+				}
+			}
+			switch q := stack[i].(type) {
+			case *ast.StarExpr:
+				if u, ok := stack[i-1].(*ast.UnaryExpr); ok && u.Op == token.AND {
+					bad[v] = true // &*p
+				}
+				return true
+			case *ast.SelectorExpr:
+				s := info.Selections[q]
+				if s != nil && s.Kind() == types.FieldVal {
+					if u, ok := stack[i-1].(*ast.UnaryExpr); ok && u.Op == token.AND {
+						bad[v] = true // &p.f
+					}
+					return true
+				}
+			}
+			if par := p.lentTo(stack); par != nil {
+				if _, isAssign := stack[i].(*ast.AssignStmt); !isAssign {
+					p.refs[v] = append(p.refs[v], par)
+					return true
+				}
+			}
+			bad[v] = true // assigned, compared, returned, stored or copied
+			return true
+		})
+	}
+	for v := range cand {
+		if bad[v] {
+			delete(p.refs, v)
+			continue
+		}
+		if p.refs[v] == nil {
+			p.refs[v] = []*types.Var{}
+		}
+	}
+	for v := range p.refs {
+		if !cand[v] {
+			delete(p.refs, v)
+		}
+	}
+}
+
+// LocalRef reports whether v is a local borrow (localRefs) whose pointer
+// type is owned and whose source is lent, not a cell: Rust holds it as &x
+// or &mut x.
+func (p *PtrPlan) LocalRef(v *types.Var) bool {
+	_, ok := p.refs[v]
+	return ok && p.lentOK[p.refSources[v]] && p.Owned(v.Type())
+}
+
+// RefSource returns the local that local borrow v borrows.
+func (p *PtrPlan) RefSource(v *types.Var) *types.Var { return p.refSources[v] }
 
 // programFunc returns the function of the program that fun names, or nil.
 func (p *PtrPlan) programFunc(fun ast.Expr) *types.Func {

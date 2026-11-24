@@ -749,6 +749,11 @@ func (g *gen) let(v *types.Var, e ast.Expr, typed bool) {
 		g.cellDecl(v, g.owned(e))
 		return
 	}
+	if g.ptrs != nil && g.ptrs.LocalRef(v) {
+		// p := &x, a local borrow (RFC 0017): let p = &mut x, or &x.
+		g.stmtLine("let "+g.varName(v)+" = ", g.ptrAs(e, g.localRefRep(v)), ";")
+		return
+	}
 	prefix := "let " + g.mutPrefix(v) + g.varName(v)
 	if g.isBorrow(v) {
 		// A temporary borrow (RFC 0017, step 5): an Option<&T>.
@@ -946,6 +951,13 @@ func (g *gen) changesThrough(n ast.Node, x ast.Expr) bool {
 // before any is assigned, and so does a tuple.
 func (g *gen) multiLet(lhs, rhs []ast.Expr) {
 	g.letTypes = nil
+	for i, l := range lhs {
+		if id, ok := l.(*ast.Ident); ok && i < len(rhs) {
+			if v := g.localVar(id); v != nil && g.ownPtr(v.Type()) && g.ptrs.NonNilVar(v) {
+				g.boxSlot[ast.Unparen(rhs[i])] = true // a Box<T> (or T), never nil (RFC 0017, step 2)
+			}
+		}
+	}
 	for i, r := range rhs {
 		if g.needsType(r) {
 			for _, l := range lhs {

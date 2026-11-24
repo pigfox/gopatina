@@ -59,6 +59,10 @@ type PtrPlan struct {
 	// the parameters lent to, and lentOK those no callee keeps.
 	lends  map[*types.Var][]*types.Var
 	lentOK map[*types.Var]bool
+	// refs are the local borrows p := &x, with the parameters each is
+	// lent to, and refSources the x each borrows (escapes.go).
+	refs       map[*types.Var][]*types.Var
+	refSources map[*types.Var]*types.Var
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.
@@ -92,6 +96,7 @@ func Ptrs(pkg *load.Package) *PtrPlan {
 	}
 	p := &PtrPlan{pkg: pkg, Cells: map[*types.Var]bool{}}
 	p.build()
+	p.localRefs()
 	p.escapeBoxes()
 	p.ownedOnce()
 	for _, v := range p.escapes {

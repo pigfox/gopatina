@@ -63,7 +63,21 @@ func newTag(s string) *Tag {
 	return &t
 }
 
+// twice returns a tag and its length.
+func twice(s string) (Tag, int) { return Tag(s + s), 2 * len(s) }
+
+// both returns two tags.
+func both(s string) (Tag, Tag) { return Tag(s), Tag(s + "!") }
+
 func main() {
+	kv, ke := twice("a")
+	var anyK any = &kv // an interface holds a *Tag: its pointers are cells
+	kv, ke = twice("b")
+	fmt.Println(kv, ke, anyK != nil)
+	kv, kf := twice("c") // kv an existing cell, kf new
+	kv, kw := both("d")  // kw new, and a cell too
+	var anyW any = &kw
+	fmt.Println(kv, kf, kw, anyW != nil)
 	ta := newTag("ab")
 	var held any = newTag("in an interface")
 	*ta += "c"

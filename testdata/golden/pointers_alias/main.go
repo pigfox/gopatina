@@ -85,8 +85,8 @@ func main() {
 	fmt.Println(*a, *b)
 	n := 1
 	m := &n
-	r := bump(m) + n
-	fmt.Println(r, n, *m+bump(m), n)
+	r := bump(m)
+	fmt.Println(r, *m+bump(m), n)
 	var e *Stack
 	fmt.Println(e == nil, e != nil, s != nil)
 	e = s
