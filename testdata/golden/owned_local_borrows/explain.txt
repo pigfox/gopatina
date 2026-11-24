@@ -1,4 +1,7 @@
 ./main.go:11:6: pointers of type *Counter are never shared: each has one owner (RFC 0016)
-./main.go:14:7: receiver c is an exclusive borrow: Inc changes it, and the caller sees the change
-./main.go:21:10: parameter p is an exclusive borrow: add changes it, and the caller sees the change
-./main.go:24:11: parameter p is a shared borrow: read only reads it
+./main.go:17:7: receiver c is an exclusive borrow: Inc changes it, and the caller sees the change
+./main.go:24:10: parameter p is an exclusive borrow: add changes it, and the caller sees the change
+./main.go:27:11: parameter p is a shared borrow: read only reads it
+./main.go:54:14: read pc.N into a local first: pc, a borrow of c, would still hold it where c is read in the same statement
+./main.go:54:20: read pc.Name into a local first: pc, a borrow of c, would still hold it where c is read in the same statement
+./main.go:59:14: read pc2.N into a local first: pc2, a borrow of c, would still hold it where c is read in the same statement

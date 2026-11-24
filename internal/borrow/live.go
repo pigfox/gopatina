@@ -591,10 +591,11 @@ func (l *live) changesThrough(q *types.Var) bool {
 	return found
 }
 
-// sameStatement reports a read of x in a statement that handed a place
+// sameStatement finds a read of x in a statement that handed a place
 // through p, an exclusive local borrow of x, to a call that is not the
 // program's, earlier: a print borrows all its arguments at once, so Rust
-// refuses the read (println!("{} {}", p.n, x.n)).
+// would refuse the read (println!("{} {}", p.n, x.n)). The place is read
+// into a local first instead (Result.CopyFirst).
 func (l *live) sameStatement(ev event, plan *subset.PtrPlan) {
 	info := l.a.pkg.Info
 	var stmt ast.Stmt
@@ -636,10 +637,13 @@ func (l *live) sameStatement(ev event, plan *subset.PtrPlan) {
 		if !ok || l.a.funcs[calleeFunc(info, c)] != nil || c.Fun == stack[i+1] {
 			return true
 		}
-		l.a.report(ev.pos, l.a.errorf(ev.pos, "%s is used on line %d while %s, a borrow of it, is still in use in the same statement",
-			ev.v.Name(), l.a.line(ev.pos), q.Name()).With(
-			fmt.Sprintf("%s changes %s through its borrow, and the statement holds that borrow while it reads %s (RFC 0017)", q.Name(), ev.v.Name(), ev.v.Name()),
-			fmt.Sprintf("read %s through %s, or copy what you need from %s into a variable first", ev.v.Name(), q.Name(), q.Name())))
-		return false
+		// Read into a local first: the borrow then ends before the read of
+		// its source, and Go's call copies the value anyway.
+		place := stack[i+1].(ast.Expr)
+		if !l.a.res.CopyFirst[place] {
+			l.a.res.CopyFirst[place] = true
+			l.a.fix(place.Pos(), fmt.Sprintf("read %s into a local first: %s, a borrow of %s, would still hold it where %s is read in the same statement", exprString(place), q.Name(), ev.v.Name(), ev.v.Name()))
+		}
+		return true
 	})
 }

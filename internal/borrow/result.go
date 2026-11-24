@@ -119,6 +119,11 @@ type Result struct {
 	// RefElems holds range variables bound to a borrow of the element, not
 	// a copy: the loop does not change the slice or the variable.
 	RefElems map[*types.Var]bool
+	// CopyFirst holds the places handed to a call that is not the program's
+	// (a print) through an exclusive local borrow whose source the same
+	// statement reads after: read into a local before the statement, so the
+	// borrow ends first (RFC 0017).
+	CopyFirst map[ast.Expr]bool
 	// Counted holds 3-clause for loops written as a Rust range,
 	// for i in a..b: i is not changed in the body, and b does not change.
 	Counted map[*ast.ForStmt]bool

@@ -54,6 +54,7 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		Hoist:     map[*ast.CallExpr]bool{},
 		Suffixes:  map[*ast.CallExpr]*ast.SliceExpr{},
 		Counted:   map[*ast.ForStmt]bool{},
+		CopyFirst: map[ast.Expr]bool{},
 		RefElems:  a.refs,
 		params:    a.params,
 	}

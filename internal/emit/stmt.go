@@ -505,6 +505,30 @@ func (g *gen) changes(s ast.Node, v *types.Var) bool {
 	return found
 }
 
+// copyFirst reads into locals, before simple statement s, the places s
+// hands to a print through an exclusive local borrow whose source it
+// reads after (borrow.Result.CopyFirst): let n = p.n; println!("{} {}",
+// n, x.n), the borrow ended before x is read.
+func (g *gen) copyFirst(s ast.Stmt) {
+	ast.Inspect(s, func(n ast.Node) bool {
+		e, ok := n.(ast.Expr)
+		if !ok || !g.res.CopyFirst[e] {
+			return true
+		}
+		if _, done := g.temps[e]; done {
+			return false
+		}
+		base := "copied"
+		if sel, ok := ast.Unparen(e).(*ast.SelectorExpr); ok {
+			base = snake(sel.Sel.Name)
+		}
+		name := g.lnames.name("", func(string) string { return base })
+		g.stmtLine("let "+name+" = ", g.owned(e), ";")
+		g.temps[e] = name
+		return false
+	})
+}
+
 func isReturn(s ast.Stmt) bool {
 	_, ok := s.(*ast.ReturnStmt)
 	return ok
@@ -567,6 +591,10 @@ func (g *gen) stmt(s ast.Stmt) {
 	if ec := g.errs.Calls[s]; ec != nil && ec.General {
 		g.generalCall(ec) // an if statement's init (RFC 0012)
 		return
+	}
+	switch s.(type) {
+	case *ast.ExprStmt, *ast.ReturnStmt, *ast.DeclStmt, *ast.AssignStmt:
+		g.copyFirst(s)
 	}
 	// A simple statement that reads or changes a changed package-level
 	// variable is written in gc's order (RFC 0010).

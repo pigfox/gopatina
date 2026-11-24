@@ -476,8 +476,11 @@ by a method with a pointer receiver, or lent to a function that keeps
 nothing) and never assigns, returns or stores is a Rust borrow of `x` for
 its life: `let p = &mut x` where something changes through it, `&x` where
 it only reads. While `p` is still in use, `x` is not: changing `x` is an
-error, and so is reading it beside an exclusive `p`, including in the same
-statement where a print holds a place through `p`:
+error, and so is reading it beside an exclusive `p` that is used again
+after. A print that reads a place through `p` and then `x`, as in
+`fmt.Println(p.N, x.N)`, reads `p.N` into a local first
+(`let n = p.n; println!("{} {}", n, x.n)`), so the borrow ends before `x`
+is read, as Go's copy of the argument already does:
 
 ```
 ./main.go:24:17: n is used on line 24 while m, a borrow of it, is still in use on line 25

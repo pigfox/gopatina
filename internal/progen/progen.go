@@ -1145,7 +1145,7 @@ func (g *gen) ptrUses() {
 	g.line("lbP := &lbX")
 	g.line("*lbP %s= %s", op(), v())
 	g.line("fmt.Println(ordAdd%d(lbP), *lbP)", k)
-	g.line("fmt.Println(lbX)")
+	g.line("fmt.Println(*lbP, lbX) // the print reads *lbP into a local first")
 	g.line("ordX := %s", v())
 	g.line("fmt.Println(ordX%sordAdd%d(&ordX), ordX)", op(), k)
 	g.line("var ordP Pt%d", k)
