@@ -384,6 +384,9 @@ func (g *gen) block(b *ast.BlockStmt) {
 }
 
 func (g *gen) stmt(s ast.Stmt) {
+	if g.skip[s] {
+		return // a field set to nil just after its take (RFC 0017, step 6)
+	}
 	if ec := g.errs.Calls[s]; ec != nil && ec.General {
 		g.generalCall(ec) // an if statement's init (RFC 0012)
 		return

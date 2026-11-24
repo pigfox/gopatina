@@ -47,6 +47,8 @@ type PtrPlan struct {
 	// the variables each borrows from.
 	borrows map[*types.Var]bool
 	sources map[*types.Var]map[*types.Var]bool
+	// takes are the fields moved out and refilled at once (step 6).
+	takes map[ast.Expr]*ast.AssignStmt
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.

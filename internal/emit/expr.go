@@ -322,6 +322,15 @@ func (g *gen) owned(e ast.Expr) node {
 	if g.boxedExpr(e) {
 		return g.box(e)
 	}
+	if next, taken := g.ptrs.Take(e); taken && g.ownPtr(g.typeOf(e)) {
+		// Moved out of its field, which the next statement refills (RFC
+		// 0017, step 6): Rust's take, which leaves None, so a nil refill
+		// is already done.
+		if g.info.Types[next.Rhs[0]].IsNil() {
+			g.skip[next] = true
+		}
+		return &call{recv: g.lhsPlace(e), head: ".take", open: "(", close: ")"}
+	}
 	if x := ast.Unparen(e); g.ownPtr(g.typeOf(x)) && !g.raw[x] && !g.boxSlot[x] && g.ptrRep(x) == repBox {
 		// A pointer never nil moved where an Option<Box<T>> holds it.
 		return &call{head: "Some", open: "(", close: ")", args: []node{g.rawPtr(x)}}
