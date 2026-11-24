@@ -441,6 +441,15 @@ func (g *gen) globalUses() {
 // libUses uses program k's declarations in lib.
 func (g *gen) libUses() {
 	k := g.k
+	// A struct declared with no value and its fields set at once: the
+	// initializer gives them (clippy's field_reassign_with_default), and
+	// where a value reads the variable, the zeros are spelled out.
+	g.line("var lz lib.P%d", k)
+	g.line("lz.A = v2")
+	g.line("lz.B = v0 + 1")
+	g.line("var lw lib.P%d", k)
+	g.line("lw.A = lw.B + v1")
+	g.line("fmt.Println(lz.Sum(), lw.Sum())")
 	g.line("lp := lib.P%d{A: v0, B: v1}", k)
 	g.line("lp.Grow(v2)")
 	g.line("fmt.Println(lp.Sum(), lp.A, lib.F%d(v0, v1), lib.K%d, lib.N%d(v2), []lib.N%d{lib.N%d(v1)})", k, k, k, k, k)
