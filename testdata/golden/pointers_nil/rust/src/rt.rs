@@ -1,10 +1,6 @@
 //! Runtime support for this crate, written by GoPatina: the few pieces
 //! of Go behaviour that have no direct Rust spelling.
 
-use std::any::Any;
-use std::cell::Cell;
-use std::cell::RefCell;
-
 /// Ends the program on a panic the way Go does: the message on standard
 /// error, then exit status 2. (Rust's default status is 101.)
 pub fn exit_on_panic() {
@@ -25,8 +21,8 @@ pub fn exit_on_panic() {
 }
 
 /// Panics from a Go panic(...) call carry a marker and are printed verbatim.
-/// Rust's own runtime panics carry no marker; the two messages Go programs
-/// can observe from phase 1 operations are translated to Go's wording here.
+/// Rust's own runtime panics carry no marker; the messages Go programs can
+/// observe from them are translated to Go's wording here.
 fn go_panic_message(msg: &str) -> String {
     const USER: &str = "gopatina-user-panic:";
     if let Some(rest) = msg.strip_prefix(USER) {
@@ -36,6 +32,12 @@ fn go_panic_message(msg: &str) -> String {
         "attempt to divide by zero"
         | "attempt to calculate the remainder with a divisor of zero" => {
             return String::from("runtime error: integer divide by zero");
+        }
+        // A nil owned pointer read through: Option::unwrap on None.
+        "called `Option::unwrap()` on a `None` value" => {
+            return String::from(
+                "runtime error: invalid memory address or nil pointer dereference",
+            );
         }
         _ => {}
     }
@@ -54,86 +56,4 @@ fn go_panic_message(msg: &str) -> String {
         return format!("runtime error: index out of range [{index}] with length {len}");
     }
     msg.to_string()
-}
-
-/// A Go pointer that is never shared (RFC 0016): nil, or a box with one
-/// owner. Nothing writes through it once it is made, so a read is a plain
-/// borrow of the box.
-pub struct Own<T: 'static>(Option<Box<T>>);
-
-impl<T> Own<T> {
-    /// A new box holding v: Go's &T{...}.
-    pub fn new(v: T) -> Self {
-        Own(Some(Box::new(v)))
-    }
-
-    pub fn nil() -> Self {
-        Own(None)
-    }
-
-    pub fn is_nil(&self) -> bool {
-        self.0.is_none()
-    }
-
-    /// The value pointed at, for reading through the pointer.
-    pub fn get(&self) -> &T {
-        match &self.0 {
-            Some(b) => b,
-            None => panic!(
-                "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
-            ),
-        }
-    }
-}
-
-impl<T: Clone> Clone for Own<T> {
-    fn clone(&self) -> Self {
-        Own(self.0.clone())
-    }
-}
-
-impl<T> Default for Own<T> {
-    fn default() -> Self {
-        Own(None)
-    }
-}
-
-/// Go compares pointers by the variable they point at.
-impl<T> PartialEq for Own<T> {
-    fn eq(&self, other: &Self) -> bool {
-        match (&self.0, &other.0) {
-            (Some(a), Some(b)) => std::ptr::eq::<T>(&**a, &**b),
-            (None, None) => true,
-            _ => false,
-        }
-    }
-}
-
-thread_local! {
-    static OWN_DEPTH: Cell<u32> = const { Cell::new(0) };
-    static OWN_PENDING: RefCell<Vec<Box<dyn Any>>> = const { RefCell::new(Vec::new()) };
-}
-
-/// Freeing a box frees the boxes it owns, one call deeper each; past a
-/// fixed depth they are freed in a loop instead, so freeing a long list
-/// cannot overflow the stack.
-impl<T> Drop for Own<T> {
-    fn drop(&mut self) {
-        let Some(b) = self.0.take() else {
-            return;
-        };
-        let depth = OWN_DEPTH.get();
-        if depth >= 1024 {
-            OWN_PENDING.with_borrow_mut(|p| p.push(b));
-            return;
-        }
-        OWN_DEPTH.set(depth + 1);
-        drop(b);
-        if depth == 0 {
-            while let Some(b) = OWN_PENDING.with_borrow_mut(|p| p.pop()) {
-                drop(b);
-            }
-        }
-        OWN_DEPTH.set(depth);
-    }
 }

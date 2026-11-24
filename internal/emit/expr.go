@@ -186,9 +186,14 @@ func (g *gen) place(e ast.Expr) node {
 			b = text(strings.TrimPrefix(a.s, "*"))
 		}
 		if g.ownPtr(g.typeOf(base)) {
-			// Through an owned pointer (RFC 0016): p.get().f, whose field
-			// is a link of the chain, as rustfmt breaks it.
-			b = &call{recv: b, head: ".get", open: "(", close: ")"}
+			// Through an owned pointer (RFC 0016): n.unwrap().f for a
+			// borrowed Option<&T>, p.as_ref().unwrap().f for an
+			// Option<Box<T>>; unwrapping nil is Go's nil dereference. Each
+			// call is a link of the chain, as rustfmt breaks it.
+			if !g.ownBorrow(base) {
+				b = &call{recv: b, head: ".as_ref", open: "(", close: ")"}
+			}
+			b = &call{recv: b, head: ".unwrap", open: "(", close: ")"}
 			return &call{recv: b, head: "." + field}
 		}
 		return atom{paren(b, precPostfix) + "." + field, precPostfix}
@@ -263,7 +268,7 @@ func (g *gen) value(e ast.Expr) node {
 				return text("None")
 			}
 			if g.heapPtr(g.nils[e]) {
-				return text("rt::" + g.ptrKind(g.nils[e]) + "::nil()")
+				return g.ptrNil(g.nils[e])
 			}
 			return text("Vec::<" + g.rustType(g.nils[e].Underlying().(*types.Slice).Elem()) + ">::new()")
 		}
@@ -352,6 +357,9 @@ func (g *gen) ref(e ast.Expr) node {
 		return &addrOf{"&", g.box(e)}
 	}
 	e = ast.Unparen(e)
+	if g.ownPtr(g.typeOf(e)) {
+		return g.ownRef(e)
+	}
 	if name, ok := g.temps[e]; ok {
 		return text("&" + name)
 	}
@@ -516,7 +524,7 @@ func (g *gen) zero(t types.Type) node {
 		return text("None")
 	}
 	if g.heapPtr(t) {
-		return text("rt::" + g.ptrKind(t) + "::nil()")
+		return g.ptrNil(t)
 	}
 	return text(g.rustType(t) + "::default()")
 }
@@ -813,7 +821,7 @@ func (g *gen) composite(e *ast.CompositeLit) node {
 	t := g.typeOf(e)
 	if p, ok := t.(*types.Pointer); ok {
 		// {...} for &T{...}, in a literal of pointers (RFC 0013).
-		return &call{head: "rt::" + g.ptrKind(t) + "::new", open: "(", close: ")", args: []node{g.compositeOf(e, p.Elem())}}
+		return g.ptrNew(t, g.compositeOf(e, p.Elem()))
 	}
 	return g.compositeOf(e, t)
 }

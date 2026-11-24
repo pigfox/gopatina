@@ -41,82 +41,84 @@ pub struct Tag {
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Node {
-    pub left: rt::Own<Node>,
-    pub right: rt::Own<Node>,
+    pub left: Option<Box<Node>>,
+    pub right: Option<Box<Node>>,
     pub key: i64,
     pub name: String,
     pub tag: rt::Ptr<Tag>,
 }
 
 impl Node {
-    fn sum(n: &rt::Own<Node>) -> i64 {
-        if n.is_nil() {
+    fn sum(n: Option<&Node>) -> i64 {
+        if n.is_none() {
             return 0;
         }
-        n.get().key + Node::sum(&n.get().left) + Node::sum(&n.get().right)
+        n.unwrap().key
+            + Node::sum(n.unwrap().left.as_deref())
+            + Node::sum(n.unwrap().right.as_deref())
     }
 
-    fn depth(n: &rt::Own<Node>) -> i64 {
-        if n.get().left.is_nil() && n.get().right.is_nil() {
+    fn depth(n: Option<&Node>) -> i64 {
+        if n.unwrap().left.is_none() && n.unwrap().right.is_none() {
             return 1;
         }
         let mut d: i64 = 0;
-        if !n.get().left.is_nil() {
-            d = Node::depth(&n.get().left);
+        if n.unwrap().left.is_some() {
+            d = Node::depth(n.unwrap().left.as_deref());
         }
-        if !n.get().right.is_nil() && Node::depth(&n.get().right) > d {
-            d = Node::depth(&n.get().right);
+        if n.unwrap().right.is_some() && Node::depth(n.unwrap().right.as_deref()) > d {
+            d = Node::depth(n.unwrap().right.as_deref());
         }
         d + 1
     }
 }
 
-fn build(depth: i64, key: i64, tags: &[rt::Ptr<Tag>]) -> rt::Own<Node> {
+fn build(depth: i64, key: i64, tags: &[rt::Ptr<Tag>]) -> Option<Box<Node>> {
     if depth == 0 {
-        return rt::Own::new(Node {
+        return Some(Box::new(Node {
             key,
             name: format!("leaf{}", key),
             tag: tags[(key % 2) as usize].clone(),
             ..Default::default()
-        });
+        }));
     }
-    rt::Own::new(Node {
+    Some(Box::new(Node {
         left: build(depth - 1, 2 * key, tags),
         right: build(depth - 1, 2 * key + 1, tags),
         key,
         name: String::from("inner"),
         ..Default::default()
-    })
+    }))
 }
 
-fn pair(a: i64, b: i64) -> rt::Own<Node> {
-    rt::Own::new(Node {
-        left: rt::Own::new(Node {
+fn pair(a: i64, b: i64) -> Option<Box<Node>> {
+    Some(Box::new(Node {
+        left: Some(Box::new(Node {
             key: a,
             ..Default::default()
-        }),
-        right: rt::Own::new(Node {
+        })),
+        right: Some(Box::new(Node {
             key: b,
             ..Default::default()
-        }),
+        })),
         key: a + b,
         name: String::from("pair"),
         tag: rt::Ptr::nil(),
-    })
+    }))
 }
 
-fn leftmost(n: &rt::Own<Node>) -> String {
-    if n.get().left.is_nil() {
-        return n.get().name.clone();
+fn leftmost(n: Option<&Node>) -> String {
+    if n.unwrap().left.is_none() {
+        return n.unwrap().name.clone();
     }
-    leftmost(&n.get().left)
+    leftmost(n.unwrap().left.as_deref())
 }
 
-fn label(n: &rt::Own<Node>) -> String {
-    if n.get().tag.is_nil() {
+fn label(n: Option<&Node>) -> String {
+    if n.unwrap().tag.is_nil() {
         return String::from("none");
     }
-    n.get().tag.with(|v| v.label.clone())
+    n.unwrap().tag.with(|v| v.label.clone())
 }
 
 /// List is a long chain of owned pointers: dropping it must not need one
@@ -124,24 +126,24 @@ fn label(n: &rt::Own<Node>) -> String {
 #[derive(Clone, Default, PartialEq)]
 pub struct List {
     pub v: i64,
-    pub next: rt::Own<List>,
+    pub next: Option<Box<List>>,
 }
 
-fn chain(n: i64) -> rt::Own<List> {
+fn chain(n: i64) -> Option<Box<List>> {
     if n == 0 {
-        return rt::Own::nil();
+        return None;
     }
-    rt::Own::new(List {
+    Some(Box::new(List {
         v: n,
         next: chain(n - 1),
-    })
+    }))
 }
 
-fn length(l: &rt::Own<List>) -> i64 {
-    if l.is_nil() {
+fn length(l: Option<&List>) -> i64 {
+    if l.is_none() {
         return 0;
     }
-    1 + length(&l.get().next)
+    1 + length(l.unwrap().next.as_deref())
 }
 
 fn main() {
@@ -157,56 +159,82 @@ fn main() {
     let mut t = build(3, 1, &tags);
     println!(
         "{} {} {} {} {}",
-        Node::sum(&t),
-        Node::depth(&t),
-        leftmost(&t),
-        t.get().key,
-        t.get().name,
+        Node::sum(t.as_deref()),
+        Node::depth(t.as_deref()),
+        leftmost(t.as_deref()),
+        t.as_ref().unwrap().key,
+        t.as_ref().unwrap().name,
     );
-    let call = label(&t);
-    let call_2 = label(&t.get().left.get().left.get().left);
-    let call_3 = label(&t.get().right.get().right.get().right);
+    let call = label(t.as_deref());
+    let call_2 = label(
+        t.as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_deref(),
+    );
+    let call_3 = label(
+        t.as_ref()
+            .unwrap()
+            .right
+            .as_ref()
+            .unwrap()
+            .right
+            .as_ref()
+            .unwrap()
+            .right
+            .as_deref(),
+    );
     println!(
         "{} {} {} {}",
         call,
         call_2,
         call_3,
-        t.get()
+        t.as_ref()
+            .unwrap()
             .left
-            .get()
+            .as_ref()
+            .unwrap()
             .right
-            .get()
+            .as_ref()
+            .unwrap()
             .left
-            .get()
+            .as_ref()
+            .unwrap()
             .tag
             .with(|v| v.label.clone()),
     );
     let p = pair(3, 4);
-    let call_4 = Node::sum(&p);
-    let call_5 = Node::depth(&p);
-    let call_6 = label(&p);
+    let call_4 = Node::sum(p.as_deref());
+    let call_5 = Node::depth(p.as_deref());
+    let call_6 = label(p.as_deref());
     println!(
         "{} {} {} {} {}",
         call_4,
-        p.get().left.get().key,
-        p.get().right.get().key,
+        p.as_ref().unwrap().left.as_ref().unwrap().key,
+        p.as_ref().unwrap().right.as_ref().unwrap().key,
         call_5,
         call_6,
     );
     t = build(1, 5, &tags);
     println!(
         "{} {} {} {}",
-        Node::sum(&t),
-        t.get().left.is_nil(),
-        t.get().right.get().left.is_nil(),
-        !t.get().left.get().tag.is_nil(),
+        Node::sum(t.as_deref()),
+        t.as_ref().unwrap().left.is_none(),
+        t.as_ref().unwrap().right.as_ref().unwrap().left.is_none(),
+        !t.as_ref().unwrap().left.as_ref().unwrap().tag.is_nil(),
     );
-    let empty: rt::Own<Node> = rt::Own::nil();
-    println!("{} {}", Node::sum(&empty), empty.is_nil());
+    let empty: Option<Box<Node>> = None;
+    println!("{} {}", Node::sum(empty.as_deref()), empty.is_none());
     println!(
         "{} {}",
-        Node::sum(&build(2, 3, &tags)),
-        length(&chain(5000)),
+        Node::sum(build(2, 3, &tags).as_deref()),
+        length(chain(5000).as_deref()),
     );
-    println!("{}", Node::depth(&empty));
+    println!("{}", Node::depth(empty.as_deref()));
 }

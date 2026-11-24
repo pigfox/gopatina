@@ -35,7 +35,7 @@ mod rt;
 #[derive(Clone, Default, PartialEq)]
 pub struct N {
     pub v: i64,
-    pub next: rt::Own<N>,
+    pub next: Option<Box<N>>,
 }
 
 fn say(s: &str) -> i64 {
@@ -43,36 +43,76 @@ fn say(s: &str) -> i64 {
     1
 }
 
-fn mk(v: i64) -> rt::Own<N> {
-    rt::Own::new(N {
+fn mk(v: i64) -> Option<Box<N>> {
+    Some(Box::new(N {
         v,
-        next: rt::Own::new(N {
+        next: Some(Box::new(N {
             v: v + 1,
             ..Default::default()
-        }),
-    })
+        })),
+    }))
 }
 
-fn get(n: &rt::Own<N>) -> i64 {
-    n.get().v
+fn get(n: Option<&N>) -> i64 {
+    n.unwrap().v
+}
+
+/// both lends its parameter on.
+fn both(n: Option<&N>) -> i64 {
+    get(n) + get(n)
+}
+
+/// Acc's add takes enough to break a call over lines.
+#[derive(Clone, Copy, Default, PartialEq)]
+pub struct Acc {
+    pub v: i64,
+}
+
+impl Acc {
+    fn add(self, a: i64, b: i64, d: i64) -> i64 {
+        self.v + a + b + d
+    }
+}
+
+fn keep(x: i64) -> i64 {
+    x
 }
 
 fn main() {
     rt::exit_on_panic();
     let a = mk(1);
     let call = say("first");
-    let call_2 = get(&a.get().next);
+    let call_2 = get(a.as_ref().unwrap().next.as_deref());
     let call_3 = say("second");
-    println!("{} {}", a.get().v + call, call_2 + call_3);
-    let x = a.get().v + get(&a.get().next);
-    let call_4 = get(&a);
+    println!("{} {}", a.as_ref().unwrap().v + call, call_2 + call_3);
+    let x = a.as_ref().unwrap().v + get(a.as_ref().unwrap().next.as_deref());
+    let call_4 = get(a.as_deref());
     let call_5 = say("third");
-    let y = call_4 + a.get().next.get().v + call_5;
-    let call_6 = get(&a);
-    println!("{} {} {}", x, y, a.get().v + call_6);
-    let both = a.get().v > 0 && say("and") > a.get().next.get().v;
-    println!("{}", both);
-    let z: rt::Own<N> = rt::Own::nil();
-    let call_7 = say("arg");
-    println!("{}", z.get().v + call_7);
+    let y = call_4 + a.as_ref().unwrap().next.as_ref().unwrap().v + call_5;
+    let call_6 = get(a.as_deref());
+    println!("{} {} {}", x, y, a.as_ref().unwrap().v + call_6);
+    let and =
+        a.as_ref().unwrap().v > 0 && say("and") > a.as_ref().unwrap().next.as_ref().unwrap().v;
+    let either = get(a.as_deref()) > 5 || say("or") > a.as_ref().unwrap().next.as_ref().unwrap().v;
+    let (big, bigger): (i64, i64) = (1000000000000000, 2000000000000000);
+    let acc = Acc {
+        v: a.as_ref().unwrap().v,
+    };
+    let total = keep(acc.add(
+        big * big + bigger * bigger + big,
+        bigger * bigger * big + big * big,
+        bigger * big + bigger,
+    ));
+    println!("{} {} {} {}", and, either, both(a.as_deref()), total);
+    // A new pointer made first, by the order above, then lent.
+    let call_7 = mk(3);
+    let call_8 = get(call_7.as_deref());
+    println!(
+        "{} {}",
+        a.as_ref().unwrap().next.as_ref().unwrap().v,
+        call_8,
+    );
+    let z: Option<Box<N>> = None;
+    let call_9 = say("arg");
+    println!("{}", z.as_ref().unwrap().v + call_9);
 }

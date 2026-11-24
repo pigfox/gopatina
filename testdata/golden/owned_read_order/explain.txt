@@ -1,3 +1,4 @@
 ./main.go:12:6: pointers of type *N are never shared: each has one owner (RFC 0016)
 ./main.go:17:10: parameter s is a shared borrow: say only reads it
 ./main.go:24:10: parameter n is a shared borrow: get only reads it
+./main.go:27:11: parameter n is a shared borrow: both only reads it
