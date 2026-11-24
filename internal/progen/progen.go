@@ -1077,6 +1077,9 @@ func (g *gen) ptrUses() {
 	g.line("}")
 	g.line("chQ := chC.N")
 	g.line("fmt.Println(chT, chSum%d(chC), chQ.V)", k)
+	// A field lent to a function that only lends its parameter to a
+	// temporary borrow: lent in place, so the chain stays owned.
+	g.line("fmt.Println(chSum%d(chC.N))", k)
 	g.line("chC.V %s= chT", op())
 	g.line("trP := trPair%d(%s)", k, v())
 	g.line("trP.Bump(%s)", v())
