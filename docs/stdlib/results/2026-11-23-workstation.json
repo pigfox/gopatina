@@ -9,7 +9,7 @@
     {
       "path": "archive/tar",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/archive/tar/common.go:31:5: a pointer here (RFC 0013 supports pointers in variables, parameters, results and fields) is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 147,
@@ -20,7 +20,7 @@
     {
       "path": "archive/zip",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/archive/zip/reader.go:26:5: a pointer here (RFC 0013 supports pointers in variables, parameters, results and fields) is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 105,
@@ -422,7 +422,7 @@
     {
       "path": "crypto/tls",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/context/context.go:72:6: type Context: type time.Time is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 387,
@@ -433,7 +433,7 @@
     {
       "path": "crypto/x509",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/context/context.go:72:6: type Context: type time.Time is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 198,
@@ -455,7 +455,7 @@
     {
       "path": "database/sql",
       "importable": false,
-      "why": "$GOROOT/src/database/sql/sql.go:77:23: in call to slices.Sorted, type iter.Seq[string] of maps.Keys(drivers) does not match inferred type iter.Seq[string] for iter.Seq[E]",
+      "why": "$GOROOT/src/context/context.go:424:5: a channel type (goroutines and channels are planned, RFC 0002) is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 189,
@@ -722,7 +722,7 @@
     {
       "path": "expvar",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 40,
@@ -753,7 +753,7 @@
     {
       "path": "go/ast",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/go/scanner/errors.go:23:15: converting untyped nil to *go/scanner.Error is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 249,
@@ -764,7 +764,7 @@
     {
       "path": "go/build",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/go/ast/scope.go:22:10: a map type is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 62,
@@ -797,7 +797,7 @@
     {
       "path": "go/doc",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/go/ast/scope.go:22:10: a map type is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 90,
@@ -819,7 +819,7 @@
     {
       "path": "go/format",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/go/ast/scope.go:22:10: a map type is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 6,
@@ -830,7 +830,7 @@
     {
       "path": "go/importer",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 7,
@@ -840,7 +840,7 @@
     {
       "path": "go/parser",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/go/ast/scope.go:22:10: a map type is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 120,
@@ -851,7 +851,7 @@
     {
       "path": "go/printer",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/go/scanner/errors.go:23:15: converting untyped nil to *go/scanner.Error is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 97,
@@ -862,7 +862,7 @@
     {
       "path": "go/scanner",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/go/scanner/errors.go:23:15: converting untyped nil to *go/scanner.Error is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 41,
@@ -884,7 +884,7 @@
     {
       "path": "go/types",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/cmp/cmp.go:18:6: type Ordered: an interface with a type set (a generic constraint) is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 303,
@@ -971,7 +971,7 @@
     {
       "path": "html/template",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/cmp/cmp.go:18:6: type Ordered: an interface with a type set (a generic constraint) is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 142,
@@ -1057,7 +1057,7 @@
     {
       "path": "index/suffixarray",
       "importable": false,
-      "why": "$GOROOT/src/regexp/regexp.go:1085:24: in call to slices.Collect, type iter.Seq[[]byte] of re.all(b, n) does not match inferred type iter.Seq[[]byte] for iter.Seq[E]",
+      "why": "$GOROOT/src/iter/iter.go:473:28: converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 32,
@@ -1089,7 +1089,7 @@
     {
       "path": "io/ioutil",
       "importable": false,
-      "why": "$GOROOT/src/io/ioutil/ioutil.go:53:38: cannot use perm (variable of uint32 type fs.FileMode) as os.FileMode value in argument to os.WriteFile",
+      "why": "$GOROOT/src/io/fs/fs.go:40:6: type FS: an interface method with an error result is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 7,
@@ -1212,7 +1212,7 @@
     {
       "path": "mime",
       "importable": false,
-      "why": "$GOROOT/src/mime/mediatype.go:37:42: in call to slices.Sorted, type iter.Seq[string] of maps.Keys(param) does not match inferred type iter.Seq[string] for iter.Seq[E]",
+      "why": "$GOROOT/src/bufio/scan.go:30:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 42,
@@ -1223,7 +1223,7 @@
     {
       "path": "mime/multipart",
       "importable": false,
-      "why": "$GOROOT/src/mime/mediatype.go:37:42: in call to slices.Sorted, type iter.Seq[string] of maps.Keys(param) does not match inferred type iter.Seq[string] for iter.Seq[E]",
+      "why": "$GOROOT/src/bufio/scan.go:30:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 40,
@@ -1253,7 +1253,7 @@
     {
       "path": "net/http",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 663,
@@ -1264,7 +1264,7 @@
     {
       "path": "net/http/cgi",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 19,
@@ -1275,7 +1275,7 @@
     {
       "path": "net/http/cookiejar",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 23,
@@ -1286,7 +1286,7 @@
     {
       "path": "net/http/fcgi",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 34,
@@ -1297,7 +1297,7 @@
     {
       "path": "net/http/httptest",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 35,
@@ -1308,7 +1308,7 @@
     {
       "path": "net/http/httptrace",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/context/context.go:72:6: type Context: type time.Time is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 9,
@@ -1318,7 +1318,7 @@
     {
       "path": "net/http/httputil",
       "importable": false,
-      "why": "$GOROOT/src/mime/mediatype.go:37:42: in call to slices.Sorted, type iter.Seq[string] of maps.Keys(param) does not match inferred type iter.Seq[string] for iter.Seq[E]",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 58,
@@ -1329,7 +1329,7 @@
     {
       "path": "net/http/pprof",
       "importable": false,
-      "why": "$GOROOT/src/regexp/regexp.go:1085:24: in call to slices.Collect, type iter.Seq[[]byte] of re.all(b, n) does not match inferred type iter.Seq[[]byte] for iter.Seq[E]",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 14,
@@ -1339,7 +1339,7 @@
     {
       "path": "net/mail",
       "importable": false,
-      "why": "$GOROOT/src/mime/mediatype.go:37:42: in call to slices.Sorted, type iter.Seq[string] of maps.Keys(param) does not match inferred type iter.Seq[string] for iter.Seq[E]",
+      "why": "$GOROOT/src/bufio/scan.go:30:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 38,
@@ -1361,7 +1361,7 @@
     {
       "path": "net/rpc",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 55,
@@ -1372,7 +1372,7 @@
     {
       "path": "net/rpc/jsonrpc",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/bufio.go:37:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 15,
@@ -1383,7 +1383,7 @@
     {
       "path": "net/smtp",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/context/context.go:72:6: type Context: type time.Time is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 29,
@@ -1466,7 +1466,7 @@
     {
       "path": "path/filepath",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/io/fs/fs.go:40:6: type FS: an interface method with an error result is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 39,
@@ -1496,7 +1496,7 @@
     {
       "path": "regexp",
       "importable": false,
-      "why": "$GOROOT/src/regexp/regexp.go:1085:24: in call to slices.Collect, type iter.Seq[[]byte] of re.all(b, n) does not match inferred type iter.Seq[[]byte] for iter.Seq[E]",
+      "why": "$GOROOT/src/iter/iter.go:473:28: converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 133,
@@ -1601,7 +1601,7 @@
     {
       "path": "testing",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/scan.go:30:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 186,
@@ -1612,7 +1612,7 @@
     {
       "path": "testing/cryptotest",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/scan.go:30:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 4,
@@ -1622,7 +1622,7 @@
     {
       "path": "testing/fstest",
       "importable": false,
-      "why": "$GOROOT/src/testing/fstest/testfs.go:78:25: in call to slices.Sorted, type iter.Seq[string] of maps.Keys(found) does not match inferred type iter.Seq[string] for iter.Seq[E]",
+      "why": "$GOROOT/src/io/fs/format.go:31:6: an array type is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 44,
@@ -1654,7 +1654,7 @@
     {
       "path": "testing/slogtest",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/scan.go:30:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 10,
@@ -1665,7 +1665,7 @@
     {
       "path": "testing/synctest",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/bufio/scan.go:30:15: type io.Reader is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 4,
@@ -1695,7 +1695,7 @@
     {
       "path": "text/template",
       "importable": false,
-      "why": "$GOROOT/src/path/filepath/path.go:333:28: cannot use d1 (variable of interface type os.DirEntry) as fs.DirEntry value in argument to walkDir: fs.DirEntry does not implement fs.DirEntry (wrong type for method Info)",
+      "why": "$GOROOT/src/internal/strconv/itoa.go:34:7: an array type is not supported in patina mode yet",
       "passes_tests": false,
       "tests_why": "GoPatina has no patina test mode yet: a package's own _test.go files cannot be built through GoPatina",
       "funcs": 116,

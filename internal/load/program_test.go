@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/types"
 	"os"
 	"path/filepath"
 	"strings"
@@ -206,5 +207,45 @@ func TestProgramInterfaceMethods(t *testing.T) {
 	}
 	if got := strings.Join(kept, " "); got != "Area" {
 		t.Errorf("a keeps methods %q, want Area", got)
+	}
+}
+
+// A translated standard-library package (io/fs, under path/filepath) and
+// a provided one that uses it (os) see one io/fs: os is type-checked from
+// source against it, not read from export data with a copy of its own,
+// which made os.DirEntry and fs.DirEntry two types.
+func TestProgramOneCopyOfEachPackage(t *testing.T) {
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{
+		"go.mod":  "module example.com/p\n\ngo 1.25\n",
+		"main.go": "package main\n\nimport _ \"path/filepath\"\n\nfunc main() {}\n",
+	})
+	pkg, err := Dir(dir, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := map[string]bool{}
+	for _, p := range pkg.Pkgs {
+		in[p.Path()] = true
+	}
+	if !in["path/filepath"] || !in["io/fs"] {
+		t.Errorf("translated: %v", in)
+	}
+	if in["os"] {
+		t.Error("os, a provided package, is translated")
+	}
+}
+
+// A package whose export data cannot be read is checked from source, where
+// the type checker reports why.
+func TestSourceCheckedExportError(t *testing.T) {
+	old := exportData
+	t.Cleanup(func() { exportData = old })
+	exportData = func(string) (*types.Package, error) { return nil, errors.New("no export data") }
+	a := &listed{ImportPath: "a", Imports: []string{"b"}}
+	b := &listed{ImportPath: "b"}
+	from := sourceChecked([]*listed{b, a}, map[string]*listed{"a": a, "b": b}, map[string]bool{"a": true})
+	if !from["a"] || !from["b"] {
+		t.Errorf("checked from source: %v", from)
 	}
 }

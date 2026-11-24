@@ -16,10 +16,10 @@ GoPatina grows phase by phase. Each phase starts with an RFC for its rules, ship
 
 "Okay, so this is the minimum target of GoPatina's coverage. Anything below TinyGo's coverage is unacceptable." (the project lead, 2026-11-23). TinyGo 0.44.0 imports 163 of the Go standard library's 172 packages and passes the tests of 101. Measured with the same yardstick on 2026-11-23, GoPatina imports 37 and passes the tests of none, because it has no test mode yet: below the target on both counts. The order of work that raises them fastest:
 
-1. Read each standard library package one way, from source or from compiled export data, so that one type never arrives twice: this blocks 40 packages first.
+1. Read each standard library package one way, from source or from compiled export data, so that one type never arrives twice: done, 2026-11-23. It turned 40 internal errors into the features each package needs; the counts did not move.
 2. Function types and values (18 packages), after an RFC on how closures own what they capture.
-3. Arrays and indexed slice literals (19 packages).
-4. `io.Writer` fields, `io.Reader`, and provided packages such as `time.Time` (16 packages).
+3. Arrays and indexed slice literals (21 packages).
+4. `io.Reader` and `io.Writer` fields (27 packages), then provided packages such as `time.Time` (11 packages).
 5. A patina test mode, `gopatina test -patina`, so packages' own tests can run through GoPatina.
 
 The method, every package's result and how GoPatina's test differs from TinyGo's are in [docs/stdlib](https://github.com/pigfox/gopatina/blob/main/docs/stdlib/README.md).
