@@ -1133,6 +1133,38 @@ func (g *gen) ptrUses() {
 	g.line("fmt.Println(ordP.X%sordP.Next(), ordP.X)", op())
 	g.line("ordE := []Ord%d{{X: %s}, {X: %s}}", k, v(), v())
 	g.line("fmt.Println(ordE[1].X%sordE[1].Next(), ordE[1].X)", op())
+	// A loop condition of that shape, and one with a post statement and a
+	// continue: loop { let call = ..; if c { break; } .. } in Rust.
+	g.line("ordN := 0")
+	g.line("for ordN+ordAdd%d(&ordN) < %d {", k, 10+g.qr.IntN(30))
+	g.depth++
+	g.line("fmt.Println(\"ord loop\", ordN)")
+	g.depth--
+	g.line("}")
+	g.line("ordT := 0")
+	g.line("for ordI := 0; ordI+ordAdd%d(&ordI) < %d; ordI++ {", k, 10+g.qr.IntN(30))
+	g.depth++
+	g.line("if ordI%%2 == 0 {")
+	g.depth++
+	g.line("continue")
+	g.depth--
+	g.line("}")
+	g.line("ordT += ordI")
+	g.depth--
+	g.line("}")
+	g.line("fmt.Println(ordT)")
+	// Cases of that shape: each case's calls in an else of the cases
+	// before it, made when Go comes to it.
+	g.line("switch {")
+	g.line("case ordX+ordAdd%d(&ordX) > %s:", k, v())
+	g.depth++
+	g.line("fmt.Println(\"ord first\", ordX)")
+	g.depth--
+	g.line("case ordX+ordAdd%d(&ordX) > %s:", k, v())
+	g.depth++
+	g.line("fmt.Println(\"ord second\", ordX)")
+	g.depth--
+	g.line("}")
 	g.line("switch ordX%sordAdd%d(&ordX) {", op(), k)
 	g.line("case %s:", v())
 	g.depth++

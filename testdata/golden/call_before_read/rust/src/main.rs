@@ -122,12 +122,57 @@ fn main() {
             println!("other {}", x);
         }
     }
-    let call_9 = add_to(&mut x, 1);
-    if x + call_9 > 100 {
+    loop {
+        let call_9 = add_to(&mut x, 1);
+        if x + call_9 >= 40 {
+            break;
+        }
+        println!("loop {}", x);
+    }
+    let mut sum: i64 = 0;
+    let mut i: i64 = 0;
+    loop {
+        let call_10 = add_to(&mut i, 1);
+        if i + call_10 >= 12 {
+            break;
+        }
+        if i % 3 == 0 {
+            i += 1;
+            continue; // the post statement still runs
+        }
+        sum += i;
+        i += 1;
+    }
+    println!("{}", sum);
+    let half: f64 = 0.5;
+    let mut g: i64 = 1;
+    loop {
+        let call_11 = add_to(&mut g, 2);
+        let more = g as f64 + half < call_11 as f64;
+        if !more {
+            break;
+        }
+        if g > 9 {
+            break;
+        }
+    }
+    let call_12 = add_to(&mut x, 1);
+    if x + call_12 > 100 {
+        println!("case big {}", x);
+    } else if add_to(&mut x, 0) > 50 {
+        println!("case medium {}", x);
+    } else {
+        let call_13 = add_to(&mut x, 1);
+        if x + call_13 > 10 {
+            println!("case small {}", x);
+        }
+    }
+    let call_14 = add_to(&mut x, 1);
+    if x + call_14 > 100 {
         println!("big {}", x);
     } else {
-        let call_10 = add_to(&mut x, 1);
-        if x + call_10 > 10 {
+        let call_15 = add_to(&mut x, 1);
+        if x + call_15 > 10 {
             println!("medium {}", x);
         }
     }

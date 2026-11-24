@@ -148,10 +148,11 @@ before a call that changes it reads the changed value: gc makes an
 expression's calls before it reads the variables. The Go spec leaves that
 order unspecified; GoPatina matches gc. The generated Rust makes such calls
 first, into locals (`let call = add(&mut a, 10); a.n + call`), a
-`switch` tag's before the `match`, and an `else if` condition's inside its
-`else`. A loop condition of that shape, evaluated again each time round,
-and a `case` expression, evaluated only when the cases before it do not
-match, are not supported yet.
+`switch` tag's before the `match`, an `else if` condition's inside its
+`else`, and a loop condition's each time round, before its test:
+`loop { let call = ..; if x + call >= 20 { break; } .. }`, the post
+statement still run before each `continue`; and a `case` expression's in
+an `else` of the cases before it, when Go comes to it.
 
 A range loop over a slice that the body does not change iterates over a
 borrow of it; one that the body changes iterates over the indices of the

@@ -3,7 +3,8 @@
 // makes the calls of an expression before it reads the variables, so the
 // read sees the change; the Go spec leaves that order unspecified, and
 // GoPatina matches gc, its reference. Rust evaluates left to right, so
-// GoPatina makes the calls first, into locals, as gc does.
+// GoPatina makes the calls first, into locals, as gc does: a loop's each
+// time round, before its test.
 package main
 
 import "fmt"
@@ -72,6 +73,31 @@ func main() {
 		fmt.Println("eleven", x)
 	default:
 		fmt.Println("other", x)
+	}
+	for x+addTo(&x, 1) < 40 {
+		fmt.Println("loop", x)
+	}
+	sum := 0
+	for i := 0; i+addTo(&i, 1) < 12; i++ {
+		if i%3 == 0 {
+			continue // the post statement still runs
+		}
+		sum += i
+	}
+	fmt.Println(sum)
+	half := 0.5
+	for g := 1; float64(g)+half < float64(addTo(&g, 2)); {
+		if g > 9 {
+			break
+		}
+	}
+	switch {
+	case x+addTo(&x, 1) > 100:
+		fmt.Println("case big", x)
+	case addTo(&x, 0) > 50:
+		fmt.Println("case medium", x)
+	case x+addTo(&x, 1) > 10:
+		fmt.Println("case small", x)
 	}
 	if x+addTo(&x, 1) > 100 {
 		fmt.Println("big", x)

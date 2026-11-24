@@ -1,7 +1,7 @@
-./main.go:12:6: pointers of type *Acc are never shared: each has one owner (RFC 0016)
-./main.go:17:10: parameter a is an exclusive borrow: add changes it, and the caller sees the change
-./main.go:23:7: receiver a is an exclusive borrow: Bump changes it, and the caller sees the change
-./main.go:29:11: parameter a is a shared borrow: peek only reads it
-./main.go:32:12: parameter s is an exclusive borrow: first changes it, and the caller sees the change
-./main.go:38:12: parameter p is an exclusive borrow: addTo changes it, and the caller sees the change
-./main.go:47:7: receiver p is an exclusive borrow: Next changes it, and the caller sees the change
+./main.go:13:6: pointers of type *Acc are never shared: each has one owner (RFC 0016)
+./main.go:18:10: parameter a is an exclusive borrow: add changes it, and the caller sees the change
+./main.go:24:7: receiver a is an exclusive borrow: Bump changes it, and the caller sees the change
+./main.go:30:11: parameter a is a shared borrow: peek only reads it
+./main.go:33:12: parameter s is an exclusive borrow: first changes it, and the caller sees the change
+./main.go:39:12: parameter p is an exclusive borrow: addTo changes it, and the caller sees the change
+./main.go:48:7: receiver p is an exclusive borrow: Next changes it, and the caller sees the change
