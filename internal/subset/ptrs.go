@@ -6,6 +6,7 @@ import (
 	"go/types"
 	"sync"
 
+	"github.com/pigfox/gopatina/internal/diag"
 	"github.com/pigfox/gopatina/internal/load"
 )
 
@@ -38,6 +39,8 @@ type PtrPlan struct {
 	// nonNil holds the owned pointers that are never nil (RFC 0017,
 	// step 2), computed on first use.
 	nonNil *nonNilPlan
+	// ownerErrs are the uses of owned pointers refused (RFC 0017).
+	ownerErrs []ownerError
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.
@@ -232,6 +235,9 @@ func addressOf(e ast.Expr) bool {
 // variable or a variable of a pointer type that would live in a cell.
 func (c *checker) checkPtrs() {
 	p := Ptrs(c.pkg)
+	for _, e := range p.ownerErrors() {
+		c.diags = append(c.diags, diag.Errorf(c.pkg.Fset.Position(e.pos), "%s", e.msg).With(e.notes...))
+	}
 	for _, x := range p.Interior {
 		c.unsupported(x, "a pointer into a struct field or a slice element that escapes (RFC 0013)")
 	}

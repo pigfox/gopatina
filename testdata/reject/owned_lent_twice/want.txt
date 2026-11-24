@@ -1,0 +1,9 @@
+./main.go:21:2: a is lent to a.add to be changed while another argument also lends a
+    in Rust, and in patina mode, an object changed through one name has no other name meanwhile (RFC 0017)
+    pass a once, or copy what the other argument needs from it into a variable first
+./main.go:22:2: a is lent to both to be changed while another argument also lends a
+    in Rust, and in patina mode, an object changed through one name has no other name meanwhile (RFC 0017)
+    pass a once, or copy what the other argument needs from it into a variable first
+./main.go:23:2: a is lent to both to be changed while another argument also lends a
+    in Rust, and in patina mode, an object changed through one name has no other name meanwhile (RFC 0017)
+    pass a once, or copy what the other argument needs from it into a variable first

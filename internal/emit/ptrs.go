@@ -71,20 +71,28 @@ func (g *gen) ptrNew(t types.Type, v node) node {
 }
 
 // ptrRep is how an owned pointer (RFC 0016) is held in Rust: in an
-// Option where it may be nil, owned or borrowed.
+// Option where it may be nil, owned or borrowed, and a borrow shared or
+// exclusive.
 type ptrRep int
 
 const (
-	repOptBox ptrRep = iota // Option<Box<T>>: a field, or a variable that may be nil
-	repBox                  // Box<T>: a new pointer, never nil (RFC 0017, step 2)
-	repOptRef               // Option<&T>: a parameter that may be nil
-	repRef                  // &T: a parameter or receiver never nil
+	repOptBox    ptrRep = iota // Option<Box<T>>: a field, or a variable that may be nil
+	repBox                     // Box<T>: a new pointer, never nil (RFC 0017, step 2)
+	repOptRef                  // Option<&T>: a parameter that may be nil
+	repRef                     // &T: a parameter or receiver never nil
+	repOptRefMut               // Option<&mut T>: one changed through (RFC 0017, step 3)
+	repRefMut                  // &mut T
 )
+
+// mut reports whether r is an exclusive borrow, optional whether it is
+// in an Option.
+func (r ptrRep) mut() bool      { return r >= repOptRefMut }
+func (r ptrRep) optional() bool { return r == repOptBox || r == repOptRef || r == repOptRefMut }
 
 // ptrRep returns how owned pointer e is held.
 func (g *gen) ptrRep(e ast.Expr) ptrRep {
-	if g.bound[types.ExprString(ast.Unparen(e))] != "" {
-		return repRef // bound by an if let Some
+	if b, ok := g.bound[types.ExprString(ast.Unparen(e))]; ok {
+		return b.rep // bound by an if let Some
 	}
 	switch x := ast.Unparen(e).(type) {
 	case *ast.Ident:
@@ -107,18 +115,22 @@ func (g *gen) ptrRep(e ast.Expr) ptrRep {
 
 // paramRep returns how parameter v, of an owned pointer type, is held.
 func (g *gen) paramRep(v *types.Var) ptrRep {
+	r := repOptRef
 	if g.ptrs.NonNilVar(v) {
-		return repRef
+		r = repRef
 	}
-	return repOptRef
+	if p := g.res.Param(v); p != nil && p.Mode == borrow.RefMut {
+		r += repOptRefMut - repOptRef
+	}
+	return r
 }
 
 // rawPtr renders owned pointer e as it is held (ptrRep), without the Some
 // that value adds to a Box.
 func (g *gen) rawPtr(e ast.Expr) node {
 	e = ast.Unparen(e)
-	if name := g.bound[types.ExprString(e)]; name != "" {
-		return text(name)
+	if b, ok := g.bound[types.ExprString(e)]; ok {
+		return text(b.name)
 	}
 	if g.isPlace(e) {
 		return g.place(e)
@@ -130,40 +142,109 @@ func (g *gen) rawPtr(e ast.Expr) node {
 }
 
 // ptrAs renders owned pointer e held as want: a borrow lent to a
-// parameter, or the value read through.
+// parameter, or the value read or changed through.
 func (g *gen) ptrAs(e ast.Expr, want ptrRep) node {
 	if g.info.Types[e].IsNil() {
 		return text("None") // nil lent to a parameter that may be nil
 	}
 	have := g.ptrRep(e)
-	n := g.rawPtr(e)
-	method := func(m string) node { return &call{recv: n, head: m, open: "(", close: ")"} }
-	switch {
-	case have == want:
-		return n
-	case want == repOptRef && have == repOptBox:
-		return method(".as_deref")
-	case want == repOptRef && have == repBox:
-		return &call{head: "Some", open: "(", close: ")", args: []node{atom{"&*" + paren(n, precUnary), precUnary}}}
-	case want == repOptRef: // a &T parameter passed on
-		return &call{head: "Some", open: "(", close: ")", args: []node{n}}
-	case have == repOptBox:
-		// Unwrapping None is Go's nil dereference.
-		return &call{recv: method(".as_ref"), head: ".unwrap", open: "(", close: ")"}
-	case have == repOptRef:
-		return method(".unwrap")
+	if have == want && !have.mut() {
+		return g.rawPtr(e) // the same Copy borrow, or the same Box
 	}
-	return &addrOf{"&", n} // a Box lent as &T: deref coercion
+	// The base of an exclusive borrow is itself reached exclusively.
+	saved := g.writing
+	g.writing = want.mut()
+	n := g.rawPtr(e)
+	g.writing = saved
+	method := func(m string) node { return &call{recv: n, head: m, open: "(", close: ")"} }
+	some := func(prefix string) node {
+		return &call{head: "Some", open: "(", close: ")", args: []node{atom{prefix + paren(n, precUnary), precUnary}}}
+	}
+	unwrap := func(m node) node { return &call{recv: m, head: ".unwrap", open: "(", close: ")"} }
+	switch want {
+	case repOptRef:
+		switch have {
+		case repOptBox, repOptRefMut:
+			return method(".as_deref")
+		case repBox, repRefMut:
+			return some("&*")
+		}
+		return &call{head: "Some", open: "(", close: ")", args: []node{n}} // a &T passed on
+	case repRef:
+		switch have {
+		case repOptBox:
+			return unwrap(method(".as_ref")) // unwrapping None is Go's nil dereference
+		case repOptRef:
+			return method(".unwrap")
+		case repOptRefMut:
+			return unwrap(method(".as_deref"))
+		case repRefMut:
+			return n // &mut T coerces to &T
+		}
+		return &addrOf{"&", n} // a Box lent as &T: deref coercion
+	case repOptRefMut:
+		switch {
+		case have == repOptRefMut && !g.usedAfter(e):
+			return n // its last use: moved, not reborrowed (clippy)
+		case have == repOptBox || have == repOptRefMut:
+			return method(".as_deref_mut")
+		}
+		return some("&mut *") // a Box or a &mut T, reborrowed
+	}
+	switch have { // repRefMut
+	case repOptBox:
+		return unwrap(method(".as_mut")) // &mut Box<T> coerces to &mut T
+	case repOptRefMut:
+		if !g.usedAfter(e) {
+			return method(".unwrap") // its last use: moved (clippy)
+		}
+		return unwrap(method(".as_deref_mut"))
+	case repRefMut:
+		return n // reborrowed at the call
+	}
+	return &addrOf{"&mut ", n} // a Box lent as &mut T
 }
 
-// ptrThrough renders owned pointer e as the base of a field read or a
-// method call: whatever derefs to T.
+// usedAfter reports whether e, a variable, may be used again after this
+// use: named later in its function, or used inside a loop, which may come
+// round to it again.
+func (g *gen) usedAfter(e ast.Expr) bool {
+	id := ast.Unparen(e).(*ast.Ident) // an Option<&mut T> is a parameter
+	v := g.localVar(id)
+	again := false
+	var loops []ast.Node
+	ast.Inspect(g.fn.Decl.Body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.ForStmt, *ast.RangeStmt:
+			if x.Pos() <= id.Pos() && id.End() <= x.End() {
+				loops = append(loops, x)
+			}
+		case *ast.Ident:
+			if x.Pos() > id.Pos() && g.localVar(x) == v {
+				again = true
+			}
+		}
+		return true
+	})
+	return again || len(loops) > 0
+}
+
+// ptrThrough renders owned pointer e as the base of a field read or
+// write, or of a method call: whatever derefs to T, exclusively when the
+// place is being written (g.writing).
 func (g *gen) ptrThrough(e ast.Expr) node {
-	switch g.ptrRep(e) {
-	case repBox, repRef:
-		return g.rawPtr(e)
+	switch r := g.ptrRep(e); {
+	case !r.optional():
+		return g.rawPtr(e) // a Box, a &T or a &mut T
+	case r == repOptRef:
+		return g.ptrAs(e, repRef)
+	case g.writing:
+		saved := g.writing
+		n := g.rawPtr(e)
+		g.writing = saved
+		return &call{recv: &call{recv: n, head: ".as_mut", open: "(", close: ")"}, head: ".unwrap", open: "(", close: ")"}
 	}
-	return g.ptrAs(e, repRef) // unwrapped
+	return &call{recv: &call{recv: g.rawPtr(e), head: ".as_ref", open: "(", close: ")"}, head: ".unwrap", open: "(", close: ")"}
 }
 
 // heapRoot returns the point where place e goes through a heap pointer:

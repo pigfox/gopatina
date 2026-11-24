@@ -56,7 +56,7 @@ func (o *operands) check(call *ast.CallExpr, name string, pos token.Pos, stmtLev
 		top := w.evs[op.top]
 		for j := i + 1; j < len(o.ops); j++ {
 			later := o.ops[j]
-			conflict, copyOnly := false, true
+			conflict, copyOnly, twice := false, true, false
 			for k := later.from; k < later.to; k++ {
 				ev := w.evs[k]
 				if ev.v != top.v || !overlaps(ev.path, top.path) {
@@ -78,12 +78,15 @@ func (o *operands) check(call *ast.CallExpr, name string, pos token.Pos, stmtLev
 					if changes || held {
 						copyOnly = false
 					}
+					twice = twice || held && !changes
 				case changes && !op.excl && KindOf(a.pkg.Info.Types[top.e].Type) == Value:
 					// A string (or a struct of strings and numbers) read
 					// before the change: a copy taken first keeps Go's meaning.
 					conflict = true
-				case changes, op.excl && held:
+				case changes:
 					conflict, copyOnly = true, false
+				case op.excl && held:
+					conflict, copyOnly, twice = true, false, true
 				}
 			}
 			if !conflict {
@@ -97,6 +100,14 @@ func (o *operands) check(call *ast.CallExpr, name string, pos token.Pos, stmtLev
 				continue
 			}
 			p := top.path
+			if twice && call != nil {
+				// One object lent twice, once to be changed: two names for
+				// it during the call (RFC 0017).
+				a.report(pos, a.errorf(pos, "%s is lent to %s to be changed while another argument also lends %s", trimElem(p), name, rootName(p)).With(
+					"in Rust, and in patina mode, an object changed through one name has no other name meanwhile (RFC 0017)",
+					fmt.Sprintf("pass %s once, or copy what the other argument needs from it into a variable first", rootName(p))))
+				continue
+			}
 			if call == nil {
 				a.report(pos, a.errorf(pos, "%s is read by %s, and another operand changes %s", trimElem(p), name, rootName(p)).With(
 					"Go does not specify whether the read comes before or after the change, so patina mode does not guess",

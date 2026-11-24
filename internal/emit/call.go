@@ -83,8 +83,13 @@ func (g *gen) methodCall(x ast.Expr, m *types.Func, args []node) node {
 		return &call{head: head, open: "(", close: ")", args: append([]node{g.heapRecvArg(x, fn.Recv)}, args...)}
 	}
 	if g.ownSelf(m) {
-		// &self, never nil (RFC 0017, step 2): unwrapped by the caller.
-		return &call{recv: g.ptrThrough(x), head: "." + g.funcs[m], open: "(", close: ")", args: args}
+		// &self or &mut self, never nil (RFC 0017, steps 2 and 3):
+		// unwrapped by the caller.
+		saved := g.writing
+		g.writing = fn.Recv.Mode == borrow.RefMut
+		recv := g.ptrThrough(x)
+		g.writing = saved
+		return &call{recv: recv, head: "." + g.funcs[m], open: "(", close: ")", args: args}
 	}
 	return &call{recv: g.receiver(x, fn.Recv), head: "." + g.funcs[m], open: "(", close: ")", args: args}
 }
@@ -176,7 +181,7 @@ func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
 	if name, ok := g.hoisted[a]; ok {
 		return text(name)
 	}
-	if g.ownPtr(p.Var.Type()) && p.Mode == borrow.Ref {
+	if g.ownPtr(p.Var.Type()) && (p.Mode == borrow.Ref || p.Mode == borrow.RefMut) {
 		return g.ptrAs(a, g.paramRep(p.Var)) // RFC 0017, step 2; a call made first is its local
 	}
 	if c, ok := ast.Unparen(a).(*ast.CallExpr); ok && g.callTemps[c] != "" {

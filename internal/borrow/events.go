@@ -128,8 +128,8 @@ func (w *walker) place(e ast.Expr) (ev event, ok bool) {
 			ev.whole = false
 			if _, isPtr := w.info().Types[x.X].Type.(*types.Pointer); isPtr {
 				deref = true
-				if KindOf(w.info().Types[x.X].Type) != PointerKind {
-					ev.heap = true
+				if t := w.info().Types[x.X].Type; KindOf(t) != PointerKind && !subset.Ptrs(w.a.pkg).Owned(t) {
+					ev.heap = true // an owned pointer's value has one owner: no cell (RFC 0017, step 3)
 				}
 			}
 			parts = append(parts, "."+x.Sel.Name)
@@ -332,7 +332,7 @@ func (w *walker) call(e *ast.CallExpr) {
 func (w *walker) receiver(ops *operands, x ast.Expr, callee *Func) {
 	r := callee.Recv
 	switch {
-	case r.Mode == RefMut && heapPtrType(w.info().TypeOf(x)):
+	case r.Mode == RefMut && heapPtrType(w.info().TypeOf(x)) && !subset.Ptrs(w.a.pkg).Owned(w.info().TypeOf(x)):
 		// A value method changing *p, inside p's cell (RFC 0013): p itself
 		// is only read.
 		ops.add(x, true, false, false, func() { w.read(x) })

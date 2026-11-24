@@ -1,0 +1,11 @@
+./main.go:11:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:20:10: parameter n is a shared borrow: get only reads it
+./main.go:23:12: parameter n is a shared borrow: count only reads it
+./main.go:31:11: parameter n is an exclusive borrow: bump changes it, and the caller sees the change
+./main.go:37:11: parameter n is an exclusive borrow: tick changes it, and the caller sees the change
+./main.go:43:7: receiver n is an exclusive borrow: grow changes it, and the caller sees the change
+./main.go:56:15: parameter n is an exclusive borrow: maybeSet changes it, and the caller sees the change
+./main.go:67:12: parameter n is an exclusive borrow: again changes it, and the caller sees the change
+./main.go:79:13: parameter n is an exclusive borrow: finish changes it, and the caller sees the change
+./main.go:88:12: parameter n is an exclusive borrow: twice changes it, and the caller sees the change
+./main.go:97:7: receiver n is an exclusive borrow: later changes it, and the caller sees the change

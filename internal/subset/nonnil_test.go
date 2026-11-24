@@ -162,10 +162,6 @@ func compared(n *Node) int { // compared with nil: no
 	}
 	return n.V
 }
-func reassigned(n *Node) int { // assigned: no
-	n = fresh()
-	return n.V
-}
 func printed(n *Node) int { // the call reads n first
 	fmt.Println(n.V)
 	return n.V
@@ -176,6 +172,11 @@ func (n *Node) late() int           { return n.V }
 func (n *Node) take(x int) int      { return n.V + x }
 func unsafeArgs(n *Node, m int) int { return n.V + m }
 func quietArgs(n *Node, m int, b *Box) int { return n.V + m }
+func setFirst(n *Node)                 { n.V = 1 }
+func incFirst(n *Node)                 { n.V++ }
+func setCall(n *Node)                  { n.V = number() }
+func setPanics(n *Node, s []int)       { n.V = s[0] }
+func pathArgs(n *Node, m int) int { return n.V + m } // a field of a field after it: no
 func use(int)                       {}
 func pass(x int) int                { return x }
 
@@ -194,19 +195,24 @@ func main() {
 	fmt.Println(otherIndex(a, nil), divFirst(a, 1), constDiv(a), starFirst(a, &Box{}), assertFirst(a, 1), sliceFirst(a, nil))
 	fmt.Println(unary(a), andRight(a, true), lit(a), litPlain(a), conv(a), lenOf(a, nil), cond(a), condInit(a), paren(a))
 	exprFirst(a)
-	fmt.Println(assign(a), loop(a), compared(a), reassigned(a), printed(a), passOn(a))
+	fmt.Println(assign(a), loop(a), compared(a), printed(a), passOn(a))
 	assignField(a, &Box{})
 	empty(a)
 	fmt.Println(a.get(), (a).Next.late(), a.Next.take(number()), unsafeArgs(a.Next, 3), unsafeArgs(a.Next, number()))
 	fmt.Println(viaCall().V, viaNew().V, viaLocal().V, viaVar().V, mayNil(true).V, named().V, readFirst(fresh()), readFirst(a.Next))
+	bx := Box{V: 1}
 	e := mayNil(false) // not new: no
-	fmt.Println(e.V, viaLit().V, (pass)(1), nested(a), second(1, a.Next), unsafeArgs(a.Next, x), quietArgs(a.Next, x, nil))
+	fmt.Println(e.V, viaLit().V, (pass)(1), nested(a), second(1, a.Next), unsafeArgs(a.Next, x), quietArgs(a.Next, x, nil), quietArgs(a.Next, a.V, nil), quietArgs(a.Next, bx.V, nil), pathArgs(a.Next, a.Next.V), unsafeArgs(a.Next, pass(1)))
+	setFirst(a)
+	incFirst(a)
+	setCall(a)
+	setPanics(a, nil)
 	n2, _ := two()
 	fmt.Println(n2.V, readFirst(nil))
 	g := number
 	_ = g
 }
-`, "argFirst.n assign.n cond.n constDiv.n conv.n exprFirst.n get.n indexFirst.n late.n lenOf.n lit.n litPlain.n main.a nested.n paren.n printed.n quietArgs.n recvFirst.n result fresh result viaCall result viaLit result viaLocal result viaNew result viaVar second.n unary.n viaLocal.n viaVar.n"},
+`, "argFirst.n assign.n cond.n constDiv.n conv.n exprFirst.n get.n incFirst.n indexFirst.n late.n lenOf.n lit.n litPlain.n main.a nested.n paren.n printed.n quietArgs.n recvFirst.n result fresh result viaCall result viaLit result viaLocal result viaNew result viaVar second.n setFirst.n unary.n viaLocal.n viaVar.n"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

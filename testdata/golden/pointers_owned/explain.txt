@@ -5,6 +5,7 @@
 ./main.go:31:7: receiver n is a shared borrow: sum only reads it
 ./main.go:38:7: receiver n is a shared borrow: depth only reads it
 ./main.go:52:15: parameter n is a shared borrow: leftmost only reads it
+./main.go:54:10: copied n.Name into a return: n is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
 ./main.go:59:12: parameter n is a shared borrow: label only reads it
 ./main.go:68:6: pointers of type *List are never shared: each has one owner (RFC 0016)
 ./main.go:80:13: parameter l is a shared borrow: length only reads it
