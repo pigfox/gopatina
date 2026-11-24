@@ -274,21 +274,23 @@ checks both, and CI runs it on every golden program; see
 
 ## Benchmarks
 
-**Latest test-server run, 2026-11-23**: GoPatina, hand-written Rust and
-plain Go, all five benchmarks, both Rust binaries built by rustc 1.100.0,
-100 rounds, ratios with 5σ intervals and equivalence tests at ±0.5%. On
-the two pointer benchmarks GoPatina is slower than both, and plain Go is
-the fastest; [RFC 0016](docs/rfcs/0016-owned-pointers-and-cycle-collection.md)
-fixes the causes. Details, peak memory, binary sizes, raw results and
+**Latest test-server run, 2026-11-23, after owned pointers**: GoPatina,
+hand-written Rust and plain Go, all five benchmarks, both Rust binaries
+built by rustc 1.100.0, 100 rounds, ratios with 5σ intervals and
+equivalence tests at ±0.5%. On `binary-trees`, GoPatina's peak memory now
+matches Rust's and its wall time fell from 1.50 to 1.19 times Rust's
+([RFC 0016](docs/rfcs/0016-owned-pointers-and-cycle-collection.md), step
+1); on the two pointer benchmarks it is still slower than both, and plain
+Go is the fastest. Details, peak memory, binary sizes, raw results and
 every earlier run are in [BENCHMARKS.md](BENCHMARKS.md).
 
 | Benchmark | GoPatina / Rust, instructions | GoPatina / Rust, wall time | GoPatina / Go, wall time |
 | --- | --- | --- | --- |
-| `fib` | 1.00000: equivalent | 0.904 [0.868, 0.941] | 0.526 [0.498, 0.554] |
-| `sieve` | 1.00001: equivalent | 0.984 [0.931, 1.039] | 0.968 [0.909, 1.031] |
-| `suffix-sum` | 1.00001: equivalent | 1.006 [0.960, 1.054] | 0.971 [0.920, 1.025] |
-| `binary-trees` | 1.372: slower | 1.496 [1.422, 1.574] | 1.591 [1.523, 1.662] |
-| `cycles` | 0.983 | 1.999 [1.890, 2.114] | 2.701 [2.532, 2.882] |
+| `fib` | 1.00000: equivalent | 0.896 [0.851, 0.943] | 0.519 [0.491, 0.548] |
+| `sieve` | 1.00001: equivalent | 1.007 [0.944, 1.076] | 0.985 [0.910, 1.067] |
+| `suffix-sum` | 1.00001: equivalent | 0.995 [0.950, 1.043] | 0.945 [0.894, 0.998] |
+| `binary-trees` | 1.189: slower | 1.193 [1.136, 1.253] | 1.267 [1.208, 1.329] |
+| `cycles` | 0.983 | 2.033 [1.926, 2.146] | 2.807 [2.648, 2.975] |
 
 ## Supported toolchains
 
