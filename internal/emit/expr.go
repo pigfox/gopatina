@@ -250,7 +250,7 @@ func (g *gen) value(e ast.Expr) node {
 	}
 	e = ast.Unparen(e)
 	t := tv.Type
-	if g.ownPtr(t) && !g.raw[e] && !g.boxSlot[e] && g.ptrRep(e) == repBox {
+	if g.ownPtr(t) && !g.raw[e] && !g.boxSlot[e] && g.temps[e] == "" && g.ptrRep(e) == repBox {
 		// A pointer never nil, where an Option<Box<T>> may hold nil.
 		return &call{head: "Some", open: "(", close: ")", args: []node{g.rawPtr(e)}}
 	}
@@ -331,7 +331,7 @@ func (g *gen) owned(e ast.Expr) node {
 		}
 		return &call{recv: g.lhsPlace(e), head: ".take", open: "(", close: ")"}
 	}
-	if x := ast.Unparen(e); g.ownPtr(g.typeOf(x)) && !g.raw[x] && !g.boxSlot[x] && g.ptrRep(x) == repBox {
+	if x := ast.Unparen(e); g.ownPtr(g.typeOf(x)) && !g.raw[x] && !g.boxSlot[x] && g.temps[x] == "" && g.ptrRep(x) == repBox {
 		// A pointer never nil moved where an Option<Box<T>> holds it.
 		return &call{head: "Some", open: "(", close: ")", args: []node{g.rawPtr(x)}}
 	}

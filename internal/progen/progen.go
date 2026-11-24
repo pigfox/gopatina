@@ -965,7 +965,10 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// Owned pointers (RFC 0016): a tree built from new pointers and a chain
 	// longer than the runtime's drop depth, then only read through, tested
 	// for nil and lent, so each is a Box with one owner.
-	fmt.Fprintf(b, "\ntype Tr%d struct {\n\tL, R *Tr%d\n\tV    int\n\tS    string\n}\n", k, k)
+	fmt.Fprintf(b, "\ntype Tr%d struct {\n\tL, R *Tr%d\n\tV    int\n\tS    string\n\tK    []*Tr%d\n}\n", k, k, k)
+	// A slice of owned pointers (RFC 0017, step 7): a Vec owning each,
+	// read by range, whose variable borrows each element, and by index.
+	fmt.Fprintf(b, "\nfunc trKids%d(t *Tr%d) int {\n\ts := len(t.K)\n\tfor _, c := range t.K {\n\t\ts += c.V\n\t}\n\tfor i := 0; i < len(t.K); i++ {\n\t\ts += trKids%d(t.K[i])\n\t}\n\treturn s\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc mkTr%d(d, v int) *Tr%d {\n\tif d <= 0 {\n\t\treturn &Tr%d{V: v, S: fmt.Sprint(\"t\", v)}\n\t}\n\tt := &Tr%d{L: mkTr%d(d-1, v %s %d), R: mkTr%d(d-1, v+1), V: v}\n\treturn t\n}\n", k, k, k, k, k, op(), 1+g.qr.IntN(9), k)
 	fmt.Fprintf(b, "\nfunc (t *Tr%d) Sum() int {\n\tif t == nil {\n\t\treturn 0\n\t}\n\treturn t.V %s t.L.Sum() + t.R.Sum()\n}\n", k, op())
 	fmt.Fprintf(b, "\nfunc trDepth%d(t *Tr%d) int {\n\tif t.L == nil {\n\t\treturn 1\n\t}\n\treturn 1 + trDepth%d(t.L)\n}\n", k, k, k)
@@ -1071,6 +1074,9 @@ func (g *gen) ptrUses() {
 	g.line("trMaybe%d(trP.L.L, %s)", k, v())
 	g.line("trP.V %s= trP.R.V", op())
 	// Takes (RFC 0017, step 6): a field moved out and refilled at once.
+	g.line("trP.K = append(trP.K, mkTr%d(%d, %s), &Tr%d{V: %s})", k, g.qr.IntN(3), v(), k, v())
+	g.line("trP.K[0].V %s= %s", op(), v())
+	g.line("fmt.Println(trKids%d(trP), len(trP.K), trP.K[1].V)", k)
 	g.line("trL := trP.L")
 	g.line("trP.L = nil")
 	g.line("trR := trP.R")

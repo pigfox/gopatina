@@ -1,0 +1,5 @@
+./main.go:9:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:17:10: parameter n is a shared borrow: sum only reads it
+./main.go:26:12: parameter n is a shared borrow: count only reads it
+./main.go:35:13: parameter n is a shared borrow: widest only reads it
+./main.go:51:10: moved p into root: p is not used afterwards

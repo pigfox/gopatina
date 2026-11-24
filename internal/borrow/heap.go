@@ -133,7 +133,9 @@ func (a *analyzer) checkHeap(decls []*ast.FuncDecl) {
 		d := diag.Errorf(a.pkg.Fset.Position(n.Pos()), "%s is not supported in patina mode yet", what)
 		a.report(n.Pos(), d.With("see docs/compat.md for what patina mode supports"))
 	}
-	heap := func(e ast.Expr) bool { return HeapPlace(info, plan.Cells, e) }
+	// A place reached only through owned pointers (RFC 0016) is a plain
+	// Rust place, no cell, so none of these rules applies to it (RFC 0017).
+	heap := func(e ast.Expr) bool { return HeapPlace(info, plan.Cells, e) && !ownedPath(info, plan, e) }
 	// A range over a slice in a cell ranges over a copy of it (patina mode
 	// cannot hold the cell's borrow through the body), which is Go's range
 	// unless the program changes an element of a slice of that type held
@@ -547,4 +549,38 @@ func article(name string) string {
 		return "an"
 	}
 	return "a"
+}
+
+// ownedPath reports whether every pointer place e goes through is an owned
+// pointer (RFC 0016), so that no cell is on the way.
+func ownedPath(info *types.Info, plan *subset.PtrPlan, e ast.Expr) bool {
+	through := false
+	for {
+		switch x := ast.Unparen(e).(type) {
+		case *ast.SelectorExpr:
+			if t := info.TypeOf(x.X); isPointerOf(t) {
+				if !plan.Owned(t) {
+					return false
+				}
+				through = true
+			}
+			e = x.X
+		case *ast.IndexExpr:
+			e = x.X
+		case *ast.Ident:
+			return through && !plan.Cells[localVarOf(info, x)]
+		default:
+			return false
+		}
+	}
+}
+
+func isPointerOf(t types.Type) bool {
+	_, ok := types.Unalias(t).(*types.Pointer)
+	return ok
+}
+
+func localVarOf(info *types.Info, id *ast.Ident) *types.Var {
+	v, _ := info.Uses[id].(*types.Var)
+	return v
 }

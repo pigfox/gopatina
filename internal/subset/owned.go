@@ -189,6 +189,10 @@ func (o *ownership) run() {
 				if o.p.HeapType(ft) {
 					continue
 				}
+			case *types.Slice:
+				if o.ptrSlice(ft) {
+					continue // a slice of them, a Vec owning each (RFC 0017, step 7)
+				}
 			}
 			o.share(h, f.Pos(), fmt.Sprintf("its field %s is of type %s", f.Name(), types.TypeString(f.Type(), types.RelativeTo(o.p.pkg.Types))))
 			break
@@ -213,6 +217,7 @@ func (o *ownership) run() {
 		}
 	}
 	o.vars()
+	o.ranges()
 	for _, f := range o.p.pkg.Files {
 		var stack []ast.Node
 		ast.Inspect(f, func(n ast.Node) bool {
@@ -272,8 +277,67 @@ func (o *ownership) vars() {
 			}
 			continue
 		}
+		if v.IsField() && o.candidateField(v) && o.ptrSlice(t) {
+			continue // owned by the field's Vec (RFC 0017, step 7)
+		}
 		o.heldIn(t, id.Pos(), map[types.Type]bool{})
 	}
+}
+
+// ranges shares the type of the pointers a range over a slice of them
+// copies into a variable that is not a temporary borrow: the element and
+// the variable would both own the pointer (RFC 0017, step 7).
+func (o *ownership) ranges() {
+	for _, f := range o.p.pkg.Files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			r, ok := n.(*ast.RangeStmt)
+			if !ok || !o.ptrSlice(o.info.TypeOf(r.X)) {
+				return true
+			}
+			id, ok := r.Value.(*ast.Ident)
+			if !ok || id.Name == "_" {
+				return true
+			}
+			if v, ok := o.info.Defs[id].(*types.Var); ok && !o.p.BorrowVar(v) {
+				o.share(o.elemOf(v.Type()), id.Pos(), "a range variable takes a copy of an element and keeps it")
+			}
+			return true
+		})
+	}
+}
+
+// ptrSlice reports whether t is a slice of heap pointers.
+func (o *ownership) ptrSlice(t types.Type) bool {
+	s, ok := types.Unalias(t).Underlying().(*types.Slice)
+	return ok && o.elemOf(s.Elem()) != nil
+}
+
+// elemPlace reports whether e is an element of a slice of pointers held
+// in a field: a place that owns its pointer (RFC 0017, step 7).
+func (o *ownership) elemPlace(e ast.Expr) bool {
+	ix, ok := ast.Unparen(e).(*ast.IndexExpr)
+	return ok && o.ptrSlice(o.info.TypeOf(ix.X)) && o.fieldPlace(ix.X)
+}
+
+// appendedToField reports whether call c is append(x.f, ...) assigned
+// back to x.f, a candidate's slice of pointers: its arguments move into
+// the Vec.
+func (o *ownership) appendedToField(c *ast.CallExpr, stack []ast.Node) bool {
+	id, ok := ast.Unparen(c.Fun).(*ast.Ident)
+	if !ok || len(c.Args) == 0 {
+		return false
+	}
+	if b, ok := o.info.Uses[id].(*types.Builtin); !ok || b.Name() != "append" {
+		return false
+	}
+	for i := len(stack) - 1; i >= 0; i-- {
+		if as, ok := stack[i].(*ast.AssignStmt); ok {
+			return len(as.Lhs) == 1 && len(as.Rhs) == 1 && ast.Unparen(as.Rhs[0]) == ast.Expr(c) &&
+				o.fieldPlace(as.Lhs[0]) && o.ptrSlice(o.info.TypeOf(as.Lhs[0])) &&
+				types.ExprString(ast.Unparen(as.Lhs[0])) == types.ExprString(ast.Unparen(c.Args[0]))
+		}
+	}
+	return false
 }
 
 // candidateField reports whether field v belongs to the element type of a
@@ -410,6 +474,12 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 			}
 		}
 		o.placeUse(el, e, stack)
+	case *ast.IndexExpr:
+		if o.elemPlace(e) {
+			o.placeUse(el, e, stack) // an element of a field's Vec (RFC 0017, step 7)
+			return
+		}
+		o.share(el, e.Pos(), "a pointer is computed in a way that may share it")
 	default:
 		o.share(el, e.Pos(), "a pointer is computed in a way that may share it")
 	}
@@ -476,6 +546,14 @@ func (o *ownership) freshUse(el types.Type, e ast.Expr, stack []ast.Node) {
 		}
 	case *ast.CompositeLit:
 		if o.boxedLit(stack[:len(stack)-1]) {
+			return
+		}
+	case *ast.CallExpr:
+		if p.Args[0] != child && o.appendedToField(p, stack[:at+1]) {
+			o.chained[el] = true
+			return // appended to a field's Vec, which owns it (RFC 0017, step 7)
+		}
+		if o.readOrLend(p, child, stack[:at+1]) {
 			return
 		}
 	default:
@@ -689,6 +767,11 @@ func (o *ownership) moved(e ast.Expr, par, child ast.Node, stack []ast.Node) boo
 		}
 	case *ast.ValueSpec:
 		return true // a local variable declared with it
+	case *ast.CallExpr:
+		if p.Args[0] != child && o.appendedToField(p, stack) {
+			o.chained[el] = true
+			return true // appended to a field's Vec (RFC 0017, step 7)
+		}
 	case *ast.KeyValueExpr:
 		o.chained[el] = true
 		return p.Value == child && o.boxedLit(stack[:len(stack)-1])
@@ -709,6 +792,8 @@ func rootVar(info *types.Info, e ast.Expr) *types.Var {
 			return v
 		case *ast.SelectorExpr:
 			e = x.X // a field: a place assigned a pointer is never a method
+		case *ast.IndexExpr:
+			e = x.X // an element of a slice (RFC 0017, step 7)
 		default:
 			return nil // a field of a call's result
 		}
@@ -731,11 +816,23 @@ func (o *ownership) plainWrite(stack []ast.Node) bool {
 				place = p
 				continue
 			}
+		case *ast.IndexExpr:
+			if p.X == place && o.ptrSlice(o.info.TypeOf(p.X)) {
+				place = p // an element of a Vec of owned pointers, changed through (step 7)
+				continue
+			}
 		case *ast.AssignStmt, *ast.IncDecStmt:
-			_, basic := o.info.TypeOf(place.(ast.Expr)).Underlying().(*types.Basic)
+			t := o.info.TypeOf(place.(ast.Expr))
+			_, basic := t.Underlying().(*types.Basic)
+			if as, ok := p.(*ast.AssignStmt); ok && o.ptrSlice(t) && len(as.Rhs) == 1 {
+				// x.f = append(x.f, ...): pushed onto the field's own Vec
+				// (RFC 0017, step 7).
+				c, isCall := ast.Unparen(as.Rhs[0]).(*ast.CallExpr)
+				return isCall && o.appendedToField(c, append(stack[:j+1:j+1], c))
+			}
 			// A pointer field assigned: the value moves there, and is
 			// checked where it is (RFC 0017, step 4).
-			return basic || o.elemOf(o.info.TypeOf(place.(ast.Expr))) != nil
+			return basic || o.elemOf(t) != nil
 		}
 		return false // &p.f, or p.s[i] = x
 	}

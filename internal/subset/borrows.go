@@ -22,6 +22,14 @@ func (p *PtrPlan) BorrowVar(v *types.Var) bool {
 	return p.borrows[v]
 }
 
+// RangeElem reports whether v is the value of a range over a slice: in
+// Rust a reference to each element, &Option<Box<T>> for a slice of owned
+// pointers, read through as a field is (RFC 0017, step 7).
+func (p *PtrPlan) RangeElem(v *types.Var) bool {
+	p.borrowsOnce()
+	return p.rangeElems[v]
+}
+
 // BorrowSources returns the variables temporary borrow v borrows from:
 // the roots of the values it is given, through other borrows.
 func (p *PtrPlan) BorrowSources(v *types.Var) map[*types.Var]bool {
@@ -36,6 +44,7 @@ func (p *PtrPlan) borrowsOnce() {
 	if p.borrows != nil {
 		return
 	}
+	p.rangeElems = map[*types.Var]bool{}
 	b := &borrowFinder{p: p, info: p.pkg.Info, uses: map[*types.Var][]use{}, values: map[*types.Var][]ast.Expr{}}
 	b.index()
 	cand := map[*types.Var]bool{}
@@ -142,6 +151,15 @@ func (b *borrowFinder) index() {
 				}
 			}
 			switch x := n.(type) {
+			case *ast.RangeStmt:
+				// The value of a range over a slice of pointers borrows
+				// each element in turn: its owner is the slice.
+				if id, ok := x.Value.(*ast.Ident); ok && x.Tok == token.DEFINE {
+					if v := b.localOf(id); v != nil {
+						b.values[v] = append(b.values[v], x.X)
+						b.p.rangeElems[v] = true
+					}
+				}
 			case *ast.IncDecStmt:
 				b.markWritten(x.X)
 			case *ast.AssignStmt:
