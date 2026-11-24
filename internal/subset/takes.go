@@ -36,6 +36,24 @@ func (p *PtrPlan) takesOnce() {
 			if !ok {
 				return true
 			}
+			for _, st := range b.List {
+				// t.f = f(..., t.f, ...): the field taken out for the call,
+				// which refills it with its result (RFC 0017, step 8).
+				as, ok := st.(*ast.AssignStmt)
+				if !ok || as.Tok != token.ASSIGN || len(as.Lhs) != 1 || len(as.Rhs) != 1 {
+					continue
+				}
+				c, ok := ast.Unparen(as.Rhs[0]).(*ast.CallExpr)
+				if !ok {
+					continue
+				}
+				for _, a := range c.Args {
+					sel, ok := ast.Unparen(a).(*ast.SelectorExpr)
+					if ok && types.ExprString(sel) == types.ExprString(ast.Unparen(as.Lhs[0])) && p.HeapType(info.TypeOf(sel)) && rootVar(info, sel) != nil {
+						p.takes[sel] = as
+					}
+				}
+			}
 			for i := 0; i+1 < len(b.List); i++ {
 				e := takenValue(info, b.List[i])
 				next, ok := b.List[i+1].(*ast.AssignStmt)
@@ -51,8 +69,8 @@ func (p *PtrPlan) takesOnce() {
 	}
 }
 
-// takenValue returns the field statement s assigns to one local variable,
-// v := t.f, v = t.f or var v = t.f, or nil.
+// takenValue returns the field statement s assigns to one local variable
+// or field, v := t.f, v = t.f, var v = t.f or x.g = t.f, or nil.
 func takenValue(info *types.Info, s ast.Stmt) ast.Expr {
 	var e ast.Expr
 	switch s := s.(type) {
@@ -60,7 +78,15 @@ func takenValue(info *types.Info, s ast.Stmt) ast.Expr {
 		if (s.Tok != token.DEFINE && s.Tok != token.ASSIGN) || len(s.Lhs) != 1 || len(s.Rhs) != 1 {
 			return nil
 		}
-		if _, ok := ast.Unparen(s.Lhs[0]).(*ast.Ident); !ok {
+		switch l := ast.Unparen(s.Lhs[0]).(type) {
+		case *ast.Ident:
+		case *ast.SelectorExpr:
+			if rootVar(info, l) == nil {
+				return nil
+			}
+			// n.Next = s.Top; s.Top = n: taken into a field (RFC 0017,
+			// step 8), Rust's n.next = s.top.take().
+		default:
 			return nil
 		}
 		e = s.Rhs[0]

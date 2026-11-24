@@ -1,0 +1,16 @@
+./main.go:11:6: pointers of type *Tree are never shared: each has one owner (RFC 0016)
+./main.go:17:13: parameter t is owned: insert keeps it
+./main.go:30:11: parameter t is a shared borrow: walk only reads it
+./main.go:30:20: parameter out is owned: walk keeps it
+./main.go:34:21: moved out into walk: out is not used afterwards
+./main.go:36:23: moved out into walk: out is not used afterwards
+./main.go:39:6: pointers of type *Stack are never shared: each has one owner (RFC 0016)
+./main.go:44:6: pointers of type *Item are never shared: each has one owner (RFC 0016)
+./main.go:52:7: receiver s is an exclusive borrow: push changes it, and the caller sees the change
+./main.go:52:22: parameter n is owned: push keeps it
+./main.go:54:10: moved n into s.Top: n is not used afterwards
+./main.go:59:12: parameter s is an exclusive borrow: relay changes it, and the caller sees the change
+./main.go:59:22: parameter n is owned: relay keeps it
+./main.go:60:9: moved n into s.push: n is not used afterwards
+./main.go:66:17: moved root into insert: root is not used afterwards
+./main.go:74:11: moved x into relay: x is not used afterwards

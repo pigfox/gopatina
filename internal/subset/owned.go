@@ -116,6 +116,9 @@ type ownerError struct {
 // ownership finds the heap types that are shared.
 type ownership struct {
 	errs []ownerError
+	// kept are the parameters their function keeps: returns, stores or
+	// moves (RFC 0017, step 8). The caller moves its pointer in.
+	kept map[*types.Var]bool
 	// chained are the element types a pointer is moved into a field of
 	// (RFC 0017, step 4): their chains may be longer than any call depth.
 	chained map[types.Type]bool
@@ -217,6 +220,7 @@ func (o *ownership) run() {
 		}
 	}
 	o.vars()
+	o.keptParams()
 	o.ranges()
 	for _, f := range o.p.pkg.Files {
 		var stack []ast.Node
@@ -303,6 +307,92 @@ func (o *ownership) ranges() {
 			}
 			return true
 		})
+	}
+}
+
+// keptVar reports whether e names a kept parameter.
+func (o *ownership) keptVar(e ast.Expr) bool {
+	v, _ := o.info.Uses[ast.Unparen(e).(*ast.Ident)].(*types.Var) // asked only of a local variable
+	return o.kept[v]
+}
+
+// movable reports whether e, passed to a kept parameter, can be moved
+// into it: a new pointer, a local variable or kept parameter (dead from
+// there, which the borrow checker holds to), or a field the call's result
+// is assigned back to, taken out for the call (t.Left = insert(t.Left, v)).
+func (o *ownership) movable(e ast.Expr) bool {
+	if o.fresh(e) || o.info.Types[e].IsNil() {
+		return true
+	}
+	if o.localVar(e) {
+		return !o.input(e) || o.keptVar(e)
+	}
+	_, taken := o.p.Take(e)
+	return taken
+}
+
+// keptParams finds the parameters of owned candidate types that their
+// function keeps: returns, moves into a variable, a field or a literal, or
+// passes to a parameter kept in turn, to a fixed point over the calls.
+func (o *ownership) keptParams() {
+	o.kept = map[*types.Var]bool{}
+	var decls []*ast.FuncDecl
+	for _, f := range o.p.pkg.Files {
+		for _, d := range f.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok && fd.Body != nil {
+				decls = append(decls, fd)
+			}
+		}
+	}
+	keeps := func(e ast.Expr) *types.Var {
+		id, ok := ast.Unparen(e).(*ast.Ident)
+		if !ok {
+			return nil
+		}
+		v, _ := o.info.Uses[id].(*types.Var)
+		if !o.inputs[v] || o.elemOf(v.Type()) == nil {
+			return nil
+		}
+		return v
+	}
+	for changed := true; changed; {
+		changed = false
+		mark := func(v *types.Var) {
+			if v != nil && !o.kept[v] {
+				o.kept[v] = true
+				changed = true
+			}
+		}
+		for _, fd := range decls {
+			ast.Inspect(fd.Body, func(n ast.Node) bool {
+				switch x := n.(type) {
+				case *ast.ReturnStmt:
+					for _, r := range x.Results {
+						mark(keeps(r))
+					}
+				case *ast.AssignStmt:
+					for _, r := range x.Rhs {
+						mark(keeps(r))
+					}
+				case *ast.KeyValueExpr:
+					mark(keeps(x.Value))
+				case *ast.CallExpr:
+					if fn := o.programCallee(x); fn != nil {
+						sig := fn.Signature()
+						for i, a := range x.Args {
+							if i < sig.Params().Len() && o.kept[sig.Params().At(i)] {
+								mark(keeps(a))
+							}
+						}
+					} else if id, ok := ast.Unparen(x.Fun).(*ast.Ident); ok && id.Name == "append" {
+						for _, a := range x.Args[1:] {
+							mark(keeps(a))
+						}
+					}
+				}
+				return true
+			})
+		}
 	}
 }
 
@@ -574,8 +664,8 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 		}
 	}
 	par, child, at := parent(stack)
-	if _, ok := par.(*ast.ReturnStmt); ok && o.localVar(e) && !o.param(e) {
-		return // returning a local variable moves it: nothing can use it after
+	if _, ok := par.(*ast.ReturnStmt); ok && o.localVar(e) && (!o.param(e) || o.keptVar(e)) {
+		return // returning a local variable, or a kept parameter, moves it
 	}
 	if o.lentToBorrow(par, child) {
 		return // a temporary borrow takes it for a while (RFC 0017, step 5)
@@ -661,6 +751,9 @@ func (o *ownership) readOrLend(par, child ast.Node, stack []ast.Node) bool {
 				params := fn.Signature().Params()
 				for i, b := range p.Args {
 					if b == a {
+						if i < params.Len() && o.kept[params.At(i)] {
+							return o.movable(a.(ast.Expr)) // moved in (RFC 0017, step 8)
+						}
 						return i < params.Len() && !fn.Signature().Variadic() && types.Identical(params.At(i).Type(), o.info.TypeOf(a.(ast.Expr)))
 					}
 				}
@@ -750,7 +843,7 @@ func (o *ownership) fieldPlace(e ast.Expr) bool {
 // moves to a new owner at par: a variable or a field assigned it, a
 // variable declared with it, or a field of a new pointer's literal.
 func (o *ownership) moved(e ast.Expr, par, child ast.Node, stack []ast.Node) bool {
-	if !o.localVar(e) || o.input(e) {
+	if !o.localVar(e) || o.input(e) && !o.keptVar(e) {
 		return false
 	}
 	el := o.elemOf(o.info.TypeOf(e))

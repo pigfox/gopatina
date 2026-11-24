@@ -1,9 +1,7 @@
-./main.go:5:6: pointers of type *Node are shared: a copy of it is kept (line 14) (RFC 0016)
-./main.go:7:2: Node.Next can point back to a Node: a cycle through it is not reclaimed (RFC 0013)
+./main.go:5:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
 ./main.go:10:6: pointers of type *Counter are shared: it is compared with another pointer (line 38) (RFC 0016)
 ./main.go:12:7: receiver c is a shared borrow: Inc only reads it
 ./main.go:14:11: parameter head is owned: push keeps it
 ./main.go:28:15: moved list into push: list is not used afterwards
-./main.go:30:11: moved list into n: list is not used afterwards
 ./main.go:35:7: copied c into d: c is used again on line 37; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
 ./main.go:44:7: copied p into q: p is used again on line 46; a copy of a pointer points at the same variable, as Go's does (RFC 0013)

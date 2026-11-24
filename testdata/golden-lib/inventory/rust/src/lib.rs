@@ -61,11 +61,22 @@ pub struct Item {
 struct Move {
     sku: String,
     delta: i64,
-    next: rt::Ptr<Move>,
+    next: Option<Box<Move>>,
 }
 
-fn push(head: rt::Ptr<Move>, sku: String, delta: i64) -> rt::Ptr<Move> {
-    rt::Ptr::new(Move {
+/// Frees a chain one link at a time, so a long one cannot overflow
+/// the stack.
+impl Drop for Move {
+    fn drop(&mut self) {
+        let mut next = self.next.take();
+        while let Some(mut link) = next {
+            next = link.next.take();
+        }
+    }
+}
+
+fn push(head: Option<Box<Move>>, sku: String, delta: i64) -> Box<Move> {
+    Box::new(Move {
         sku,
         delta,
         next: head,
@@ -75,20 +86,20 @@ fn push(head: rt::Ptr<Move>, sku: String, delta: i64) -> rt::Ptr<Move> {
 /// Apply returns the items after the moves, in order: each move adds delta
 /// to its item's count, and fails if a count would fall below zero.
 fn apply_go(items: &[Item], skus: &[String], deltas: &[i64]) -> Result<Vec<Item>, Iface> {
-    let mut history: rt::Ptr<Move> = rt::Ptr::nil();
+    let mut history: Option<Box<Move>> = None;
     for i in 0..skus.len() as i64 {
-        history = push(history, skus[i as usize].clone(), deltas[i as usize]);
+        history = Some(push(history, skus[i as usize].clone(), deltas[i as usize]));
     }
     let mut out: Vec<Item> = Vec::new();
     for it in items {
         let mut count = it.count;
         let mut steps: Vec<i64> = Vec::new();
-        let mut m = history.clone();
-        while !m.is_nil() {
-            if m.with(|v| v.sku.clone()) == it.sku {
-                steps.push(m.with(|v| v.delta));
+        let mut m = history.as_deref();
+        while let Some(r#move) = m {
+            if r#move.sku == it.sku {
+                steps.push(r#move.delta);
             }
-            m = m.with(|v| v.next.clone());
+            m = r#move.next.as_deref();
         }
         let mut j = steps.len() as i64 - 1;
         while j >= 0 {

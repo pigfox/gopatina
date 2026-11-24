@@ -1,0 +1,3 @@
+./main.go:26:14: x is used after its Item moved into s.push on line 25
+    in patina mode an object has one owner (RFC 0017): once x moves, only its new owner names the Item
+    use the Item through its new owner, or give x its own Item

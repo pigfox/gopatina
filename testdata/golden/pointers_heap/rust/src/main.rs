@@ -35,7 +35,18 @@ mod rt;
 #[derive(Clone, Default, PartialEq)]
 pub struct Node {
     pub val: i64,
-    pub next: rt::Ptr<Node>,
+    pub next: Option<Box<Node>>,
+}
+
+/// Frees a chain one link at a time, so a long one cannot overflow
+/// the stack.
+impl Drop for Node {
+    fn drop(&mut self) {
+        let mut next = self.next.take();
+        while let Some(mut link) = next {
+            next = link.next.take();
+        }
+    }
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
@@ -49,8 +60,8 @@ impl Counter {
     }
 }
 
-fn push(head: rt::Ptr<Node>, v: i64) -> rt::Ptr<Node> {
-    rt::Ptr::new(Node { val: v, next: head })
+fn push(head: Option<Box<Node>>, v: i64) -> Box<Node> {
+    Box::new(Node { val: v, next: head })
 }
 
 fn new_counter() -> rt::Ptr<Counter> {
@@ -67,14 +78,14 @@ fn start_at(n: i64) -> rt::Ptr<Counter> {
 
 fn main() {
     rt::exit_on_panic();
-    let mut list: rt::Ptr<Node> = rt::Ptr::nil();
+    let mut list: Option<Box<Node>> = None;
     for i in 1_i64..=3 {
-        list = push(list, i);
+        list = Some(push(list, i));
     }
-    let mut n = list;
-    while !n.is_nil() {
-        print!("{} ", n.with(|v| v.val));
-        n = n.with(|v| v.next.clone());
+    let mut n = list.as_deref();
+    while let Some(node) = n {
+        print!("{} ", node.val);
+        n = node.next.as_deref();
     }
     println!();
     let c = new_counter();
