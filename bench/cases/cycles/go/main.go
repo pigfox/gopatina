@@ -1,36 +1,41 @@
-// Command cycles builds and drops doubly linked lists, whose Prev and Next
-// pointers form cycles (bench/README.md). Go's collector reclaims them;
-// GoPatina's reference counts do not (RFC 0013's known limitation), so
-// this case measures the memory a program that drops cycles keeps.
+// Command cycles builds and drops doubly linked lists (bench/README.md).
+// A list's nodes link both ways, which gives each node two names, so under
+// one owner (RFC 0017) the nodes live in one slice and link by index, as
+// Rust programmers write such a list: dropping the slice frees the list.
 package main
 
 import "fmt"
 
+// Node is a list node; Prev and Next are indexes into the list's nodes,
+// -1 for none.
 type Node struct {
 	V          int
-	Prev, Next *Node
+	Prev, Next int
 }
 
-func build(n int) *Node {
-	head := &Node{}
-	tail := head
+// build returns the n nodes of a list, the head first.
+func build(n int) []Node {
+	nodes := []Node{{V: 0, Prev: -1, Next: -1}}
+	tail := 0
 	for i := 1; i < n; i++ {
-		x := &Node{V: i, Prev: tail}
-		tail.Next = x
-		tail = x
+		nodes = append(nodes, Node{V: i, Prev: tail, Next: -1})
+		nodes[tail].Next = len(nodes) - 1
+		tail = len(nodes) - 1
 	}
-	return head
+	return nodes
 }
 
-func walk(head *Node) int {
+// walk follows the list forward from its head, then back from its last
+// node.
+func walk(nodes []Node) int {
 	s := 0
-	var last *Node
-	for p := head; p != nil; p = p.Next {
-		s += p.V
+	last := -1
+	for p := 0; p != -1; p = nodes[p].Next {
+		s += nodes[p].V
 		last = p
 	}
-	for p := last; p != nil; p = p.Prev {
-		s -= p.V / 2
+	for p := last; p != -1; p = nodes[p].Prev {
+		s -= nodes[p].V / 2
 	}
 	return s
 }
