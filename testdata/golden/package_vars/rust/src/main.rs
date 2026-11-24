@@ -32,7 +32,7 @@
 
 mod rt;
 
-static A: std::sync::LazyLock<i64> = std::sync::LazyLock::new(|| (*C) + (*B));
+static A: std::sync::LazyLock<i64> = std::sync::LazyLock::new(|| *C + *B);
 
 static B: std::sync::LazyLock<i64> = std::sync::LazyLock::new(|| f("b"));
 
@@ -98,12 +98,12 @@ fn f(s: &str) -> i64 {
     let mut count = COUNT.get();
     count += 1;
     COUNT.set(count);
-    println!("init {} {} {}", s, COUNT.get(), (*D));
-    (*D) * COUNT.get()
+    println!("init {} {} {}", s, COUNT.get(), *D);
+    *D * COUNT.get()
 }
 
 fn init1() {
-    println!("init() {} {} {}", (*A), (*B), (*C));
+    println!("init() {} {} {}", *A, *B, *C);
 }
 
 fn next() -> i64 {
@@ -164,10 +164,10 @@ fn main() {
     init1();
     println!(
         "{} {} {} {} {} {} {} {}",
-        (*A),
-        (*B),
-        (*C),
-        (*D),
+        *A,
+        *B,
+        *C,
+        *D,
         next(),
         next(),
         (*NAMES)[1],
@@ -252,7 +252,7 @@ fn main() {
     let m = LOG.with_borrow(|v| v.clone()).as_bytes().to_vec().len() as i64 + COUNT.get();
     let call_13 = next();
     let call_14 = twice(call_13);
-    println!("{} {} {} {}", call_14, COUNT.get(), (*LIMIT), m);
+    println!("{} {} {} {}", call_14, COUNT.get(), *LIMIT, m);
     println!(
         "{} {} {} {} {} {} {} {}",
         ok,

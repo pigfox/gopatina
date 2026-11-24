@@ -56,7 +56,7 @@ fn main() {
     rt::exit_on_panic();
     init_vars();
     init1();
-    println!("main, not reached {} {}", (*FIRST), (*BAD));
+    println!("main, not reached {} {}", *FIRST, *BAD);
 }
 
 fn init_vars() {

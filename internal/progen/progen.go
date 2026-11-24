@@ -405,6 +405,10 @@ func (g *gen) globalDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nvar T%d = []int{%s}\n", k, strings.Join(tab, ", "))
 	fmt.Fprintf(b, "\nvar S%d = %q\n", k, []string{"", "s", "go"}[g.gr.IntN(3)])
 	fmt.Fprintf(b, "\nvar Q%d P%d\n", k, k)
+	// Variables nothing changes (statics): read as call arguments, an
+	// operand, a field's base and a method's receiver.
+	fmt.Fprintf(b, "\nvar D%d = %d\n", k, g.gr.IntN(1000)-500)
+	fmt.Fprintf(b, "\nvar O%d = P%d{A: %d, B: %d}\n", k, k, g.gr.IntN(100), g.gr.IntN(100))
 	// A variable nothing uses, whose initializer prints: Go initializes it
 	// all the same, before main.
 	fmt.Fprintf(b, "\nfunc say%d(s string) int {\n\tfmt.Println(\"init\", s)\n\treturn len(s)\n}\n", k)
@@ -429,6 +433,7 @@ func (g *gen) globalUses() {
 	g.line("lib.Q%d.B++", k)
 	g.line("M%d -= uint8(%s)", k, v())
 	g.line("fmt.Println(lib.C%d, lib.S%d, len(lib.S%d), lib.Q%d.A, lib.Q%d.B, M%d, lib.Q%d.Sum(), lib.Next%d())", k, k, k, k, k, k, k, k)
+	g.line("fmt.Println(lib.Look%d(lib.D%d), -lib.D%d, lib.D%d*%s, lib.O%d.A, lib.O%d.Sum())", k, k, k, k, v(), k, k)
 	g.line("gpa, gpb := lib.Pair%d()", k)
 	g.line("fmt.Println(gpa, gpb)")
 }

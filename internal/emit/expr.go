@@ -180,6 +180,11 @@ func (g *gen) place(e ast.Expr) node {
 			b = g.value(base)
 		}
 		field := g.fields[g.info.Selections[x].Obj().(*types.Var)]
+		if a, ok := b.(atom); ok && g.globalOf(base) != nil && strings.HasPrefix(a.s, "*") {
+			// A static's field: S.f, which Rust derefs itself (clippy's
+			// explicit_auto_deref).
+			b = text(strings.TrimPrefix(a.s, "*"))
+		}
 		if g.ownPtr(g.typeOf(base)) {
 			// Through an owned pointer (RFC 0016): p.get().f, whose field
 			// is a link of the chain, as rustfmt breaks it.

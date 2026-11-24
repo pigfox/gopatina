@@ -58,8 +58,9 @@ func (g *gen) globalValue(v *types.Var) node {
 		return &call{recv: text(name), head: ".with", open: "(", close: ")", args: []node{text("Clone::clone")}}
 	}
 	// A static is read in place: a copy of a copied kind, else a place
-	// that owned and the borrowing reads take as they need (isPlace).
-	return atom{"(*" + name + ")", precAtom}
+	// that owned and the borrowing reads take as they need (isPlace). It
+	// is parenthesized only where a deref needs it, as (*S).f.
+	return atom{"*" + name, precUnary}
 }
 
 // globalPlace renders v as a place: a static, or the local a changed
@@ -69,7 +70,7 @@ func (g *gen) globalPlace(v *types.Var) (node, bool) {
 		return text(a), true
 	}
 	if g.globals[v] == subset.GlobalStatic && !g.localStatic(v) {
-		return atom{"(*" + g.globalName(v) + ")", precAtom}, true
+		return atom{"*" + g.globalName(v), precUnary}, true
 	}
 	return nil, false
 }

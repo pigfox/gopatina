@@ -1,0 +1,1 @@
+./main.go:16:12: parameter s is a shared borrow: greet only reads it
