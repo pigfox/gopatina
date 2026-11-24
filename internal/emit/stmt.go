@@ -1316,6 +1316,24 @@ func (g *gen) forStmt(s *ast.ForStmt) {
 	g.forBody(s)
 }
 
+// negation returns the Go expression !cond for a comparison of integers,
+// booleans or strings, its operator turned round (x >= 20 for !(x < 20),
+// which clippy's nonminimal_bool asks for), or nil: a float comparison
+// does not turn round, since NaN makes !(a < b) differ from a >= b.
+func (g *gen) negation(cond ast.Expr) ast.Expr {
+	flip := map[token.Token]token.Token{token.EQL: token.NEQ, token.NEQ: token.EQL, token.LSS: token.GEQ, token.GEQ: token.LSS, token.GTR: token.LEQ, token.LEQ: token.GTR}
+	if b, ok := ast.Unparen(cond).(*ast.BinaryExpr); ok {
+		if op, ok := flip[b.Op]; ok {
+			if t, ok := g.typeOf(b.X).Underlying().(*types.Basic); ok && t.Info()&types.IsFloat == 0 && t.Info()&types.IsComplex == 0 {
+				n := &ast.BinaryExpr{X: b.X, OpPos: b.OpPos, Op: op, Y: b.Y}
+				g.info.Types[n] = g.info.Types[b]
+				return n
+			}
+		}
+	}
+	return nil
+}
+
 // forBody writes a for statement.
 func (g *gen) forBody(s *ast.ForStmt) {
 	if g.res.Counted[s] {
@@ -1350,6 +1368,27 @@ func (g *gen) forBody(s *ast.ForStmt) {
 		g.line("while let Some(" + name + ") = " + g.varName(g.localVar(x.(*ast.Ident))) + " {")
 	case s.Cond == nil:
 		g.line("loop {")
+	case borrow.ChangedBeforeRead(g.info, g.res.Funcs, s.Cond):
+		// A condition that reads a variable before a call that changes it:
+		// gc makes the call first, each time round (RFC 0017). Rust's loop
+		// makes it first, then tests: loop { let call = ..; if !c { break; } }.
+		g.line("loop {")
+		g.ind++
+		g.hoistCalls(&ast.ExprStmt{X: s.Cond}, true)
+		if neg := g.negation(s.Cond); neg != nil {
+			g.stmtLine("if ", g.value(neg), " {")
+		} else {
+			// A test that turns round only with a ! (a float comparison,
+			// a && or a call): named first, as clippy prefers.
+			more := g.lnames.name("", func(string) string { return "more" })
+			g.stmtLine("let "+more+" = ", g.value(s.Cond), ";")
+			g.line("if !" + more + " {")
+		}
+		g.ind++
+		g.line("break;")
+		g.ind--
+		g.line("}")
+		g.ind--
 	default:
 		g.stmtLine("while ", g.value(s.Cond), " {")
 	}
@@ -1709,11 +1748,30 @@ func withoutBreak(body []ast.Stmt) []ast.Stmt {
 func (g *gen) switchIf(s *ast.SwitchStmt) {
 	var def *ast.CaseClause
 	prefix := ""
+	nested := 0 // else blocks opened for cases whose calls come first
 	for _, c := range s.Body.List {
 		cc := c.(*ast.CaseClause)
 		if cc.List == nil {
 			def = cc
 			continue
+		}
+		first := false
+		for _, e := range cc.List {
+			first = first || borrow.ChangedBeforeRead(g.info, g.res.Funcs, e)
+		}
+		if first {
+			// A case that reads a variable before a call that changes it:
+			// gc makes the call first, when it comes to the case, so the
+			// calls go in an else of the cases before it (RFC 0017).
+			if prefix != "" {
+				g.line("} else {")
+				g.ind++
+				nested++
+			}
+			for _, e := range cc.List {
+				g.hoistCalls(&ast.ExprStmt{X: e}, true)
+			}
+			prefix = ""
 		}
 		var cond node
 		for _, e := range cc.List {
@@ -1743,6 +1801,10 @@ func (g *gen) switchIf(s *ast.SwitchStmt) {
 		g.switchBody(def.Body)
 		g.line("}")
 	case prefix != "":
+		g.line("}")
+	}
+	for ; nested > 0; nested-- {
+		g.ind--
 		g.line("}")
 	}
 }

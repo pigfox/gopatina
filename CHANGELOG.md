@@ -8,6 +8,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- A loop condition or `switch` case that reads a variable before a call
+  that changes it (`for x+addTo(&x, 1) < 20 { .. }`), refused until now,
+  compiles: Rust's `loop { let call = ..; if x + call >= 20 { break; } .. }`
+  makes the call first each time round, as gc does, the post statement
+  still run before each `continue`; a case's calls are made in an `else` of
+  the cases before it. Golden `call_before_read`.
+
 ### Fixed
 
 - **Wrong output**: an expression that read a variable, or a place under
@@ -18,11 +27,9 @@ Until 1.0.0, minor versions may contain breaking changes.
   through `&x` (`x+addTo(&x, 3)`), a receiver (`q.X+q.Inc()`), an element's
   receiver, an `if` condition and a `switch` tag. The Go spec leaves the
   order unspecified; GoPatina matches gc. The calls are now made first,
-  into locals; a loop condition or `case` expression of that shape is not
-  supported yet. Golden `call_before_read`, reject golden
-  `call_before_read_loop`; the generator writes each shape in every
-  program. The benchmark crates' Rust is unchanged, so the published
-  numbers stand.
+  into locals. Golden `call_before_read`; the generator writes each shape
+  in every program. The benchmark crates' Rust is unchanged, so the
+  published numbers stand.
 - A call of another package's function returning an error was left out of
   the error lowering, and its `Result` destructured as a tuple, so the crate
   did not build; such calls are now lowered like calls in the same package.
