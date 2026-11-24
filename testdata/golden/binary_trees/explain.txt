@@ -1,0 +1,2 @@
+./main.go:10:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:19:7: receiver n is a shared borrow: check only reads it

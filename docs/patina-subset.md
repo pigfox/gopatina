@@ -302,14 +302,20 @@ address is taken lives in a cell. Copying a heap pointer copies the
 pointer; `==` compares which variable it points at.
 
 **Owned pointers** ([RFC 0016](rfcs/0016-owned-pointers-and-cycle-collection.md)).
-A heap pointer type that is never shared is an `rt::Own<T>` instead, a
-`Box` with one owner (`Option<Box<T>>`, `None` for `nil`). Its pointers
+A heap pointer type that is never shared is a plain `Option<Box<T>>`
+instead, a `Box` with one owner, `None` for `nil`, as Rust writes a
+pointer that may be absent; no runtime type stands between. Its pointers
 are only ever new (`&T{...}` or a function's result), moved once into the
 variable, field or result that owns them, and then only read through,
 tested for `nil` and lent to functions; `T` is a struct of numbers,
 booleans, strings and heap pointers. That is a tree built and then read.
-A read is a plain borrow, `p.get().f`, and a lend is `&p.get().left`, as
-hand-written Rust writes it; freeing a long chain needs no call per box.
+A parameter or receiver that is lent one is an `Option<&T>`; a read
+through it is `n.unwrap().f`, through a variable or field
+`p.as_ref().unwrap().f`, a lend `p.as_deref()`, and `p == nil` is
+`p.is_none()`. Unwrapping `None` is Go's nil dereference, with Go's panic
+message. Such a tree can only be built by nested new pointers, so a chain
+is never deeper than the calls that built it, and Rust's own drop frees
+it.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

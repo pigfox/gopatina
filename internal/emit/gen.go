@@ -723,6 +723,11 @@ func (g *gen) paramType(t types.Type, m borrow.Mode) string {
 		}
 		return "&" + g.rustType(p.Elem())
 	}
+	if g.ownPtr(t) && m == borrow.Ref {
+		// A borrowed owned pointer (RFC 0016): nil, or a borrow of the
+		// value, as Rust writes a parameter that may be absent.
+		return "Option<&" + g.rustType(types.Unalias(t).(*types.Pointer).Elem()) + ">"
+	}
 	elem := t
 	base := g.rustType(elem)
 	switch m {

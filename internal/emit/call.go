@@ -174,6 +174,9 @@ func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
 	}
 	if c, ok := ast.Unparen(a).(*ast.CallExpr); ok && g.callTemps[c] != "" {
 		// A call computed into a local first (RFC 0010's order).
+		if g.ownPtr(g.typeOf(a)) && p.Mode == borrow.Ref {
+			return &call{recv: text(g.callTemps[c]), head: ".as_deref", open: "(", close: ")"} // lent as Option<&T>
+		}
 		switch p.Mode {
 		case borrow.Ref:
 			if borrow.KindOf(g.typeOf(a)) != borrow.Copy {

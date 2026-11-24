@@ -161,7 +161,9 @@ is rejected.
 
 **Representation.** `*T` owned is `rt::Own<T>`, a newtype of
 `Option<Box<T>>`, built only through the crate's helpers (one place to
-change, as for `rt::Ptr`). A read is `p.get()` (`&T`, or Go's nil
+change, as for `rt::Ptr`). (Since RFC 0017 it is the plain
+`Option<Box<T>>`, with no newtype, and a lent one is an `Option<&T>`;
+see docs/patina-subset.md.) A read is `p.get()` (`&T`, or Go's nil
 dereference panic), a write `p.get_mut()`. A move out of a field, which Go
 does freely (`t.Left = push(t.Left, k)`), is `std::mem::take`: Go's
 semantics are kept because the field is overwritten before it is read

@@ -38,22 +38,22 @@ pub struct T {
 }
 
 impl T {
-    pub fn get(t: &rt::Own<T>) -> i64 {
-        t.get().n
+    pub fn get(t: Option<&T>) -> i64 {
+        t.unwrap().n
     }
 
-    pub fn safe(t: &rt::Own<T>) -> i64 {
-        if t.is_nil() {
+    pub fn safe(t: Option<&T>) -> i64 {
+        if t.is_none() {
             return -1;
         }
-        t.get().n
+        t.unwrap().n
     }
 }
 
 fn main() {
     rt::exit_on_panic();
-    let p: rt::Own<T> = rt::Own::nil();
-    println!("{}", T::safe(&p));
+    let p: Option<Box<T>> = None;
+    println!("{}", T::safe(p.as_deref()));
     println!("before");
-    println!("{}", T::get(&p));
+    println!("{}", T::get(p.as_deref()));
 }

@@ -278,10 +278,15 @@ func (c *call) broken(col, ind, suffix int) string {
 	b.WriteString(c.open)
 	if len(c.args) == 1 && !c.array && overflows(c.args[0]) {
 		// rustfmt lets a lone argument that is itself a call or a struct
-		// literal overflow: it stays on this line and breaks inside.
-		b.WriteString(layBroken(c.args[0], col+len(b.String()), ind, suffix+len(c.close)))
-		b.WriteString(c.close)
-		return b.String()
+		// literal overflow: it stays on this line and breaks inside. A
+		// method chain that breaks into one link per line does not: it
+		// goes on its own line, as any other argument.
+		laid := layBroken(c.args[0], col+len(b.String()), ind, suffix+len(c.close))
+		if m, chain := c.args[0].(*call); !chain || m.recv == nil || !linksBroken(laid) {
+			b.WriteString(laid)
+			b.WriteString(c.close)
+			return b.String()
+		}
 	}
 	inner := ind + indentWidth
 	pad := strings.Repeat(" ", inner)
@@ -306,6 +311,19 @@ func (c *call) broken(col, ind, suffix int) string {
 	}
 	b.WriteString("\n" + strings.Repeat(" ", ind) + c.close)
 	return b.String()
+}
+
+// linksBroken reports whether laid, a laid-out expression, breaks a
+// method chain into one link per line: a line after the first starts with
+// a link.
+func linksBroken(laid string) bool {
+	lines := strings.Split(laid, "\n")
+	for _, l := range lines[1:] {
+		if t := strings.TrimLeft(l, " "); strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..") {
+			return true
+		}
+	}
+	return false
 }
 
 // overflows reports whether n may overflow as the only argument of a call.

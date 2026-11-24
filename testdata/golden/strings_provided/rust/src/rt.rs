@@ -23,8 +23,8 @@ pub fn exit_on_panic() {
 }
 
 /// Panics from a Go panic(...) call carry a marker and are printed verbatim.
-/// Rust's own runtime panics carry no marker; the two messages Go programs
-/// can observe from phase 1 operations are translated to Go's wording here.
+/// Rust's own runtime panics carry no marker; the messages Go programs can
+/// observe from them are translated to Go's wording here.
 fn go_panic_message(msg: &str) -> String {
     const USER: &str = "gopatina-user-panic:";
     if let Some(rest) = msg.strip_prefix(USER) {
@@ -34,6 +34,12 @@ fn go_panic_message(msg: &str) -> String {
         "attempt to divide by zero"
         | "attempt to calculate the remainder with a divisor of zero" => {
             return String::from("runtime error: integer divide by zero");
+        }
+        // A nil owned pointer read through: Option::unwrap on None.
+        "called `Option::unwrap()` on a `None` value" => {
+            return String::from(
+                "runtime error: invalid memory address or nil pointer dereference",
+            );
         }
         _ => {}
     }

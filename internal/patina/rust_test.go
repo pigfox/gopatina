@@ -247,3 +247,45 @@ func TestLibraries(t *testing.T) {
 		})
 	}
 }
+
+// TestReferences builds each golden program's reference.rs, the Rust a
+// person writes for it (internal/emit's TestReferenceCloseness measures
+// GoPatina's Rust against it), with rustc and warnings denied, checks that
+// clippy and rustfmt are clean on it, and requires it to print what the Go
+// program prints: a reference that drifts from the program measures
+// nothing.
+func TestReferences(t *testing.T) {
+	needRust(t)
+	refs, err := filepath.Glob(filepath.Join(root(), "testdata", "golden", "*", "reference.rs"))
+	if err != nil || len(refs) == 0 {
+		t.Fatalf("no references: %v", err)
+	}
+	for _, ref := range refs {
+		dir := filepath.Dir(ref)
+		t.Run(filepath.Base(dir), func(t *testing.T) {
+			tmp := t.TempDir()
+			goBin := filepath.Join(tmp, "go-bin")
+			build := exec.Command("go", "build", "-o", goBin, ".")
+			build.Dir = dir
+			if out, err := build.CombinedOutput(); err != nil {
+				t.Fatalf("go build: %v\n%s", err, out)
+			}
+			refBin := filepath.Join(tmp, "ref-bin")
+			rustc := exec.Command("rustc", "--edition", "2024", "-O", "-D", "warnings", "-o", refBin, ref)
+			if out, err := rustc.CombinedOutput(); err != nil {
+				t.Fatalf("rustc: %v\n%s", err, out)
+			}
+			clippy := exec.Command("clippy-driver", "--edition", "2024", "-D", "warnings", "--emit=metadata", "--out-dir", tmp, ref)
+			if out, err := clippy.CombinedOutput(); err != nil {
+				t.Errorf("clippy: %v\n%s", err, out)
+			}
+			if out, err := exec.Command("rustfmt", "--check", "--edition", "2024", ref).CombinedOutput(); err != nil {
+				t.Errorf("rustfmt --check: %v\n%s", err, out)
+			}
+			want, got := runBinary(t, goBin), runBinary(t, refBin)
+			if got.stdout != want.stdout || got.code != want.code {
+				t.Errorf("Go and the reference differ:\ngo  (exit %d):\n%sref (exit %d):\n%s", want.code, want.stdout, got.code, got.stdout)
+			}
+		})
+	}
+}

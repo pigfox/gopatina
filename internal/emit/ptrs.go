@@ -34,20 +34,66 @@ func (g *gen) ownPtr(t types.Type) bool {
 	return g.heapPtr(t) && g.ptrs.Owned(t)
 }
 
-// ptrKind returns the runtime type of heap pointer type t, Own or Ptr,
+// ptrKind returns the runtime type of shared heap pointer type t, Ptr,
 // and marks it used.
 func (g *gen) ptrKind(t types.Type) string {
-	k := "Ptr"
-	if g.ownPtr(t) {
-		k = "Own"
-	}
-	g.rt[k] = true
-	return k
+	g.rt["Ptr"] = true
+	return "Ptr"
 }
 
-// ptrType renders the Rust type of heap pointer type t.
+// ptrType renders the Rust type of heap pointer type t: an owned pointer
+// is Option<Box<T>> (RFC 0016), as Rust writes a pointer that may be nil;
+// a shared one is a cell.
 func (g *gen) ptrType(t types.Type) string {
-	return "rt::" + g.ptrKind(t) + "<" + g.rustType(types.Unalias(t).(*types.Pointer).Elem()) + ">"
+	elem := g.rustType(types.Unalias(t).(*types.Pointer).Elem())
+	if g.ownPtr(t) {
+		return "Option<Box<" + elem + ">>"
+	}
+	return "rt::" + g.ptrKind(t) + "<" + elem + ">"
+}
+
+// ptrNil renders nil of heap pointer type t.
+func (g *gen) ptrNil(t types.Type) node {
+	if g.ownPtr(t) {
+		return text("None")
+	}
+	return text("rt::" + g.ptrKind(t) + "::nil()")
+}
+
+// ptrNew renders a new heap pointer of type t holding v: Go's &T{...}.
+func (g *gen) ptrNew(t types.Type, v node) node {
+	if g.ownPtr(t) {
+		return &call{head: "Some", open: "(", close: ")", args: []node{&call{head: "Box::new", open: "(", close: ")", args: []node{v}}}}
+	}
+	return &call{head: "rt::" + g.ptrKind(t) + "::new", open: "(", close: ")", args: []node{v}}
+}
+
+// ownBorrow reports whether e names a parameter that borrows an owned
+// pointer: an Option<&T>, which is Copy, so it is passed on as it is and
+// read through with unwrap().
+func (g *gen) ownBorrow(e ast.Expr) bool {
+	id, ok := ast.Unparen(e).(*ast.Ident)
+	if !ok || !g.ownPtr(g.typeOf(e)) {
+		return false
+	}
+	v := g.localVar(id)
+	return v != nil && g.bindingOf(v) == bRef
+}
+
+// ownRef renders e, an owned pointer, lent to a parameter that borrows
+// it: the parameter's own Option<&T> as it is, or the place's
+// Option<Box<T>> as_deref.
+func (g *gen) ownRef(e ast.Expr) node {
+	if g.ownBorrow(e) {
+		return text(g.varName(g.localVar(ast.Unparen(e).(*ast.Ident))))
+	}
+	var b node
+	if g.isPlace(e) {
+		b = g.place(e)
+	} else {
+		b = g.value(e)
+	}
+	return &call{recv: b, head: ".as_deref", open: "(", close: ")"}
 }
 
 // heapRoot returns the point where place e goes through a heap pointer:
@@ -422,7 +468,7 @@ func (g *gen) readsThrough(c *ast.CallExpr, p ast.Expr) bool {
 // a heap pointer to be taken of).
 func (g *gen) heapAddr(e *ast.UnaryExpr) node {
 	if x, ok := ast.Unparen(e.X).(*ast.CompositeLit); ok {
-		return &call{head: "rt::" + g.ptrKind(g.typeOf(e)) + "::new", open: "(", close: ")", args: []node{g.composite(x)}}
+		return g.ptrNew(g.typeOf(e), g.composite(x))
 	}
 	return &call{recv: text(g.varName(g.localVar(ast.Unparen(e.X).(*ast.Ident)))), head: ".clone", open: "(", close: ")"}
 }
@@ -441,6 +487,17 @@ func (g *gen) heapCompare(e *ast.BinaryExpr) node {
 		x, y = y, x
 	}
 	if g.info.Types[y].IsNil() {
+		if g.ownPtr(g.typeOf(x)) {
+			test := ".is_none"
+			if e.Op == token.NEQ {
+				test = ".is_some"
+			}
+			b := operand(x)
+			if g.isPlace(x) {
+				b = g.place(x)
+			}
+			return &call{recv: b, head: test, open: "(", close: ")"}
+		}
 		var n node = &call{recv: operand(x), head: ".is_nil", open: "(", close: ")"}
 		if root, ptr, ok := g.heapRoot(x); ok && ast.Unparen(x) != root {
 			// p.f == nil tests the field inside p's cell: no copy of the

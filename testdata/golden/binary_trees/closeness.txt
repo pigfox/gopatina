@@ -1,0 +1,8 @@
+# How close GoPatina's Rust (rust/src/main.rs) reads to reference.rs,
+# the Rust a person writes for this program. Lines are compared without
+# their indentation; blank lines and comments are left out. Written by
+# go test ./internal/emit -update (TestReferenceCloseness).
+reference lines: 40
+generated lines: 77
+lines in common, in order: 14
+closeness (2 x common / both): 0.24
