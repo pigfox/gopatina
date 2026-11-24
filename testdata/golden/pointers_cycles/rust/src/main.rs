@@ -68,17 +68,17 @@ pub struct Item {
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Owner {
-    pub item: rt::Ptr<Item>,
+    pub item: Option<Box<Item>>,
 }
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Chain {
-    pub next: rt::Ptr<Chain>,
+    pub next: Option<Box<Chain>>,
 }
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Start {
-    pub head: rt::Ptr<Chain>,
+    pub head: Option<Box<Chain>>,
 }
 
 /// Ring is a doubly linked ring: every node is in two cycles.
@@ -157,19 +157,26 @@ fn main() {
         o.with(|v| v.r#in.back.clone()) == o,
     );
     let w = Owner {
-        item: rt::Ptr::new(Item { v: 4 }),
+        item: Some(Box::new(Item { v: 4 })),
     };
     let s = Start {
-        head: rt::Ptr::new(Chain {
-            next: rt::Ptr::new(Chain {
+        head: Some(Box::new(Chain {
+            next: Some(Box::new(Chain {
                 ..Default::default()
-            }),
-        }),
+            })),
+        })),
     };
     println!(
         "{} {}",
-        w.item.with(|v| v.v),
-        s.head.with(|v| v.next.clone()).with(|v| v.next.is_nil()),
+        w.item.as_ref().unwrap().v,
+        s.head
+            .as_ref()
+            .unwrap()
+            .next
+            .as_ref()
+            .unwrap()
+            .next
+            .is_none(),
     );
     let mut sum: i64 = 0;
     for _ in 0_i64..3 {

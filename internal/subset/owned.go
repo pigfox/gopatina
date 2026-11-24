@@ -276,12 +276,12 @@ func (o *ownership) vars() {
 			switch {
 			case v.Parent() == v.Pkg().Scope():
 				o.share(el, id.Pos(), "a package-level variable holds it")
-			case v.IsField() && !o.candidateField(v):
+			case v.IsField() && !o.candidateField(v) && !o.ownerStructField(v):
 				o.share(el, id.Pos(), "a field of a struct that is not boxed holds it")
 			}
 			continue
 		}
-		if v.IsField() && o.candidateField(v) && o.ptrSlice(t) {
+		if v.IsField() && (o.candidateField(v) || o.ownerStructField(v)) && o.ptrSlice(t) {
 			continue // owned by the field's Vec (RFC 0017, step 7)
 		}
 		if !v.IsField() && v.Parent() != v.Pkg().Scope() && o.ptrSlice(t) {
@@ -318,6 +318,102 @@ func (o *ownership) ranges() {
 func (o *ownership) borrowedBy(l ast.Expr) bool {
 	id, ok := ast.Unparen(l).(*ast.Ident)
 	return ok && o.p.BorrowVar(o.localOf(id))
+}
+
+// plainData reports whether t holds only data: numbers, booleans,
+// strings, and slices and structs of them, with no pointer, interface,
+// map or channel inside.
+func plainData(t types.Type) bool { return plainDataIn(t, map[types.Type]bool{}) }
+
+func plainDataIn(t types.Type, seen map[types.Type]bool) bool {
+	if seen[t] {
+		return true // a type that holds itself: data if the rest is
+	}
+	seen[t] = true
+	switch u := types.Unalias(t).Underlying().(type) {
+	case *types.Basic:
+		return true
+	case *types.Slice:
+		return plainDataIn(u.Elem(), seen)
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			if !plainDataIn(u.Field(i).Type(), seen) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// ownerStruct reports whether t is a struct of the program, not itself a
+// heap pointer's element, that holds owned pointers in its fields as
+// values (RFC 0017): a struct value that owns them. A copy of one while the
+// original is used would give them two owners, which the borrow checker
+// refuses.
+func (o *ownership) ownerStruct(t types.Type) bool {
+	n, ok := types.Unalias(t).(*types.Named)
+	if !ok || n.Obj().Pkg() != o.p.pkg.Types {
+		return false
+	}
+	st, ok := n.Underlying().(*types.Struct)
+	if !ok {
+		return false
+	}
+	for _, h := range o.p.heap {
+		if types.Identical(h, t) {
+			return false // boxed: a candidate's own rules
+		}
+	}
+	holds := false
+	for i := 0; i < st.NumFields(); i++ {
+		ft := st.Field(i).Type()
+		switch {
+		case o.elemOf(ft) != nil || o.ptrSlice(ft):
+			holds = true
+		case plainData(ft):
+		default:
+			return false
+		}
+	}
+	return holds
+}
+
+// ownerStructField reports whether field v belongs to an owner struct.
+func (o *ownership) ownerStructField(v *types.Var) bool {
+	for _, f := range o.p.pkg.Files {
+		for _, d := range f.Decls {
+			g, ok := d.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+			for _, sp := range g.Specs {
+				ts, ok := sp.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				t := o.info.Defs[ts.Name].Type()
+				if st, ok := t.Underlying().(*types.Struct); ok && o.ownerStruct(t) {
+					for i := 0; i < st.NumFields(); i++ {
+						if st.Field(i) == v {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+// ownerLit reports whether the composite literal on top of stack (or
+// holding the key-value pair there) is an owner struct's value.
+func (o *ownership) ownerLit(stack []ast.Node) bool {
+	for i := len(stack) - 1; ; i-- {
+		if c, ok := stack[i].(*ast.CompositeLit); ok {
+			return o.ownerStruct(o.info.TypeOf(c))
+		}
+	}
 }
 
 // keptVar reports whether e names a kept parameter.
@@ -469,6 +565,9 @@ func (o *ownership) heldIn(t types.Type, pos token.Pos, seen map[types.Type]bool
 	if el := o.elemOf(t); el != nil {
 		o.share(el, pos, "a slice, map, array, channel or struct value holds it")
 		return
+	}
+	if o.ownerStruct(t) {
+		return // a struct value owning its pointers (RFC 0017)
 	}
 	for _, h := range o.p.heap {
 		if types.Identical(h, t) {
@@ -644,12 +743,12 @@ func (o *ownership) freshUse(el types.Type, e ast.Expr, stack []ast.Node) {
 			}
 		}
 	case *ast.KeyValueExpr:
-		if p.Value == child && o.boxedLit(stack[:len(stack)-1]) {
+		if p.Value == child && (o.boxedLit(stack[:len(stack)-1]) || o.ownerLit(stack[:len(stack)-1])) {
 			return
 		}
 	case *ast.CompositeLit:
-		if o.boxedLit(stack[:len(stack)-1]) || o.ptrSlice(o.info.TypeOf(p)) {
-			return // a field of a new pointer, or an element of a new Vec (step 9)
+		if o.boxedLit(stack[:len(stack)-1]) || o.ptrSlice(o.info.TypeOf(p)) || o.ownerStruct(o.info.TypeOf(p)) {
+			return // a field of a new pointer or struct value, or an element of a new Vec (step 9)
 		}
 	case *ast.CallExpr:
 		if p.Args[0] != child && o.appendedToField(p, stack[:at+1]) {
@@ -880,10 +979,10 @@ func (o *ownership) moved(e ast.Expr, par, child ast.Node, stack []ast.Node) boo
 		}
 	case *ast.KeyValueExpr:
 		o.chained[el] = true
-		return p.Value == child && o.boxedLit(stack[:len(stack)-1])
+		return p.Value == child && (o.boxedLit(stack[:len(stack)-1]) || o.ownerLit(stack[:len(stack)-1]))
 	case *ast.CompositeLit:
 		o.chained[el] = true
-		return o.boxedLit(stack) || o.ptrSlice(o.info.TypeOf(p)) // a field, or an element of a new Vec
+		return o.boxedLit(stack) || o.ptrSlice(o.info.TypeOf(p)) || o.ownerStruct(o.info.TypeOf(p)) // a field, or an element of a new Vec
 	}
 	return false
 }
