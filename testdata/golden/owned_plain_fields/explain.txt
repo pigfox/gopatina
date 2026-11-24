@@ -1,0 +1,7 @@
+./main.go:14:6: pointers of type *Stack are never shared: each has one owner (RFC 0016)
+./main.go:22:15: parameter name is owned: newStack keeps it
+./main.go:22:28: parameter below is owned: newStack keeps it
+./main.go:27:7: receiver s is an exclusive borrow: push changes it, and the caller sees the change
+./main.go:33:7: receiver s is an exclusive borrow: pop changes it, and the caller sees the change
+./main.go:41:12: parameter s is a shared borrow: total only reads it
+./main.go:55:25: moved low into newStack: low is not used afterwards

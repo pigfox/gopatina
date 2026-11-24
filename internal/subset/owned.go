@@ -197,6 +197,9 @@ func (o *ownership) run() {
 					continue // a slice of them, a Vec owning each (RFC 0017, step 7)
 				}
 			}
+			if plainData(f.Type()) {
+				continue // data the box owns: a Vec<i64>, a struct of numbers (RFC 0017)
+			}
 			o.share(h, f.Pos(), fmt.Sprintf("its field %s is of type %s", f.Name(), types.TypeString(f.Type(), types.RelativeTo(o.p.pkg.Types))))
 			break
 		}
@@ -1052,8 +1055,8 @@ func (o *ownership) plainWrite(stack []ast.Node) bool {
 				continue
 			}
 		case *ast.IndexExpr:
-			if p.X == place && o.ptrSlice(o.info.TypeOf(p.X)) {
-				place = p // an element of a Vec of owned pointers, changed through (step 7)
+			if p.X == place && (o.ptrSlice(o.info.TypeOf(p.X)) || plainData(o.info.TypeOf(p.X))) {
+				place = p // an element of a Vec of owned pointers or of data, changed through
 				continue
 			}
 		case *ast.AssignStmt, *ast.IncDecStmt:
@@ -1067,7 +1070,7 @@ func (o *ownership) plainWrite(stack []ast.Node) bool {
 			}
 			// A pointer field assigned: the value moves there, and is
 			// checked where it is (RFC 0017, step 4).
-			return basic || o.elemOf(t) != nil
+			return basic || o.elemOf(t) != nil || plainData(t) // data the box owns, replaced in place
 		}
 		return false // &p.f, or p.s[i] = x
 	}
