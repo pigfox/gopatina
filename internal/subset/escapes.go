@@ -194,6 +194,11 @@ func (p *PtrPlan) lentTo(stack []ast.Node) *types.Var {
 		if fn == nil || fn.Signature().Variadic() {
 			return nil
 		}
+		if sel, ok := ast.Unparen(q.Fun).(*ast.SelectorExpr); ok {
+			if s := info.Selections[sel]; s != nil && s.Kind() == types.MethodExpr {
+				return nil // (*T).m(&x): a method expression, which the subset refuses
+			}
+		}
 		for j, a := range q.Args {
 			if a == child {
 				return fn.Signature().Params().At(j)
