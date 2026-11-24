@@ -87,6 +87,10 @@ func peek(n *Pt) int { return n.V }
 
 func keep(n *Pt) *Pt { return n }
 
+type Hold struct{ P *Pt }
+
+func store(n *Pt) *Hold { return &Hold{P: n} }
+
 func many(ns ...*Pt) {}
 
 func main() {
@@ -100,7 +104,7 @@ func main() {
 	}{
 		{"a pointer receiver", "var n Pt\n\tn.bump()\n\t(&n).bump()\n\t_ = n.V", true, true},
 		{"an argument", "n := Pt{V: 1}\n\t_ = peek(&n) + peek((&n))\n\tn.V++", true, true},
-		{"kept by a method", "var n Pt\n\tm := n.self()\n\t_ = m.V + n.V", false, false},
+		{"lent back by a method", "var n Pt\n\tm := n.self()\n\t_ = m.V + n.V", true, true},
 		{"kept by a function", "var n Pt\n\tm := keep(&n)\n\t_ = m.V + n.V", false, false},
 		{"lent to a variadic", "var n Pt\n\tmany(&n)\n\t_ = n.V", false, false},
 		{"lent to a method's argument", "n := Pt{V: 1}\n\tm := Pt{V: 2}\n\tm.add(&n)\n\t_ = n.V + m.V", true, true},
@@ -109,7 +113,8 @@ func main() {
 		{"in a function literal", "var n Pt\n\tf := func() int { return peek(&n) }\n\t_ = f() + n.V", false, false},
 		{"lent to a function value", "var n Pt\n\tf := peek\n\t_ = f(&n) + n.V", false, false},
 		{"a local borrow", "var n Pt\n\t_ = peek(&n)\n\tq := &n\n\t_ = q.V", true, true},
-		{"a local borrow kept", "var n Pt\n\tq := &n\n\tm := keep(q)\n\t_ = m.V + n.V", false, false},
+		{"a local borrow lent back", "var n Pt\n\tq := &n\n\tm := keep(q)\n\t_ = m.V + n.V", true, true},
+		{"a local borrow kept", "var n Pt\n\tq := &n\n\th := store(q)\n\t_ = n.V + h.P.V", false, false},
 		{"a pointer computed", "var n Pt\n\t_ = peek(&n)\n\tq := &n\n\tr := q\n\t_ = r.V", false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

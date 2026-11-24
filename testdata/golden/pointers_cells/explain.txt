@@ -1,16 +1,20 @@
 ./main.go:9:7: receiver i is an exclusive borrow: Inc changes it, and the caller sees the change
-./main.go:11:6: pointers of type *T are shared: it is written through (line 88) (RFC 0016)
+./main.go:11:6: pointers of type *T are shared: it is written through (line 110) (RFC 0016)
 ./main.go:18:7: receiver t is a shared borrow: Total only reads it
 ./main.go:20:7: receiver t is an exclusive borrow: Zero changes it, and the caller sees the change
 ./main.go:22:10: parameter s is a shared borrow: sum only reads it
 ./main.go:30:10: parameter s is an exclusive borrow: set changes it, and the caller sees the change
 ./main.go:32:10: parameter x is an exclusive borrow: inc changes it, and the caller sees the change
-./main.go:43:6: pointers of type *Counter are shared: its address is kept while the variable is still used (line 105) (RFC 0016)
+./main.go:43:6: pointers of type *Counter are shared: a borrow a call returns is kept (line 128) (RFC 0016)
 ./main.go:45:11: parameter c is owned: hold keeps it
 ./main.go:47:7: receiver c is a shared borrow: Hit only reads it
 ./main.go:56:7: receiver t is a shared borrow: Len only reads it
 ./main.go:59:7: receiver t is a shared borrow: Up only reads it
 ./main.go:61:13: parameter s is a shared borrow: newTag only reads it
 ./main.go:67:12: parameter s is a shared borrow: twice only reads it
-./main.go:70:11: parameter s is a shared borrow: both only reads it
-./main.go:99:7: copied x into y: x is used again on line 100; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
+./main.go:70:6: pointers of type *Shelf are shared: its address is kept while the variable is still used (line 96) (RFC 0016)
+./main.go:76:7: receiver s is a shared borrow: Bump only reads it
+./main.go:79:7: receiver s is owned: Keep keeps it
+./main.go:82:11: parameter s is a shared borrow: show only reads it
+./main.go:85:11: parameter s is a shared borrow: both only reads it
+./main.go:121:7: copied x into y: x is used again on line 122; a copy of a pointer points at the same variable, as Go's does (RFC 0013)

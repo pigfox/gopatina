@@ -131,6 +131,28 @@ func (g *gen) localRefRep(v *types.Var) ptrRep {
 	return repRef
 }
 
+// namedLifetime reports whether fn, returning a borrow of an input
+// (subset.PtrPlan.RetBorrow), needs the lifetime named: Rust's elision
+// ties a method's result to its receiver, and a function's to its only
+// borrowed input, so a method lending back a parameter, or a function with
+// more than one borrowed input, writes fn f<'a>(.. &'a T ..) -> &'a T.
+func (g *gen) namedLifetime(fn *types.Func, params []string) bool {
+	in := g.ptrs.RetBorrow(fn)
+	if in == nil {
+		return false
+	}
+	if r := fn.Signature().Recv(); r != nil && g.recv == r {
+		return in != r // &self: elision gives the receiver's
+	}
+	refs := 0
+	for _, p := range params {
+		if strings.Contains(p, "&") {
+			refs++
+		}
+	}
+	return refs > 1
+}
+
 // lentVar returns the local that e, &x or x, lends (LentAddr).
 func (g *gen) lentVar(e ast.Expr) *types.Var {
 	e = ast.Unparen(e)
@@ -183,6 +205,9 @@ func (g *gen) ptrRep(e ast.Expr) ptrRep {
 			return repBox
 		}
 	case *ast.CallExpr:
+		if fn := g.programFunc(x); fn != nil && g.ptrs.RetBorrow(fn.Obj) != nil {
+			return g.retRep(fn.Obj) // a borrow of its argument (decision 4)
+		}
 		if fn := g.programFunc(x); fn != nil && g.ptrs.NonNilResult(fn.Obj) {
 			return repBox
 		}
@@ -193,6 +218,38 @@ func (g *gen) ptrRep(e ast.Expr) ptrRep {
 }
 
 // paramRep returns how parameter v, of an owned pointer type, is held.
+// retRep returns how fn's result is held when fn returns a borrow of an
+// input (subset.PtrPlan.RetBorrow), which fn does not change through: the
+// input's own form where every return gives the input itself, and
+// otherwise an Option of a shared borrow (RFC 0017, decision 4).
+func (g *gen) retRep(fn *types.Func) ptrRep {
+	in := g.ptrs.RetBorrow(fn)
+	r := g.paramRep(in)
+	itself := true
+	ast.Inspect(g.res.Funcs[fn].Decl.Body, func(n ast.Node) bool {
+		if ret, ok := n.(*ast.ReturnStmt); ok {
+			id, isID := ast.Unparen(ret.Results[0]).(*ast.Ident)
+			itself = itself && isID && g.info.Uses[id] == in
+		}
+		_, lit := n.(*ast.FuncLit)
+		return !lit
+	})
+	if itself {
+		return r
+	}
+	return repOptRef
+}
+
+// borrowType renders the Rust type of a shared borrow of pointer type t
+// held as r: &T or Option<&T>, with lifetime life ("" or "'a ").
+func (g *gen) borrowType(t types.Type, r ptrRep, life string) string {
+	inner := "&" + life + g.rustType(types.Unalias(t).(*types.Pointer).Elem())
+	if r.optional() {
+		return "Option<" + inner + ">"
+	}
+	return inner
+}
+
 func (g *gen) paramRep(v *types.Var) ptrRep {
 	if p := g.res.Param(v); p != nil && p.Mode == borrow.Owned {
 		return repOptBox // kept: moved in (RFC 0017, step 8)

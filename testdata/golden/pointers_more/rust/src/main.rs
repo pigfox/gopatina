@@ -108,18 +108,18 @@ impl Counter {
         self.hits * 2
     }
 
-    pub fn hit(c: &rt::Ptr<Counter>) -> i64 {
-        c.with_mut(|v| v.hits += 1);
-        c.with(|v| v.hits)
+    pub fn hit(&mut self) -> i64 {
+        self.hits += 1;
+        self.hits
     }
 
-    pub fn self_(c: rt::Ptr<Counter>) -> rt::Ptr<Counter> {
+    pub fn self_(c: Option<&Counter>) -> Option<&Counter> {
         c
     }
 }
 
-fn show(c: &rt::Ptr<Counter>) -> String {
-    format!("{}", c.with(|v| v.hits))
+fn show(c: &Counter) -> String {
+    format!("{}", c.hits)
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -267,19 +267,16 @@ fn main() {
     forest.with_mut(|v| add_n(&mut v.items, val, &val_2));
     println!("{}", rt::Slice(&forest.with(|v| v.items.clone())));
 
-    let c: rt::Ptr<Counter> = rt::Ptr::new(Counter::default());
-    Counter::hit(&c);
-    Counter::hit(&c);
-    let self_ = Counter::self_(c.clone());
-    let call_5 = c.load().double();
-    let call_6 = self_.load().double();
-    let call_7 = show(&c.clone());
+    let mut c: Counter = Counter::default();
+    c.hit();
+    c.hit();
+    let self_ = Counter::self_(Some(&c));
     println!(
         "{} {} {} {}",
-        call_5,
-        call_6,
-        call_7,
-        self_.with(|v| v.hits),
+        c.double(),
+        self_.unwrap().double(),
+        show(&c),
+        self_.unwrap().hits,
     );
 
     let mut b = boxed(Big {

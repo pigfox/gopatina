@@ -488,6 +488,20 @@ is read, as Go's copy of the argument already does:
     finish with m before n is used, or use n through m
 ```
 
+**Returned borrows** ([RFC 0017](rfcs/0017-one-owner.md), decision 4). A
+function or method that returns one of its pointer inputs, or a place
+through it (`n.Next`, `n.Kids[0]`, `*pp`), on every path or `nil`, and
+otherwise only reads through that input, lends it back: Rust's
+`fn second(n: &Node) -> Option<&Node> { n.next.as_deref() }`. The caller's
+result is a borrow of its argument, not a new owner, so the argument stays
+the owner and the result is held only while the argument is not changed.
+Where Rust's elision would not tie the result to that input (a function
+with more than one borrowed input, or a method lending back a parameter,
+not its receiver), the lifetime is named:
+`fn after<'a>(a: Option<&'a Node>, b: &Node) -> Option<&'a Node>`. A
+function that also changes through the input it lends back keeps its
+earlier form for now.
+
 Moving a pointer out of an element, a slice of pointers held in a
 package-level variable, and a field handed to a keeper without being
 refilled still make the type shared: those are later steps.

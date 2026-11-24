@@ -16,7 +16,9 @@ type Node struct{ Next *Node }
 
 type B struct{ n int }
 
-func keep(b *B) *B { return b }
+var kept *B
+
+func keep(b *B) { kept = b }
 
 func borrow(n *int) { *n++ }
 

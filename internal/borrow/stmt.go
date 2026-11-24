@@ -112,7 +112,12 @@ func (w *walker) simple(s ast.Stmt) {
 	case *ast.DeclStmt:
 		w.decl(s.Decl.(*ast.GenDecl))
 	case *ast.ReturnStmt:
+		lent := subset.Ptrs(w.a.pkg).RetBorrow(w.fn.Obj)
 		for _, r := range s.Results {
+			if lent != nil && subset.PlaceRoot(w.info(), r) == lent {
+				w.read(r) // a borrow of the input lent back (RFC 0017, decision 4)
+				continue
+			}
 			w.consume(r, "a return", nil)
 		}
 	}

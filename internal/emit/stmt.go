@@ -78,6 +78,21 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		}
 		params = append(params, name+": "+t)
 	}
+	g.life = ""
+	generics := ""
+	if g.ptrs != nil && g.namedLifetime(obj, params) {
+		// The result borrows from one input: its lifetime named, the
+		// others elided (RFC 0017, decision 4).
+		g.life, generics = "'a ", "<'a>"
+		in := g.ptrs.RetBorrow(obj)
+		off := len(params) - len(ps) // a self parameter comes first
+		for i, p := range ps {
+			if p.Var == in {
+				name, typ, _ := strings.Cut(params[off+i], ": ")
+				params[off+i] = name + ": " + strings.Replace(typ, "&", "&'a ", 1)
+			}
+		}
+	}
 	vis := g.vis(obj.Exported() && obj.Name() != "main")
 	if g.apiName(obj) != "" {
 		vis = "" // its pub wrapper is the API (RFC 0014)
@@ -86,7 +101,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	if ret != "" {
 		ret = " -> " + ret
 	}
-	head := vis + "fn " + g.funcs[obj] + "("
+	head := vis + "fn " + g.funcs[obj] + generics + "("
 	// The body first, into its own buffer: an Option<&mut T> parameter is
 	// mut only if the body reborrows it (as_mut, as_deref_mut).
 	saved := g.out
@@ -213,6 +228,9 @@ func (g *gen) resultType(fn *types.Func) string {
 		t := g.rustType(res.At(i).Type())
 		if g.ownPtr(res.At(i).Type()) && g.ptrs.NonNilResult(fn) {
 			t = g.boxOf(res.At(i).Type()) // RFC 0017, step 2
+		}
+		if g.ptrs != nil && g.ptrs.RetBorrow(fn) != nil {
+			t = g.borrowType(res.At(i).Type(), g.retRep(fn), g.life) // a borrow lent back (decision 4)
 		}
 		ts = append(ts, t)
 	}
@@ -680,6 +698,9 @@ func (g *gen) exprStmt(e ast.Expr) {
 func (g *gen) returnValue(r *ast.ReturnStmt) node {
 	sig := g.fn.Obj.Signature()
 	results := r.Results
+	if len(results) == 1 && g.ptrs != nil && g.ptrs.RetBorrow(g.fn.Obj) != nil {
+		return g.ptrAs(results[0], g.retRep(g.fn.Obj)) // a borrow lent back (decision 4)
+	}
 	if len(results) == 1 && g.ownPtr(g.typeOf(results[0])) && g.ptrs.NonNilResult(g.fn.Obj) {
 		g.boxSlot[ast.Unparen(results[0])] = true // returned as the Box it is
 	}

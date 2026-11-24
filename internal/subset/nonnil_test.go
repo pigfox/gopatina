@@ -243,6 +243,32 @@ func main() {
 }
 `, "appendFirst.n main.a main.pt result mkPt valueFirst.p"})
 	cases = append(cases, struct{ name, src, want string }{"a number behind a pointer", "package main\n\ntype Num int\n\nfunc (n *Num) Inc() { *n++ }\n\nfunc set(n *Num, v Num) { *n = v }\n\nfunc get(n *Num) Num { return *n }\n\nfunc newNum(v Num) *Num { return &v }\n\nfunc main() {\n\tn := newNum(4)\n\tn.Inc()\n\tset(n, 1)\n\t_ = get(n)\n}\n", "Inc.n get.n main.n result newNum set.n"})
+	cases = append(cases, struct{ name, src, want string }{"a pointer lent back", `package main
+
+type Node struct{ V int }
+
+func mk() *Node { return &Node{V: 1} }
+
+func same(n *Node) *Node { // lent back: read through first
+	_ = n.V
+	return n
+}
+
+func first(a, b *Node) *Node { // two inputs: lent back from a
+	_ = a.V
+	return a
+}
+
+func bump(n *Node) *Node { // changed through: returned, not lent back
+	n.V++
+	return n
+}
+
+func main() {
+	n := mk()
+	_ = same(n).V + first(n, mk()).V + bump(mk()).V
+}
+`, "first.a main.n result mk same.n"})
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if got := nonNilOf(t, c.src); got != c.want {
