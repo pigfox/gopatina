@@ -278,27 +278,30 @@ checks both, and CI runs it on every golden program; see
 built by rustc, against Rust written by hand for the same task, built by
 the same rustc. Both are Rust binaries, so a gap between them is a gap in
 the Rust code: where the generated Rust does what a person would write,
-the two execute the same instructions; where it does not yet (the two
-pointer benchmarks), it is slower. Plain Go (`go build`) is shown for
-reference.
+the two execute the same instructions; where it does not yet, it is
+slower. Plain Go (`go build`) is shown for reference.
 
-**Latest test-server run, 2026-11-23, after owned pointers**: GoPatina,
+**Latest test-server run, 2026-11-24, one owner per pointer**: GoPatina,
 hand-written Rust and plain Go, all five benchmarks, both Rust binaries
 built by rustc 1.100.0, 100 rounds, ratios with 5σ intervals and
-equivalence tests at ±0.5%. On `binary-trees`, GoPatina's peak memory now
-matches Rust's and its wall time fell from 1.50 to 1.19 times Rust's
-([RFC 0016](docs/rfcs/0016-owned-pointers-and-cycle-collection.md), step
-1); on the two pointer benchmarks it is still slower than both, and plain
-Go is the fastest. Details, peak memory, binary sizes, raw results and
-every earlier run are in [BENCHMARKS.md](BENCHMARKS.md).
+equivalence tests at ±0.5%. GoPatina now executes the same user
+instructions as hand-written Rust on `binary-trees` too, down from 1.19
+times, with an owned pointer as a plain `Option<Box<T>>`
+([RFC 0017](docs/rfcs/0017-one-owner.md)), and its wall time there is
+inconclusive against Rust's. On `cycles`, rewritten to link its nodes by
+index, it is faster than Rust. Plain Go is still the fastest on
+`binary-trees`. `sieve`'s cycles vary with where its loop lands in the
+binary (the JCC erratum), not with its code. Details, peak memory, binary
+sizes, raw results and every earlier run are in
+[BENCHMARKS.md](BENCHMARKS.md).
 
 | Benchmark | GoPatina / Rust, instructions | GoPatina / Rust, wall time | GoPatina / Go, wall time |
 | --- | --- | --- | --- |
-| `fib` | 1.00000: equivalent | 0.896 [0.851, 0.943] | 0.519 [0.491, 0.548] |
-| `sieve` | 1.00001: equivalent | 1.007 [0.944, 1.076] | 0.985 [0.910, 1.067] |
-| `suffix-sum` | 1.00001: equivalent | 0.995 [0.950, 1.043] | 0.945 [0.894, 0.998] |
-| `binary-trees` | 1.189: slower | 1.193 [1.136, 1.253] | 1.267 [1.208, 1.329] |
-| `cycles` | 0.983 | 2.033 [1.926, 2.146] | 2.807 [2.648, 2.975] |
+| `fib` | 1.00000: equivalent | 0.886 [0.842, 0.933] | 0.519 [0.490, 0.550] |
+| `sieve` | 1.00001: equivalent | 1.028 [0.950, 1.113] | 1.049 [0.956, 1.151] |
+| `suffix-sum` | 1.00001: equivalent | 1.002 [0.943, 1.065] | 0.972 [0.906, 1.044] |
+| `binary-trees` | 0.99998: equivalent | 1.022 [0.966, 1.082] | 1.133 [1.070, 1.199] |
+| `cycles` | 0.943: faster | 0.860 [0.800, 0.924] | 0.279 [0.257, 0.302] |
 
 ## Supported toolchains
 

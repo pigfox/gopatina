@@ -9,18 +9,110 @@ code, not in the compiler. How the numbers are produced is described in
 [docs/QUALITY.md](docs/QUALITY.md#performance-shadow-rust-and-keep-up) and
 [bench/README.md](bench/README.md).
 
-> **Latest, 2026-11-23: owned pointers measured.** On `binary-trees`,
-> GoPatina's peak memory now matches hand-written Rust's (1.001 times,
-> 34.0 MiB against 33.9 MiB), down from 1.47 times, and its wall time fell
-> from 1.50 to 1.19 times Rust's: RFC 0016's first step, a `Box` for each
-> pointer with one owner. It is still slower than Rust and plain Go there,
-> and on `cycles`, whose cycles RFC 0016's second step will collect, it is
-> unchanged at 2.03 times Rust's time. On `fib`, `sieve` and `suffix-sum`
-> GoPatina executes the same user instructions as hand-written Rust. The
-> correctness bar is pending. The local runs further down are earlier
-> evidence from the maintainer's workstation, not official results.
+> **Latest, 2026-11-24: one owner per pointer measured.** On
+> `binary-trees`, GoPatina now executes the same user instructions as
+> hand-written Rust (0.99998 times, equivalent), down from 1.19 times, and
+> its wall time and peak memory can no longer be told apart from Rust's
+> (1.022 and 0.999 times, inconclusive at ±0.5%): RFC 0017's first five
+> steps, an owned pointer as a plain `Option<Box<T>>`. On `fib`, `sieve`
+> and `suffix-sum` it executes the same instructions as Rust, as before. On
+> `cycles`, rewritten to link its nodes by index (#135), it executes 0.943
+> times Rust's instructions and is faster on wall time (0.860). Plain Go is
+> still the fastest on `binary-trees`. The correctness bar is pending. The
+> local runs further down are earlier evidence from the maintainer's
+> workstation, not official results.
 
-## Latest official run: three arms, after owned pointers, 2026-11-23
+## Latest official run: three arms, one owner per pointer, 2026-11-24
+
+GoPatina (`gopatina build -patina`), hand-written Rust and plain Go
+(`go build`) on all five benchmarks: `bench/run.sh --equiv --metric perf
+--runs 100 --toolchain same --rust stable`, 100 rounds in ABCCBA order,
+GoPatina commit `6e0d0cac1e813a060bd1f55ebf02974460b340bd` (RFC 0017's
+steps 1 to 5, and `cycles` rewritten by #135), rustc 1.100.0 for both Rust
+binaries, Go 1.27.1, on the same Xeon Gold 6152 (Skylake-SP) virtual
+server as the runs below, with the correctness run paused (load averages
+2.76, 6.09, 4.84 at the start and 1.65, 1.43, 1.71 at the end). Every
+table, every pair and the reading of each case are in the
+[run notes](bench/results/2026-11-24-server-6e0d0ca-three-arm.md); raw results:
+[2026-11-24-server-6e0d0ca-three-arm.json](bench/results/2026-11-24-server-6e0d0ca-three-arm.json).
+
+Each program, geometric mean with its 5σ interval:
+
+| Benchmark | Program | Wall time | User instructions | Peak memory | Binary size |
+| --- | --- | --- | --- | --- | --- |
+| `fib` | Go | 2.71 s [2.52, 2.90] | 12.57 G | 1.82 MiB [1.72, 1.93] | 2,287 KiB |
+| `fib` | GoPatina | 1.40 s [1.31, 1.51] | 8.505 G | 1.95 MiB [1.85, 2.06] | 339 KiB |
+| `fib` | Rust | 1.58 s [1.46, 1.72] | 8.505 G | 1.95 MiB [1.85, 2.06] | 435 KiB |
+| `sieve` | Go | 0.274 s [0.256, 0.294] | 0.3848 G [0.3843, 0.3853] | 21.1 MiB [21.0, 21.3] | 2,288 KiB |
+| `sieve` | GoPatina | 0.287 s [0.267, 0.309] | 0.3846 G | 20.9 MiB [20.9, 20.9] | 339 KiB |
+| `sieve` | Rust | 0.280 s [0.259, 0.302] | 0.3846 G | 20.9 MiB [20.9, 20.9] | 435 KiB |
+| `suffix-sum` | Go | 0.327 s [0.308, 0.348] | 0.4349 G | 155 MiB [155, 155] | 2,288 KiB |
+| `suffix-sum` | GoPatina | 0.318 s [0.301, 0.337] | 0.3227 G | 154 MiB [154, 154] | 340 KiB |
+| `suffix-sum` | Rust | 0.318 s [0.300, 0.337] | 0.3227 G | 154 MiB [154, 154] | 436 KiB |
+| `binary-trees` | Go | 3.60 s [3.48, 3.73] | 33.53 G [33.47, 33.59] | 34.6 MiB [33.0, 36.3] | 2,305 KiB |
+| `binary-trees` | GoPatina | 4.08 s [3.88, 4.29] | 19.16 G | 33.9 MiB [33.8, 34.0] | 341 KiB |
+| `binary-trees` | Rust | 3.99 s [3.79, 4.20] | 19.16 G | 33.9 MiB [33.8, 34.1] | 437 KiB |
+| `cycles` | Go | 0.208 s [0.193, 0.224] | 0.2363 G [0.2333, 0.2392] | 8.59 MiB [5.68, 13.0] | 2,293 KiB |
+| `cycles` | GoPatina | 0.0579 s [0.0538, 0.0624] | 0.1003 G | 2.31 MiB [2.23, 2.40] | 340 KiB |
+| `cycles` | Rust | 0.0674 s [0.0626, 0.0724] | 0.1063 G | 2.42 MiB [2.34, 2.51] | 437 KiB |
+
+Instruction intervals not shown are narrower than the digits given. Binary
+sizes are each tool's default: GoPatina's are stripped, the others' are not.
+
+GoPatina against each, ratio with its 5σ interval and TOST verdict at ±0.5%:
+
+| Benchmark | GoPatina / Rust, instructions | GoPatina / Rust, cycles | GoPatina / Rust, wall | GoPatina / Rust, peak memory | GoPatina / Go, wall |
+| --- | --- | --- | --- | --- | --- |
+| `fib` | 1.00000 equivalent | 0.906 [0.893, 0.919] faster | 0.886 [0.842, 0.933] faster | 1.000 [0.919, 1.088] inconclusive | 0.519 [0.490, 0.550] faster |
+| `sieve` | 1.00001 equivalent | 1.038 [0.971, 1.108] inconclusive | 1.028 [0.950, 1.113] inconclusive | 1.000 equivalent | 1.049 [0.956, 1.151] inconclusive |
+| `suffix-sum` | 1.00001 equivalent | 0.998 [0.977, 1.020] inconclusive | 1.002 [0.943, 1.065] inconclusive | 1.000 equivalent | 0.972 [0.906, 1.044] inconclusive |
+| `binary-trees` | 0.99998 equivalent | 1.029 [0.999, 1.060] inconclusive | 1.022 [0.966, 1.082] inconclusive | 0.999 [0.993, 1.006] inconclusive | 1.133 [1.070, 1.199] slower |
+| `cycles` | 0.94338 faster | 0.796 [0.777, 0.816] faster | 0.860 [0.800, 0.924] faster | 0.955 [0.909, 1.003] inconclusive | 0.279 [0.257, 0.302] faster |
+
+What one owner per pointer changed on `binary-trees`, against the
+[previous run](bench/results/2026-11-23-server-477aaa3-three-arm.md) on the same server and toolchains:
+
+| `binary-trees`, GoPatina / Rust | Before: `477aaa3`, owned pointers in `rt::Own` | After: `6e0d0ca`, plain `Option<Box<T>>` |
+| --- | --- | --- |
+| User instructions | 1.189 slower | 0.99998 equivalent |
+| Wall time | 1.193 [1.136, 1.253] slower | 1.022 [0.966, 1.082] inconclusive |
+| Peak memory | 1.001 [0.995, 1.006] inconclusive | 0.999 [0.993, 1.006] inconclusive |
+
+- **`binary-trees`**: the same instructions as hand-written Rust; wall
+  time, cycles and peak memory cannot be told apart from Rust's at this
+  precision. Plain Go is still the fastest on wall time, 0.90 times
+  Rust's, its collector running concurrently with the program.
+- **`cycles`**: the case was rewritten (#135), so it does not compare with
+  earlier runs. GoPatina executes 6% fewer instructions than the
+  hand-written Rust, for a cause not yet established, and is faster on
+  wall time.
+- **`fib`, `suffix-sum`**: the same instructions as hand-written Rust.
+  `fib`'s 10% fewer cycles than Rust with the same instructions has
+  appeared in every run; its cause is not established, and it is not taken
+  as GoPatina being faster than Rust.
+
+**`sieve` and the JCC erratum.** GoPatina's `sieve` loop and the
+hand-written Rust's are the same machine code, instruction for
+instruction, and they execute the same instructions (1.00001 times).
+Even so, GoPatina's has taken a few percent more cycles in some runs
+(1.038 here, inconclusive). The cause is where the loop sits in the
+binary, not what it does. In GoPatina's binary, as examined, the loop's
+closing conditional jump is a `jb` at 0x156fe, and it ends exactly on
+the 32-byte boundary 0x15700. The test server's CPU is a Skylake-SP
+(Xeon Gold 6152). Intel's microcode fix for the jump conditional code
+(JCC) erratum keeps any jump that crosses or ends on a 32-byte boundary
+out of the decoded micro-op cache, so that loop is decoded again by the
+slower legacy decoders on every pass. The hand-written Rust's loop sits
+elsewhere. Where a loop sits depends on everything placed before it, so
+an unrelated change to GoPatina's output, its runtime or the toolchain
+can move the loop and flip the effect either way. The same binaries can
+also read differently on another CPU. This is not a difference in the
+code GoPatina generates, so it is reported here rather than tuned for:
+neither build pads its jumps away from 32-byte boundaries (LLVM's
+`-x86-branches-within-32B-boundaries`), and the benchmarks are not
+tuned for one CPU.
+
+## Previous official run: three arms, after owned pointers, 2026-11-23
 
 GoPatina (`gopatina build -patina`), hand-written Rust and plain Go
 (`go build`) on all five benchmarks: `bench/run.sh --equiv --metric perf
@@ -96,7 +188,7 @@ with the latest stable Rust. That is a goal, not a claim.
 
 | Bar | Definition | Test | Status |
 | --- | --- | --- | --- |
-| Speed | Equivalent to hand-written Rust within ±0.5% (ratio in (1/1.005, 1.005)) | TOST on paired log ratios at 5σ, one-sided α = Φ(−5) ≈ 2.87 × 10⁻⁷ per bound | `fib`, `sieve`, `suffix-sum`: **met on user instructions, the primary metric, at 5σ and 6σ** (2026-11-22, again 2026-11-23); wall time inconclusive or faster. `binary-trees`, `cycles`: **not met**, 1.19 and 2.03 times Rust's wall time (2026-11-23, after owned pointers; RFC 0016) |
+| Speed | Equivalent to hand-written Rust within ±0.5% (ratio in (1/1.005, 1.005)) | TOST on paired log ratios at 5σ, one-sided α = Φ(−5) ≈ 2.87 × 10⁻⁷ per bound | `fib`, `sieve`, `suffix-sum`: **met on user instructions, the primary metric, at 5σ and 6σ** (2026-11-22, again 2026-11-23); wall time inconclusive or faster. `binary-trees`: **met on user instructions** (0.99998, 2026-11-24, RFC 0017); wall time inconclusive. `cycles` (rewritten by #135): faster than Rust on instructions and wall time (2026-11-24) |
 | Correctness (Six Sigma) | At most 3.4 defects per million tests (4.5σ, after the conventional 1.5σ shift), shown at 6σ confidence | 0 defects in ≥ 6,099,050 differential tests against Go: one-sided upper bound 1 − α^(1/N) < −ln(α) / N with α = Φ(−6) ≈ 9.87 × 10⁻¹⁰. Milestone: 0 defects in ≥ 881,098 tests, the same bound at 95% | Target; both the milestone and the bar are pending on the test server |
 
 Hypotheses, formulas and their limits are in
@@ -256,6 +348,7 @@ passes `s[start:]` to a one-argument proven reader and checks a checksum.
 
 ## History
 
+- 2026-11-24: the three-arm run after one owner per pointer (RFC 0017, steps 1 to 5; test server): `binary-trees` the same instructions as Rust, wall time and memory inconclusive; `cycles`, rewritten, faster than Rust; the `sieve` JCC note.
 - 2026-11-23: the three-arm run after owned pointers (RFC 0016, step 1; test server): `binary-trees` peak memory equal to Rust's, wall time 1.19 times Rust's, down from 1.50; `cycles` unchanged.
 - 2026-11-23: the first three-arm run (GoPatina, hand-written Rust, plain Go) on all five benchmarks (test server): `binary-trees` and `cycles` slower than both.
 - 2026-11-22: the speed bar met on user instructions at 5σ and 6σ (test server, one rustc for both); run time pending.
