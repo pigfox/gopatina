@@ -985,6 +985,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// Moves (RFC 0017, step 4): a chain built in a loop, each new link
 	// taking the chain, so Ch frees its links in a loop too.
 	fmt.Fprintf(b, "\nfunc chPush%d(n int) *Ch%d {\n\tvar h *Ch%d\n\tfor i := 0; i < n; i++ {\n\t\tx := &Ch%d{V: i}\n\t\tx.N = h\n\t\th = x\n\t}\n\treturn h\n}\n", k, k, k, k)
+	// Temporary borrows (RFC 0017, step 5): a walk of the chain, while
+	// let Some(n) = p in Rust, with a second borrow kept.
+	fmt.Fprintf(b, "\nfunc chSum%d(c *Ch%d) int {\n\ts := 0\n\tvar last *Ch%d\n\tfor p := c; p != nil; p = p.N {\n\t\tif p.V%%3 == 0 {\n\t\t\tcontinue\n\t\t}\n\t\ts += p.V\n\t\tlast = p\n\t}\n\tif last != nil {\n\t\ts += last.V\n\t}\n\treturn s\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc chLen%d(c *Ch%d) int {\n\tif c == nil {\n\t\treturn 0\n\t}\n\treturn c.V %% 3 + chLen%d(c.N)\n}\n", k, k, k)
 	// A call that prints, beside a read through a nil owned pointer: gc
 	// makes the call first (panicking).
@@ -1051,6 +1054,15 @@ func (g *gen) ptrUses() {
 	g.line("chB := chA")
 	g.line("chC := &Ch%d{V: %s, N: chB}", k, v())
 	g.line("fmt.Println(chLen%d(chC), chC.V, chC.N.V)", k)
+	g.line("chT := 0")
+	g.line("for chP := chC; chP != nil; chP = chP.N {")
+	g.depth++
+	g.line("chT += chP.V %s %s", op(), v())
+	g.depth--
+	g.line("}")
+	g.line("chQ := chC.N")
+	g.line("fmt.Println(chT, chSum%d(chC), chQ.V)", k)
+	g.line("chC.V %s= chT", op())
 	g.line("trP := trPair%d(%s)", k, v())
 	g.line("trP.Bump(%s)", v())
 	g.line("trP.R.Bump(%s)", v())

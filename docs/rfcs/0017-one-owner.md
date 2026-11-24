@@ -6,8 +6,9 @@
   plain `Option<Box<T>>` (#133); step 2, pointers never nil as `Box<T>`,
   `&T` and `&self`, and `if let Some` (#136); step 3, changes through an
   owned pointer as `&mut T`, `Option<&mut T>` and `&mut self`; step 4,
-  moves of local variables, with the use-after-move error
-  (docs/patina-subset.md)
+  moves of local variables, with the use-after-move error; step 5,
+  temporary borrows of locals (decision 1), with the change-while-borrowed
+  error (docs/patina-subset.md)
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file

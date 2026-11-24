@@ -162,7 +162,8 @@ fn main() {
         big.as_ref().unwrap().v,
         big.as_ref().unwrap().next.as_ref().unwrap().v,
     );
-    let keep = big; // a declaration moves it too
+    let mut keep = big; // a declaration moves it too
+    keep.as_mut().unwrap().v = -1;
     println!("{}", keep.as_ref().unwrap().v);
     let tall = spine(500000);
     println!(

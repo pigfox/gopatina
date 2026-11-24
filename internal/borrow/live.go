@@ -6,6 +6,8 @@ import (
 	"go/token"
 	"go/types"
 	"strings"
+
+	"github.com/pigfox/gopatina/internal/subset"
 )
 
 // A use is the nearest later use of a variable.
@@ -490,5 +492,31 @@ func (l *live) conflicts(ev event, lv set) {
 		a.report(ev.pos, a.errorf(ev.pos, "%s is used while the pointer %s, taken on line %d, is still in use (line %d)",
 			ev.v.Name(), p.Name(), a.line(ptr.pos), a.line(u.pos)).With(
 			fmt.Sprintf("use %s through %s, or finish with %s before using %s again", ev.v.Name(), p.Name(), p.Name(), ev.v.Name())))
+	}
+	l.borrowConflicts(ev, lv)
+}
+
+// borrowConflicts reports a change to a variable, or a move of it, while a
+// temporary borrow of it (RFC 0017, step 5) is still in use: in Rust the
+// borrow's owner cannot change until the borrow's last use.
+func (l *live) borrowConflicts(ev event, lv set) {
+	if ev.kind != evMut && ev.kind != evConsume && ev.kind != evDef {
+		return
+	}
+	a := l.a
+	plan := subset.Ptrs(a.pkg)
+	for q, u := range lv {
+		if q == ev.v || !plan.Owned(q.Type()) || !plan.BorrowVar(q) || !plan.BorrowSources(q)[ev.v] {
+			continue
+		}
+		what := "changed"
+		if ev.kind == evConsume {
+			what = "moved"
+		}
+		a.report(ev.pos, a.errorf(ev.pos, "%s is %s on line %d while %s, a borrow of it, is still in use on line %d",
+			ev.v.Name(), what, a.line(ev.pos), q.Name(), a.line(u.pos)).With(
+			fmt.Sprintf("%s only borrows %s (it is never stored or returned), so %s cannot change until %s's last use (RFC 0017)", q.Name(), ev.v.Name(), ev.v.Name(), q.Name()),
+			fmt.Sprintf("finish with %s before %s changes, or read what you need from %s into a variable first", q.Name(), ev.v.Name(), q.Name())))
+		return
 	}
 }

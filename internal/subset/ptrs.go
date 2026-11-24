@@ -43,6 +43,10 @@ type PtrPlan struct {
 	// chained the element types moved into fields (Chained).
 	ownerErrs []ownerError
 	chained   []types.Type
+	// borrows are the temporary borrows (RFC 0017, step 5), and sources
+	// the variables each borrows from.
+	borrows map[*types.Var]bool
+	sources map[*types.Var]map[*types.Var]bool
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.

@@ -4,6 +4,8 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+
+	"github.com/pigfox/gopatina/internal/subset"
 )
 
 // block walks every statement in b, in order, for the flat summaries.
@@ -155,6 +157,12 @@ func (w *walker) define(name *ast.Ident, value ast.Expr) {
 			w.addressOf(u, v, false)
 			return
 		}
+	}
+	if plan := subset.Ptrs(w.a.pkg); v != nil && plan.Owned(v.Type()) && plan.BorrowVar(v) {
+		// A temporary borrow (RFC 0017, step 5) reads the pointer it is
+		// given; its owner keeps it.
+		w.read(value)
+		return
 	}
 	w.consume(value, name.Name, nil)
 }

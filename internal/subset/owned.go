@@ -499,6 +499,9 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	if _, ok := par.(*ast.ReturnStmt); ok && o.localVar(e) && !o.param(e) {
 		return // returning a local variable moves it: nothing can use it after
 	}
+	if o.lentToBorrow(par, child) {
+		return // a temporary borrow takes it for a while (RFC 0017, step 5)
+	}
 	if as, ok := par.(*ast.AssignStmt); ok && as.Tok == token.ASSIGN {
 		for _, l := range as.Lhs {
 			if l == child {
@@ -619,6 +622,37 @@ func (o *ownership) written(stack []ast.Node) bool {
 		}
 		return false
 	}
+}
+
+// lentToBorrow reports whether child is the value par assigns to, or
+// declares, a temporary borrow (PtrPlan.BorrowVar): it is lent, not moved.
+func (o *ownership) lentToBorrow(par, child ast.Node) bool {
+	switch p := par.(type) {
+	case *ast.AssignStmt:
+		for i, r := range p.Rhs {
+			if r == child && len(p.Lhs) == len(p.Rhs) {
+				id, ok := ast.Unparen(p.Lhs[i]).(*ast.Ident)
+				return ok && o.p.BorrowVar(o.localOf(id))
+			}
+		}
+	case *ast.ValueSpec:
+		for i, r := range p.Values {
+			if r == child && len(p.Values) == len(p.Names) {
+				return o.p.BorrowVar(o.localOf(p.Names[i]))
+			}
+		}
+	}
+	return false
+}
+
+// localOf returns the variable id defines or names.
+func (o *ownership) localOf(id *ast.Ident) *types.Var {
+	obj := o.info.Defs[id]
+	if obj == nil {
+		obj = o.info.Uses[id]
+	}
+	v, _ := obj.(*types.Var)
+	return v
 }
 
 // fieldPlace reports whether e is a field reached from a variable through

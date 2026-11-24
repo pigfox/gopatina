@@ -1,0 +1,9 @@
+./main.go:27:2: head is changed on line 27 while p, a borrow of it, is still in use on line 28
+    p only borrows head (it is never stored or returned), so head cannot change until p's last use (RFC 0017)
+    finish with p before head changes, or read what you need from p into a variable first
+./main.go:30:2: head is changed on line 30 while q, a borrow of it, is still in use on line 31
+    q only borrows head (it is never stored or returned), so head cannot change until q's last use (RFC 0017)
+    finish with q before head changes, or read what you need from q into a variable first
+./main.go:34:19: r is moved on line 34 while s, a borrow of it, is still in use on line 35
+    s only borrows r (it is never stored or returned), so r cannot change until s's last use (RFC 0017)
+    finish with s before r changes, or read what you need from s into a variable first
