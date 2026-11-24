@@ -1,4 +1,4 @@
-./main.go:10:6: pointers of type *Tag are shared: a slice, map, array, channel or struct value holds it (line 19) (RFC 0016)
+./main.go:10:6: pointers of type *Tag are shared: a copy of it is kept (line 21) (RFC 0016)
 ./main.go:12:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
 ./main.go:19:28: parameter tags is a shared borrow: build only reads it
 ./main.go:21:62: copied tags[key%2] into a composite literal: tags[key%2] is an element of tags, and an element cannot be moved out; a copy of a pointer points at the same variable, as Go's does (RFC 0013)

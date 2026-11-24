@@ -101,6 +101,9 @@ func main() {
 	w.Right = x
 	var y = bottomUp(1)
 	w.Left = y
+	s := []*Node{bottomUp(1), w}
+	s = append(s, bottomUp(2))
+	s[0].V++
 	set(w, 3)
 	set(w.Left, w.Right.V)
 	w.rename("w")
@@ -188,7 +191,8 @@ func TestOwnedShared(t *testing.T) {
 		{"address of a field", "", "a := bottomUp(1)\n\tq := &a.V\n\t*q = 1", "written through"},
 		{"compared", "", "a, b := bottomUp(1), bottomUp(1)\n\t_ = a == b", "compared with another pointer"},
 		{"package variable", "var root *Node", "root = bottomUp(1)", "a package-level variable"},
-		{"slice", "", "s := []*Node{bottomUp(1)}\n\t_ = s", "a slice, map, array, channel or struct value"},
+		{"package-level slice", "var all []*Node", "all = append(all, bottomUp(1))", "a slice, map, array, channel or struct value"},
+		{"element of a call's result", "func some() []*Node { return nil }", "_ = some()[0].V", "a pointer is computed in a way that may share it"},
 		{"struct value", "type Pair struct{ A *Node }", "var p Pair\n\t_ = p", "a field of a struct that is not boxed"},
 		{"value outside its box", "", "var v Node\n\t_ = v", "held outside its box"},
 		{"dereference", "", "a := bottomUp(1)\n\tv := *a\n\t_ = v", "outside its box"},
@@ -203,7 +207,7 @@ func TestOwnedShared(t *testing.T) {
 		{"lent to a non-program function", "", "fmt.Sprint(bottomUp(1).V, bottomUp(1))", "a new pointer is stored"},
 		{"field of a call's result", "", "bottomUp(1).Left = bottomUp(0)", "written through"},
 		{"appended, not to a field", "type Box struct{ Kids []*Node }\n\nfunc mkBox() *Box { return &Box{} }", "b := mkBox()\n\tfmt.Println(len(append(b.Kids, bottomUp(1))))", "a new pointer is stored"},
-		{"lent to a variadic", "func many(ns ...*Node) {}", "many(bottomUp(1))", "a slice"},
+		{"lent to a variadic", "func many(ns ...*Node) {}", "many(bottomUp(1))", "a new pointer is stored"},
 		{"field of another type", "type Other struct{ Items []int }\n\nfunc mk() *Other { return &Other{} }", "_ = mk()", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

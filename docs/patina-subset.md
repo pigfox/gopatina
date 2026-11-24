@@ -431,10 +431,19 @@ the field the call's result is assigned back to, taken out for the call
 (`n.next = s.top.take(); s.top = n`). A search tree's insert and a stack's
 push read as Rust writes them.
 
-Moving a pointer out of an element, a slice of pointers held anywhere
-but a field, a struct value (not behind a pointer) holding a pointer,
-and a field handed to a keeper without being refilled still make the
-type shared: those are later steps.
+**Local slices of owned pointers** ([RFC 0017](rfcs/0017-one-owner.md)).
+A local variable or parameter of type `[]*T` owns its elements as a
+field's slice does: a `Vec<Option<Box<T>>>` built by a literal of new
+pointers or moved locals (`vec![Some(...), ...]`), appended to
+(`s.push(Some(x))`), changed in place and lent by index, and lent whole
+(`&[Option<Box<T>>]`, ranged over with `for n in ns`). A copy of such a
+slice that is still used is an error: Go's copy shares the elements, so
+each would have two owners.
+
+Moving a pointer out of an element, a slice of pointers held in a
+package-level variable, a struct value (not behind a pointer) holding a
+pointer, and a field handed to a keeper without being refilled still
+make the type shared: those are later steps.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

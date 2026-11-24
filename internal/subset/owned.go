@@ -284,6 +284,9 @@ func (o *ownership) vars() {
 		if v.IsField() && o.candidateField(v) && o.ptrSlice(t) {
 			continue // owned by the field's Vec (RFC 0017, step 7)
 		}
+		if !v.IsField() && v.Parent() != v.Pkg().Scope() && o.ptrSlice(t) {
+			continue // a local Vec owning each (RFC 0017, step 9)
+		}
 		o.heldIn(t, id.Pos(), map[types.Type]bool{})
 	}
 }
@@ -416,7 +419,7 @@ func (o *ownership) ptrSlice(t types.Type) bool {
 // in a field: a place that owns its pointer (RFC 0017, step 7).
 func (o *ownership) elemPlace(e ast.Expr) bool {
 	ix, ok := ast.Unparen(e).(*ast.IndexExpr)
-	return ok && o.ptrSlice(o.info.TypeOf(ix.X)) && o.fieldPlace(ix.X)
+	return ok && o.ptrSlice(o.info.TypeOf(ix.X)) && rootVar(o.info, ix.X) != nil
 }
 
 // appendedToField reports whether call c is append(x.f, ...) assigned
@@ -433,7 +436,7 @@ func (o *ownership) appendedToField(c *ast.CallExpr, stack []ast.Node) bool {
 	for i := len(stack) - 1; i >= 0; i-- {
 		if as, ok := stack[i].(*ast.AssignStmt); ok {
 			return len(as.Lhs) == 1 && len(as.Rhs) == 1 && ast.Unparen(as.Rhs[0]) == ast.Expr(c) &&
-				o.fieldPlace(as.Lhs[0]) && o.ptrSlice(o.info.TypeOf(as.Lhs[0])) &&
+				(o.fieldPlace(as.Lhs[0]) || o.localVar(as.Lhs[0]) && !o.input(as.Lhs[0])) && o.ptrSlice(o.info.TypeOf(as.Lhs[0])) &&
 				types.ExprString(ast.Unparen(as.Lhs[0])) == types.ExprString(ast.Unparen(c.Args[0]))
 		}
 	}
@@ -645,8 +648,8 @@ func (o *ownership) freshUse(el types.Type, e ast.Expr, stack []ast.Node) {
 			return
 		}
 	case *ast.CompositeLit:
-		if o.boxedLit(stack[:len(stack)-1]) {
-			return
+		if o.boxedLit(stack[:len(stack)-1]) || o.ptrSlice(o.info.TypeOf(p)) {
+			return // a field of a new pointer, or an element of a new Vec (step 9)
 		}
 	case *ast.CallExpr:
 		if p.Args[0] != child && o.appendedToField(p, stack[:at+1]) {
@@ -880,7 +883,7 @@ func (o *ownership) moved(e ast.Expr, par, child ast.Node, stack []ast.Node) boo
 		return p.Value == child && o.boxedLit(stack[:len(stack)-1])
 	case *ast.CompositeLit:
 		o.chained[el] = true
-		return o.boxedLit(stack)
+		return o.boxedLit(stack) || o.ptrSlice(o.info.TypeOf(p)) // a field, or an element of a new Vec
 	}
 	return false
 }
