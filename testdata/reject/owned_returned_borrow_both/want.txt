@@ -1,0 +1,4 @@
+./main.go:31:14: l is changed on line 31 while t, a borrow of it, is still in use on line 31
+    t only borrows l (it is never stored or returned), so l cannot change until t's last use (RFC 0017)
+    finish with t before l changes, or read what you need from t into a variable first
+    Me only reads l, but lends it exclusively because a caller elsewhere changes through the borrow it returns; a reading Me beside a changing one, a pair like get and get_mut, is not supported yet (RFC 0017)

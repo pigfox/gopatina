@@ -970,6 +970,13 @@ func (o *ownership) borrowUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	if o.lentToBorrow(par, child) || o.readOrLend(par, child, stack[:at+1]) {
 		return
 	}
+	if as, ok := par.(*ast.AssignStmt); ok && as.Tok == token.DEFINE {
+		if id, ok := as.Lhs[0].(*ast.Ident); ok {
+			if _, ref := o.p.refs[o.localOf(id)]; ref {
+				return // p := f(x): a local borrow of x (escapes.go), checked through p
+			}
+		}
+	}
 	if _, ok := par.(*ast.ReturnStmt); ok && o.returnsBorrow(o.p.retBorrowCall(e.(*ast.CallExpr)), stack) {
 		return // lent back on: return second(n) in a function lending n
 	}

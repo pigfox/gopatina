@@ -51,6 +51,19 @@ func (n *Node) Pick(m *Node) *Node {
 	return m.Next
 }
 
+// bumped changes n and returns the node after it: an exclusive borrow
+// lent back, Option<&mut Node>.
+func bumped(n *Node) *Node {
+	n.V += 100
+	return n.Next
+}
+
+// Me returns its receiver, changed through by its caller.
+func (n *Node) Me() *Node { return n }
+
+// Add changes the node through its receiver.
+func (n *Node) Add(v int) { n.V += v }
+
 // total adds up a list.
 func total(n *Node) int {
 	t := 0
@@ -70,4 +83,11 @@ func main() {
 	if second(t) != nil {
 		fmt.Println("more after", t.V)
 	}
+
+	b := bumped(l) // l is in use only through b until b's last use
+	b.V += 5
+	fmt.Println(b.V)
+	s := l.Me() // Me only reads, but s is changed through: &mut
+	s.Add(1000)
+	fmt.Println(l.V, l.Next.V)
 }

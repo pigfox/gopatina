@@ -499,8 +499,11 @@ Where Rust's elision would not tie the result to that input (a function
 with more than one borrowed input, or a method lending back a parameter,
 not its receiver), the lifetime is named:
 `fn after<'a>(a: Option<&'a Node>, b: &Node) -> Option<&'a Node>`. A
-function that also changes through the input it lends back keeps its
-earlier form for now.
+function that changes through the input it lends back, or lends it to a
+call, or whose caller changes through the result, lends it exclusively:
+`fn bumped(n: &mut Node) -> Option<&mut Node>`. The caller's result is then
+a local borrow of the argument, as `p := &x` is: the argument is not used
+while the result is.
 
 Moving a pointer out of an element, a slice of pointers held in a
 package-level variable, and a field handed to a keeper without being

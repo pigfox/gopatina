@@ -132,6 +132,9 @@ func main() {
 				t.Errorf("lent = %v, want %v", got, tc.lent)
 			}
 			for v := range p.refs {
+				if p.RefCall(v) != nil {
+					continue // p := f(x): a temporary borrow where only read
+				}
 				if p.LocalRef(v) != tc.lent || tc.lent && p.RefSource(v) == nil {
 					t.Errorf("LocalRef(%s) = %v, RefSource = %v", v.Name(), p.LocalRef(v), p.RefSource(v))
 				}

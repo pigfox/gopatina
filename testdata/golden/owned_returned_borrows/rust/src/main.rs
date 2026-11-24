@@ -61,6 +61,16 @@ impl Node {
         let _ = self.v;
         m.unwrap().next.as_deref()
     }
+
+    /// Me returns its receiver, changed through by its caller.
+    pub fn me(n: Option<&mut Node>) -> Option<&mut Node> {
+        n
+    }
+
+    /// Add changes the node through its receiver.
+    pub fn add(&mut self, v: i64) {
+        self.v += v;
+    }
 }
 
 fn new_node(v: i64, next: Option<Box<Node>>) -> Box<Node> {
@@ -98,6 +108,13 @@ fn named<'a>(s: &str, n: Option<&'a Node>) -> Option<&'a Node> {
     n.unwrap().next.as_deref()
 }
 
+/// bumped changes n and returns the node after it: an exclusive borrow
+/// lent back, Option<&mut Node>.
+fn bumped(n: &mut Node) -> Option<&mut Node> {
+    n.v += 100;
+    n.next.as_deref_mut()
+}
+
 /// total adds up a list.
 fn total(n: Option<&Node>) -> i64 {
     let mut t: i64 = 0;
@@ -111,7 +128,7 @@ fn total(n: Option<&Node>) -> i64 {
 
 fn main() {
     rt::exit_on_panic();
-    let l = new_node(1, Some(new_node(2, Some(new_node(3, None)))));
+    let mut l = new_node(1, Some(new_node(2, Some(new_node(3, None)))));
     let t = second(&l);
     let call = third(&l);
     println!("{} {} {}", t.unwrap().v, call.unwrap().v, l.v);
@@ -134,4 +151,11 @@ fn main() {
     if second(t.unwrap()).is_some() {
         println!("more after {}", t.unwrap().v);
     }
+
+    let mut b = bumped(&mut l); // l is in use only through b until b's last use
+    b.as_mut().unwrap().v += 5;
+    println!("{}", b.as_ref().unwrap().v);
+    let mut s = Node::me(Some(&mut *l)); // Me only reads, but s is changed through: &mut
+    s.as_mut().unwrap().add(1000);
+    println!("{} {}", l.v, l.next.as_ref().unwrap().v);
 }

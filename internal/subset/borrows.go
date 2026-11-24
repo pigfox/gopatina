@@ -262,7 +262,7 @@ func (b *borrowFinder) lendable(e ast.Expr, cand map[*types.Var]bool) bool {
 		// A call returning a borrow of its argument (returns.go): owned
 		// where the argument is.
 		arg := b.p.retBorrowCall(x)
-		return arg != nil && b.lendable(arg, cand)
+		return arg != nil && !b.p.retMut[b.p.programFunc(x.Fun)] && b.lendable(arg, cand)
 	case *ast.Ident:
 		v := b.localOf(x)
 		return v != nil

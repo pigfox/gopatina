@@ -1025,6 +1025,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// A returned borrow (RFC 0017, decision 4): the next link, lent back
 	// from the argument, Option<&Ch> in Rust.
 	fmt.Fprintf(b, "\nfunc chNext%d(c *Ch%d) *Ch%d { return c.N }\n", k, k, k)
+	// An exclusive borrow lent back: changed through, here and by the
+	// caller, Option<&mut Ch> in Rust.
+	fmt.Fprintf(b, "\nfunc chBumpNext%d(c *Ch%d) *Ch%d {\n\tc.V += 1\n\treturn c.N\n}\n", k, k, k)
 	// Two inputs, the result lent back from the first: Rust names its
 	// lifetime, fn ch_pick<'a>(a: &'a Ch, b: &Ch) -> Option<&'a Ch>.
 	fmt.Fprintf(b, "\nfunc chPick%d(a, b *Ch%d) *Ch%d {\n\tif b.V > 1000 {\n\t\treturn nil\n\t}\n\treturn a.N\n}\n", k, k, k)
@@ -1146,6 +1149,13 @@ func (g *gen) ptrUses() {
 	g.line("chNx := chNext%d(chC)", k)
 	g.line("fmt.Println(chLen%d(chNx), chNx != nil, chC.V)", k)
 	g.line("fmt.Println(chLen%d(chPick%d(chC, chC)), chC.V)", k, k)
+	g.line("chBn := chBumpNext%d(chC)", k)
+	g.line("if chBn != nil {")
+	g.depth++
+	g.line("chBn.V %s= %s", op(), v())
+	g.depth--
+	g.line("}")
+	g.line("fmt.Println(chC.V, chLen%d(chC))", k)
 	g.line("ordS := []int{%s, %s}", v(), v())
 	g.line("fmt.Println(ordS[0]%sordFirst%d(ordS), ordS[0])", op(), k)
 	// A local borrow (RFC 0017): p := &x, changed through and lent, and x
