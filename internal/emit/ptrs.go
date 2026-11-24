@@ -47,7 +47,7 @@ func (g *gen) ptrKind(t types.Type) string {
 func (g *gen) ptrType(t types.Type) string {
 	elem := g.rustType(types.Unalias(t).(*types.Pointer).Elem())
 	if g.ownPtr(t) {
-		return "Option<Box<" + elem + ">>"
+		return "Option<" + g.boxOf(t) + ">"
 	}
 	return "rt::" + g.ptrKind(t) + "<" + elem + ">"
 }
@@ -64,6 +64,9 @@ func (g *gen) ptrNil(t types.Type) node {
 // An owned one is a Box<T>, never nil (RFC 0017, step 2); value wraps it
 // in Some where an Option<Box<T>> is wanted.
 func (g *gen) ptrNew(t types.Type, v node) node {
+	if g.unboxed(t) {
+		return v // the value itself (unboxed)
+	}
 	if g.ownPtr(t) {
 		return &call{head: "Box::new", open: "(", close: ")", args: []node{v}}
 	}
@@ -74,15 +77,49 @@ func (g *gen) ptrNew(t types.Type, v node) node {
 // value in its box, as a place. An Option is unwrapped, Go's nil
 // dereference; a Box or a borrow is dereferenced.
 func (g *gen) boxContents(p ast.Expr) node {
+	unboxed := g.unboxed(g.typeOf(p)) && (g.ptrRep(p) == repOptBox || g.ptrRep(p) == repBox)
+	if r := g.ptrRep(p); r == repOptRef || r == repOptRefMut && !g.usedAfter(p) {
+		// An Option<&T>, Copy, or an Option<&mut T> at its last use: the
+		// borrow itself, unwrapped (clippy's needless_option_as_deref).
+		return atom{"*" + (&call{recv: g.rawPtr(p), head: ".unwrap", open: "(", close: ")"}).flat(), precUnary}
+	}
 	if g.ptrRep(p).optional() {
 		m := ".as_deref"
 		if g.writing {
 			m = ".as_deref_mut"
 		}
+		if unboxed {
+			m = map[bool]string{false: ".as_ref", true: ".as_mut"}[g.writing]
+		}
 		n := &call{recv: &call{recv: g.rawPtr(p), head: m, open: "(", close: ")"}, head: ".unwrap", open: "(", close: ")"}
 		return atom{"*" + n.flat(), precUnary}
 	}
+	if unboxed && g.ptrRep(p) == repBox {
+		return g.rawPtr(p) // the value itself
+	}
 	return atom{"*" + paren(g.rawPtr(p), precUnary), precUnary}
+}
+
+// unboxed reports whether t is an owned pointer to a number, a string or
+// a slice of data, which Rust holds as the value itself, T or Option<T>,
+// not in a Box: one owner, and nothing can reach itself through it
+// (clippy's box_collection).
+func (g *gen) unboxed(t types.Type) bool {
+	if !g.ownPtr(t) {
+		return false
+	}
+	_, st := types.Unalias(t).(*types.Pointer).Elem().Underlying().(*types.Struct)
+	return !st
+}
+
+// boxOf renders what owned pointer type t holds when never nil: Box<T>,
+// or T itself for an unboxed one.
+func (g *gen) boxOf(t types.Type) string {
+	elem := g.rustType(types.Unalias(t).(*types.Pointer).Elem())
+	if g.unboxed(t) {
+		return elem
+	}
+	return "Box<" + elem + ">"
 }
 
 // lentVar returns the local that e, &x or x, lends (LentAddr).
@@ -201,8 +238,24 @@ func (g *gen) ptrAs(e ast.Expr, want ptrRep) node {
 	g.writing = want.mut()
 	n := g.rawPtr(e)
 	g.writing = saved
-	method := func(m string) node { return &call{recv: n, head: m, open: "(", close: ")"} }
+	unboxed := g.unboxed(g.typeOf(e)) && (have == repOptBox || have == repBox)
+	method := func(m string) node {
+		if unboxed {
+			// Option<T> itself, not Option<Box<T>>: as_ref and as_mut, since
+			// as_deref would deref the String or Vec inside.
+			switch m {
+			case ".as_deref":
+				m = ".as_ref"
+			case ".as_deref_mut":
+				m = ".as_mut"
+			}
+		}
+		return &call{recv: n, head: m, open: "(", close: ")"}
+	}
 	some := func(prefix string) node {
+		if unboxed {
+			prefix = strings.TrimSuffix(prefix, "*") // &x, not &*x: the value itself
+		}
 		return &call{head: "Some", open: "(", close: ")", args: []node{atom{prefix + paren(n, precUnary), precUnary}}}
 	}
 	unwrap := func(m node) node { return &call{recv: m, head: ".unwrap", open: "(", close: ")"} }

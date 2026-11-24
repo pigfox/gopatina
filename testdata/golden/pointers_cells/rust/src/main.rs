@@ -114,22 +114,46 @@ fn hold(c: rt::Ptr<Counter>) -> rt::Ptr<Counter> {
     c
 }
 
+/// Tag is a named string whose pointers are shared: an interface holds one.
+pub type Tag = String;
+
+/// Len reads a copy.
+pub fn tag_len(t: &str) -> i64 {
+    t.len() as i64
+}
+
+/// Up changes its copy and returns it.
+pub fn tag_up(t: &str) -> String {
+    format!("{}!", t)
+}
+
+fn new_tag(s: &str) -> rt::Ptr<String> {
+    let t: rt::Ptr<String> = rt::Ptr::new(s.to_string());
+    t.clone()
+}
+
 fn main() {
     rt::exit_on_panic();
+    let ta = new_tag("ab");
+    let held: Iface = boxed(Dyn::PtrTag(new_tag("in an interface")));
+    ta.with_mut(|v| *v += "c");
+    let call = tag_len(&ta.load());
+    let call_2 = tag_up(&ta.load());
+    println!("{} {} {} {}", call, call_2, ta.load(), held.is_some());
     let p = keep(4);
     p.with_mut(|v| v.r#in.inc());
     p.with_mut(|v| v.r#in.inc());
     p.with_mut(|v| inc(&mut v.n));
     p.with_mut(|v| set(&mut v.items, 30));
-    let call = p.with(|v| sum(&v.items));
-    let call_2 = p.with(|v| v.total());
+    let call_3 = p.with(|v| sum(&v.items));
+    let call_4 = p.with(|v| v.total());
     println!(
         "{} {} {} {} {} {}",
         p.with(|v| v.r#in.n),
         p.with(|v| v.n),
         rt::Slice(&p.with(|v| v.items.clone())),
-        call,
-        call_2,
+        call_3,
+        call_4,
         p.with(|v| v.items.len() as i64),
     );
     p.with_mut(|v| v.zero());
@@ -157,14 +181,14 @@ fn main() {
     let y = x.clone();
     let val_3 = x.with(|v| *v);
     y.with_mut(|v| *v += val_3);
-    let call_3 = addr(1.0);
-    let call_4 = addr(1.0);
+    let call_5 = addr(1.0);
+    let call_6 = addr(1.0);
     println!(
         "{} {} {} {}",
         rt::Float(x.with(|v| *v)),
         rt::Float(y.with(|v| *v)),
         x == y,
-        call_3 == call_4,
+        call_5 == call_6,
     );
     let (a, b) = pair();
     let val_4 = b.load();
@@ -176,17 +200,17 @@ fn main() {
     let keep_c = hold(c.clone());
     Counter::hit(&c);
     Counter::hit(&keep_c);
-    let call_5 = Counter::hit(&c);
-    let call_6 = Counter::hit(&keep_c);
+    let call_7 = Counter::hit(&c);
+    let call_8 = Counter::hit(&keep_c);
     println!(
         "{} {} {} {}",
         c.with(|v| v.hits),
         keep_c.with(|v| v.hits),
-        call_5 + call_6,
+        call_7 + call_8,
         c.with(|v| v.hits),
     );
-    let call_7 = Counter::hit(&keep_c);
-    let cells: Vec<i64> = vec![c.with(|v| v.hits), call_7, c.with(|v| v.hits)];
+    let call_9 = Counter::hit(&keep_c);
+    let cells: Vec<i64> = vec![c.with(|v| v.hits), call_9, c.with(|v| v.hits)];
     println!("{}", rt::Slice(&cells));
     let mut q: rt::Ptr<T> = rt::Ptr::nil();
     if q.is_nil() {
@@ -200,4 +224,84 @@ fn main() {
         q.with(|v| v.r#in.n),
         q != p,
     );
+}
+
+/// The dynamic types of the program's interface values (RFC 0012).
+pub enum Dyn {
+    PtrTag(rt::Ptr<String>),
+}
+
+/// An interface value: its dynamic value, or None for a nil interface. The
+/// value cannot be changed through the interface, so copies share it.
+pub type Iface = Option<std::rc::Rc<Dyn>>;
+
+/// Converts a value to an interface value.
+pub fn boxed(d: Dyn) -> Iface {
+    Some(std::rc::Rc::new(d))
+}
+
+/// Go's == on two dynamic values: the same type and equal values; a type
+/// that is not comparable panics.
+impl PartialEq for Dyn {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Dyn::PtrTag(a), Dyn::PtrTag(b)) => a == b,
+        }
+    }
+}
+
+/// The Go name of a dynamic type, as %T prints it.
+pub fn iface_name(d: Option<&Dyn>) -> &'static str {
+    match d {
+        None => "<nil>",
+        Some(Dyn::PtrTag(_)) => "*main.Tag",
+    }
+}
+
+/// %T of an interface value.
+pub fn iface_type(x: &Iface) -> &'static str {
+    iface_name(x.as_deref())
+}
+
+/// %v of an interface value.
+pub fn iface_show(x: &Iface) -> String {
+    match x.as_deref() {
+        None => String::from("<nil>"),
+        Some(Dyn::PtrTag(v)) => unreachable!("fmt prints the address of a *main.Tag"),
+    }
+}
+
+/// The panic of a failed x.(T) to a concrete type T.
+pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
+    match d {
+        None => panic!("gopatina-user-panic:interface conversion: {iface} is nil, not {want}"),
+        Some(_) => panic!(
+            "gopatina-user-panic:interface conversion: {iface} is {}, not {want}",
+            iface_name(d)
+        ),
+    }
+}
+
+/// x.(I) to an interface type I: x, or Go's panic.
+pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
+    match x.as_deref() {
+        None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
+        Some(d) => {
+            if let Some(m) = missing(d) {
+                panic!(
+                    "gopatina-user-panic:interface conversion: {} is not {want}: missing method {m}",
+                    iface_name(Some(d))
+                )
+            }
+        }
+    }
+    x
+}
+
+/// v, ok := x.(I) to an interface type I.
+pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
+    match x.as_deref() {
+        Some(d) if missing(d).is_none() => (x.clone(), true),
+        _ => (None, false),
+    }
 }

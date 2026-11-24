@@ -1013,6 +1013,9 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// Value data behind an owned pointer (RFC 0017): copied out (*p, Copy
 	// in Rust), replaced whole, and read by a value method.
 	fmt.Fprintf(b, "\ntype Pt%d struct{ X, Y int }\n\nfunc (p Pt%d) Sum() int { return p.X*3 + p.Y }\n\nfunc mkPt%d(x int) *Pt%d { return &Pt%d{X: x, Y: x + 1} }\n", k, k, k, k, k)
+	// A number behind a pointer with one owner (RFC 0017): the value
+	// itself in Rust, i64 or Option<i64>, not a Box.
+	fmt.Fprintf(b, "\nfunc intBox%d(v int) *int {\n\tw := v * 2\n\treturn &w\n}\n\nfunc intMaybe%d(v int) *int {\n\tif v < 0 {\n\t\treturn nil\n\t}\n\treturn &v\n}\n", k, k)
 	// A local lent to calls that keep nothing, and a value parameter
 	// returned by address (RFC 0017): &mut pt_l, pt_l.inc(), Box::new(p).
 	fmt.Fprintf(b, "\nfunc ptAdd%d(p *Pt%d, x int) { p.X += x }\n\nfunc (p *Pt%d) Inc() { p.Y++ }\n\nfunc ptBox%d(p Pt%d) *Pt%d { return &p }\n", k, k, k, k, k, k)
@@ -1101,6 +1104,15 @@ func (g *gen) ptrUses() {
 	g.line("pc.X %s= %s", op(), v())
 	g.line("*pt = Pt%d{X: %s, Y: pc.Y}", k, v())
 	g.line("fmt.Println(pt.Sum(), pc.Sum(), pt.X)")
+	g.line("ib := intBox%d(%s)", k, v())
+	g.line("*ib %s= %s", op(), v())
+	g.line("im := intMaybe%d(%s)", k, v())
+	g.line("if im != nil {")
+	g.depth++
+	g.line("*im += *ib")
+	g.depth--
+	g.line("}")
+	g.line("fmt.Println(*ib, im == nil)")
 	g.line("var ptL Pt%d", k)
 	g.line("ptL.X = %s", v())
 	g.line("ptAdd%d(&ptL, %s)", k, v())

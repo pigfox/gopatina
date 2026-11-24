@@ -116,7 +116,7 @@ func indexFirst(n *Node, s []int) int { return s[n.V] }              // the inde
 func otherIndex(n *Node, s []int) int { return s[0] + n.V }          // an index first: no
 func divFirst(n *Node, d int) int     { return d/d + n.V }           // a division first: no
 func constDiv(n *Node) int            { return 6/n.V + n.V }         // reads n before dividing
-func starFirst(n *Node, b *Box) int   { return (*b).V + n.V }        // a dereference first: no
+func starFirst(n *Node, b *Box) int   { return (*b).V + n.V }        // a dereference of b first: b, not n
 func assertFirst(n *Node, x any) int  { return x.(int) + n.V }       // an assertion first: no
 func sliceFirst(n *Node, s []int) int { return len(s[1:]) + n.V }    // a slice first: no
 func unary(n *Node) int               { return -n.V }
@@ -212,7 +212,7 @@ func main() {
 	g := number
 	_ = g
 }
-`, "argFirst.n assign.n cond.n constDiv.n conv.n exprFirst.n get.n incFirst.n indexFirst.n late.n lenOf.n lit.n litPlain.n main.a nested.n paren.n printed.n quietArgs.n recvFirst.n result fresh result viaCall result viaLit result viaLocal result viaNew result viaVar second.n setFirst.n unary.n viaLocal.n viaVar.n"},
+`, "argFirst.n assign.n cond.n constDiv.n conv.n exprFirst.n get.n incFirst.n indexFirst.n late.n lenOf.n lit.n litPlain.n main.a nested.n paren.n printed.n quietArgs.n recvFirst.n result fresh result viaCall result viaLit result viaLocal result viaNew result viaVar second.n setFirst.n starFirst.b unary.n viaLocal.n viaVar.n"},
 	}
 	cases = append(cases, struct{ name, src, want string }{"a field given a value that reads it", `package main
 
@@ -242,6 +242,7 @@ func main() {
 	_ = a.V
 }
 `, "appendFirst.n main.a main.pt result mkPt valueFirst.p"})
+	cases = append(cases, struct{ name, src, want string }{"a number behind a pointer", "package main\n\ntype Num int\n\nfunc (n *Num) Inc() { *n++ }\n\nfunc set(n *Num, v Num) { *n = v }\n\nfunc get(n *Num) Num { return *n }\n\nfunc newNum(v Num) *Num { return &v }\n\nfunc main() {\n\tn := newNum(4)\n\tn.Inc()\n\tset(n, 1)\n\t_ = get(n)\n}\n", "Inc.n get.n main.n result newNum set.n"})
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if got := nonNilOf(t, c.src); got != c.want {

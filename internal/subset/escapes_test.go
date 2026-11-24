@@ -138,3 +138,35 @@ func firstKey(m map[*types.Var]bool) *types.Var {
 	}
 	return nil
 }
+
+// TestEscapeValues checks escape boxes of numbers: used whole before the
+// &, by any operator, and declared from any value.
+func TestEscapeValues(t *testing.T) {
+	const src = `package main
+
+func neg(v int) *int {
+	w := v
+	w = -w
+	return &w
+}
+
+func dec(v int) *int {
+	var w = v + 1
+	return &w
+}
+
+func main() { _ = *neg(1) + *dec(2) }
+`
+	pkg, err := load.Source("/p", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := Ptrs(pkg)
+	if !p.Owned(types.NewPointer(types.Typ[types.Int])) {
+		_, why, _ := p.SharedReason(types.NewPointer(types.Typ[types.Int]))
+		t.Fatalf("*int shared (%s), want owned", why)
+	}
+	if len(p.escapes) != 2 {
+		t.Errorf("%d escape boxes, want 2", len(p.escapes))
+	}
+}

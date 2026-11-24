@@ -318,6 +318,8 @@ func (a *nonNilAnalysis) onlyReadThrough(v *types.Var) bool {
 		switch a.above(id).(type) {
 		case *ast.SelectorExpr:
 			// v.f or v.m: v is X, as a variable is never a selector's name.
+		case *ast.StarExpr:
+			// *v, read or replaced through it (RFC 0017).
 		case *ast.CallExpr:
 			// Lent to a call: of a program function, as any other call
 			// would share v's type (RFC 0016).
@@ -407,11 +409,16 @@ func (a *nonNilAnalysis) firstRead(v *types.Var, fd *ast.FuncDecl) bool {
 // itself: v.f. Go dereferences v to write it, after evaluating the value
 // (for v.f = x) or to read it first (for v.f += x).
 func (a *nonNilAnalysis) writesThrough(e ast.Expr, v *types.Var) bool {
-	sel, ok := ast.Unparen(e).(*ast.SelectorExpr)
-	if !ok {
+	var base ast.Expr
+	switch x := ast.Unparen(e).(type) {
+	case *ast.SelectorExpr:
+		base = x.X
+	case *ast.StarExpr:
+		base = x.X // *v = x, *v++
+	default:
 		return false
 	}
-	id, ok := ast.Unparen(sel.X).(*ast.Ident)
+	id, ok := ast.Unparen(base).(*ast.Ident)
 	return ok && a.info.Uses[id] == v
 }
 
@@ -535,12 +542,7 @@ func (a *nonNilAnalysis) firstPanic(e ast.Expr) (ast.Expr, bool) {
 
 // readsThrough reports whether e is a field read through v itself.
 func (a *nonNilAnalysis) readsThrough(e ast.Expr, v *types.Var) bool {
-	sel, ok := e.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	id, ok := ast.Unparen(sel.X).(*ast.Ident)
-	return ok && a.info.Uses[id] == v
+	return a.writesThrough(e, v) // v.f or *v, read
 }
 
 // callsSafe reports whether every call of fn passes its parameter v so

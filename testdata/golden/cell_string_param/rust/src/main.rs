@@ -39,9 +39,8 @@ fn new_name(n: &str) -> rt::Ptr<String> {
     n.clone()
 }
 
-fn label(s: &str) -> rt::Ptr<String> {
-    let s = rt::Ptr::new(s.to_string());
-    s.clone()
+fn label(s: String) -> String {
+    s
 }
 
 fn main() {
@@ -49,15 +48,14 @@ fn main() {
     let n = new_name("go");
     let m = n.clone();
     m.with_mut(|v| *v += "pher");
-    let l = label("x");
-    let val = format!("{}{}", l.load(), n.load());
-    l.with_mut(|v| *v = val);
+    let mut l = label(String::from("x"));
+    l = format!("{}{}", l, n.load());
     println!(
         "{} {} {} {} {}",
         n.load(),
         m.load(),
         n == m,
-        l.load(),
-        l.with(|v| (*v).len() as i64),
+        l,
+        l.len() as i64,
     );
 }

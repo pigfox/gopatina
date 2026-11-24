@@ -106,6 +106,14 @@ func (g *gen) recvArg(x ast.Expr, p *borrow.Param) node {
 	if name, ok := g.cellRoot[x]; ok {
 		return text(name) // *p, inside its cell
 	}
+	if g.ownPtr(g.typeOf(x)) && !isPointerType(p.Var.Type()) {
+		// A value receiver of a named number or string, called through an
+		// owned pointer (RFC 0017): lent, or copied out of the box.
+		if p.Mode == borrow.Ref {
+			return g.ptrAs(x, repRef) // &Box<T> coerces to &T
+		}
+		return g.boxValue(x) // a copy: a value receiver's changes are its own
+	}
 	if g.heapPtr(g.typeOf(x)) && !isPointerType(p.Var.Type()) {
 		// A value receiver called through a heap pointer: a copy.
 		n := node(&call{recv: g.ptrValue(x), head: ".load", open: "(", close: ")"})
@@ -129,12 +137,35 @@ func (g *gen) recvArg(x ast.Expr, p *borrow.Param) node {
 	return g.arg(x, p)
 }
 
+// boxValue renders a copy of the value owned pointer x points to: *x of
+// a Copy type, a clone otherwise (ownedCopy).
+func (g *gen) boxValue(x ast.Expr) node {
+	if borrow.KindOf(types.Unalias(g.typeOf(x)).(*types.Pointer).Elem()) == borrow.Copy {
+		return g.boxContents(x)
+	}
+	return g.ownedCopy(x)
+}
+
 // ownedCopy renders a clone of the value owned pointer x points to, a
 // type that is not Copy: through a borrow of the value, not of the Box.
 func (g *gen) ownedCopy(x ast.Expr) node {
+	if _, temp := ast.Unparen(x).(*ast.CallExpr); temp && g.unboxed(g.typeOf(x)) {
+		// A call's result, a temporary: moved out, not cloned.
+		if g.ptrRep(x).optional() {
+			return &call{recv: g.rawPtr(x), head: ".unwrap", open: "(", close: ")"}
+		}
+		return g.rawPtr(x)
+	}
 	if g.ptrRep(x).optional() {
-		lent := &call{recv: &call{recv: g.rawPtr(x), head: ".as_deref", open: "(", close: ")"}, head: ".unwrap", open: "(", close: ")"}
+		m := ".as_deref"
+		if g.unboxed(g.typeOf(x)) {
+			m = ".as_ref"
+		}
+		lent := &call{recv: &call{recv: g.rawPtr(x), head: m, open: "(", close: ")"}, head: ".unwrap", open: "(", close: ")"}
 		return &call{recv: lent, head: ".clone", open: "(", close: ")"}
+	}
+	if g.unboxed(g.typeOf(x)) && g.ptrRep(x) == repBox {
+		return &call{recv: g.rawPtr(x), head: ".clone", open: "(", close: ")"}
 	}
 	return &call{recv: atom{"(" + g.boxContents(x).flat() + ")", precAtom}, head: ".clone", open: "(", close: ")"}
 }

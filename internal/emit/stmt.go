@@ -70,7 +70,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 			elem := g.rustType(types.Unalias(p.Var.Type()).(*types.Pointer).Elem())
 			t = map[ptrRep]string{repRef: "&", repOptRef: "Option<&", repRefMut: "&mut ", repOptRefMut: "Option<&mut ", repOptBox: "Option<Box<"}[g.paramRep(p.Var)] + elem
 			if g.paramRep(p.Var) == repOptBox {
-				t += ">" // kept: Option<Box<T>> (RFC 0017, step 8)
+				t = "Option<" + g.boxOf(p.Var.Type()) // kept: Option<Box<T>> (RFC 0017, step 8)
 			}
 			if g.paramRep(p.Var).optional() {
 				t += ">"
@@ -212,7 +212,7 @@ func (g *gen) resultType(fn *types.Func) string {
 	for i := 0; i < n; i++ {
 		t := g.rustType(res.At(i).Type())
 		if g.ownPtr(res.At(i).Type()) && g.ptrs.NonNilResult(fn) {
-			t = "Box<" + g.rustType(types.Unalias(res.At(i).Type()).(*types.Pointer).Elem()) + ">" // RFC 0017, step 2
+			t = g.boxOf(res.At(i).Type()) // RFC 0017, step 2
 		}
 		ts = append(ts, t)
 	}
@@ -765,7 +765,7 @@ func (g *gen) let(v *types.Var, e ast.Expr, typed bool) {
 	if typed || g.needsType(e) {
 		t := g.rustType(v.Type())
 		if box {
-			t = "Box<" + g.rustType(types.Unalias(v.Type()).(*types.Pointer).Elem()) + ">"
+			t = g.boxOf(v.Type())
 		}
 		prefix += ": " + t
 	}
@@ -2102,7 +2102,11 @@ func (g *gen) foldTailLetReturn(s ast.Stmt, r *ast.ReturnStmt) (node, *ast.Retur
 	if g.errs.Returns[r] != 0 || len(r.Results) != 1 {
 		return nil, nil, false
 	}
-	rid, ok := ast.Unparen(r.Results[0]).(*ast.Ident)
+	res := ast.Unparen(r.Results[0])
+	if u, ok := res.(*ast.UnaryExpr); ok && g.ptrs.EscapeBox(u) != nil && g.unboxed(g.typeOf(u)) && g.ptrs.NonNilResult(g.fn.Obj) {
+		res = ast.Unparen(u.X) // return &x of an unboxed value: x itself
+	}
+	rid, ok := res.(*ast.Ident)
 	if !ok || rid.Name == "_" {
 		return nil, nil, false
 	}
