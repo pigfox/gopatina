@@ -36,6 +36,22 @@ func (g *gen) localStatic(v *types.Var) bool {
 	return g.globals[v] == subset.GlobalStatic && subset.IsIface(v.Type())
 }
 
+// constStatic reports whether v, a package-level variable that nothing
+// changes, holds a number or a boolean given by a constant: a plain Rust
+// static, as a person writes it, with no LazyLock and nothing to do at
+// start-up (its initializer has no effect to order).
+func (g *gen) constStatic(v *types.Var) bool {
+	if g.globals[v] != subset.GlobalStatic || g.localStatic(v) {
+		return false
+	}
+	b, ok := v.Type().Underlying().(*types.Basic)
+	if !ok || b.Info()&(types.IsNumeric|types.IsBoolean) == 0 {
+		return false
+	}
+	init := g.globalInit[v]
+	return init != nil && g.info.Types[init].Value != nil
+}
+
 // globalName is v's Rust name, qualified for the package being written.
 func (g *gen) globalName(v *types.Var) string { return g.qual(v.Pkg(), g.gnames[v]) }
 
@@ -57,6 +73,9 @@ func (g *gen) globalValue(v *types.Var) node {
 	if g.localStatic(v) {
 		return &call{recv: text(name), head: ".with", open: "(", close: ")", args: []node{text("Clone::clone")}}
 	}
+	if g.constStatic(v) {
+		return text(name) // a plain static, read as itself
+	}
 	// A static is read in place: a copy of a copied kind, else a place
 	// that owned and the borrowing reads take as they need (isPlace). It
 	// is parenthesized only where a deref needs it, as (*S).f.
@@ -68,6 +87,9 @@ func (g *gen) globalValue(v *types.Var) node {
 func (g *gen) globalPlace(v *types.Var) (node, bool) {
 	if a, ok := g.galias[v]; ok {
 		return text(a), true
+	}
+	if g.constStatic(v) {
+		return text(g.globalName(v)), true
 	}
 	if g.globals[v] == subset.GlobalStatic && !g.localStatic(v) {
 		return atom{"*" + g.globalName(v), precUnary}, true
@@ -126,6 +148,9 @@ func (g *gen) globalDecl(s *ast.ValueSpec) {
 			if sentinel {
 				g.sentinelFn(v)
 			}
+		case g.constStatic(v):
+			g.fnContext()
+			g.stmtLine(vis+"static "+name+": "+rt+" = ", g.value(s.Values[i]), ";")
 		case g.globals[v] == subset.GlobalStatic:
 			g.fnContext()
 			var init node
@@ -181,7 +206,7 @@ func (g *gen) initsOf(p *types.Package) []*types.Initializer {
 	}
 	var out []*types.Initializer
 	for _, ini := range g.info.InitOrder {
-		if ini.Lhs[0].Pkg() == p && declared[ini.Lhs[0]] {
+		if ini.Lhs[0].Pkg() == p && declared[ini.Lhs[0]] && !g.constStatic(ini.Lhs[0]) {
 			out = append(out, ini)
 		}
 	}

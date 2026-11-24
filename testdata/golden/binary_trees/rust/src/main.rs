@@ -78,14 +78,9 @@ fn run(max_depth: i64) {
     );
 }
 
-static MAX_DEPTH: std::sync::LazyLock<i64> = std::sync::LazyLock::new(|| 10);
+static MAX_DEPTH: i64 = 10;
 
 fn main() {
     rt::exit_on_panic();
-    init_vars();
-    run(*MAX_DEPTH);
-}
-
-fn init_vars() {
-    std::sync::LazyLock::force(&MAX_DEPTH);
+    run(MAX_DEPTH);
 }
