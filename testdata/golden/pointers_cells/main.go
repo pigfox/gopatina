@@ -66,6 +66,21 @@ func newTag(s string) *Tag {
 // twice returns a tag and its length.
 func twice(s string) (Tag, int) { return Tag(s + s), 2 * len(s) }
 
+// Shelf is a struct whose pointers are shared: an interface holds one.
+type Shelf struct{ N int }
+
+// Count reads a copy.
+func (s Shelf) Count() int { return s.N }
+
+// Bump changes the shelf.
+func (s *Shelf) Bump() { s.N++ }
+
+// Keep returns its receiver.
+func (s *Shelf) Keep() *Shelf { return s }
+
+// show reads through the pointer.
+func show(s *Shelf) int { return s.N }
+
 // both returns two tags.
 func both(s string) (Tag, Tag) { return Tag(s), Tag(s + "!") }
 
@@ -78,6 +93,13 @@ func main() {
 	kv, kw := both("d")  // kw new, and a cell too
 	var anyW any = &kw
 	fmt.Println(kv, kf, kw, anyW != nil)
+	var shelf Shelf
+	var anyS any = &shelf
+	sp := &shelf
+	(&shelf).Bump()
+	kept := (&shelf).Keep()
+	kept.Bump()
+	fmt.Println(sp.Count(), show(&shelf), anyS != nil)
 	ta := newTag("ab")
 	var held any = newTag("in an interface")
 	*ta += "c"

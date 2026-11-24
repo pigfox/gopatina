@@ -320,6 +320,10 @@ func (a *nonNilAnalysis) onlyReadThrough(v *types.Var) bool {
 			// v.f or v.m: v is X, as a variable is never a selector's name.
 		case *ast.StarExpr:
 			// *v, read or replaced through it (RFC 0017).
+		case *ast.ReturnStmt:
+			if fn := a.params[v]; fn == nil || a.p.retBorrow[fn] != v {
+				return false // returned, not lent back (returns.go)
+			}
 		case *ast.CallExpr:
 			// Lent to a call: of a program function, as any other call
 			// would share v's type (RFC 0016).

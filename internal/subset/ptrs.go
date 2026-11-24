@@ -63,6 +63,9 @@ type PtrPlan struct {
 	// lent to, and refSources the x each borrows (escapes.go).
 	refs       map[*types.Var][]*types.Var
 	refSources map[*types.Var]*types.Var
+	// retBorrow holds, by function, the input whose borrow it returns
+	// (returns.go).
+	retBorrow map[*types.Func]*types.Var
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.
@@ -96,6 +99,7 @@ func Ptrs(pkg *load.Package) *PtrPlan {
 	}
 	p := &PtrPlan{pkg: pkg, Cells: map[*types.Var]bool{}}
 	p.build()
+	p.retBorrows()
 	p.localRefs()
 	p.escapeBoxes()
 	p.ownedOnce()

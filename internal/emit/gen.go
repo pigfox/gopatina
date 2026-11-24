@@ -63,6 +63,9 @@ type gen struct {
 	inCellWrite bool
 	cellName    string
 	temps       map[ast.Expr]string
+	// life is the named lifetime of the function being written ("'a "),
+	// where its result borrows from one of several inputs (decision 4).
+	life string
 	// raw are the owned pointers being rendered as they are held, and
 	// boxSlot those stored where a Box<T> is held (RFC 0017, step 2):
 	// value wraps any other Box in Some.

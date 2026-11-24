@@ -517,8 +517,11 @@ func (o *ownership) keptParams() {
 			ast.Inspect(fd.Body, func(n ast.Node) bool {
 				switch x := n.(type) {
 				case *ast.ReturnStmt:
+					fn, _ := o.info.Defs[fd.Name].(*types.Func)
 					for _, r := range x.Results {
-						mark(keeps(r))
+						if v := keeps(r); v == nil || o.p.retBorrow[fn] != v {
+							mark(v) // a returned borrow is lent back, not kept (returns.go)
+						}
 					}
 				case *ast.AssignStmt:
 					for i, r := range x.Rhs {
@@ -710,6 +713,10 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 		o.share(el, e.Pos(), "an interface value holds it")
 		return
 	}
+	if c, ok := e.(*ast.CallExpr); ok && o.p.retBorrowCall(c) != nil {
+		o.borrowUse(el, e, stack) // a borrow of the call's argument (returns.go)
+		return
+	}
 	if o.fresh(e) {
 		o.freshUse(el, e, stack)
 		return
@@ -881,6 +888,9 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	if _, ok := par.(*ast.ReturnStmt); ok && o.localVar(e) && (!o.param(e) || o.keptVar(e)) {
 		return // returning a local variable, or a kept parameter, moves it
 	}
+	if _, ok := par.(*ast.ReturnStmt); ok && o.returnsBorrow(e, stack) {
+		return // a borrow of the input lent back (returns.go)
+	}
 	if o.lentToBorrow(par, child) {
 		return // a temporary borrow takes it for a while (RFC 0017, step 5)
 	}
@@ -931,6 +941,48 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 		return
 	}
 	o.share(el, e.Pos(), "a copy of it is kept")
+}
+
+// returnsBorrow reports whether e, returned, is a place rooted at the
+// input whose borrow its function returns (returns.go).
+func (o *ownership) returnsBorrow(e ast.Expr, stack []ast.Node) bool {
+	for i := len(stack) - 1; ; i-- { // a return is inside a function
+		if fd, ok := stack[i].(*ast.FuncDecl); ok {
+			fn, _ := o.info.Defs[fd.Name].(*types.Func)
+			v := o.p.retBorrow[fn]
+			return v != nil && placeRoot(o.info, e) == v
+		}
+		if _, ok := stack[i].(*ast.FuncLit); ok {
+			return false
+		}
+	}
+}
+
+// borrowUse checks a use of the result of a call that returns a borrow of
+// its argument (returns.go): read through, lent to a call, given to a
+// temporary borrow, or dropped, but never kept, which would give the
+// argument's object a second name.
+func (o *ownership) borrowUse(el types.Type, e ast.Expr, stack []ast.Node) {
+	par, child, at := parent(stack)
+	if _, ok := par.(*ast.ExprStmt); ok {
+		return
+	}
+	if o.lentToBorrow(par, child) || o.readOrLend(par, child, stack[:at+1]) {
+		return
+	}
+	if _, ok := par.(*ast.ReturnStmt); ok && o.returnsBorrow(o.p.retBorrowCall(e.(*ast.CallExpr)), stack) {
+		return // lent back on: return second(n) in a function lending n
+	}
+	if b, ok := par.(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
+		other := b.X
+		if other == child {
+			other = b.Y
+		}
+		if o.isNil(other) {
+			return
+		}
+	}
+	o.share(el, e.Pos(), "a borrow a call returns is kept")
 }
 
 // readOrLend reports whether child, a pointer, is read through by par (a

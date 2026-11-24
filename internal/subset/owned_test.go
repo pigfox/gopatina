@@ -210,7 +210,7 @@ func TestOwnedShared(t *testing.T) {
 		name, decl, body, why string
 	}{
 		{"copy", "", "a := bottomUp(1)\n\tb := a\n\t_ = b", "a copy of it is kept"},
-		{"return a place", "func first(n *Node) *Node { return n.Left }", "_ = first(bottomUp(1)).V", "a copy of it is kept"},
+		{"return a place kept", "func first(n *Node) *Node { return n.Left }", "k := bottomUp(1)\n\troot := &Node{Left: first(k)}\n\t_ = root", "a borrow a call returns is kept"},
 		{"parameter assigned a variable", "func swap(n *Node, m *Node) int { n = m; return n.V }", "_ = swap(bottomUp(1), bottomUp(1))", "a copy of it is kept"},
 		{"address of a field", "", "a := bottomUp(1)\n\tq := &a.V\n\t*q = 1", "written through"},
 		{"compared", "", "a, b := bottomUp(1), bottomUp(1)\n\t_ = a == b", "compared with another pointer"},

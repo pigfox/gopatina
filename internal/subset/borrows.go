@@ -71,6 +71,13 @@ func (p *PtrPlan) borrowsOnce() {
 	for v := range cand {
 		src := map[*types.Var]bool{}
 		for _, val := range b.values[v] {
+			for {
+				c, ok := ast.Unparen(val).(*ast.CallExpr)
+				if !ok || b.p.retBorrowCall(c) == nil {
+					break
+				}
+				val = b.p.retBorrowCall(c) // borrows what its argument does
+			}
 			if r := rootVar(b.info, val); r != nil && r != v {
 				src[r] = true
 			}
@@ -251,6 +258,11 @@ func (b *borrowFinder) lendable(e ast.Expr, cand map[*types.Var]bool) bool {
 		return true
 	}
 	switch x := ast.Unparen(e).(type) {
+	case *ast.CallExpr:
+		// A call returning a borrow of its argument (returns.go): owned
+		// where the argument is.
+		arg := b.p.retBorrowCall(x)
+		return arg != nil && b.lendable(arg, cand)
 	case *ast.Ident:
 		v := b.localOf(x)
 		return v != nil

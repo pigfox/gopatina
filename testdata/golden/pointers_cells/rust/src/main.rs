@@ -137,6 +137,34 @@ fn twice(s: &str) -> (String, i64) {
     (format!("{}{}", s, s), 2 * s.len() as i64)
 }
 
+/// Shelf is a struct whose pointers are shared: an interface holds one.
+#[derive(Clone, Copy, Default, PartialEq)]
+pub struct Shelf {
+    pub n: i64,
+}
+
+impl Shelf {
+    /// Count reads a copy.
+    pub fn count(self) -> i64 {
+        self.n
+    }
+
+    /// Bump changes the shelf.
+    pub fn bump(s: &rt::Ptr<Shelf>) {
+        s.with_mut(|v| v.n += 1);
+    }
+
+    /// Keep returns its receiver.
+    pub fn keep(s: rt::Ptr<Shelf>) -> rt::Ptr<Shelf> {
+        s
+    }
+}
+
+/// show reads through the pointer.
+fn show(s: &rt::Ptr<Shelf>) -> i64 {
+    s.with(|v| v.n)
+}
+
 /// both returns two tags.
 fn both(s: &str) -> (String, String) {
     (s.to_string(), format!("{}!", s))
@@ -159,26 +187,35 @@ fn main() {
     let kw: rt::Ptr<String> = rt::Ptr::new(val_6); // kw new, and a cell too
     let any_w: Iface = boxed(Dyn::PtrTag(kw.clone()));
     println!("{} {} {} {}", kv.load(), kf, kw.load(), any_w.is_some());
+    let shelf: rt::Ptr<Shelf> = rt::Ptr::new(Shelf::default());
+    let any_s: Iface = boxed(Dyn::PtrShelf(shelf.clone()));
+    let sp = shelf.clone();
+    Shelf::bump(&shelf);
+    let kept = Shelf::keep(shelf.clone());
+    Shelf::bump(&kept);
+    let call = sp.load().count();
+    let call_2 = show(&shelf.clone());
+    println!("{} {} {}", call, call_2, any_s.is_some());
     let ta = new_tag("ab");
     let held: Iface = boxed(Dyn::PtrTag(new_tag("in an interface")));
     ta.with_mut(|v| *v += "c");
-    let call = tag_len(&ta.load());
-    let call_2 = tag_up(&ta.load());
-    println!("{} {} {} {}", call, call_2, ta.load(), held.is_some());
+    let call_3 = tag_len(&ta.load());
+    let call_4 = tag_up(&ta.load());
+    println!("{} {} {} {}", call_3, call_4, ta.load(), held.is_some());
     let p = keep(4);
     p.with_mut(|v| v.r#in.inc());
     p.with_mut(|v| v.r#in.inc());
     p.with_mut(|v| inc(&mut v.n));
     p.with_mut(|v| set(&mut v.items, 30));
-    let call_3 = p.with(|v| sum(&v.items));
-    let call_4 = p.with(|v| v.total());
+    let call_5 = p.with(|v| sum(&v.items));
+    let call_6 = p.with(|v| v.total());
     println!(
         "{} {} {} {} {} {}",
         p.with(|v| v.r#in.n),
         p.with(|v| v.n),
         rt::Slice(&p.with(|v| v.items.clone())),
-        call_3,
-        call_4,
+        call_5,
+        call_6,
         p.with(|v| v.items.len() as i64),
     );
     p.with_mut(|v| v.zero());
@@ -206,14 +243,14 @@ fn main() {
     let y = x.clone();
     let val_9 = x.with(|v| *v);
     y.with_mut(|v| *v += val_9);
-    let call_5 = addr(1.0);
-    let call_6 = addr(1.0);
+    let call_7 = addr(1.0);
+    let call_8 = addr(1.0);
     println!(
         "{} {} {} {}",
         rt::Float(x.with(|v| *v)),
         rt::Float(y.with(|v| *v)),
         x == y,
-        call_5 == call_6,
+        call_7 == call_8,
     );
     let (a, b) = pair();
     let val_10 = b.load();
@@ -225,17 +262,17 @@ fn main() {
     let keep_c = hold(c.clone());
     Counter::hit(&c);
     Counter::hit(&keep_c);
-    let call_7 = Counter::hit(&c);
-    let call_8 = Counter::hit(&keep_c);
+    let call_9 = Counter::hit(&c);
+    let call_10 = Counter::hit(&keep_c);
     println!(
         "{} {} {} {}",
         c.with(|v| v.hits),
         keep_c.with(|v| v.hits),
-        call_7 + call_8,
+        call_9 + call_10,
         c.with(|v| v.hits),
     );
-    let call_9 = Counter::hit(&keep_c);
-    let cells: Vec<i64> = vec![c.with(|v| v.hits), call_9, c.with(|v| v.hits)];
+    let call_11 = Counter::hit(&keep_c);
+    let cells: Vec<i64> = vec![c.with(|v| v.hits), call_11, c.with(|v| v.hits)];
     println!("{}", rt::Slice(&cells));
     let mut q: rt::Ptr<T> = rt::Ptr::nil();
     if q.is_nil() {
@@ -254,6 +291,7 @@ fn main() {
 /// The dynamic types of the program's interface values (RFC 0012).
 pub enum Dyn {
     PtrTag(rt::Ptr<String>),
+    PtrShelf(rt::Ptr<Shelf>),
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
@@ -271,6 +309,8 @@ impl PartialEq for Dyn {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Dyn::PtrTag(a), Dyn::PtrTag(b)) => a == b,
+            (Dyn::PtrShelf(a), Dyn::PtrShelf(b)) => a == b,
+            _ => false,
         }
     }
 }
@@ -280,6 +320,7 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
     match d {
         None => "<nil>",
         Some(Dyn::PtrTag(_)) => "*main.Tag",
+        Some(Dyn::PtrShelf(_)) => "*main.Shelf",
     }
 }
 
@@ -293,6 +334,7 @@ pub fn iface_show(x: &Iface) -> String {
     match x.as_deref() {
         None => String::from("<nil>"),
         Some(Dyn::PtrTag(v)) => unreachable!("fmt prints the address of a *main.Tag"),
+        Some(Dyn::PtrShelf(v)) => unreachable!("fmt prints the address of a *main.Shelf"),
     }
 }
 
