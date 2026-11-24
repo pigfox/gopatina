@@ -1,0 +1,3 @@
+./main.go:17:3: parameter n is assigned another pointer
+    a parameter lends the caller's object for the call, so in Rust it holds a borrow, which a new object cannot replace (RFC 0017)
+    assign the new pointer to a new local variable instead, and use that from here on

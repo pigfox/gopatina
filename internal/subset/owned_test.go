@@ -80,6 +80,53 @@ func TestOwnedTree(t *testing.T) {
 	}
 }
 
+// TestOwnedWrites checks that changing numbers and strings in place,
+// through a variable, a field or a parameter, keeps a type owned (RFC
+// 0017, step 3), and so does a call that changes one operand while it
+// reads another variable.
+func TestOwnedWrites(t *testing.T) {
+	src := strings.Replace(tree, "func main() {\n", `func set(n *Node, v int) { n.V = v }
+
+func (n *Node) rename(s string) { n.Name = s }
+
+func main() {
+	w := bottomUp(2)
+	w.V = 2
+	w.V++
+	w.Name += "x"
+	w.Left.V--
+	(w.Left).V = 1
+	set(w, 3)
+	set(w.Left, w.Right.V)
+	w.rename("w")
+	v := w.V
+	set(w, v)
+`, 1)
+	p, node := ownedOf(t, src)
+	if !p.Owned(node) {
+		pos, why, _ := p.SharedReason(node)
+		t.Fatalf("*Node is shared (%v: %s), want owned", pos, why)
+	}
+}
+
+// TestOwnerErrors checks that assigning a parameter a new pointer keeps
+// the type owned and is refused, and that it is not refused where the
+// type is shared anyway (its cells express it).
+func TestOwnerErrors(t *testing.T) {
+	src := strings.Replace(tree, "func main() {\n", "func swap(n *Node) int { n = bottomUp(0); return n.V }\n\nfunc main() {\n\t_ = swap(bottomUp(1))\n", 1)
+	p, node := ownedOf(t, src)
+	if !p.Owned(node) {
+		t.Fatal("*Node shared, want owned")
+	}
+	if errs := p.ownerErrors(); len(errs) != 1 || !strings.Contains(errs[0].msg, "parameter n is assigned another pointer") {
+		t.Errorf("ownerErrors = %v", errs)
+	}
+	shared := strings.Replace(src, "func main() {\n", "func main() {\n\tvar x any = bottomUp(1)\n\t_ = x\n", 1)
+	if p, _ := ownedOf(t, shared); len(p.ownerErrors()) != 0 {
+		t.Errorf("ownerErrors of a shared type = %v", p.ownerErrors())
+	}
+}
+
 // TestOwnedShared checks each use that shares a pointer type.
 func TestOwnedShared(t *testing.T) {
 	for _, tc := range []struct {
@@ -87,9 +134,8 @@ func TestOwnedShared(t *testing.T) {
 	}{
 		{"copy", "", "a := bottomUp(1)\n\tb := a\n\t_ = b", "a copy of it is kept"},
 		{"return a place", "func id(n *Node) *Node { return n }", "_ = id(bottomUp(1))", "a copy of it is kept"},
-		{"written", "", "a := bottomUp(1)\n\ta.V = 2", "it is written through"},
 		{"written field", "", "a := bottomUp(1)\n\ta.Left = bottomUp(0)", "written through"},
-		{"incremented", "", "a := bottomUp(1)\n\ta.V++", "written through"},
+		{"parameter assigned a variable", "func swap(n *Node, m *Node) int { n = m; return n.V }", "_ = swap(bottomUp(1), bottomUp(1))", "a copy of it is kept"},
 		{"address of a field", "", "a := bottomUp(1)\n\tq := &a.V\n\t*q = 1", "written through"},
 		{"compared", "", "a, b := bottomUp(1), bottomUp(1)\n\t_ = a == b", "compared with another pointer"},
 		{"package variable", "var root *Node", "root = bottomUp(1)", "a package-level variable"},

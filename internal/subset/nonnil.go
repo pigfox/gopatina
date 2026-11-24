@@ -348,12 +348,17 @@ func (a *nonNilAnalysis) firstRead(v *types.Var, fd *ast.FuncDecl) bool {
 	case *ast.ExprStmt:
 		exprs = []ast.Expr{s.X}
 	case *ast.AssignStmt:
+		if len(s.Lhs) == 1 && a.writesThrough(s.Lhs[0], v) && a.calm(s.Rhs[0]) {
+			return true // v.f = x, v.f += x: nothing before the write through v
+		}
 		for _, l := range s.Lhs {
 			if _, ok := ast.Unparen(l).(*ast.Ident); !ok {
 				return false
 			}
 		}
 		exprs = s.Rhs
+	case *ast.IncDecStmt:
+		return a.writesThrough(s.X, v) // v.f++
 	default:
 		return false
 	}
@@ -391,6 +396,32 @@ func (a *nonNilAnalysis) firstRead(v *types.Var, fd *ast.FuncDecl) bool {
 		}
 	}
 	return false
+}
+
+// writesThrough reports whether e, a place written, is a field of v
+// itself: v.f. Go dereferences v to write it, after evaluating the value
+// (for v.f = x) or to read it first (for v.f += x).
+func (a *nonNilAnalysis) writesThrough(e ast.Expr, v *types.Var) bool {
+	sel, ok := ast.Unparen(e).(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	id, ok := ast.Unparen(sel.X).(*ast.Ident)
+	return ok && a.info.Uses[id] == v
+}
+
+// calm reports whether evaluating e can neither be seen nor panic: no
+// call, and nothing that panics.
+func (a *nonNilAnalysis) calm(e ast.Expr) bool {
+	calls := false
+	ast.Inspect(e, func(n ast.Node) bool {
+		if c, ok := n.(*ast.CallExpr); ok && a.isCall(c) {
+			calls = true
+		}
+		return !calls
+	})
+	_, panics := a.firstPanic(e)
+	return !calls && !panics
 }
 
 // isCall reports whether c is a call that does something: not a
@@ -535,7 +566,7 @@ func (a *nonNilAnalysis) callsSafe(fn *types.Func, v *types.Var, plan *nonNilPla
 			continue
 		}
 		for _, e := range after {
-			if !a.quiet(e) {
+			if !a.quiet(e, plan) {
 				return false
 			}
 		}
@@ -555,10 +586,20 @@ func (a *nonNilAnalysis) nonNilParam(e ast.Expr, plan *nonNilPlan) bool {
 }
 
 // quiet reports whether evaluating e can neither be seen nor panic: a
-// constant or a variable.
-func (a *nonNilAnalysis) quiet(e ast.Expr) bool {
+// constant, a variable, or a field of a variable that is a struct value or
+// a pointer never nil.
+func (a *nonNilAnalysis) quiet(e ast.Expr, plan *nonNilPlan) bool {
 	if a.info.Types[e].Value != nil {
 		return true
+	}
+	if sel, ok := ast.Unparen(e).(*ast.SelectorExpr); ok {
+		s := a.info.Selections[sel]
+		base, ok := ast.Unparen(sel.X).(*ast.Ident)
+		if s == nil || s.Kind() != types.FieldVal || !ok {
+			return false
+		}
+		v, _ := a.info.Uses[base].(*types.Var)
+		return v != nil && (!isPtr(v.Type()) || plan.vars[v])
 	}
 	id, ok := ast.Unparen(e).(*ast.Ident)
 	if !ok {

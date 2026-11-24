@@ -74,15 +74,38 @@ func (p *PtrPlan) ownedOnce() {
 			p.owned = append(p.owned, h)
 		}
 	}
+	for _, e := range o.errs {
+		if _, shared := o.whyOf(e.t); !shared {
+			p.ownerErrs = append(p.ownerErrs, e)
+		}
+	}
+}
+
+// ownerErrors returns the uses of owned pointers that one owner per
+// object refuses (RFC 0017), each with its position, message and notes.
+func (p *PtrPlan) ownerErrors() []ownerError {
+	p.ownedOnce()
+	return p.ownerErrs
+}
+
+// ownerError is a use of an owned pointer that one owner per object
+// refuses (RFC 0017).
+type ownerError struct {
+	t     types.Type
+	pos   token.Pos
+	msg   string
+	notes []string
 }
 
 // ownership finds the heap types that are shared.
 type ownership struct {
+	errs []ownerError
 	p    *PtrPlan
 	info *types.Info
 	why  map[types.Type]sharing // by the type's element, the first reason
-	// params are the parameters and receivers of the program's functions.
-	params map[*types.Var]bool
+	// params are the parameters, receivers and results of the program's
+	// functions; inputs only the parameters and receivers, which are lent.
+	params, inputs map[*types.Var]bool
 	// boxed are the expressions converted to an interface (RFC 0012),
 	// found once: finding them walks the whole program.
 	boxed map[ast.Expr]types.Type
@@ -96,6 +119,13 @@ func (o *ownership) whyOf(t types.Type) (sharing, bool) {
 		}
 	}
 	return sharing{}, false
+}
+
+// refuse records an error at e for owned element type t: a use one owner
+// per object cannot express (RFC 0017). It is reported only if t stays
+// owned; a shared type keeps today's cells, which express it.
+func (o *ownership) refuse(t types.Type, e ast.Expr, msg string, notes ...string) {
+	o.errs = append(o.errs, ownerError{t: t, pos: e.Pos(), msg: msg, notes: notes})
 }
 
 // share records that element type t is shared, at pos, because of why.
@@ -145,12 +175,16 @@ func (o *ownership) run() {
 			break
 		}
 	}
-	o.params = map[*types.Var]bool{}
+	o.params, o.inputs = map[*types.Var]bool{}, map[*types.Var]bool{}
 	for _, obj := range o.info.Defs {
 		if fn, ok := obj.(*types.Func); ok {
 			sig := fn.Signature()
 			if r := sig.Recv(); r != nil {
 				o.params[r] = true
+				o.inputs[r] = true
+			}
+			for i := 0; i < sig.Params().Len(); i++ {
+				o.inputs[sig.Params().At(i)] = true
 			}
 			for _, tup := range []*types.Tuple{sig.Params(), sig.Results()} {
 				for i := 0; i < tup.Len(); i++ {
@@ -410,7 +444,7 @@ func (o *ownership) freshUse(el types.Type, e ast.Expr, stack []ast.Node) {
 		if p.Tok == token.DEFINE || p.Tok == token.ASSIGN {
 			for i, r := range p.Rhs {
 				if r == child && len(p.Lhs) == len(p.Rhs) && o.localVar(p.Lhs[i]) {
-					return
+					return // a parameter assigned is refused where it is assigned
 				}
 			}
 		}
@@ -446,6 +480,12 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	if as, ok := par.(*ast.AssignStmt); ok && as.Tok == token.ASSIGN {
 		for _, l := range as.Lhs {
 			if l == child {
+				if o.input(l) {
+					o.refuse(el, l, fmt.Sprintf("parameter %s is assigned another pointer", ast.Unparen(l).(*ast.Ident).Name),
+						"a parameter lends the caller's object for the call, so in Rust it holds a borrow, which a new object cannot replace (RFC 0017)",
+						"assign the new pointer to a new local variable instead, and use that from here on")
+					return
+				}
 				if o.localVar(l) {
 					return // a local variable assigned a new pointer, checked there
 				}
@@ -456,6 +496,9 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	}
 	if sel, ok := par.(*ast.SelectorExpr); ok && sel.X == child {
 		if s := o.info.Selections[sel]; s != nil && s.Kind() == types.FieldVal && o.written(stack[:at+1]) {
+			if o.plainWrite(stack[:at+1]) {
+				return // a number, boolean or string changed in place (RFC 0017, step 3)
+			}
 			o.share(el, e.Pos(), "it is written through")
 			return
 		}
@@ -553,6 +596,30 @@ func (o *ownership) written(stack []ast.Node) bool {
 	}
 }
 
+// plainWrite reports whether the place written at the top of stack (see
+// written) is assigned or incremented, not lent by &, and holds a number,
+// a boolean or a string: a change in place, through a &mut borrow in
+// Rust, that gives no value a second name.
+func (o *ownership) plainWrite(stack []ast.Node) bool {
+	place := stack[len(stack)-1]
+	for j := len(stack) - 2; ; j-- {
+		switch p := stack[j].(type) {
+		case *ast.ParenExpr:
+			place = p
+			continue
+		case *ast.SelectorExpr:
+			if p.X == place {
+				place = p
+				continue
+			}
+		case *ast.AssignStmt, *ast.IncDecStmt:
+			_, basic := o.info.TypeOf(place.(ast.Expr)).Underlying().(*types.Basic)
+			return basic
+		}
+		return false // &p.f, or p.s[i] = x
+	}
+}
+
 // deferred reports whether the innermost call on stack is in a go or
 // defer statement, which would lend its arguments beyond the statement.
 func (o *ownership) deferred(stack []ast.Node) bool {
@@ -611,6 +678,18 @@ func (o *ownership) captured(v *types.Var, id *ast.Ident, stack []ast.Node) bool
 func (o *ownership) param(e ast.Expr) bool {
 	v, _ := o.info.Uses[ast.Unparen(e).(*ast.Ident)].(*types.Var)
 	return o.params[v]
+}
+
+// input reports whether e names a parameter or receiver: lent, so it is
+// never assigned another pointer (that would be a Box where a borrow is
+// held).
+func (o *ownership) input(e ast.Expr) bool {
+	id, ok := ast.Unparen(e).(*ast.Ident)
+	if !ok {
+		return false // a field
+	}
+	v, _ := o.info.Uses[id].(*types.Var)
+	return o.inputs[v]
 }
 
 // isNil reports whether e is the predeclared nil.

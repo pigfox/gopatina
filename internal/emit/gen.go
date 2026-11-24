@@ -66,7 +66,10 @@ type gen struct {
 	raw, boxSlot map[ast.Expr]bool
 	// bound are the owned pointers (by their source text) that an
 	// if let Some(name) binds in the statements being written.
-	bound      map[string]string
+	bound map[string]boundPtr
+	// writing is set while a place being assigned is written: the owned
+	// pointers it goes through are reached exclusively (RFC 0017, step 3).
+	writing    bool
 	inCellCall map[*ast.CallExpr]bool
 	// rawCalls are calls of functions lowered to Result being rendered as
 	// the Result (errvals.go).
@@ -133,7 +136,7 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	g.ptrs = subset.Ptrs(pkg)
 	borrow.SetHeap(g.ptrs.HeapType)
 	g.cellRoot, g.temps = map[ast.Expr]string{}, map[ast.Expr]string{}
-	g.raw, g.boxSlot, g.bound = map[ast.Expr]bool{}, map[ast.Expr]bool{}, map[string]string{}
+	g.raw, g.boxSlot, g.bound = map[ast.Expr]bool{}, map[ast.Expr]bool{}, map[string]boundPtr{}
 	g.inCellCall = map[*ast.CallExpr]bool{}
 	g.gnames, g.initVarsName = map[*types.Var]string{}, map[*types.Package]string{}
 	g.galias, g.callTemps = map[*types.Var]string{}, map[*ast.CallExpr]string{}

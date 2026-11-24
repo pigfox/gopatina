@@ -974,6 +974,11 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	// nil tests that bind the pointer (if let Some), with && after.
 	fmt.Fprintf(b, "\nfunc (t *Tr%d) Leaf() bool { return t.L == nil && t.R == nil }\n", k)
 	fmt.Fprintf(b, "\nfunc trRight%d(t *Tr%d, x int) int {\n\tif t.R != nil && t.R.V > x {\n\t\treturn trRight%d(t.R, x) + 1\n\t}\n\tif t.L != nil {\n\t\treturn t.L.V %s x\n\t}\n\treturn t.V\n}\n", k, k, k, op())
+	// Writes through owned pointers (RFC 0017, step 3): &mut self, &mut T
+	// and Option<&mut T>, and an if let Some whose body changes the node.
+	fmt.Fprintf(b, "\nfunc (t *Tr%d) Bump(d int) {\n\tt.V %s= d\n\tif t.L != nil {\n\t\tt.L.V++\n\t}\n}\n", k, op())
+	fmt.Fprintf(b, "\nfunc trName%d(t *Tr%d, s string) {\n\tt.S += s\n}\n", k, k)
+	fmt.Fprintf(b, "\nfunc trMaybe%d(t *Tr%d, d int) {\n\tif t == nil {\n\t\treturn\n\t}\n\tt.V -= d\n\ttrName%d(t, \"m\")\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc trPair%d(v int) *Tr%d {\n\tp := &Tr%d{V: v, L: mkTr%d(0, v), R: &Tr%d{V: v + 1}}\n\treturn p\n}\n", k, k, k, k, k)
 	fmt.Fprintf(b, "\ntype Ch%d struct {\n\tV int\n\tN *Ch%d\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc chain%d(n int) *Ch%d {\n\tif n == 0 {\n\t\treturn nil\n\t}\n\treturn &Ch%d{V: n, N: chain%d(n - 1)}\n}\n", k, k, k, k)
@@ -1040,6 +1045,12 @@ func (g *gen) ptrUses() {
 	g.line("trT = mkTr%d(0, %s)", k, v())
 	g.line("fmt.Println(trT.Sum(), trT.L == nil, chLen%d(chain%d(%d)))", k, k, 1100+g.qr.IntN(900))
 	g.line("trP := trPair%d(%s)", k, v())
+	g.line("trP.Bump(%s)", v())
+	g.line("trP.R.Bump(%s)", v())
+	g.line("trName%d(trP, %q)", k, []string{"x", "", "yz"}[g.qr.IntN(3)])
+	g.line("trMaybe%d(trP.L, %s)", k, v())
+	g.line("trMaybe%d(trP.L.L, %s)", k, v())
+	g.line("trP.V %s= trP.R.V", op())
 	g.line("fmt.Println(trP.Leaf(), trP.R.Leaf(), trRight%d(trP, %s), trRight%d(mkTr%d(%d, %s), %s), trDepth%d(trP), trP.Sum())", k, v(), k, k, 1+g.qr.IntN(4), v(), v(), k)
 	// Slices of pointers, and pointers in interfaces (RFC 0013, step 2).
 	g.line("ptrL.Kids = append(ptrL.Kids, ptrA, newNd%d(%s, nil), ptrL.Next)", k, v())

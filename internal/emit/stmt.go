@@ -60,10 +60,18 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		if p.Mut && (p.Mode == borrow.ByValue || p.Mode == borrow.Owned) && !g.cellVar(p.Var) {
 			name = "mut " + name
 		}
+		if g.ownPtr(p.Var.Type()) && g.paramRep(p.Var) == repOptRefMut {
+			name = "\x00" + name // mut if the body reborrows it (below)
+		}
 		t := g.paramType(p.Var.Type(), p.Mode)
-		if g.ownPtr(p.Var.Type()) && g.ptrs.NonNilVar(p.Var) {
-			// Never nil (RFC 0017, step 2): a plain borrow.
-			t = "&" + g.rustType(types.Unalias(p.Var.Type()).(*types.Pointer).Elem())
+		if g.ownPtr(p.Var.Type()) {
+			// A borrowed owned pointer: &T, &mut T, or in an Option where
+			// it may be nil (RFC 0017, steps 2 and 3).
+			elem := g.rustType(types.Unalias(p.Var.Type()).(*types.Pointer).Elem())
+			t = map[ptrRep]string{repRef: "&", repOptRef: "Option<&", repRefMut: "&mut ", repOptRefMut: "Option<&mut "}[g.paramRep(p.Var)] + elem
+			if g.paramRep(p.Var).optional() {
+				t += ">"
+			}
 		}
 		params = append(params, name+": "+t)
 	}
@@ -76,6 +84,24 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		ret = " -> " + ret
 	}
 	head := vis + "fn " + g.funcs[obj] + "("
+	// The body first, into its own buffer: an Option<&mut T> parameter is
+	// mut only if the body reborrows it (as_mut, as_deref_mut).
+	saved := g.out
+	var body strings.Builder
+	g.out = &body
+	g.ind++
+	g.funcBody(fd, obj, sig, ps)
+	g.ind--
+	g.out = saved
+	for i, p := range params {
+		if name, ok := strings.CutPrefix(p, "\x00"); ok {
+			v := strings.SplitN(name, ":", 2)[0]
+			if strings.Contains(body.String(), v+".as_mut()") || strings.Contains(body.String(), v+".as_deref_mut()") {
+				name = "mut " + name
+			}
+			params[i] = name
+		}
+	}
 	sigLine := head + strings.Join(params, ", ") + ")" + ret + " {"
 	if g.ind*indentWidth+len(sigLine) <= maxWidth {
 		g.line(sigLine)
@@ -88,7 +114,15 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		g.ind--
 		g.line(")" + ret + " {")
 	}
-	g.ind++
+	g.out.WriteString(body.String())
+	g.line("}")
+	if g.inAPI(obj) {
+		g.apiTail(fd, obj, params, ret)
+	}
+}
+
+// funcBody writes the body of function fd, already indented.
+func (g *gen) funcBody(fd *ast.FuncDecl, obj *types.Func, sig *types.Signature, ps []*borrow.Param) {
 	if obj.Name() == "main" && g.fn.Recv == nil {
 		g.rt["exit_on_panic"] = true
 		g.line("rt::exit_on_panic();")
@@ -119,19 +153,20 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	g.fnStart = fd.Body.Lbrace
 	g.fnBody = fd.Body
 	g.bodyTo(fd.Body.List, true, fd.Body.Rbrace)
-	g.ind--
-	g.line("}")
-	if g.inAPI(obj) {
-		name := g.funcs[obj]
-		if n := g.apiName(obj); n != "" {
-			name = n
-			g.apiWrapper(fd, obj, params, ret)
-		}
-		if g.fn.Recv != nil && !g.freeMethods(g.recvTypeName(obj)) {
-			name = g.types[g.recvTypeName(obj)] + "::" + name
-		}
-		g.apiNotes(obj, name)
+}
+
+// apiTail writes, for a function of a library's API (RFC 0014), its pub
+// wrapper and its notes.
+func (g *gen) apiTail(fd *ast.FuncDecl, obj *types.Func, params []string, ret string) {
+	name := g.funcs[obj]
+	if n := g.apiName(obj); n != "" {
+		name = n
+		g.apiWrapper(fd, obj, params, ret)
 	}
+	if g.fn.Recv != nil && !g.freeMethods(g.recvTypeName(obj)) {
+		name = g.types[g.recvTypeName(obj)] + "::" + name
+	}
+	g.apiNotes(obj, name)
 }
 
 // countNames counts the local objects that get each Rust name, so a loop
@@ -385,7 +420,7 @@ func (g *gen) stmt(s ast.Stmt) {
 		if s.Tok == token.DEC {
 			op = " -= " + one + ";"
 		}
-		g.line(g.place(s.X).flat() + op)
+		g.line(g.lhsPlace(s.X).flat() + op)
 	case *ast.DeclStmt:
 		g.declStmt(s.Decl.(*ast.GenDecl))
 	case *ast.BlockStmt:
@@ -609,7 +644,7 @@ func (g *gen) assign(s *ast.AssignStmt) {
 				return
 			}
 		}
-		g.stmtLine(g.place(l).flat()+" = ", g.owned(r), ";")
+		g.stmtLine(g.lhsPlace(l).flat()+" = ", g.owned(r), ";")
 		return
 	}
 	if len(s.Rhs) == 1 {
@@ -635,7 +670,69 @@ func (g *gen) lhs(e ast.Expr) string {
 	if id, ok := e.(*ast.Ident); ok && id.Name == "_" {
 		return "_"
 	}
-	return g.place(e).flat()
+	return g.lhsPlace(e).flat()
+}
+
+// lhsPlace renders e, a place being written: through an owned pointer,
+// exclusively (RFC 0017, step 3).
+func (g *gen) lhsPlace(e ast.Expr) node {
+	saved := g.writing
+	g.writing = true
+	n := g.place(e)
+	g.writing = saved
+	return n
+}
+
+// boundPtr is an owned pointer bound by if let Some: the binding's name
+// and how it holds the pointer.
+type boundPtr struct {
+	name string
+	rep  ptrRep
+}
+
+// changesThrough reports whether n writes through x, an owned pointer: a
+// place under x assigned or incremented, or x lent to a function or method
+// that changes it.
+func (g *gen) changesThrough(n ast.Node, x ast.Expr) bool {
+	key := types.ExprString(x)
+	under := func(e ast.Expr) bool {
+		for e = ast.Unparen(e); ; {
+			sel, ok := e.(*ast.SelectorExpr)
+			if !ok {
+				return false
+			}
+			if types.ExprString(ast.Unparen(sel.X)) == key {
+				return true
+			}
+			e = ast.Unparen(sel.X)
+		}
+	}
+	found := false
+	ast.Inspect(n, func(m ast.Node) bool {
+		switch y := m.(type) {
+		case *ast.AssignStmt:
+			for _, l := range y.Lhs {
+				found = found || under(l)
+			}
+		case *ast.IncDecStmt:
+			found = found || under(y.X)
+		case *ast.CallExpr:
+			fn := g.programFunc(y)
+			if fn == nil {
+				break
+			}
+			if sel, ok := ast.Unparen(y.Fun).(*ast.SelectorExpr); ok && fn.Recv != nil && fn.Recv.Mode == borrow.RefMut {
+				found = found || types.ExprString(ast.Unparen(sel.X)) == key || under(sel.X)
+			}
+			for i, a := range y.Args {
+				if fn.Params[i].Mode == borrow.RefMut {
+					found = found || types.ExprString(ast.Unparen(a)) == key || under(a)
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 // multiLet declares several variables at once: Go evaluates every value
@@ -712,7 +809,7 @@ func (g *gen) isSelfAppend(l, r ast.Expr) bool {
 
 // appendStmt writes s = append(s, ...) as pushes.
 func (g *gen) appendStmt(l ast.Expr, c *ast.CallExpr) {
-	target := paren(g.place(l), precPostfix)
+	target := paren(g.lhsPlace(l), precPostfix)
 	if c.Ellipsis.IsValid() {
 		x := c.Args[1]
 		if isStringType(g.typeOf(x)) {
@@ -734,7 +831,7 @@ func (g *gen) appendStmt(l ast.Expr, c *ast.CallExpr) {
 // opAssign writes x op= y.
 func (g *gen) opAssign(s *ast.AssignStmt) {
 	l, r := s.Lhs[0], s.Rhs[0]
-	target := g.place(l).flat()
+	target := g.lhsPlace(l).flat()
 	lt := g.typeOf(l)
 	op := s.Tok.String()
 	switch {
@@ -758,7 +855,7 @@ func (g *gen) opAssign(s *ast.AssignStmt) {
 		if s.Tok == token.SHR_ASSIGN {
 			op = token.SHR
 		}
-		target := g.place(l).flat()
+		target := g.lhsPlace(l).flat()
 		g.stmtLine(target+" = ", g.varShift(op, g.place(l), r), ";")
 		return
 	case s.Tok == token.SHL_ASSIGN || s.Tok == token.SHR_ASSIGN:
@@ -814,10 +911,14 @@ func (g *gen) ifSome(s *ast.IfStmt, prefix string) bool {
 	if !ok || g.assignsRoot(s.Body, x) || rest != nil && g.assignsRoot(rest, x) {
 		return false
 	}
-	src := g.ptrAs(x, repOptRef)
+	want, rep := repOptRef, repRef
+	if g.changesThrough(s.Body, x) || rest != nil && g.changesThrough(rest, x) {
+		want, rep = repOptRefMut, repRefMut // the body changes it: as_deref_mut
+	}
+	src := g.ptrAs(x, want)
 	name := g.bindName(x)
 	key := types.ExprString(x)
-	g.bound[key] = name
+	g.bound[key] = boundPtr{name: name, rep: rep}
 	g.stmtLine(prefix+"if let Some("+name+") = ", src, " {")
 	if rest != nil {
 		g.ind++

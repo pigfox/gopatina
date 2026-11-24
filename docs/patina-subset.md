@@ -342,6 +342,34 @@ p.as_deref() { ... }`, the body reading through the binding;
 1.85, the crates' oldest, has no let chains). The binding is not made
 when the body assigns the variable, returns or stores `p` itself, or
 tests it again.
+
+**Changes through an owned pointer** ([RFC 0017](rfcs/0017-one-owner.md),
+step 3). A number, boolean or string field changed through an owned
+pointer (`p.v = x`, `p.v += x`, `p.v++`) keeps the type owned. The
+change is made in place, as Rust does through an exclusive borrow. A
+parameter or receiver that the function changes through, directly or by
+lending it to a function that does, is a `&mut T`, or an
+`Option<&mut T>` where it may be `nil`, and a method that changes its
+receiver takes `&mut self`. A variable written through is
+`p.as_mut().unwrap().v = x`, and the body of `if p != nil` that changes
+`p` binds it with `as_deref_mut()`. An `Option<&mut T>` is reborrowed
+(`as_deref_mut()`) where it is used again, and moved at its last use.
+
+A call that lends a pointer to be changed while another argument reads
+it, `f(n, g(n))` or `f(n, n.v)`, computes that argument first, as a
+statement does for any pointer, and other fields of the same variable
+do not overlap (`f(w.left, w.right.v)`). Two uses are errors, each naming
+the line, why, and the rewrite:
+
+- lending one object twice to a call that changes it through one of them
+  (`n.m(n)`, `f(n, n)`, `f(n, n.next)`): two names for it while it is
+  changed;
+- assigning a parameter another pointer: the parameter holds a borrow of
+  the caller's object, which a new object cannot replace; a new local
+  variable can.
+
+Storing a pointer into a field (`p.next = q`) still makes the type
+shared: that is a move, a later step.
 One write through the pointer, one copy kept, one comparison with another
 pointer, or one held in a slice, an interface or a package-level variable
 makes the type shared, a cell as above. `-explain` says which each type

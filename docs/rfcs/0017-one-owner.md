@@ -4,7 +4,9 @@
   recommended option on each of the four decisions below. Implementation
   in small steps, each its own pull request: step 1, owned pointers as
   plain `Option<Box<T>>` (#133); step 2, pointers never nil as `Box<T>`,
-  `&T` and `&self`, and `if let Some` (docs/patina-subset.md)
+  `&T` and `&self`, and `if let Some` (#136); step 3, changes through an
+  owned pointer as `&mut T`, `Option<&mut T>` and `&mut self`
+  (docs/patina-subset.md)
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file

@@ -38,6 +38,7 @@ type Param struct {
 	reassigned    bool // assigns the whole parameter, or appends to it
 	escapes       bool // stores, returns or hands on the value
 	firstEscape   token.Pos
+	owned         bool // an owned pointer (RFC 0016): lent, never kept
 }
 
 // Keeps reports whether the callee keeps the value after it returns, or

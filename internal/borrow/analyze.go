@@ -126,7 +126,7 @@ func (a *analyzer) declare(fd *ast.FuncDecl) {
 }
 
 func (a *analyzer) newParam(v *types.Var) *Param {
-	p := &Param{Var: v, Kind: KindOf(v.Type())}
+	p := &Param{Var: v, Kind: KindOf(v.Type()), owned: subset.Ptrs(a.pkg).Owned(v.Type())}
 	p.Mode = p.mode()
 	a.params[v] = p
 	return p
@@ -134,6 +134,15 @@ func (a *analyzer) newParam(v *types.Var) *Param {
 
 // mode derives a parameter's mode from what the callee does with it.
 func (p *Param) mode() Mode {
+	if p.owned {
+		// An owned pointer (RFC 0016) is lent, never kept: changed
+		// through, or only read (RFC 0017, step 3). Assigned another
+		// pointer, it is a new local from there (subset).
+		if p.changesShared || p.changesFields {
+			return RefMut
+		}
+		return Ref
+	}
 	switch p.Kind {
 	case Copy:
 		return ByValue
@@ -184,9 +193,10 @@ func (a *analyzer) summarize(fn *Func) bool {
 					set(&p.replacesSlice)
 				}
 				switch {
-				case ev.indirect, p.Kind == PointerKind:
+				case ev.indirect, p.Kind == PointerKind, p.owned:
 					// Through the pointer, or the pointer passed on to change
-					// its target: a reborrow.
+					// its target: a reborrow. An owned pointer (RFC 0016) is
+					// lent like any pointer (RFC 0017, step 3).
 					set(&p.changesShared)
 				case ev.whole:
 					set(&p.reassigned)
