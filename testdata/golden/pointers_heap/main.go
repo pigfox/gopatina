@@ -32,16 +32,18 @@ func main() {
 	}
 	fmt.Println()
 	c := newCounter()
-	d := c
+	d := newCounter()
 	d.Inc()
 	c.Inc()
-	fmt.Println(c.N, d.N, c == d, c == newCounter())
+	c.Inc()
+	fmt.Println(c.N, d.N, c == d, c == newCounter(), c != c)
 	s := startAt(9)
 	s.Inc()
 	fmt.Println(s.N)
-	x := 5
+	x, y := 5, 5
 	p := &x
-	q := p
-	*q = 7
-	fmt.Println(x, *p, p == q)
+	*p = 7
+	q := &y
+	fmt.Println(*p, *q, p == q)
+	fmt.Println(x, y)
 }

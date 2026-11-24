@@ -5,7 +5,6 @@
 # listed crate no longer does. Each line is a crate's directory and why.
 testdata/golden-lib/inventory	pointer cells (RFC 0013); interface values
 testdata/golden-lib/pricing	interface values
-testdata/golden/cell_string_param	pointer cells (RFC 0013)
 testdata/golden/corners	interface values
 testdata/golden/corners2	interface values
 testdata/golden/errchain	interface values
@@ -23,10 +22,8 @@ testdata/golden/iface_panic_uncomparable	interface values
 testdata/golden/interfaces	interface values
 testdata/golden/interfaces_more	interface values
 testdata/golden/package_vars	package variable in a RefCell
-testdata/golden/pointers_alias	pointer cells (RFC 0013)
 testdata/golden/pointers_cells	pointer cells (RFC 0013)
 testdata/golden/pointers_cycles	pointer cells (RFC 0013)
-testdata/golden/pointers_heap	pointer cells (RFC 0013)
 testdata/golden/pointers_ifaces	pointer cells (RFC 0013); interface values
 testdata/golden/pointers_methods	pointer cells (RFC 0013); interface values
 testdata/golden/pointers_more	pointer cells (RFC 0013)

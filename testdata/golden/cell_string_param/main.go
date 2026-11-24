@@ -1,5 +1,6 @@
-// A string parameter whose address escapes lives in a cell (RFC 0013); the
-// parameter borrows a &str, and its cell holds a String of its own.
+// A string parameter whose address escapes (RFC 0013): with one owner per
+// object it is a String of its own, moved out of the function that took
+// its address (RFC 0017). Two such pointers are compared by address.
 package main
 
 import "fmt"
@@ -12,9 +13,9 @@ func label(s string) *string { return &s }
 
 func main() {
 	n := newName("go")
-	m := n
-	*m += "pher"
+	*n += "pher"
 	l := label("x")
 	*l = *l + string(*n)
-	fmt.Println(*n, *m, n == m, *l, len(*l))
+	k := label("x")
+	fmt.Println(*n, *l, l == k, *k, len(*l))
 }

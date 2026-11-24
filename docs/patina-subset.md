@@ -324,7 +324,12 @@ booleans, strings and heap pointers. That is a tree built and then read.
 A parameter or receiver that is lent one is an `Option<&T>`; a read
 through it is `n.unwrap().f`, through a variable or field
 `p.as_ref().unwrap().f`, a lend `p.as_deref()`, and `p == nil` is
-`p.is_none()`. Unwrapping `None` is Go's nil dereference, with Go's panic
+`p.is_none()`. Two owned pointers compare by address, as Rust compares
+references, and comparing is only a read of both: `std::ptr::eq(a, b)`
+for two never `nil` (`&*b` for a `Box`, the `T` it owns),
+`a.is_some_and(|p| std::ptr::eq(p, b))` where one may be, and
+`a.map(std::ptr::from_ref) == b.map(std::ptr::from_ref)` where both may
+be. Two owners are never equal; an owner and a borrow of it are. Unwrapping `None` is Go's nil dereference, with Go's panic
 message. Such a tree can only be built by nested new pointers, so a chain
 is never deeper than the calls that built it, and Rust's own drop frees
 it.
@@ -508,9 +513,8 @@ while the result is.
 Moving a pointer out of an element, a slice of pointers held in a
 package-level variable, and a field handed to a keeper without being
 refilled still make the type shared: those are later steps.
-One write through the pointer, one copy kept, one comparison with another
-pointer, or one held in a slice, an interface or a package-level variable
-makes the type shared, a cell as above. `-explain` says which each type
+One write through the pointer, one copy kept, or one held in a slice, an
+interface or a package-level variable makes the type shared, a cell as above. `-explain` says which each type
 is and, for a shared one, the first line that shares it.
 
 Each access borrows the cell for that access only: a read is

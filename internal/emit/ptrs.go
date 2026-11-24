@@ -890,7 +890,50 @@ func (g *gen) heapCompare(e *ast.BinaryExpr) node {
 		}
 		return n
 	}
+	if g.ownPtr(g.typeOf(x)) {
+		return g.ptrEq(e.Op, x, y)
+	}
 	return &binary{op: binOps[e.Op].op, l: operand(x), r: operand(y), p: precCmp, nonAssoc: true}
+}
+
+// ptrEq renders x == y (or !=) for two owned pointers, by address, as
+// Rust compares references: std::ptr::eq(a, b) for two never nil; for one
+// that may be nil, o.is_some_and(|o| std::ptr::eq(o, n)); for two,
+// a.map(std::ptr::from_ref) == b.map(std::ptr::from_ref) (RFC 0017).
+func (g *gen) ptrEq(op token.Token, x, y ast.Expr) node {
+	not := func(n node) node {
+		if op == token.NEQ {
+			return atom{"!" + paren(n, precUnary), precUnary}
+		}
+		return n
+	}
+	ox, oy := g.ptrRep(x).optional(), g.ptrRep(y).optional()
+	ref := func(e ast.Expr) node {
+		if g.ptrRep(e) == repBox {
+			if g.unboxed(g.typeOf(e)) {
+				// a value pointer is the value itself: its place
+				return atom{"&" + paren(g.rawPtr(e), precUnary), precUnary}
+			}
+			// &*b: the Node a Box owns, not the Box's own place
+			return atom{"&*" + paren(g.rawPtr(e), precUnary), precUnary}
+		}
+		return g.ptrAs(e, repRef)
+	}
+	switch {
+	case !ox && !oy:
+		return not(&call{head: "std::ptr::eq", open: "(", close: ")", args: []node{ref(x), ref(y)}})
+	case ox && oy:
+		addr := func(e ast.Expr) node {
+			return &call{recv: g.ptrAs(e, repOptRef), head: ".map", open: "(", close: ")", args: []node{text("std::ptr::from_ref")}}
+		}
+		return &binary{op: binOps[op].op, l: addr(x), r: addr(y), p: precCmp, nonAssoc: true}
+	}
+	if !ox {
+		x, y = y, x // x may be nil, y never
+	}
+	name := g.lnames.name("", func(string) string { return "p" })
+	eq := &call{head: "std::ptr::eq", open: "(", close: ")", args: []node{text(name), ref(y)}}
+	return not(&call{recv: g.ptrAs(x, repOptRef), head: ".is_some_and", open: "(", close: ")", args: []node{atom{"|" + name + "| " + eq.flat(), precAtom}}})
 }
 
 // heapRecv reports whether method m has a pointer receiver of a heap

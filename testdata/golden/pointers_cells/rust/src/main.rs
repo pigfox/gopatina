@@ -86,9 +86,8 @@ fn keep(n: i64) -> rt::Ptr<T> {
     })
 }
 
-fn addr(x: f64) -> rt::Ptr<f64> {
-    let x = rt::Ptr::new(x);
-    x.clone()
+fn addr(x: f64) -> f64 {
+    x
 }
 
 fn pair() -> (rt::Ptr<String>, rt::Ptr<String>) {
@@ -240,39 +239,37 @@ fn main() {
         p.with(|v| v.n),
     );
     let x = addr(5.0);
-    let y = x.clone();
-    let val_9 = x.with(|v| *v);
-    y.with_mut(|v| *v += val_9);
-    let call_7 = addr(1.0);
-    let call_8 = addr(1.0);
+    let mut y = addr(5.0);
+    y += x;
     println!(
-        "{} {} {} {}",
-        rt::Float(x.with(|v| *v)),
-        rt::Float(y.with(|v| *v)),
-        x == y,
-        call_7 == call_8,
+        "{} {} {} {} {}",
+        rt::Float(x),
+        rt::Float(y),
+        std::ptr::eq(&x, &y),
+        std::ptr::eq(&addr(1.0), &addr(1.0)),
+        std::ptr::eq(&x, &x),
     );
     let (a, b) = pair();
-    let val_10 = b.load();
-    let val_11 = a.load();
-    a.with_mut(|v| *v = val_10);
-    b.with_mut(|v| *v = val_11);
+    let val_9 = b.load();
+    let val_10 = a.load();
+    a.with_mut(|v| *v = val_9);
+    b.with_mut(|v| *v = val_10);
     println!("{} {}", a.load(), b.load());
     let c: rt::Ptr<Counter> = rt::Ptr::new(Counter::default());
     let keep_c = hold(c.clone());
     Counter::hit(&c);
     Counter::hit(&keep_c);
-    let call_9 = Counter::hit(&c);
-    let call_10 = Counter::hit(&keep_c);
+    let call_7 = Counter::hit(&c);
+    let call_8 = Counter::hit(&keep_c);
     println!(
         "{} {} {} {}",
         c.with(|v| v.hits),
         keep_c.with(|v| v.hits),
-        call_9 + call_10,
+        call_7 + call_8,
         c.with(|v| v.hits),
     );
-    let call_11 = Counter::hit(&keep_c);
-    let cells: Vec<i64> = vec![c.with(|v| v.hits), call_11, c.with(|v| v.hits)];
+    let call_9 = Counter::hit(&keep_c);
+    let cells: Vec<i64> = vec![c.with(|v| v.hits), call_9, c.with(|v| v.hits)];
     println!("{}", rt::Slice(&cells));
     let mut q: rt::Ptr<T> = rt::Ptr::nil();
     if q.is_nil() {

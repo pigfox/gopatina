@@ -59,6 +59,7 @@ func main() {
 	spare = nil
 	bottomUp(2)
 	fmt.Println(long.check(), bottomUp(3).check(), count(bottomUp(1)), (long).V, spare == nil)
+	fmt.Println(long == spare, long.Left != long.Right, long == bottomUp(0)) // by address: std::ptr::eq
 }
 `
 
@@ -213,7 +214,6 @@ func TestOwnedShared(t *testing.T) {
 		{"return a place kept", "func first(n *Node) *Node { return n.Left }", "k := bottomUp(1)\n\troot := &Node{Left: first(k)}\n\t_ = root", "a borrow a call returns is kept"},
 		{"parameter assigned a variable", "func swap(n *Node, m *Node) int { n = m; return n.V }", "_ = swap(bottomUp(1), bottomUp(1))", "a copy of it is kept"},
 		{"address of a field", "", "a := bottomUp(1)\n\tq := &a.V\n\t*q = 1", "written through"},
-		{"compared", "", "a, b := bottomUp(1), bottomUp(1)\n\t_ = a == b", "compared with another pointer"},
 		{"package variable", "var root *Node", "root = bottomUp(1)", "a package-level variable"},
 		{"package-level slice", "var all []*Node", "all = append(all, bottomUp(1))", "a slice, map, array, channel or struct value"},
 		{"element of a call's result", "func some() []*Node { return nil }", "_ = some()[0].V", "a pointer is computed in a way that may share it"},

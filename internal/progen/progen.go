@@ -947,6 +947,8 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\ntype Ct%d struct{ n int }\n", k)
 	fmt.Fprintf(b, "\nfunc (c *Ct%d) Bump(x int) int {\n\tc.n = c.n %s x\n\treturn c.n\n}\n", k, op())
 	fmt.Fprintf(b, "\nfunc (c Ct%d) Get() int { return c.n %s %d }\n", k, op(), g.qr.IntN(100))
+	// Me lends its receiver back: compared with its owner, by address.
+	fmt.Fprintf(b, "\nfunc (c *Ct%d) Me() *Ct%d { return c }\n", k, k)
 	// Cn is held by value in Nd: its pointers never escape, so x.in.M()
 	// lends it inside its node's cell.
 	fmt.Fprintf(b, "\ntype Cn%d struct{ n int }\n", k)
@@ -1074,17 +1076,18 @@ func (g *gen) ptrUses() {
 	g.line("ptrL.Next.V, ptrA.V = ptrA.V, ptrL.Next.V")
 	g.line("fmt.Println(ptrL.V, ptrL.in.Bump(%s), ptrL.in.n, ptrA.Sum(), ptrL.Next.V, len(ptrA.Items), ptrL.Name)", v())
 	g.line("ptrC := cell%d(%s)", k, v())
-	g.line("ptrD := ptrC")
-	g.line("ptrD.Bump(%s)", v())
+	g.line("ptrC.Bump(%s)", v())
+	// Compared by address: a borrow of ptrC, and a borrow of another Ct.
+	g.line("ptrD := ptrC.Me()")
 	g.line("var ptrLc Ct%d", k)
 	g.line("ptrLp := &ptrLc")
 	g.line("ptrLp.Bump(%s)", v())
+	g.line("fmt.Println(ptrD.n, ptrC == ptrD, ptrD != ptrC, ptrC == ptrLp, ptrLp == ptrD, ptrLp.n)")
 	g.line("ptrLc.Bump(ptrC.n)")
-	g.line("fmt.Println(ptrC.n, ptrD.n, ptrC == ptrD, ptrC == ptrLp, ptrC.Get(), ptrLc.n, ptrLp.n, ptrLc.Get())")
+	g.line("fmt.Println(ptrC.n, ptrC.Get(), ptrLc.n, ptrLc.Get())")
 	g.line("ptrB := lab%d(Lb%d(%q))", k, k, words[g.qr.IntN(len(words))])
-	g.line("ptrB2 := ptrB")
-	g.line("*ptrB2 += Lb%d(ptrL.Name)", k)
-	g.line("fmt.Println(*ptrB, ptrB == ptrB2, len(*ptrB))")
+	g.line("*ptrB += Lb%d(ptrL.Name)", k)
+	g.line("fmt.Println(*ptrB, len(*ptrB), ptrB == lab%d(*ptrB), ptrB != ptrB)", k)
 	g.line("var ptrN *Nd%d", k)
 	g.line("if %s%%2 == 0 {", v())
 	g.depth++

@@ -174,4 +174,12 @@ func main() {
 	keepSlice(&list)
 	set(list)
 	fmt.Println(list)
+	// x's address is taken again while p, which writes through it, is in
+	// use: Rust allows no shared borrow beside a &mut, so x lives in a cell
+	// (pointers_heap compares two separate borrows instead).
+	cx := 5
+	cp := &cx
+	*cp = 7
+	fmt.Println(*cp, cp == &cx)
+	fmt.Println(cx)
 }

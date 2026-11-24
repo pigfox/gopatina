@@ -202,8 +202,9 @@ fn keep_slice(p: rt::Ptr<Vec<i64>>) -> rt::Ptr<Vec<i64>> {
     p
 }
 
-fn ptr_to(x: i64) -> i64 {
-    x
+fn ptr_to(x: i64) -> rt::Ptr<i64> {
+    let x = rt::Ptr::new(x);
+    x.clone()
 }
 
 fn set(s: &mut [i64]) {
@@ -286,24 +287,31 @@ fn main() {
     b.n += 2;
     println!("{} {}", b.name, b.n);
 
-    let (mut k, mut extra) = pair_of(&forest);
-    let cell = &k;
-    println!("{} {} {}", *cell, extra, ptr_to(6));
-    (k, extra) = pair_of(&tr);
-    let more;
-    (k, more) = pair_of(&forest);
-    println!("{} {} {}", k, more, extra);
-    let mut fresh;
-    (k, fresh) = pair_of(&tr);
-    let cell2 = &mut fresh;
-    *cell2 += k;
-    println!("{} {}", k, *cell2);
-    println!("{}", fresh);
+    let (k, mut extra) = pair_of(&forest);
+    let k = rt::Ptr::new(k);
+    let cell = k.clone();
+    let call_5 = ptr_to(6);
+    println!("{} {} {}", cell.with(|v| *v), extra, call_5.with(|v| *v));
     let (val_3, val_4) = pair_of(&tr);
-    forest.with_mut(|v| v.key = val_3);
-    let val_5 = forest.with(|v| v.key);
+    k.with_mut(|v| *v = val_3);
+    extra = val_4;
+    let (val_5, val_6) = pair_of(&forest);
+    k.with_mut(|v| *v = val_5);
+    let more = val_6;
+    println!("{} {} {}", k.with(|v| *v), more, extra);
+    let (val_7, val_8) = pair_of(&tr);
+    k.with_mut(|v| *v = val_7);
+    let fresh: rt::Ptr<i64> = rt::Ptr::new(val_8);
+    let cell2 = fresh.clone();
+    let val_9 = k.with(|v| *v);
+    cell2.with_mut(|v| *v += val_9);
+    println!("{} {}", k.with(|v| *v), cell2.with(|v| *v));
+    println!("{}", fresh.with(|v| *v));
+    let (val_10, val_11) = pair_of(&tr);
+    forest.with_mut(|v| v.key = val_10);
+    let val_12 = forest.with(|v| v.key);
     forest.with_mut(|v| v.key = 7);
-    extra = val_5;
+    extra = val_12;
     println!("{} {}", forest.with(|v| v.key), extra);
     let (s1, s2) = split(&forest);
     println!("{} {}", s1, s2);
@@ -312,4 +320,12 @@ fn main() {
     keep_slice(list.clone());
     list.with_mut(|v| set(&mut *v));
     println!("{}", rt::Slice(&list.load()));
+    // x's address is taken again while p, which writes through it, is in
+    // use: Rust allows no shared borrow beside a &mut, so x lives in a cell
+    // (pointers_heap compares two separate borrows instead).
+    let cx: rt::Ptr<i64> = rt::Ptr::new(5);
+    let cp = cx.clone();
+    cp.with_mut(|v| *v = 7);
+    println!("{} {}", cp.with(|v| *v), cp == cx.clone());
+    println!("{}", cx.with(|v| *v));
 }

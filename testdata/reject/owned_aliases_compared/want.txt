@@ -1,0 +1,9 @@
+./main.go:30:2: c is used after its Counter moved into d on line 28
+    in patina mode an object has one owner (RFC 0017): once c moves, only its new owner names the Counter
+    use the Counter through its new owner, or give c its own Counter
+./main.go:35:8: x is used after its float64 moved into y on line 34
+    in patina mode an object has one owner (RFC 0017): once x moves, only its new owner names the float64
+    use the float64 through its new owner, or give x its own float64
+./main.go:39:2: s is used after its Stack moved into s.top on line 39
+    in patina mode an object has one owner (RFC 0017): once s moves, only its new owner names the Stack
+    use the Stack through its new owner, or give s its own Stack

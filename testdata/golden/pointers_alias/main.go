@@ -1,3 +1,8 @@
+// Command pointers_alias reaches each object through its one owner and
+// borrows of it (RFC 0017): fields, a Pair of Stacks, a tree, int
+// pointers, and pointers compared by address. A second pointer to the same
+// object, kept beside its first, is refused
+// (testdata/reject/owned_aliases_compared).
 package main
 
 import "fmt"
@@ -62,19 +67,19 @@ func main() {
 	s.Push(1)
 	s.Push(2)
 	s.Push(3)
-	t := s
-	fmt.Println(t.Pop(), s.Len(), s.Name())
+	fmt.Println(s.Pop(), s.Len(), s.Name())
 	s.name += "x"
-	fmt.Println(t.name, s.items[0])
+	fmt.Println(s.name, s.items[0])
 	s.items[0] = 42
-	fmt.Println(t.items[0], len(t.items))
-	s.top = s
-	s.top.top.items[1] = 7
-	fmt.Println(s.items[1], s.top == t)
+	fmt.Println(s.items[0], len(s.items))
+	s.top = NewStack("top")
+	s.top.Push(7)
+	s.top.top = NewStack("toptop")
+	s.top.top.Push(8)
+	fmt.Println(s.top.items[0], s.top.top.items[0], s.top == s, s.top.top == nil)
 	p := Pair{A: s, B: NewStack("b")}
-	q := p
-	q.A.Push(9)
-	fmt.Println(p.A.Len(), p == q, p.B == q.B)
+	p.A.Push(9)
+	fmt.Println(p.A.Len(), p.A == p.B, p.B.Len(), p.A.top != nil)
 	var root *Tree
 	for _, k := range []int{5, 3, 8, 1, 4} {
 		root = insert(root, k)
@@ -88,8 +93,8 @@ func main() {
 	r := bump(m)
 	fmt.Println(r, *m+bump(m), n)
 	var e *Stack
-	fmt.Println(e == nil, e != nil, s != nil)
-	e = s
-	e.name = "e"
-	fmt.Println(s.name)
+	fmt.Println(e == nil, e != nil, p.A != nil)
+	e = NewStack("e")
+	e.name += "!"
+	fmt.Println(e.name, e == p.B)
 }

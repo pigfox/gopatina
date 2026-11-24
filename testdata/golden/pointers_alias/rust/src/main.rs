@@ -36,41 +36,57 @@ mod rt;
 pub struct Stack {
     items: Vec<i64>,
     name: String,
-    top: rt::Ptr<Stack>,
+    top: Option<Box<Stack>>,
+}
+
+/// Frees a chain one link at a time, so a long one cannot overflow
+/// the stack.
+impl Drop for Stack {
+    fn drop(&mut self) {
+        let mut next = self.top.take();
+        while let Some(mut link) = next {
+            next = link.top.take();
+        }
+    }
 }
 
 impl Stack {
-    pub fn push(s: &rt::Ptr<Stack>, v: i64) {
-        s.with_mut(|v_2| v_2.items.push(v));
+    pub fn push(&mut self, v: i64) {
+        self.items.push(v);
     }
 
-    pub fn pop(s: &rt::Ptr<Stack>) -> i64 {
-        let v = s.with(|v_2| v_2.items[(s.with(|v_2| v_2.items.len() as i64) - 1) as usize]);
-        let idx = s.with(|v_2| v_2.items.len() as i64) - 1;
-        s.with_mut(|v_2| v_2.items[idx as usize] = 0);
+    pub fn pop(&mut self) -> i64 {
+        let v = self.items[(self.items.len() as i64 - 1) as usize];
+        let idx = self.items.len() as i64 - 1;
+        self.items[idx as usize] = 0;
         v
     }
 
-    pub fn len(s: &rt::Ptr<Stack>) -> i64 {
-        s.with(|v| v.items.len() as i64)
+    pub fn len(&self) -> i64 {
+        self.items.len() as i64
     }
 
-    pub fn name(s: &rt::Ptr<Stack>) -> String {
-        format!("{}!", s.with(|v| v.name.clone()))
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn name(&self) -> String {
+        format!("{}!", self.name)
     }
 }
 
-pub fn new_stack(name: String) -> rt::Ptr<Stack> {
-    rt::Ptr::new(Stack {
+pub fn new_stack(name: String) -> Box<Stack> {
+    Box::new(Stack {
         name,
-        ..Default::default()
+        items: Vec::new(),
+        top: None,
     })
 }
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Pair {
-    pub a: rt::Ptr<Stack>,
-    pub b: rt::Ptr<Stack>,
+    pub a: Option<Box<Stack>>,
+    pub b: Option<Box<Stack>>,
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -132,36 +148,38 @@ fn bump(p: &mut i64) -> i64 {
 
 fn main() {
     rt::exit_on_panic();
-    let s = new_stack(String::from("s"));
-    Stack::push(&s, 1);
-    Stack::push(&s, 2);
-    Stack::push(&s, 3);
-    let t = s.clone();
-    println!("{} {} {}", Stack::pop(&t), Stack::len(&s), Stack::name(&s));
-    s.with_mut(|v| v.name += "x");
-    println!("{} {}", t.with(|v| v.name.clone()), s.with(|v| v.items[0]));
-    s.with_mut(|v| v.items[0] = 42);
+    let mut s = new_stack(String::from("s"));
+    s.push(1);
+    s.push(2);
+    s.push(3);
+    println!("{} {} {}", s.pop(), s.len(), s.name());
+    s.name += "x";
+    println!("{} {}", s.name, s.items[0]);
+    s.items[0] = 42;
+    println!("{} {}", s.items[0], s.items.len() as i64);
+    s.top = Some(new_stack(String::from("top")));
+    s.top.as_mut().unwrap().push(7);
+    s.top.as_mut().unwrap().top = Some(new_stack(String::from("toptop")));
+    s.top.as_mut().unwrap().top.as_mut().unwrap().push(8);
     println!(
-        "{} {}",
-        t.with(|v| v.items[0]),
-        t.with(|v| v.items.len() as i64),
+        "{} {} {} {}",
+        s.top.as_ref().unwrap().items[0],
+        s.top.as_ref().unwrap().top.as_ref().unwrap().items[0],
+        s.top.as_deref().is_some_and(|p| std::ptr::eq(p, &*s)),
+        s.top.as_ref().unwrap().top.is_none(),
     );
-    let val = s.clone();
-    s.with_mut(|v| v.top = val);
-    let ptr = s.with(|v| v.top.clone()).with(|v| v.top.clone());
-    ptr.with_mut(|v| v.items[1] = 7);
-    println!(
-        "{} {}",
-        s.with(|v| v.items[1]),
-        s.with(|v| v.top.clone()) == t,
-    );
-    let p = Pair {
-        a: s.clone(),
-        b: new_stack(String::from("b")),
+    let mut p_2 = Pair {
+        a: Some(s),
+        b: Some(new_stack(String::from("b"))),
     };
-    let q = p.clone();
-    Stack::push(&q.a, 9);
-    println!("{} {} {}", Stack::len(&p.a), p == q, p.b == q.b);
+    p_2.a.as_mut().unwrap().push(9);
+    println!(
+        "{} {} {} {}",
+        p_2.a.as_ref().unwrap().len(),
+        p_2.a.as_deref().map(std::ptr::from_ref) == p_2.b.as_deref().map(std::ptr::from_ref),
+        p_2.b.as_ref().unwrap().len(),
+        p_2.a.as_ref().unwrap().top.is_some(),
+    );
     let mut root: Option<Box<Tree>> = None;
     for k in vec![5, 3, 8, 1, 4] {
         root = insert(root, k);
@@ -180,9 +198,13 @@ fn main() {
     let r = bump(m);
     let call = bump(m);
     println!("{} {} {}", r, *m + call, n);
-    let mut e: rt::Ptr<Stack> = rt::Ptr::nil();
-    println!("{} {} {}", e.is_nil(), !e.is_nil(), !s.is_nil());
-    e = s.clone();
-    e.with_mut(|v| v.name = String::from("e"));
-    println!("{}", s.with(|v| v.name.clone()));
+    let mut e: Option<Box<Stack>> = None;
+    println!("{} {} {}", e.is_none(), e.is_some(), p_2.a.is_some());
+    e = Some(new_stack(String::from("e")));
+    e.as_mut().unwrap().name += "!";
+    println!(
+        "{} {}",
+        e.as_ref().unwrap().name,
+        e.as_deref().map(std::ptr::from_ref) == p_2.b.as_deref().map(std::ptr::from_ref),
+    );
 }

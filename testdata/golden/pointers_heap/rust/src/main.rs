@@ -55,8 +55,8 @@ pub struct Counter {
 }
 
 impl Counter {
-    pub fn inc(c: &rt::Ptr<Counter>) {
-        c.with_mut(|v| v.n += 1);
+    pub fn inc(&mut self) {
+        self.n += 1;
     }
 }
 
@@ -64,16 +64,16 @@ fn push(head: Option<Box<Node>>, v: i64) -> Box<Node> {
     Box::new(Node { val: v, next: head })
 }
 
-fn new_counter() -> rt::Ptr<Counter> {
-    rt::Ptr::new(Counter {
+fn new_counter() -> Box<Counter> {
+    Box::new(Counter {
         ..Default::default()
     })
 }
 
 /// startAt names the new pointer before returning it, which the crate
 /// returns directly.
-fn start_at(n: i64) -> rt::Ptr<Counter> {
-    rt::Ptr::new(Counter { n })
+fn start_at(n: i64) -> Box<Counter> {
+    Box::new(Counter { n })
 }
 
 fn main() {
@@ -88,24 +88,26 @@ fn main() {
         n = node.next.as_deref();
     }
     println!();
-    let c = new_counter();
-    let d = c.clone();
-    Counter::inc(&d);
-    Counter::inc(&c);
-    let call = new_counter();
+    let mut c = new_counter();
+    let mut d = new_counter();
+    d.inc();
+    c.inc();
+    c.inc();
     println!(
-        "{} {} {} {}",
-        c.with(|v| v.n),
-        d.with(|v| v.n),
-        c == d,
-        c == call,
+        "{} {} {} {} {}",
+        c.n,
+        d.n,
+        std::ptr::eq(&*c, &*d),
+        std::ptr::eq(&*c, &*new_counter()),
+        !std::ptr::eq(&*c, &*c),
     );
-    let s = start_at(9);
-    Counter::inc(&s);
-    println!("{}", s.with(|v| v.n));
-    let x: rt::Ptr<i64> = rt::Ptr::new(5);
-    let p = x.clone();
-    let q = p.clone();
-    q.with_mut(|v| *v = 7);
-    println!("{} {} {}", x.with(|v| *v), p.with(|v| *v), p == q);
+    let mut s = start_at(9);
+    s.inc();
+    println!("{}", s.n);
+    let (mut x, y): (i64, i64) = (5, 5);
+    let p = &mut x;
+    *p = 7;
+    let q = &y;
+    println!("{} {} {}", *p, *q, std::ptr::eq(p, q));
+    println!("{} {}", x, y);
 }

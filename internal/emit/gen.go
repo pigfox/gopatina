@@ -717,12 +717,37 @@ func (g *gen) methods(obj *types.TypeName) {
 	g.line("")
 	g.line("impl " + g.types[obj] + " {")
 	g.ind++
+	saved := g.out
+	var body strings.Builder
+	g.out = &body
+	lenAt := -1
 	for i, fd := range decls {
 		if i > 0 {
 			g.line("")
 		}
+		at := body.Len()
 		g.funcDecl(fd)
+		if strings.HasPrefix(strings.TrimSpace(body.String()[at:]), "pub fn len(&self) -> ") {
+			lenAt = body.Len()
+		}
 	}
+	g.out = saved
+	text := body.String()
+	if lenAt >= 0 && !strings.Contains(text, "fn is_empty(") {
+		// A public len beside its is_empty, as Rust writes them (clippy's
+		// len_without_is_empty): Go's Len() with no IsEmpty.
+		var empty strings.Builder
+		g.out = &empty
+		g.line("")
+		g.line("pub fn is_empty(&self) -> bool {")
+		g.ind++
+		g.line("self.len() == 0")
+		g.ind--
+		g.line("}")
+		g.out = saved
+		text = text[:lenAt] + empty.String() + text[lenAt:]
+	}
+	g.out.WriteString(text)
 	g.ind--
 	g.line("}")
 }
