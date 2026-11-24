@@ -582,7 +582,7 @@ func (g *gen) heapOrder(s ast.Stmt) {
 		return // a condition is checked for this by the subset checker
 	}
 	calls := subset.HoistableCalls(g.pkg, s)
-	if len(calls) == 0 || !g.readsHeap(s) && !g.ownedBeforeCall(s, calls) {
+	if len(calls) == 0 || !g.readsHeap(s) && !g.ownedBeforeCall(s, calls) && !g.changedBeforeRead(s) {
 		return
 	}
 	roots := 0
@@ -593,6 +593,13 @@ func (g *gen) heapOrder(s ast.Stmt) {
 		roots = len(s.Results)
 	}
 	g.hoistCalls(s, roots > 1)
+}
+
+// changedBeforeRead reports whether statement s reads a variable, or a
+// place under one, before a call that changes it (borrow.ChangedBeforeRead):
+// gc makes the call first, so Rust makes it first too.
+func (g *gen) changedBeforeRead(s ast.Stmt) bool {
+	return borrow.ChangedBeforeRead(g.info, g.res.Funcs, s)
 }
 
 // ownedBeforeCall reports whether statement s reads through an owned
