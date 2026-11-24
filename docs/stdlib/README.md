@@ -51,33 +51,45 @@ gains.
 
 | First blocker | Packages |
 | --- | --- |
-| The loader type-checks a package from source against another's export data, so one type arrives twice (`os.DirEntry` against `fs.DirEntry`, `iter.Seq` in `slices.Sorted`) | 40 |
+| `io.Reader` (as a type, field or parameter) | 20 |
 | A function type | 18 |
+| An array type | 11 |
 | An indexed slice literal element (`[]T{2: x}`) | 10 |
-| An array type | 9 |
+| A pointer to a type that is not the program's own, converted to an interface | 8 |
 | A struct field of type `io.Writer` | 7 |
+| `time.Time` | 7 |
 | A package-level variable holding pointers in a struct or slice (`unicode`'s range tables, which the other 6 import) | 7 |
-| A pointer to a type that is not the program's own, converted to an interface | 6 |
+| An interface method with an error result (`io/fs.FS`, under `path/filepath` and others) | 6 |
+| A map type | 5 |
 | `internal/godebug.New` (provided package, not yet provided) | 4 |
-| `time.Time` | 3 |
-| Others, each 1 or 2 packages: channels, maps, generic constraints and functions, interface methods with error, pointer or slice results and parameters, `io.Reader`, `copy`, `slices.Grow` | 31 |
+| A generic constraint (an interface with a type set) | 4 |
+| A pointer where RFC 0013 does not support one yet | 4 |
+| A channel type | 3 |
+| Converting untyped `nil` to a pointer type (`*go/scanner.Error`) | 3 |
+| Others: 8 provided packages measured on their own and not yet provided (`sync`, `sync/atomic`, `sort`, `syscall`, `os/exec`, `os/signal`, `math/rand`, `math/rand/v2`), `unsafe`, `copy` (2), and one each of a changed array variable, interface methods with pointer or slice parameters, `internal/bytealg`, `slices.Grow`, an instantiated generic function and an assembly function | 18 |
+
+Until the loader fix (2026-11-23, after the first measurement), 40 of these
+packages were first refused by an internal type-checking error instead: a
+package from export data brought its own copy of a package that was also
+read from source (`os.DirEntry` against `fs.DirEntry`, `iter.Seq` in
+`slices.Sorted`). Each now stops at the first feature it needs, as above;
+the counts of importable packages and accepted functions did not change.
 
 ## The order of work
 
 To raise both counts fastest, after RFC 0016's owned pointers (step 1b):
 
-1. **The loader's type identity.** Translate a package's dependencies
-   consistently: a package read from source makes its dependents read it
-   from source too, so `io/fs` and `iter` arrive once. It blocks 40
-   packages first, more than any feature. It is also a defect, because the
-   error a user sees is an internal type-checking message, not "not
-   supported".
+1. **The loader's type identity: done** (2026-11-23). A package that
+   imports a translated package, directly or not, is type-checked from
+   source, so `io/fs` and `iter` arrive once. It changed no count, but it
+   turned 40 internal errors into the features each package needs, and
+   made `io.Reader` the largest single first blocker.
 2. **Function types and function values** (18 first blockers). They need
    a design for how closures own what they capture, so an RFC comes first.
-3. **Arrays and indexed slice literals** (19 together). Arrays map to Rust
+3. **Arrays and indexed slice literals** (21 together). Arrays map to Rust
    arrays; small and mechanical.
-4. **`io.Writer` fields and `io.Reader`** (9), then the provided
-   `internal/godebug` and `time.Time` (7): RFC 0011's provided-package work.
+4. **`io.Reader` and `io.Writer` fields** (27), then the provided
+   `internal/godebug` and `time.Time` (11): RFC 0011's provided-package work.
 5. **A patina test mode.** `gopatina test -patina`: the `testing` package
    provided in Rust, `_test.go` files translated with the package, and a
    generated test main. Until it exists the second count stays at 0.

@@ -94,6 +94,19 @@ type listed struct {
 	Error      *struct{ Err string }
 }
 
+// imports returns the import paths of the packages l imports, vendored
+// ones resolved.
+func (l *listed) imports() []string {
+	var out []string
+	for _, imp := range l.Imports {
+		if to, ok := l.ImportMap[imp]; ok {
+			imp = to
+		}
+		out = append(out, imp)
+	}
+	return out
+}
+
 // goList runs go list -deps -json for the package in dir, with the patina
 // build tag set and cgo off, as patina builds use them.
 var goList = func(dir string) ([]byte, error) {
@@ -146,10 +159,7 @@ func program(dir, cwd string) (*Package, error) {
 			return
 		}
 		translated[l.ImportPath] = true
-		for _, imp := range l.Imports {
-			if to, ok := l.ImportMap[imp]; ok {
-				imp = to
-			}
+		for _, imp := range l.imports() {
 			if Provided(imp) || imp == "unsafe" || byPath[imp] == nil {
 				continue
 			}
@@ -157,12 +167,13 @@ func program(dir, cwd string) (*Package, error) {
 		}
 	}
 	mark(main)
+	fromSource := sourceChecked(all, byPath, translated)
 
 	fset := token.NewFileSet()
 	checked := map[string]*Package{}
 	var order []*Package // dependency order, from go list
 	for _, l := range all {
-		if !translated[l.ImportPath] {
+		if !fromSource[l.ImportPath] {
 			continue
 		}
 		// With cgo off, go list leaves a cgo file out of GoFiles, so a
@@ -189,11 +200,72 @@ func program(dir, cwd string) (*Package, error) {
 			return nil, err
 		}
 		checked[l.ImportPath] = pkg
-		order = append(order, pkg)
+		if translated[l.ImportPath] {
+			order = append(order, pkg)
+		}
 	}
 	m := merge(initOrder(order, byPath), order[len(order)-1])
 	m.ImportPath = main.ImportPath
 	return m, nil
+}
+
+// sourceChecked returns the packages to type-check from source: the
+// translated ones, and each package that a package checked from source
+// imports and whose export data refers to a package checked from source.
+// A package read from export data brings its own copy of every package
+// its export data refers to, so os from export data next to io/fs from
+// source made os.DirEntry and fs.DirEntry two types; checked from source,
+// os uses the one io/fs. Only the translated ones are translated; the
+// others stay provided (RFC 0011). A package whose export data refers to
+// no such package, as fmt's refers to none of math/bits, stays export
+// data: checking it from source would cost every program the time and
+// memory of type-checking its dependencies.
+func sourceChecked(all []*listed, byPath map[string]*listed, translated map[string]bool) map[string]bool {
+	from := map[string]bool{}
+	for _, l := range all {
+		if translated[l.ImportPath] {
+			from[l.ImportPath] = true
+		}
+	}
+	// Until nothing changes: a package that one checked from source imports
+	// joins them if its export data refers to one of them. Only the
+	// packages the type checker imports anyway are read from export data.
+	for changed := true; changed; {
+		changed = false
+		for _, l := range all {
+			if !from[l.ImportPath] {
+				continue
+			}
+			for _, imp := range l.imports() {
+				if from[imp] || imp == "unsafe" || byPath[imp] == nil {
+					continue
+				}
+				// An error here is the type checker's to report, from source.
+				p, err := exportData(imp)
+				refers := err != nil
+				for _, q := range importsOf(p) {
+					refers = refers || from[q.Path()]
+				}
+				if refers {
+					from[imp] = true
+					changed = true
+				}
+			}
+		}
+	}
+	return from
+}
+
+// exportData imports the package at path from export data, as the type
+// checker does for a package not checked from source.
+var exportData = lockedImporter{}.Import
+
+// importsOf returns the packages p's export data refers to; none for nil.
+func importsOf(p *types.Package) []*types.Package {
+	if p == nil {
+		return nil
+	}
+	return p.Imports()
 }
 
 // importFrom imports a translated package already checked from source,
