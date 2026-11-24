@@ -35,13 +35,24 @@ mod rt;
 #[derive(Clone, Default, PartialEq)]
 pub struct Node {
     pub v: i64,
-    pub next: rt::Ptr<Node>,
+    pub next: Option<Box<Node>>,
 }
 
-fn build(n: i64) -> rt::Ptr<Node> {
-    let mut head: rt::Ptr<Node> = rt::Ptr::nil();
+/// Frees a chain one link at a time, so a long one cannot overflow
+/// the stack.
+impl Drop for Node {
+    fn drop(&mut self) {
+        let mut next = self.next.take();
+        while let Some(mut link) = next {
+            next = link.next.take();
+        }
+    }
+}
+
+fn build(n: i64) -> Option<Box<Node>> {
+    let mut head: Option<Box<Node>> = None;
     for i in 0..n {
-        head = rt::Ptr::new(Node { v: i, next: head });
+        head = Some(Box::new(Node { v: i, next: head }));
     }
     head
 }
@@ -50,7 +61,7 @@ fn main() {
     rt::exit_on_panic();
     for n in vec![1000, 100000, 1000000] {
         let l = build(n);
-        println!("{} {}", n, l.with(|v| v.v));
+        println!("{} {}", n, l.as_ref().unwrap().v);
     }
     println!("done");
 }

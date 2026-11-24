@@ -7,7 +7,7 @@
 ./main.go:29:6: pointers of type *Item are shared: a field of a struct that is not boxed holds it (line 31) (RFC 0016)
 ./main.go:33:6: pointers of type *Chain are shared: a field of a struct that is not boxed holds it (line 35) (RFC 0016)
 ./main.go:33:20: Chain.Next can point back to a Chain: a cycle through it is not reclaimed (RFC 0013)
-./main.go:38:6: pointers of type *Ring are shared: it is written through (line 45) (RFC 0016)
+./main.go:38:6: pointers of type *Ring are shared: a copy of it is kept (line 47) (RFC 0016)
 ./main.go:40:2: Ring.Prev can point back to a Ring: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:40:8: Ring.Next can point back to a Ring: a cycle through it is not reclaimed (RFC 0013)
 ./main.go:45:27: copied first into first.Prev: first is used again on line 45; a copy of a pointer points at the same variable, as Go's does (RFC 0013)

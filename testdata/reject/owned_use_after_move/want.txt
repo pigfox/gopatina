@@ -1,0 +1,6 @@
+./main.go:27:14: a is used after its List moved into b on line 25
+    in patina mode an object has one owner (RFC 0017): once a moves, only its new owner names the List
+    use the List through its new owner, or give a its own List
+./main.go:27:19: b is used after its List moved into a composite literal on line 26
+    in patina mode an object has one owner (RFC 0017): once b moves, only its new owner names the List
+    use the List through its new owner, or give b its own List

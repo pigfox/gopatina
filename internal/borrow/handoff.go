@@ -29,6 +29,10 @@ func (l *live) handOff(ev event, lv set) {
 		}
 		return
 	}
+	if subset.Ptrs(a.pkg).Owned(t) {
+		l.ownedHandOff(ev, usedLater, next)
+		return
+	}
 	what := exprString(ev.e)
 	why := ""
 	switch {
@@ -163,4 +167,23 @@ func copyExpr(x string, t types.Type) string {
 		fields = append(fields, f.Name()+": "+v)
 	}
 	return types.Unalias(t).(*types.Named).Obj().Name() + "{" + strings.Join(fields, ", ") + "}"
+}
+
+// ownedHandOff reports an owned pointer (RFC 0016) that is still used
+// after it moves: one owner per object means its old name is dead once it
+// moves (RFC 0017). A copy would copy the whole object, which Go never
+// does for a pointer. It is moved all the same, so the emitter stays
+// total; the error stops the build.
+func (l *live) ownedHandOff(ev event, usedLater bool, next use) {
+	a := l.a
+	a.res.Actions[ev.e] = Move
+	elem := strings.TrimPrefix(types.TypeString(a.pkg.Info.Types[ev.e].Type, types.RelativeTo(a.pkg.Types)), "*")
+	// The subset moves an owned pointer only out of a local variable (a
+	// field, an element or a parameter moved shares its type), so what
+	// is left to refuse is a later use.
+	if usedLater {
+		a.report(next.pos, a.errorf(next.pos, "%s is used after its %s moved into %s on line %d", ev.v.Name(), elem, ev.into, a.line(ev.pos)).With(
+			fmt.Sprintf("in patina mode an object has one owner (RFC 0017): once %s moves, only its new owner names the %s", ev.v.Name(), elem),
+			fmt.Sprintf("use the %s through its new owner, or give %s its own %s", elem, ev.v.Name(), elem)))
+	}
 }

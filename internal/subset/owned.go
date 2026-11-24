@@ -65,7 +65,7 @@ func (p *PtrPlan) ownedOnce() {
 		return
 	}
 	p.ownedDone = true
-	o := &ownership{p: p, info: p.pkg.Info, why: map[types.Type]sharing{}, boxed: Ifaces(p.pkg).Boxed}
+	o := &ownership{p: p, info: p.pkg.Info, why: map[types.Type]sharing{}, boxed: Ifaces(p.pkg).Boxed, chained: map[types.Type]bool{}}
 	o.run()
 	for _, h := range p.heap {
 		if s, ok := o.whyOf(h); ok {
@@ -79,6 +79,22 @@ func (p *PtrPlan) ownedOnce() {
 			p.ownerErrs = append(p.ownerErrs, e)
 		}
 	}
+	for t := range o.chained {
+		p.chained = append(p.chained, t)
+	}
+}
+
+// Chained reports whether owned pointers to t are moved into fields
+// (RFC 0017, step 4), so that a chain of t's may be built in a loop and
+// be longer than any call depth: freeing it must not recurse per link.
+func (p *PtrPlan) Chained(t types.Type) bool {
+	p.ownedOnce()
+	for _, c := range p.chained {
+		if types.Identical(c, t) {
+			return true
+		}
+	}
+	return false
 }
 
 // ownerErrors returns the uses of owned pointers that one owner per
@@ -100,9 +116,12 @@ type ownerError struct {
 // ownership finds the heap types that are shared.
 type ownership struct {
 	errs []ownerError
-	p    *PtrPlan
-	info *types.Info
-	why  map[types.Type]sharing // by the type's element, the first reason
+	// chained are the element types a pointer is moved into a field of
+	// (RFC 0017, step 4): their chains may be longer than any call depth.
+	chained map[types.Type]bool
+	p       *PtrPlan
+	info    *types.Info
+	why     map[types.Type]sharing // by the type's element, the first reason
 	// params are the parameters, receivers and results of the program's
 	// functions; inputs only the parameters and receivers, which are lent.
 	params, inputs map[*types.Var]bool
@@ -443,8 +462,11 @@ func (o *ownership) freshUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	case *ast.AssignStmt:
 		if p.Tok == token.DEFINE || p.Tok == token.ASSIGN {
 			for i, r := range p.Rhs {
-				if r == child && len(p.Lhs) == len(p.Rhs) && o.localVar(p.Lhs[i]) {
-					return // a parameter assigned is refused where it is assigned
+				if r == child && len(p.Lhs) == len(p.Rhs) && (o.localVar(p.Lhs[i]) || o.fieldPlace(p.Lhs[i])) {
+					if o.fieldPlace(p.Lhs[i]) {
+						o.chained[el] = true
+					}
+					return // a parameter assigned is refused where it is assigned; a field gets it (RFC 0017, step 4)
 				}
 			}
 		}
@@ -486,8 +508,8 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 						"assign the new pointer to a new local variable instead, and use that from here on")
 					return
 				}
-				if o.localVar(l) {
-					return // a local variable assigned a new pointer, checked there
+				if o.localVar(l) || o.fieldPlace(l) {
+					return // a variable or a field assigned a pointer, which moves there (RFC 0017, step 4)
 				}
 				o.share(el, e.Pos(), "it is written through")
 				return
@@ -505,6 +527,9 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	}
 	if o.readOrLend(par, child, stack[:at+1]) {
 		return
+	}
+	if o.moved(e, par, child, stack[:at+1]) {
+		return // moved to a new owner; the borrow checker refuses a later use (RFC 0017, step 4)
 	}
 	if b, ok := par.(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
 		other := b.X
@@ -596,6 +621,63 @@ func (o *ownership) written(stack []ast.Node) bool {
 	}
 }
 
+// fieldPlace reports whether e is a field reached from a variable through
+// owned pointers and struct fields: a place that can own a pointer.
+func (o *ownership) fieldPlace(e ast.Expr) bool {
+	sel, ok := ast.Unparen(e).(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	return rootVar(o.info, sel) != nil
+}
+
+// moved reports whether e, a local variable that is not a parameter,
+// moves to a new owner at par: a variable or a field assigned it, a
+// variable declared with it, or a field of a new pointer's literal.
+func (o *ownership) moved(e ast.Expr, par, child ast.Node, stack []ast.Node) bool {
+	if !o.localVar(e) || o.input(e) {
+		return false
+	}
+	el := o.elemOf(o.info.TypeOf(e))
+	switch p := par.(type) {
+	case *ast.AssignStmt:
+		for i, r := range p.Rhs {
+			if r == child && len(p.Lhs) == len(p.Rhs) {
+				if o.fieldPlace(p.Lhs[i]) {
+					o.chained[el] = true
+					return true
+				}
+				return o.localVar(p.Lhs[i]) && !o.input(p.Lhs[i])
+			}
+		}
+	case *ast.ValueSpec:
+		return true // a local variable declared with it
+	case *ast.KeyValueExpr:
+		o.chained[el] = true
+		return p.Value == child && o.boxedLit(stack[:len(stack)-1])
+	case *ast.CompositeLit:
+		o.chained[el] = true
+		return o.boxedLit(stack)
+	}
+	return false
+}
+
+// rootVar returns the variable that place e starts from, through field
+// selections, or nil.
+func rootVar(info *types.Info, e ast.Expr) *types.Var {
+	for {
+		switch x := ast.Unparen(e).(type) {
+		case *ast.Ident:
+			v, _ := info.Uses[x].(*types.Var)
+			return v
+		case *ast.SelectorExpr:
+			e = x.X // a field: a place assigned a pointer is never a method
+		default:
+			return nil // a field of a call's result
+		}
+	}
+}
+
 // plainWrite reports whether the place written at the top of stack (see
 // written) is assigned or incremented, not lent by &, and holds a number,
 // a boolean or a string: a change in place, through a &mut borrow in
@@ -614,7 +696,9 @@ func (o *ownership) plainWrite(stack []ast.Node) bool {
 			}
 		case *ast.AssignStmt, *ast.IncDecStmt:
 			_, basic := o.info.TypeOf(place.(ast.Expr)).Underlying().(*types.Basic)
-			return basic
+			// A pointer field assigned: the value moves there, and is
+			// checked where it is (RFC 0017, step 4).
+			return basic || o.elemOf(o.info.TypeOf(place.(ast.Expr))) != nil
 		}
 		return false // &p.f, or p.s[i] = x
 	}

@@ -1,0 +1,11 @@
+./main.go:11:6: pointers of type *List are never shared: each has one owner (RFC 0016)
+./main.go:22:12: moved head into x.Next: head is not used afterwards
+./main.go:23:10: moved x into head: x is not used afterwards
+./main.go:29:18: parameter rest is a shared borrow: cons only reads it
+./main.go:37:6: pointers of type *Tree are never shared: each has one owner (RFC 0016)
+./main.go:47:12: moved root into t.Left: root is not used afterwards
+./main.go:48:10: moved t into root: t is not used afterwards
+./main.go:54:10: parameter l is a shared borrow: sum only reads it
+./main.go:63:13: parameter l is a shared borrow: length only reads it
+./main.go:72:7: moved a into b: a is not used afterwards
+./main.go:82:13: moved big into keep: big is not used afterwards
