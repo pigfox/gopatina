@@ -206,9 +206,9 @@ func main() {
 	a, b := pair()
 	*a, *b = *b, *a
 	fmt.Println(*a, *b)
-	c := &Counter{}
+	var c Counter
 	c.Hit()
-	keepC := hold(c) // a borrow of c, used before c is again
+	keepC := hold(&c) // a borrow of c, used before c is again
 	keepC.Hit()
 	fmt.Println(keepC.Hit(), hold(keepC).hits)
 	fmt.Println(c.hits)

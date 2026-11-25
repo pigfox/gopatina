@@ -1,0 +1,6 @@
+./main.go:24:2: c is changed on line 24 while keepC, a borrow of it, is still in use on line 25
+    keepC only borrows c (it is never stored or returned), so c cannot change until keepC's last use (RFC 0017)
+    finish with keepC before c changes, or read what you need from keepC into a variable first
+./main.go:26:14: c is used on line 26 while keepC, a borrow of it, is still in use on line 26
+    keepC changes c through its borrow, so c cannot be used until keepC's last use (RFC 0017)
+    finish with keepC before c is used, or use c through keepC

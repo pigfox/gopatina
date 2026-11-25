@@ -995,6 +995,8 @@ func (g *gen) ptrDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc (c Ct%d) Get() int { return c.n %s %d }\n", k, op(), g.qr.IntN(100))
 	// Me lends its receiver back: compared with its owner, by address.
 	fmt.Fprintf(b, "\nfunc (c *Ct%d) Me() *Ct%d { return c }\n", k, k)
+	// ctSelf lends its argument back: ctSelf(&x) borrows x (RFC 0017).
+	fmt.Fprintf(b, "\nfunc ctSelf%d(c *Ct%d) *Ct%d { return c }\n", k, k, k)
 	// Cn is held by value in Nd: its pointers never escape, so x.in.M()
 	// lends it inside its node's cell.
 	fmt.Fprintf(b, "\ntype Cn%d struct{ n int }\n", k)
@@ -1130,6 +1132,9 @@ func (g *gen) ptrUses() {
 	g.line("ptrLp.Bump(%s)", v())
 	g.line("fmt.Println(ptrD.n, ptrC == ptrD, ptrD != ptrC, ptrC == ptrLp, ptrLp == ptrD, ptrLp.n)")
 	g.line("ptrLc.Bump(ptrC.n)")
+	g.line("ptrLm := ctSelf%d(&ptrLc)", k)
+	g.line("ptrLm.Bump(%s)", v())
+	g.line("fmt.Println(ptrLm.n)")
 	g.line("fmt.Println(ptrC.n, ptrC.Get(), ptrLc.n, ptrLc.Get())")
 	g.line("ptrB := lab%d(Lb%d(%q))", k, k, words[g.qr.IntN(len(words))])
 	g.line("*ptrB += Lb%d(ptrL.Name)", k)
