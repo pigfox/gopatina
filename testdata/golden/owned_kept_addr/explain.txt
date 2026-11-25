@@ -1,0 +1,9 @@
+./main.go:11:6: pointers of type *T are never shared: each has one owner (RFC 0016)
+./main.go:22:13: parameter h is an exclusive borrow: keepIn changes it, and the caller sees the change
+./main.go:22:24: parameter t is owned: keepIn keeps it
+./main.go:22:38: moved t into h.t: t is not used afterwards
+./main.go:24:10: parameter h is an exclusive borrow: add changes it, and the caller sees the change
+./main.go:24:21: parameter t is owned: add keeps it
+./main.go:26:11: parameter t is a shared borrow: peek only reads it
+./main.go:32:13: moved tt into a new pointer: tt is not used afterwards
+./main.go:39:11: moved v into a new pointer: v is not used afterwards

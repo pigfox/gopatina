@@ -284,8 +284,9 @@ func (o *ownership) run() {
 			}
 		}
 	}
-	o.vars()
 	o.keptParams()
+	o.keptArgs()
+	o.vars()
 	// A variable whose address is kept while the variable is still used
 	// lives in a cell the two names share: not an escape box, nor only
 	// lent to callees that keep nothing.
@@ -348,6 +349,22 @@ func (o *ownership) run() {
 				}
 			}
 		}
+	}
+}
+
+// keptArgs makes each &x given to a parameter its callee keeps, with x
+// unused after, an escape box: x moves into a new Box at the &, which the
+// callee keeps (RFC 0017). A parameter only lent keeps the &x a lend.
+func (o *ownership) keptArgs() {
+	for _, a := range o.p.argEscapes {
+		if !o.kept[a.param] {
+			continue
+		}
+		o.p.escapes[a.addr] = a.v
+		if a.init != nil {
+			o.p.escapeInits[a.init] = true
+		}
+		delete(o.p.lends, a.v)
 	}
 }
 

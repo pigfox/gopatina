@@ -55,6 +55,9 @@ type PtrPlan struct {
 	// escapeInits the literals declaring those variables (escapes.go).
 	escapes     map[*ast.UnaryExpr]*types.Var
 	escapeInits map[*ast.CompositeLit]bool
+	// argEscapes are the &x given to a call that nothing uses after:
+	// escapes when the callee keeps the parameter (keptArgs).
+	argEscapes []argEscape
 	// lends are the variables whose every address is lent to a call, with
 	// the parameters lent to, and lentOK those no callee keeps.
 	lends  map[*types.Var][]*types.Var

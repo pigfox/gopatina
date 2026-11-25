@@ -533,7 +533,10 @@ return &a, &b`), unless one call gives them all (`a, b := f()`). A local
 slice of data moves the same way when nothing else uses it
 (`ns := Ints{1, 2}; return &ns` is `vec![1, 2]`); through its pointer it
 is indexed (`(*p)[i]` is `p[i]`), changed in place and measured
-(`len(*p)`). Other addresses of locals still make the type shared.
+(`len(*p)`). An `&x` given to a parameter that its callee keeps, with
+nothing using `x` after, moves the same way: `keepIn(h, &tt)` is
+`keep_in(&mut h, Some(Box::new(tt)))`. Other addresses of locals still
+make the type shared.
 
 **Local borrows** ([RFC 0017](rfcs/0017-one-owner.md)). A pointer to a
 local, `p := &x`, that the function uses itself (through `*p` and `p.f`,

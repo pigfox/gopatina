@@ -110,6 +110,8 @@ func main() {
 		{"lent back by a method", "var n Pt\n\tm := n.self()\n\t_ = m.V + n.V", true, true},
 		{"lent back by a function", "var n Pt\n\tm := keep(&n)\n\t_ = m.V + n.V", true, true},
 		{"kept by a function", "var n Pt\n\th := store(&n)\n\t_ = h.P.V + n.V", false, false},
+		{"moved into a function keeping it", "n := Pt{V: 1}\n\tn.V++\n\th := store(&n)\n\t_ = h.P.V", false, true},
+		{"moved in a loop", "n := Pt{V: 1}\n\tfor i := 0; i < 2; i++ {\n\t\t_ = store(&n)\n\t}", false, false},
 		{"lent to a variadic", "var n Pt\n\tmany(&n)\n\t_ = n.V", false, false},
 		{"lent to a method's argument", "n := Pt{V: 1}\n\tm := Pt{V: 2}\n\tm.add(&n)\n\t_ = n.V + m.V", true, true},
 		{"lent to a function literal", "var n Pt\n\tfunc(p *Pt) { p.V++ }(&n)\n\t_ = n.V", false, false},
