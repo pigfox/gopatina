@@ -171,6 +171,8 @@ func (g *gen) libDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc Two%d(x int) (*Tw%d, *Tw%d) {\n\ta, b := Tw%d(x), Tw%d(x+1)\n\treturn &a, &b\n}\n", k, k, k, k, k)
 	fmt.Fprintf(b, "\n// Ints%d is a slice moved into a Box.\ntype Ints%d []int\n", k, k)
 	fmt.Fprintf(b, "\nfunc NewInts%d(x int) *Ints%d {\n\tns := Ints%d{x, x + 1}\n\treturn &ns\n}\n", k, k, k)
+	// Find walks to the node it returns: a borrow of l lent back.
+	fmt.Fprintf(b, "\nfunc (l *Lst%d) Find(v int) *Lst%d {\n\tfor p := l; p != nil; p = p.Next {\n\t\tif p.V == v {\n\t\t\treturn p\n\t\t}\n\t}\n\treturn nil\n}\n", k, k)
 	fmt.Fprintf(b, "\nfunc (l *Lst%d) Bump(d int) {\n\tl.V += d\n\tif l.Next != nil {\n\t\tl.Next.Bump(d)\n\t}\n}\n", k)
 	ops := []string{"+", "-", "*", "&", "|", "^"}
 	expr := "x"
@@ -497,6 +499,8 @@ func (g *gen) libUses() {
 	g.line("ll.Side.P = lib.Cons%d(v2, nil)", k)
 	g.line("ll.Side.P.V++")
 	g.line("fmt.Println(ll.Side.P.V, ll.Next.Side.P == nil)")
+	g.line("lfd := ll.Find(ll.Next.V)")
+	g.line("fmt.Println(lfd.V, lfd == ll.Next, ll.Find(ll.V-1000000) == nil)")
 	g.line("lta, ltb := lib.Two%d(v1)", k)
 	g.line("*lta += *ltb")
 	g.line("lns := lib.NewInts%d(v2)", k)

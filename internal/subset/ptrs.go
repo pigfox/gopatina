@@ -70,6 +70,9 @@ type PtrPlan struct {
 	// retMut holds the functions that change through the input they lend
 	// back: an exclusive borrow returned.
 	retMut map[*types.Func]bool
+	// walked are the walkers of the functions lending an input back
+	// (returns.go): temporary borrows that are returned.
+	walked map[*types.Var]bool
 }
 
 // HeapType reports whether t, a pointer type, is a heap type.

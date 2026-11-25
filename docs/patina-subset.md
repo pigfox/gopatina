@@ -478,6 +478,16 @@ string's as a copy), and one that changes it is an error
 not escape elsewhere in the program: an escaping `*int` makes every
 `&x.f` of type `*int` a pointer into a struct, not supported yet.
 
+**Walking to a returned borrow** ([RFC 0017](rfcs/0017-one-owner.md)).
+A function may walk from its pointer input to the node it returns: a
+local only ever given the input, a field of itself (`p = p.Next`) or
+`nil`, and only read through, compared and returned, is a borrow of the
+input all the way, and returning it lends the input back:
+`func find(head *Node, v int) *Node` is
+`fn find(head: Option<&Node>, v: i64) -> Option<&Node>`, walking with
+`p = p.unwrap().next.as_deref()`. A walker that changes through the node
+it holds, a `&mut` walk, is not supported yet.
+
 **Kept parameters** ([RFC 0017](rfcs/0017-one-owner.md), step 8). A
 parameter that its function keeps (returns, moves into a variable, a
 field, a literal or a slice, or passes to a parameter kept in turn) is

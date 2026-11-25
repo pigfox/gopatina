@@ -1,0 +1,6 @@
+./main.go:11:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:17:11: parameter h is owned: push keeps it
+./main.go:20:11: parameter head is a shared borrow: find only reads it
+./main.go:30:11: parameter head is a shared borrow: last only reads it
+./main.go:39:7: receiver n is a shared borrow: At only reads it
+./main.go:50:12: moved l into push: l is not used afterwards

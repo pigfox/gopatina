@@ -33,6 +33,18 @@ func (p *PtrPlan) retBorrows() {
 		}
 		p.retBorrow, p.retMut = found, mut
 	}
+	p.walked = map[*types.Var]bool{}
+	for _, f := range p.pkg.Files {
+		for _, d := range f.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok && fd.Body != nil {
+				if in := p.retBorrow[p.pkg.Info.Defs[fd.Name].(*types.Func)]; in != nil {
+					for v := range p.walkers(fd, in) {
+						p.walked[v] = true
+					}
+				}
+			}
+		}
+	}
 }
 
 // retBorrowsOf finds the functions that return a borrow of an input, and
@@ -83,6 +95,7 @@ func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) (ok, mut b
 	info := p.pkg.Info
 	ok = true
 	some := false
+	walk := p.walkers(fd, input)
 	var stack []ast.Node
 	ast.Inspect(fd.Body, func(n ast.Node) bool {
 		if n == nil {
@@ -103,9 +116,13 @@ func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) (ok, mut b
 				}
 				r = ast.Unparen(p.retBorrowCall(c)) // return second(n): n lent back
 			}
-			ok = ok && placeRoot(info, r) == input
+			root := placeRoot(info, r)
+			ok = ok && (root == input || walk[root])
 			some = true
 		case *ast.Ident:
+			if info.Uses[x] == input && walkerValue(info, stack, walk) {
+				return true // p := head: a walker starts at the input
+			}
 			if info.Uses[x] == input {
 				read, changes := p.lendsBack(stack)
 				ok = ok && read
@@ -115,6 +132,158 @@ func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) (ok, mut b
 		return ok
 	})
 	return ok && some, mut
+}
+
+// Walkers (RFC 0017). A function may walk from its input to the place it
+// returns, a borrow of the input all the way:
+//
+//	for p := head; p != nil; p = p.Next {
+//		if p.V == v {
+//			return p
+//		}
+//	}
+//
+// p is a walker: a local pointer variable of fd only ever given the input,
+// a field of itself (p = p.Next) or nil, and only read through, compared
+// and returned. Returning it lends the input back. The walkers of the
+// functions lending back are temporary borrows (borrows.go).
+
+// walkers returns the walkers of fd from input.
+func (p *PtrPlan) walkers(fd *ast.FuncDecl, input *types.Var) map[*types.Var]bool {
+	info := p.pkg.Info
+	cand := map[*types.Var]bool{}
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok {
+			if v, ok := info.Defs[id].(*types.Var); ok && isPointer(v.Type()) && types.Identical(v.Type(), input.Type()) {
+				cand[v] = true
+			}
+		}
+		return true
+	})
+	var stack []ast.Node
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		if n == nil {
+			stack = stack[:len(stack)-1]
+			return true
+		}
+		stack = append(stack, n)
+		switch x := n.(type) {
+		case *ast.FuncLit:
+			ast.Inspect(x, func(m ast.Node) bool {
+				if id, ok := m.(*ast.Ident); ok {
+					delete(cand, localVarOf(info, id))
+				}
+				return true
+			})
+			return false
+		case *ast.AssignStmt:
+			for i, l := range x.Lhs {
+				v := localVarOf(info, ast.Unparen(l))
+				if !cand[v] {
+					continue
+				}
+				if len(x.Lhs) != len(x.Rhs) || (x.Tok != token.DEFINE && x.Tok != token.ASSIGN) {
+					delete(cand, v)
+					continue
+				}
+				r := ast.Unparen(x.Rhs[i])
+				if !info.Types[r].IsNil() && placeRoot(info, r) != input && placeRoot(info, r) != v {
+					delete(cand, v)
+				}
+			}
+		case *ast.ValueSpec:
+			for _, name := range x.Names {
+				if v, _ := info.Defs[name].(*types.Var); cand[v] && len(x.Values) != 0 {
+					delete(cand, v) // var p = head: only := and = are walkers' steps
+				}
+			}
+		case *ast.Ident:
+			v, _ := info.Uses[x].(*types.Var)
+			if cand[v] && !walkerUse(info, stack) {
+				delete(cand, v)
+			}
+		}
+		return true
+	})
+	return cand
+}
+
+// localVarOf returns the variable e names, or nil.
+func localVarOf(info *types.Info, e ast.Expr) *types.Var {
+	id, ok := e.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	obj := info.Defs[id]
+	if obj == nil {
+		obj = info.Uses[id]
+	}
+	v, _ := obj.(*types.Var)
+	return v
+}
+
+// walkerUse reports whether the use of a walker on top of stack keeps it a
+// walker: a field read (p.V, p.Next as a value), a comparison, a return,
+// or the place it is assigned.
+func walkerUse(info *types.Info, stack []ast.Node) bool {
+	child := stack[len(stack)-1]
+	i := len(stack) - 2
+	for ; i > 0; i-- {
+		if _, ok := stack[i].(*ast.ParenExpr); !ok {
+			break
+		}
+		child = stack[i]
+	}
+	switch q := stack[i].(type) {
+	case *ast.SelectorExpr:
+		s := info.Selections[q]
+		if s == nil || s.Kind() != types.FieldVal {
+			return false
+		}
+		for j := i - 1; ; j-- { // not written through: p.V = x, p.V++, &p.V
+			switch w := stack[j].(type) {
+			case *ast.SelectorExpr, *ast.IndexExpr, *ast.ParenExpr:
+				continue
+			case *ast.AssignStmt:
+				for _, l := range w.Lhs {
+					if l == stack[j+1] {
+						return false
+					}
+				}
+			case *ast.IncDecStmt:
+				return false
+			case *ast.UnaryExpr:
+				return w.Op != token.AND
+			}
+			return true // the body's block at least ends the walk up
+		}
+	case *ast.BinaryExpr:
+		return q.Op == token.EQL || q.Op == token.NEQ
+	case *ast.ReturnStmt:
+		return true
+	case *ast.AssignStmt:
+		for _, l := range q.Lhs {
+			if l == child {
+				return true // assigned: its values are checked
+			}
+		}
+	}
+	return false
+}
+
+// walkerValue reports whether the input on top of stack is the value a
+// walker is given (p := head).
+func walkerValue(info *types.Info, stack []ast.Node, walk map[*types.Var]bool) bool {
+	as, ok := stack[len(stack)-2].(*ast.AssignStmt)
+	if !ok || len(as.Lhs) != len(as.Rhs) {
+		return false
+	}
+	for i, r := range as.Rhs {
+		if r == stack[len(stack)-1] && walk[localVarOf(info, ast.Unparen(as.Lhs[i]))] {
+			return true
+		}
+	}
+	return false
 }
 
 // lendsBack reports whether the use of an input on top of stack keeps the

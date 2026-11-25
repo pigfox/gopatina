@@ -293,6 +293,8 @@ func (b *borrowFinder) reads(v *types.Var, u use, cand map[*types.Var]bool) bool
 		return true
 	case *ast.BinaryExpr:
 		return p.Op == token.EQL || p.Op == token.NEQ // compared with nil, or by address (std::ptr::eq)
+	case *ast.ReturnStmt:
+		return b.p.walked[v] // a walker lent back (returns.go)
 	case *ast.CallExpr:
 		fn := b.callee(p)
 		for i, a := range p.Args {
