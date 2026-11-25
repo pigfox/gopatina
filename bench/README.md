@@ -67,6 +67,14 @@ Rust developer would write them, not tuned to make GoPatina look good.
   Rust does the same. Peak memory and time are the point: one slice per
   list, freed when it is dropped.
 
+- `iface-copy`: interface copies only read, which GoPatina lends with no
+  clone. In CI it runs at about 1.15 times the hand-written Rust, which
+  matches on an enum held directly; GoPatina dispatches through
+  `Option<Dyn>` with a nil check per call. Planned: a nil-free fast path
+  where the interface is known not nil.
+- `iface-keep`: interface copies kept in a slice, cloned as the
+  hand-written Rust clones them; level with it.
+
 **Why `fib(42)` and not `fib(1000)`.** A case should run for a few seconds,
 so that start-up time is a small part of what is measured. `fib(42)` takes
 about two seconds in Rust. Plain recursion makes 2 × fib(n + 1) − 1 calls:

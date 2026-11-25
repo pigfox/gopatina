@@ -49,7 +49,27 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
    go test ./internal/emit -update     # rewrite testdata/golden/*/rust; review the diff
    go test ./internal/borrow -update   # rewrite the explain.txt and want.txt files
    GOPATINA_RUST_TESTS=1 go test ./internal/patina   # build and run every golden program
+   GOPATINA_RUST_TESTS=1 go test ./examples/... ./internal/emit   # the committed example crates and the case tables
+   go run ./cmd/gopatina-difftest -seed 1 -start 0 -programs 400 -per 200   # generated programs against Go
    ```
+
+   The Rust tests skip themselves without `GOPATINA_RUST_TESTS=1`, so a
+   plain `go test ./...` does not run them. The full gate before a merge
+   is all of these:
+
+   | Gate | Passes when |
+   | --- | --- |
+   | `gofmt -l .` | it prints nothing (golden `main.go` files too) |
+   | `go vet ./...`, `go test ./...` | they pass |
+   | coverage | 100.0% in each package, including internal/subset, internal/emit, internal/borrow and internal/progen |
+   | `GOPATINA_RUST_TESTS=1 go test ./internal/patina` | every golden crate builds, passes clippy and prints what Go prints |
+   | `GOPATINA_RUST_TESTS=1 go test ./examples/... ./internal/emit` | the committed example crates (examples/rust-interop/rules, examples/hello/rust) match a fresh `-emit-rust`, and the case tables build |
+   | difftest, seed 1, programs 0-399 | 0 mismatched, 0 build or lint failures, 0 Go disagreements |
+   | CI | every check green, including the bench job when code generation changed |
+
+   On a shared machine, run the long ones at `nice -n 19` with a private
+   `GOCACHE`; a cache another process clears mid-run fails them for no
+   reason of the change.
 
    If your change touches code generation (the emitters, the native backend
    or the runtime), also run the benchmarks against hand-written Rust and put
@@ -85,6 +105,8 @@ The full policy is in [docs/QUALITY.md](docs/QUALITY.md). In short:
 - [ ] Title is a Conventional Commit; every commit is signed off.
 - [ ] `gofmt -l .` prints nothing; `go vet ./...` and `go test -race ./...` pass.
 - [ ] Coverage is still 100.0%.
+- [ ] The Rust tests (`GOPATINA_RUST_TESTS=1`: internal/patina, examples,
+      internal/emit) and the difftest pass.
 - [ ] If code generation changed: benchmark results against Rust are in the
       description.
 - [ ] Docs and `CHANGELOG.md` updated; semantics changes reference an accepted
