@@ -157,6 +157,12 @@ func (g *gen) libDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc (p P%d) Sum() int { return p.A + p.B*K%d }\n", k, k)
 	fmt.Fprintf(b, "\nfunc (p *P%d) Grow(x int) {\n\tp.A ^= x\n\tp.B += x\n}\n", k)
 	fmt.Fprintf(b, "\nconst K%d = %d\n", k, g.lr.IntN(2001)-1000)
+	// A list of package lib that main builds and owns (RFC 0017 with RFC
+	// 0009): a Box of another package's type, not a shared cell.
+	fmt.Fprintf(b, "\n// Lst%d is program %d's list, newest first.\ntype Lst%d struct {\n\tV    int\n\tNext *Lst%d\n}\n", k, k, k, k)
+	fmt.Fprintf(b, "\nfunc Cons%d(v int, next *Lst%d) *Lst%d { return &Lst%d{V: v, Next: next} }\n", k, k, k, k)
+	fmt.Fprintf(b, "\nfunc (l *Lst%d) Sum() int {\n\tt := 0\n\tfor p := l; p != nil; p = p.Next {\n\t\tt += p.V\n\t}\n\treturn t\n}\n", k)
+	fmt.Fprintf(b, "\nfunc (l *Lst%d) Bump(d int) {\n\tl.V += d\n\tif l.Next != nil {\n\t\tl.Next.Bump(d)\n\t}\n}\n", k)
 	ops := []string{"+", "-", "*", "&", "|", "^"}
 	expr := "x"
 	for range 1 + g.lr.IntN(4) {
@@ -468,6 +474,14 @@ func (g *gen) libUses() {
 	g.line("fmt.Println(ldv)")
 	g.line("_, lgerr2 := lib.G%d(v1)", k)
 	g.line("fmt.Println(lg, lgerr2, lgerr2 == lib.ES%d, errors.Is(lgerr2, lib.ES%d))", k, k)
+	g.line("var ll *lib.Lst%d", k)
+	g.line("for i := 0; i < 3; i++ {")
+	g.depth++
+	g.line("ll = lib.Cons%d(v0+i, ll)", k)
+	g.depth--
+	g.line("}")
+	g.line("ll.Bump(v1)")
+	g.line("fmt.Println(ll.Sum(), ll.V, ll.Next.Next.V, ll.Next.Next.Next == nil)")
 }
 
 // shiftUses shifts a value of a random integer type by run-time counts.

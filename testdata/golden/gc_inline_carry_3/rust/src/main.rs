@@ -29,6 +29,7 @@
 #![allow(clippy::single_match)] // the Go source controls the switch
 #![allow(clippy::useless_format)] // fmt.Sprintf maps to format!
 #![allow(clippy::useless_vec)] // Go slices are Vec, not arrays
+#![allow(private_interfaces)] // main's types may hold other packages' types
 
 mod rt;
 

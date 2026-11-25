@@ -31,6 +31,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- **Shared cells**: a pointer whose type another package of the program
+  declares (`var head *list.Node; head = list.Push(head, 1)`) was always an
+  `rt::Ptr` cell, never owned, because only main's own types and functions
+  counted as the program's. They now do for every translated package, so
+  such a pointer is an `Option<Box<list_0::Node>>` like main's own. A
+  multi-package binary also allows `private_interfaces`, since main's
+  exported types may hold another package's, which are `pub(crate)`.
+  Golden `owned_packages`.
+
 - **Wrong output**: an expression that read a variable, or a place under
   one, and then called a function or method that changed it printed a
   different result from Go. `fmt.Println(p.V+inc(p))` printed the old `p.V`

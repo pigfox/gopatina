@@ -211,7 +211,7 @@ func (p *PtrPlan) lentTo(stack []ast.Node) *types.Var {
 			return nil // a method value keeps its receiver
 		}
 		fn := s.Obj().(*types.Func)
-		if r := fn.Signature().Recv(); fn.Pkg() == p.pkg.Types && isPointer(r.Type()) {
+		if r := fn.Signature().Recv(); p.pkg.Local[fn.Pkg()] && isPointer(r.Type()) {
 			return r
 		}
 	}
@@ -360,7 +360,7 @@ func (p *PtrPlan) programFunc(fun ast.Expr) *types.Func {
 		return nil
 	}
 	fn, ok := p.pkg.Info.Uses[id].(*types.Func)
-	if !ok || fn.Pkg() != p.pkg.Types {
+	if !ok || !p.pkg.Local[fn.Pkg()] {
 		return nil
 	}
 	return fn

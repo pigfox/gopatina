@@ -331,7 +331,7 @@ func (b *borrowFinder) callee(c *ast.CallExpr) *types.Func {
 	case *ast.SelectorExpr:
 		fn, _ = b.info.Uses[f.Sel].(*types.Func)
 	}
-	if fn == nil || fn.Pkg() != b.p.pkg.Types {
+	if fn == nil || !b.p.pkg.Local[fn.Pkg()] {
 		return nil
 	}
 	return fn
