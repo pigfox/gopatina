@@ -161,6 +161,8 @@ func (g *gen) libDecls(b *strings.Builder) {
 	// 0009): a Box of another package's type, not a shared cell.
 	fmt.Fprintf(b, "\n// Lst%d is program %d's list, newest first.\ntype Lst%d struct {\n\tV    int\n\tT    Tally%d\n\tSide Hold%d\n\tNext *Lst%d\n}\n", k, k, k, k, k, k)
 	fmt.Fprintf(b, "\n// Hold%d is a struct value holding a list: it owns its Box.\ntype Hold%d struct{ P *Lst%d }\n", k, k, k)
+	// KeepIn keeps the list it is given: &x given to it moves x into a Box.
+	fmt.Fprintf(b, "\nfunc KeepIn%d(h *Hold%d, l *Lst%d) { h.P = l }\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc Cons%d(v int, next *Lst%d) *Lst%d { return &Lst%d{V: v, Next: next} }\n", k, k, k, k)
 	fmt.Fprintf(b, "\nfunc (l *Lst%d) Sum() int {\n\tt := 0\n\tfor p := l; p != nil; p = p.Next {\n\t\tt += p.V\n\t}\n\treturn t\n}\n", k)
 	fmt.Fprintf(b, "\n// Tally%d counts; no pointer to one escapes, so &l.T is lent as &mut.\ntype Tally%d int\n", k, k)
@@ -501,6 +503,11 @@ func (g *gen) libUses() {
 	g.line("fmt.Println(ll.Side.P.V, ll.Next.Side.P == nil)")
 	g.line("lfd := ll.Find(ll.Next.V)")
 	g.line("fmt.Println(lfd.V, lfd == ll.Next, ll.Find(ll.V-1000000) == nil)")
+	g.line("lkv := lib.Lst%d{V: v0}", k)
+	g.line("lkv.V += v1")
+	g.line("lkh := &lib.Hold%d{}", k)
+	g.line("lib.KeepIn%d(lkh, &lkv)", k)
+	g.line("fmt.Println(lkh.P.V, lkh.P.Next == nil)")
 	g.line("lta, ltb := lib.Two%d(v1)", k)
 	g.line("*lta += *ltb")
 	g.line("lns := lib.NewInts%d(v2)", k)

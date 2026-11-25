@@ -91,6 +91,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- **Refused**: an `&x` given to a parameter that its callee keeps, with
+  nothing using `x` after (`keepIn(h, &tt)`), was refused as "&tt is copied
+  and kept, so its object has two owners" since second owners became
+  errors, though only one owner exists; before that it compiled through a
+  shared cell. It is now an escape box, `x` moved into a new Box at the
+  `&`: `keep_in(&mut h, Some(Box::new(tt)))`. Golden `owned_kept_addr`.
+
 - **Shared cells**: a pointer whose type another package of the program
   declares (`var head *list.Node; head = list.Push(head, 1)`) was always an
   `rt::Ptr` cell, never owned, because only main's own types and functions

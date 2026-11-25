@@ -51,6 +51,8 @@ func (p *PtrPlan) escapeBoxes() {
 			bad := map[*types.Var]bool{}     // not an escape box
 			lendBad := map[*types.Var]bool{} // an address not lent
 			lends := map[*types.Var][]*types.Var{}
+			argAddrs := map[*types.Var][]argAddr{} // the &x given to a call
+			argBad := map[*types.Var]bool{}        // used after its & given to a call
 			for _, fl := range fd.Type.Params.List {
 				for _, name := range fl.Names {
 					if v, ok := info.Defs[name].(*types.Var); ok && p.escapable(v) && (valueData(v.Type()) || isStruct(v.Type())) {
@@ -109,6 +111,10 @@ func (p *PtrPlan) escapeBoxes() {
 					}
 					if par := p.lentTo(stack[:len(stack)-1]); par != nil {
 						lends[v] = append(lends[v], par)
+						if _, arg := stack[len(stack)-3].(*ast.CallExpr); arg && !loopedOutside(stack, v) {
+							argAddrs[v] = append(argAddrs[v], argAddr{q, par}) // kept by the callee? decided with the ownership
+							return true
+						}
 						bad[v] = true
 						return true
 					}
@@ -147,6 +153,19 @@ func (p *PtrPlan) escapeBoxes() {
 				if as := addrs[u.v]; len(as) == 1 && u.pos > as[0].Pos() {
 					bad[u.v] = true // used after its value moved into the box
 				}
+				if as := argAddrs[u.v]; len(as) == 1 && u.pos > as[0].addr.Pos() {
+					argBad[u.v] = true
+				}
+			}
+			for v, as := range argAddrs {
+				// &x the only use of x's address, given to a call: an escape
+				// box if the callee keeps the parameter (keptArgs).
+				if !bad[v] && !argBad[v] && declared[v] && len(as) == 1 && len(addrs[v]) == 0 && len(lends[v]) == 1 {
+					p.argEscapes = append(p.argEscapes, argEscape{as[0].addr, v, as[0].param, inits[v]})
+				}
+			}
+			for v := range argAddrs {
+				bad[v] = true // not an escape box handed on (return, assignment, literal)
 			}
 			for v, as := range addrs {
 				if bad[v] || !declared[v] || len(as) != 1 {
@@ -435,6 +454,22 @@ func (p *PtrPlan) declInit(id *ast.Ident, stack []ast.Node) (*ast.CompositeLit, 
 		return lit, true
 	}
 	return lit, isLit
+}
+
+// argAddr is an &x given to a call, and the parameter it is given to.
+type argAddr struct {
+	addr  *ast.UnaryExpr
+	param *types.Var
+}
+
+// argEscape is an &x given to a call that nothing uses after: an escape
+// box (x moved into a new Box at the &) if the callee keeps the parameter,
+// which the ownership decides (keptArgs); else a lend.
+type argEscape struct {
+	addr  *ast.UnaryExpr
+	v     *types.Var
+	param *types.Var
+	init  *ast.CompositeLit
 }
 
 // handsOn reports whether the &x on top of stack hands the pointer on: it
