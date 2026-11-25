@@ -186,6 +186,31 @@ impl Shelf {
     }
 }
 
+/// Rack's pointers are cells: an interface holds one. Up and L can lead
+/// back to a Rack.
+#[derive(Clone, Default, PartialEq)]
+pub struct Rack {
+    pub n: i64,
+    pub up: rt::Ptr<Rack>,
+    pub seen: Vec<i64>,
+    pub l: rt::Ptr<Link>,
+}
+
+impl Rack {
+    /// Note clears the last value seen, written through the rack's cell.
+    pub fn note(r: &rt::Ptr<Rack>, v: i64) {
+        r.with_mut(|v_2| v_2.seen.push(v));
+        let idx = r.with(|v_2| v_2.seen.len() as i64) - 1;
+        r.with_mut(|v_2| v_2.seen[idx as usize] = 0);
+    }
+}
+
+/// Link leads back to a Rack.
+#[derive(Clone, Default, PartialEq)]
+pub struct Link {
+    pub r: rt::Ptr<Rack>,
+}
+
 /// show reads through the pointer.
 fn show(s: &rt::Ptr<Shelf>) -> i64 {
     s.with(|v| v.n)
@@ -222,6 +247,27 @@ fn main() {
     let call = sp.load().count();
     let call_2 = show(&shelf.clone());
     println!("{} {} {}", call, call_2, any_s.is_some());
+    let rack = rt::Ptr::new(Rack {
+        ..Default::default()
+    });
+    let any_r: Iface = boxed(Dyn::PtrRack(rack.clone()));
+    let val_7 = rt::Ptr::new(Rack {
+        n: 1,
+        ..Default::default()
+    });
+    rack.with_mut(|v| v.up = val_7);
+    let ptr = rack.with(|v| v.up.clone());
+    ptr.with_mut(|v| v.n = 3); // written through a pointer read through the cell
+    Rack::note(&rack.with(|v| v.up.clone()), 4);
+    println!(
+        "{} {} {} {} {} {}",
+        !rack.with(|v| v.up.is_nil()),
+        rack.with(|v| v.up.clone()).with(|v| v.up.is_nil()),
+        rack.with(|v| v.l.is_nil()),
+        rack.with(|v| v.up.clone()).with(|v| v.n),
+        rack.with(|v| v.up.clone()).with(|v| v.seen.len() as i64),
+        any_r.is_some(),
+    );
     let ta = new_tag("ab");
     let held: Iface = boxed(Dyn::PtrTag(new_tag("in an interface")));
     ta.with_mut(|v| *v += "c");
@@ -250,15 +296,15 @@ fn main() {
         v.items.push(8);
     });
     p.with_mut(|v| v.name += "ab");
-    let val_7 = format!(
+    let val_8 = format!(
         "{}{}",
         p.with(|v| v.name.clone()),
         p.with(|v| v.name.clone()),
     );
-    p.with_mut(|v| v.name = val_7);
+    p.with_mut(|v| v.name = val_8);
     p.with_mut(|v| v.n *= 3);
-    let val_8 = p.with(|v| v.n) / 4;
-    p.with_mut(|v| v.n -= val_8);
+    let val_9 = p.with(|v| v.n) / 4;
+    p.with_mut(|v| v.n -= val_9);
     println!(
         "{} {} {}",
         rt::Slice(&p.with(|v| v.items.clone())),
@@ -267,10 +313,10 @@ fn main() {
     );
     let pq = keep(5);
     pq.with_mut(|v| v.name = String::from("abab"));
-    let (val_9, val_10) = two();
-    p.with_mut(|v| v.n = val_9);
-    let val_11 = p.with(|v| v.n);
-    p.with_mut(|v| set(&mut v.items, val_11)); // p.n read inside the cell's borrow, before the lend
+    let (val_10, val_11) = two();
+    p.with_mut(|v| v.n = val_10);
+    let val_12 = p.with(|v| v.n);
+    p.with_mut(|v| set(&mut v.items, val_12)); // p.n read inside the cell's borrow, before the lend
     let call_7 = p.with(|v| v.r#in).get();
     let call_8 = p.with(|v| v.bag.sum());
     println!(
@@ -293,10 +339,10 @@ fn main() {
         std::ptr::eq(&x, &x),
     );
     let (a, b) = pair();
-    let val_12 = b.load();
-    let val_13 = a.load();
-    a.with_mut(|v| *v = val_12);
-    b.with_mut(|v| *v = val_13);
+    let val_13 = b.load();
+    let val_14 = a.load();
+    a.with_mut(|v| *v = val_13);
+    b.with_mut(|v| *v = val_14);
     println!("{} {}", a.load(), b.load());
     let mut c = Box::new(Counter {
         ..Default::default()
@@ -332,6 +378,7 @@ fn main() {
 pub enum Dyn {
     PtrTag(rt::Ptr<String>),
     PtrShelf(rt::Ptr<Shelf>),
+    PtrRack(rt::Ptr<Rack>),
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
@@ -350,6 +397,7 @@ impl PartialEq for Dyn {
         match (self, other) {
             (Dyn::PtrTag(a), Dyn::PtrTag(b)) => a == b,
             (Dyn::PtrShelf(a), Dyn::PtrShelf(b)) => a == b,
+            (Dyn::PtrRack(a), Dyn::PtrRack(b)) => a == b,
             _ => false,
         }
     }
@@ -361,6 +409,7 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
         None => "<nil>",
         Some(Dyn::PtrTag(_)) => "*main.Tag",
         Some(Dyn::PtrShelf(_)) => "*main.Shelf",
+        Some(Dyn::PtrRack(_)) => "*main.Rack",
     }
 }
 
@@ -375,6 +424,7 @@ pub fn iface_show(x: &Iface) -> String {
         None => String::from("<nil>"),
         Some(Dyn::PtrTag(v)) => unreachable!("fmt prints the address of a *main.Tag"),
         Some(Dyn::PtrShelf(v)) => unreachable!("fmt prints the address of a *main.Shelf"),
+        Some(Dyn::PtrRack(v)) => unreachable!("fmt prints the address of a *main.Rack"),
     }
 }
 

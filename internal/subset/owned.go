@@ -259,6 +259,9 @@ func (o *ownership) run() {
 			if plainData(f.Type()) {
 				continue // data the box owns: a Vec<i64>, a struct of numbers (RFC 0017)
 			}
+			if o.ownerStruct(f.Type()) {
+				continue // a struct value owning its pointers, as Rust's fields own Boxes (RFC 0017)
+			}
 			o.share(h, f.Pos(), fmt.Sprintf("its field %s is of type %s", f.Name(), types.TypeString(f.Type(), types.RelativeTo(o.p.pkg.Types))))
 			break
 		}
