@@ -200,3 +200,150 @@ func main() {
 		t.Error("a function literal returning a field of its pointer: *Node owned")
 	}
 }
+
+// TestWalkers checks the functions that walk from their input to the
+// place they return (returns.go): the walker is only ever given the
+// input, a field of itself or nil, and only read, compared and returned.
+func TestWalkers(t *testing.T) {
+	const src = `package main
+
+import "fmt"
+
+type Node struct {
+	V    int
+	Next *Node
+	Kids []*Node
+}
+
+func mk() *Node { return &Node{V: 1, Next: &Node{V: 2}} }
+
+func find(head *Node, v int) *Node {
+	for p := head; p != nil; p = p.Next {
+		if (p).V == v && p.Kids == nil {
+			return p
+		}
+	}
+	return nil
+}
+
+func last(head *Node) *Node {
+	p := head
+	for p.Next != nil {
+		p = p.Next
+	}
+	return p
+}
+
+func lit(head *Node) *Node {
+	p := head
+	f := func() int { return p.V }
+	_ = f
+	return p
+}
+
+func two(head *Node) *Node {
+	p, q := head, head
+	_ = q
+	return p
+}
+
+func call(head *Node) *Node {
+	p, q := split(head)
+	_ = q
+	return p
+}
+
+func split(n *Node) (*Node, *Node) { return n, n }
+
+func other(head *Node) *Node {
+	p := head
+	p = mk()
+	return p
+}
+
+func deref(head **Node) *Node {
+	p := *head
+	return p
+}
+
+func byVar(head *Node) *Node {
+	var p = head
+	return p
+}
+
+func written(head *Node) *Node {
+	p := head
+	p.V = 3
+	return p
+}
+
+func deep(head *Node) *Node {
+	p := head
+	p.Next.V = 3
+	return p
+}
+
+func bumped(head *Node) *Node {
+	p := head
+	p.V++
+	return p
+}
+
+func addr(head *Node) *Node {
+	p := head
+	q := &p.V
+	_ = q
+	return p
+}
+
+func neg(head *Node) *Node {
+	p := head
+	_ = -p.V
+	return p
+}
+
+func method(head *Node) *Node {
+	p := head
+	p.touch()
+	return p
+}
+
+func (n *Node) touch() {}
+
+func lent(head *Node) *Node {
+	p := head
+	fmt.Println(p)
+	return p
+}
+
+func main() {
+	n := mk()
+	fmt.Println(find(n, 2).V, last(n).V, lit(n).V, two(n).V, call(n).V, other(n).V)
+	fmt.Println(byVar(n).V, written(n).V, deep(n).V, bumped(n).V, addr(n).V, neg(n).V, method(n).V, lent(n).V)
+	d := mk()
+	fmt.Println(deref(&d).V)
+}
+`
+	pkg, err := load.Source("/p", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := Ptrs(pkg)
+	want := map[string]bool{"find": true, "last": true, "neg": true}
+	for _, name := range []string{"find", "last", "lit", "two", "call", "other", "deref", "byVar", "written", "deep", "bumped", "addr", "neg", "method", "lent"} {
+		fn := pkg.Types.Scope().Lookup(name).(*types.Func)
+		if got := p.retBorrow[fn] != nil; got != want[name] {
+			t.Errorf("%s lends its input back = %v, want %v", name, got, want[name])
+		}
+	}
+	walked := 0
+	for v := range p.walked {
+		walked++
+		if v.Name() != "p" {
+			t.Errorf("walker %s", v.Name())
+		}
+	}
+	if walked != 3 {
+		t.Errorf("%d walkers, want 3", walked)
+	}
+}

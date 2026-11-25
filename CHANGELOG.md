@@ -23,6 +23,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- A function may walk from its input to the node it returns (RFC 0017):
+  `for p := head; p != nil; p = p.Next { if p.V == v { return p } }` lends
+  `head` back, `fn find(head: Option<&Node>, v: i64) -> Option<&Node>`.
+  Until now the walk kept the type a shared cell. Golden
+  `owned_walked_borrow`.
+
 - A function that lends back a variable's address makes a local borrow
   of the variable (RFC 0017): `keepC := hold(&c)` is
   `let keep_c = hold(Some(&mut c))`, as `p := f(x)` was for a pointer
