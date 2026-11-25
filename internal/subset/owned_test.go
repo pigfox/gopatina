@@ -371,3 +371,37 @@ func main() {
 		t.Errorf("*Node: %q, %v", why, ok)
 	}
 }
+
+// TestSliceReadThrough checks that len(*p) and (*p)[i] of a
+// slice of data only read the box's Vec: the slice pointer stays owned.
+// (A copy of the slice out of the box, q := *p, is refused by the borrow
+// checker: it would not share the elements as Go's does.)
+func TestSliceReadThrough(t *testing.T) {
+	const src = `package main
+
+import "fmt"
+
+type Ints []int
+
+func mk() *Ints {
+	ns := Ints{1, 2}
+	return &ns
+}
+
+func main() {
+	p := mk()
+	(*p)[0] = 5
+	fmt.Println(len(*p), (*p)[1], len(*mk()))
+}
+`
+	pkg, err := load.Source("/p", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := Ptrs(pkg)
+	ints := types.NewPointer(pkg.Types.Scope().Lookup("Ints").Type())
+	if !p.Owned(ints) {
+		_, why, _ := p.SharedReason(ints)
+		t.Errorf("*Ints shared: %s", why)
+	}
+}

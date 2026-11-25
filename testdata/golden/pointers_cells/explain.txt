@@ -1,27 +1,33 @@
 ./main.go:9:7: receiver i is an exclusive borrow: Inc changes it, and the caller sees the change
-./main.go:16:6: pointers of type *T are shared: a copy of its value shares its elements (line 151) (RFC 0016)
+./main.go:16:6: pointers of type *T are shared: a copy of its value shares its elements (line 189) (RFC 0016)
 ./main.go:28:7: receiver b is a shared borrow: Sum only reads it
-./main.go:33:7: receiver t is a shared borrow: Total only reads it
-./main.go:35:7: receiver t is an exclusive borrow: Zero changes it, and the caller sees the change
-./main.go:37:10: parameter s is a shared borrow: sum only reads it
-./main.go:45:10: parameter s is an exclusive borrow: set changes it, and the caller sees the change
-./main.go:47:10: parameter x is an exclusive borrow: inc changes it, and the caller sees the change
-./main.go:58:6: pointers of type *Counter are never shared: each has one owner (RFC 0016)
-./main.go:60:11: parameter c is an exclusive borrow: hold changes it, and the caller sees the change
-./main.go:62:7: receiver c is an exclusive borrow: Hit changes it, and the caller sees the change
-./main.go:71:7: receiver t is a shared borrow: Len only reads it
-./main.go:74:7: receiver t is a shared borrow: Up only reads it
-./main.go:76:13: parameter s is a shared borrow: newTag only reads it
-./main.go:82:12: parameter s is a shared borrow: twice only reads it
-./main.go:85:6: pointers of type *Shelf are shared: its address is kept while the variable is still used (line 130) (RFC 0016)
-./main.go:91:7: receiver s is a shared borrow: Bump only reads it
-./main.go:94:7: receiver s is owned: Keep keeps it
-./main.go:98:6: pointers of type *Rack are shared: an interface value holds it (line 137) (RFC 0016)
-./main.go:100:2: Rack.Up can point back to a Rack: a cycle through it is not reclaimed (RFC 0013)
-./main.go:102:2: Rack.L can point back to a Rack: a cycle through it is not reclaimed (RFC 0013)
-./main.go:106:6: pointers of type *Link are shared: a field of a shared type holds it (line 102) (RFC 0016)
-./main.go:106:19: Link.R can point back to a Link: a cycle through it is not reclaimed (RFC 0013)
-./main.go:109:7: receiver r is a shared borrow: Note only reads it
-./main.go:115:11: parameter s is a shared borrow: show only reads it
-./main.go:118:11: parameter s is a shared borrow: both only reads it
-./main.go:137:17: copied rack into anyR: rack is used again on line 138; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
+./main.go:42:14: parameter w is an exclusive borrow: setWord changes it, and the caller sees the change
+./main.go:50:7: receiver t is a shared borrow: Total only reads it
+./main.go:52:7: receiver t is an exclusive borrow: Zero changes it, and the caller sees the change
+./main.go:54:10: parameter s is a shared borrow: sum only reads it
+./main.go:62:10: parameter s is an exclusive borrow: set changes it, and the caller sees the change
+./main.go:64:10: parameter x is an exclusive borrow: inc changes it, and the caller sees the change
+./main.go:72:10: moved a into a new pointer: a is not used afterwards
+./main.go:72:14: moved b into a new pointer: b is not used afterwards
+./main.go:75:6: pointers of type *Counter are never shared: each has one owner (RFC 0016)
+./main.go:77:11: parameter c is an exclusive borrow: hold changes it, and the caller sees the change
+./main.go:79:7: receiver c is an exclusive borrow: Hit changes it, and the caller sees the change
+./main.go:88:7: receiver t is a shared borrow: Len only reads it
+./main.go:91:7: receiver t is a shared borrow: Up only reads it
+./main.go:93:13: parameter s is a shared borrow: newTag only reads it
+./main.go:99:12: parameter s is a shared borrow: twice only reads it
+./main.go:102:6: pointers of type *Shelf are shared: its address is kept while the variable is still used (line 147) (RFC 0016)
+./main.go:108:7: receiver s is a shared borrow: Bump only reads it
+./main.go:111:7: receiver s is owned: Keep keeps it
+./main.go:115:6: pointers of type *Rack are shared: an interface value holds it (line 175) (RFC 0016)
+./main.go:117:2: Rack.Up can point back to a Rack: a cycle through it is not reclaimed (RFC 0013)
+./main.go:119:2: Rack.L can point back to a Rack: a cycle through it is not reclaimed (RFC 0013)
+./main.go:123:6: pointers of type *Link are shared: a field of a shared type holds it (line 119) (RFC 0016)
+./main.go:123:19: Link.R can point back to a Link: a cycle through it is not reclaimed (RFC 0013)
+./main.go:126:7: receiver r is a shared borrow: Note only reads it
+./main.go:132:11: parameter s is a shared borrow: show only reads it
+./main.go:135:11: parameter s is a shared borrow: both only reads it
+./main.go:167:17: copied cp into anyC: cp is used again on line 168; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
+./main.go:175:17: copied rack into anyR: rack is used again on line 176; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
+./main.go:207:11: copied *b into *a: b is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:207:15: copied *a into *b: a is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning

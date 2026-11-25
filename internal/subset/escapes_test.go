@@ -36,7 +36,10 @@ func TestEscapeBoxes(t *testing.T) {
 		{"lent to a call", "func use(n *Node) int { return n.V }\n\nfunc mk() int {\n\tn := Node{V: 1}\n\treturn use(&n)\n}", 0, false},
 		{"a field's address", "func mk() *int {\n\tn := Node{V: 1}\n\treturn &n.V\n}", 0, false},
 		{"declared from another value", "func mk() *Node {\n\tn := *bottomUp(1)\n\treturn &n\n}", 0, false},
-		{"one of several names", "func mk() *Node {\n\tvar n, m Node\n\t_ = m.V\n\treturn &n\n}", 0, false},
+		{"one of several names", "func mk() *Node {\n\tvar n, m Node\n\t_ = m.V\n\treturn &n\n}", 1, false},
+		{"one of several values", "func mk() *Node {\n\tn, m := Node{V: 1}, Node{V: 2}\n\t_ = m.V\n\treturn &n\n}", 1, false},
+		{"one of a call's results, by var", "func two() (Node, Node) { return Node{}, Node{} }\n\nfunc mk() *Node {\n\tvar n, m Node = two()\n\t_ = m.V\n\treturn &n\n}", 0, false},
+		{"one of a call's results", "func two() (Node, Node) { return Node{}, Node{} }\n\nfunc mk() *Node {\n\tn, m := two()\n\t_ = m.V\n\treturn &n\n}", 0, false},
 		{"a parameter", "func mk(n Node) *Node {\n\treturn &n\n}", 1, true},
 		{"shared for another reason", "func mk() *Node {\n\tn := Node{V: 1}\n\treturn &n\n}\n\nvar kept *Node\n\nfunc keep(a *Node) { kept = a }", 1, false},
 	} {

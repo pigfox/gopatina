@@ -20,6 +20,6 @@
 ./main.go:105:27: parameter name is a shared borrow: addN only reads it
 ./main.go:107:12: parameter t is an exclusive borrow: split changes it, and the caller sees the change
 ./main.go:111:14: parameter t is an exclusive borrow: pairSum changes it, and the caller sees the change
-./main.go:118:16: parameter p is owned: keepSlice keeps it
-./main.go:120:16: parameter p is owned: keepNames keeps it
+./main.go:118:16: parameter p is a shared borrow: keepSlice only reads it
+./main.go:120:16: parameter p is a shared borrow: keepNames only reads it
 ./main.go:130:10: parameter s is an exclusive borrow: set changes it, and the caller sees the change

@@ -1164,9 +1164,21 @@ func (o *ownership) readOrLend(par, child ast.Node, stack []ast.Node) bool {
 	case *ast.StarExpr:
 		// *p of value data: a copy out of the box, or the box's value
 		// replaced, either sharing nothing (RFC 0017). Not &*p.
-		above, _, _ := parent(stack)
+		above, star, _ := parent(stack)
 		if u, ok := above.(*ast.UnaryExpr); ok && u.Op == token.AND {
 			return false
+		}
+		switch q := above.(type) {
+		case *ast.IndexExpr:
+			if q.X == star && plainData(o.info.TypeOf(p)) {
+				return true // (*p)[i] of a slice of data: an element of the box's Vec
+			}
+		case *ast.CallExpr:
+			if id, ok := ast.Unparen(q.Fun).(*ast.Ident); ok && len(q.Args) == 1 && plainData(o.info.TypeOf(p)) {
+				if b, ok := o.info.Uses[id].(*types.Builtin); ok && b.Name() == "len" {
+					return true // len(*p): a read of the box's Vec
+				}
+			}
 		}
 		return valueData(o.info.TypeOf(p))
 	case *ast.SelectorExpr:

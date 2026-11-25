@@ -398,6 +398,15 @@ func (g *gen) ref(e ast.Expr) node {
 			return text(g.varName(g.localVar(id)))
 		}
 	}
+	if st, ok := e.(*ast.StarExpr); ok && g.ownPtr(g.typeOf(st.X)) && g.ptrRep(st.X) == repOptBox {
+		// *p borrowed, for an owner that may be nil: the borrow its
+		// Option lends, not &*, which clippy's borrow_deref_ref refuses.
+		m := ".as_deref"
+		if g.unboxed(g.typeOf(st.X)) {
+			m = ".as_ref"
+		}
+		return &call{recv: &call{recv: g.rawPtr(st.X), head: m, open: "(", close: ")"}, head: ".unwrap", open: "(", close: ")"}
+	}
 	if g.isPlace(e) {
 		return atom{"&" + paren(g.place(e), precUnary), precUnary}
 	}
