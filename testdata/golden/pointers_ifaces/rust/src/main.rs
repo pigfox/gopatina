@@ -123,7 +123,7 @@ fn main() {
     }
     {
         let dyn_x = &shapes[0];
-        match dyn_x.as_deref() {
+        match dyn_x.as_ref() {
             Some(Dyn::PtrSq(v)) => {
                 let v_2 = v.clone();
                 println!("sq {}", v_2.with(|v| v.s));
@@ -160,6 +160,7 @@ fn main() {
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
+#[derive(Clone)]
 pub enum Dyn {
     PtrNotFound(rt::Ptr<NotFound>),
     PtrRect(rt::Ptr<Rect>),
@@ -167,12 +168,13 @@ pub enum Dyn {
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
-/// value cannot be changed through the interface, so copies share it.
-pub type Iface = Option<std::rc::Rc<Dyn>>;
+/// value cannot be changed through the interface, so a copy is a clone, as
+/// Go copies it.
+pub type Iface = Option<Dyn>;
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(std::rc::Rc::new(d))
+    Some(d)
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -200,12 +202,12 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
 
 /// %T of an interface value.
 pub fn iface_type(x: &Iface) -> &'static str {
-    iface_name(x.as_deref())
+    iface_name(x.as_ref())
 }
 
 /// %v of an interface value.
 pub fn iface_show(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         None => String::from("<nil>"),
         Some(Dyn::PtrNotFound(v)) => rt::show_ptr(v, NotFound::error),
         Some(Dyn::PtrRect(v)) => unreachable!("fmt prints the address of a *main.Rect"),
@@ -226,7 +228,7 @@ pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
 
 /// x.(I) to an interface type I: x, or Go's panic.
 pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
-    match x.as_deref() {
+    match x.as_ref() {
         None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
         Some(d) => {
             if let Some(m) = missing(d) {
@@ -242,7 +244,7 @@ pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &
 
 /// v, ok := x.(I) to an interface type I.
 pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
@@ -250,7 +252,7 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
 
 /// v, ok := x.(*main.Sq).
 pub fn iface_try_ptr_sq(x: &Iface) -> (rt::Ptr<Sq>, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::PtrSq(v)) => (v.clone(), true),
         _ => (rt::Ptr::nil(), false),
     }
@@ -260,7 +262,7 @@ pub fn iface_try_ptr_sq(x: &Iface) -> (rt::Ptr<Sq>, bool) {
 pub fn iface_as_ptr_not_found(err: &Iface, target: &mut rt::Ptr<NotFound>) -> bool {
     let mut err = err.clone();
     loop {
-        if let Some(Dyn::PtrNotFound(v)) = err.as_deref() {
+        if let Some(Dyn::PtrNotFound(v)) = err.as_ref() {
             *target = v.clone();
             return true;
         }
@@ -274,14 +276,14 @@ pub fn iface_as_ptr_not_found(err: &Iface, target: &mut rt::Ptr<NotFound>) -> bo
 /// Unwrap() error of the dynamic value: the error it wraps, or None if it has
 /// no such method.
 pub fn iface_unwrap(x: &Iface) -> Option<Iface> {
-    match x.as_deref() {
+    match x.as_ref() {
         _ => None,
     }
 }
 
 /// Calls Grow on an interface value's dynamic value.
 pub fn dyn_grow(x: &Iface, a0: i64) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::PtrRect(v)) => Rect::grow(v, a0),
         Some(Dyn::PtrSq(v)) => Sq::grow(v, a0),
         None => panic!(
@@ -293,7 +295,7 @@ pub fn dyn_grow(x: &Iface, a0: i64) {
 
 /// Calls Area on an interface value's dynamic value.
 pub fn dyn_area(x: &Iface) -> i64 {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::PtrRect(v)) => Rect::area(v),
         Some(Dyn::PtrSq(v)) => Sq::area(v),
         None => panic!(

@@ -1,0 +1,16 @@
+./main.go:20:7: receiver r is a shared borrow: Area only reads it
+./main.go:28:7: receiver l is a shared borrow: Area only reads it
+./main.go:30:7: receiver l is a shared borrow: String only reads it
+./main.go:32:14: parameter s is a shared borrow: measure only reads it
+./main.go:35:11: parameter s is a shared borrow: same only reads it
+./main.go:40:11: parameter all is owned: keep keeps it
+./main.go:40:24: parameter s is owned: keep keeps it
+./main.go:47:7: lent a to b: b only reads it, and a does not change while b is in use, so no copy is made
+./main.go:50:8: moved a into b2: a is not used afterwards
+./main.go:54:7: copied a into c: a is used again on line 55; a copy of an interface value holds the same value, which no copy can change, so a copy keeps the program's meaning
+./main.go:60:7: copied a into d: a is used again on line 63; a copy of an interface value holds the same value, which no copy can change, so a copy keeps the program's meaning
+./main.go:62:13: moved all into keep: all is not used afterwards
+./main.go:62:18: moved d into keep: d is not used afterwards
+./main.go:65:7: copied a into e: a is used again on line 67; a copy of an interface value holds the same value, which no copy can change, so a copy keeps the program's meaning
+./main.go:69:7: copied a into f: a is used again on line 71; a copy of an interface value holds the same value, which no copy can change, so a copy keeps the program's meaning
+./main.go:74:7: lent l to g: g only reads it, and l does not change while g is in use, so no copy is made

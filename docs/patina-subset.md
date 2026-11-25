@@ -247,9 +247,12 @@ RFC 0001 are planned.
 
 [RFC 0012](rfcs/0012-interfaces.md). GoPatina compiles the whole program,
 so it knows every type ever converted to an interface: an interface value
-is one enum of those types, `Dyn`, behind a reference count
-(`Iface = Option<Rc<Dyn>>`, `None` for a nil interface), and a method call
-through an interface is a `match` on it.
+is one enum of those types, `Dyn`, held by value
+(`Iface = Option<Dyn>`, `None` for a nil interface, or `Option<Box<Dyn>>`
+where a dynamic value can hold an interface value), and a method call
+through an interface is a `match` on it. A copy of an interface value only
+read while its source does not change is a borrow of the source
+(`let b = &a;`); any other copy is a clone, as Go copies it.
 
 Supported: interface types (named, literal, embedded, `any`) whose methods
 take and return supported types; converting values of the program's own

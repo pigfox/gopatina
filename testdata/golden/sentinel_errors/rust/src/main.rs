@@ -109,6 +109,7 @@ fn init_vars() {
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
+#[derive(Clone)]
 pub enum Dyn {
     Int(i64),
     ErrorsErrorString(rt::Error),
@@ -116,12 +117,13 @@ pub enum Dyn {
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
-/// value cannot be changed through the interface, so copies share it.
-pub type Iface = Option<std::rc::Rc<Dyn>>;
+/// value cannot be changed through the interface, so a copy is a clone, as
+/// Go copies it.
+pub type Iface = Option<Box<Dyn>>; // boxed: a dynamic value can hold one
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(std::rc::Rc::new(d))
+    Some(Box::new(d))
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -130,8 +132,8 @@ impl PartialEq for Dyn {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Dyn::Int(a), Dyn::Int(b)) => a == b,
-            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => std::ptr::eq(a, b),
-            (Dyn::FmtWrapError(a), Dyn::FmtWrapError(b)) => std::ptr::eq(a, b),
+            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => a.id() == b.id(),
+            (Dyn::FmtWrapError(a), Dyn::FmtWrapError(b)) => a.id() == b.id(),
             _ => false,
         }
     }
@@ -197,15 +199,25 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
     }
 }
 
-/// Go's *fmt.wrapError: fmt.Errorf's value with one %w.
+/// Go's *fmt.wrapError: fmt.Errorf's value with one %w. Each one is a
+/// new pointer in Go; id stands for that identity.
+#[derive(Clone)]
 pub struct WrapError {
     msg: String,
     err: Iface,
+    id: u64,
+}
+
+impl WrapError {
+    fn id(&self) -> u64 {
+        self.id
+    }
 }
 
 /// fmt.Errorf with %w: the message, wrapping err.
 pub fn go_wrap(msg: String, err: Iface) -> Iface {
-    boxed(Dyn::FmtWrapError(WrapError { msg, err }))
+    let id = rt::error_id();
+    boxed(Dyn::FmtWrapError(WrapError { msg, err, id }))
 }
 
 /// %w of an error: its text, or %!w(<nil>).

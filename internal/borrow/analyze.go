@@ -56,6 +56,7 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		Counted:   map[*ast.ForStmt]bool{},
 		CopyFirst: map[ast.Expr]bool{},
 		RefElems:  a.refs,
+		Lent:      map[*types.Var]bool{},
 		params:    a.params,
 	}
 	var decls []*ast.FuncDecl

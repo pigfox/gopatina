@@ -3,26 +3,7 @@
 # writes it, with neither (RFC 0017), so this list only shrinks:
 # TestNoSharedCells fails if a crate not listed here has one, and if a
 # listed crate no longer does. Each line is a crate's directory and why.
-testdata/golden-lib/inventory	pointer cells (RFC 0013); interface values
-testdata/golden-lib/pricing	interface values
-testdata/golden/corners	interface values
-testdata/golden/corners2	interface values
-testdata/golden/errchain	interface values
-testdata/golden/error_init_propagate	interface values
-testdata/golden/errors	interface values
-testdata/golden/errors_api	interface values
-testdata/golden/errors_packages	interface values
-testdata/golden/errors_values	interface values
-testdata/golden/iface_packages	interface values
-testdata/golden/iface_panic_assert	interface values
-testdata/golden/iface_panic_missing	interface values
-testdata/golden/iface_panic_nil_assert	interface values
-testdata/golden/iface_panic_nil_call	interface values
-testdata/golden/iface_panic_uncomparable	interface values
-testdata/golden/interfaces	interface values
-testdata/golden/interfaces_more	interface values
 testdata/golden/package_vars	package variable in a RefCell
 testdata/golden/pointers_cells	pointer cells (RFC 0013)
 testdata/golden/pointers_ifaces	pointer cells (RFC 0013); interface values
 testdata/golden/pointers_methods	pointer cells (RFC 0013); interface values
-testdata/golden/sentinel_errors	interface values

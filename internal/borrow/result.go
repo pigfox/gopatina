@@ -63,6 +63,9 @@ const (
 	// Clone: the value is copied, because the old one is still needed and
 	// a copy keeps Go's meaning.
 	Clone
+	// Lend: a copy of an interface value only read while its source is
+	// unchanged is a borrow of the source instead (let b = &a): no clone.
+	Lend
 )
 
 // A Pointer describes a local variable of pointer type.
@@ -124,6 +127,10 @@ type Result struct {
 	// statement reads after: read into a local before the statement, so the
 	// borrow ends first (RFC 0017).
 	CopyFirst map[ast.Expr]bool
+	// Lent holds the local variables declared as a copy of an interface
+	// value (b := a) that only read it while a does not change: borrows
+	// of a, with no clone.
+	Lent map[*types.Var]bool
 	// Counted holds 3-clause for loops written as a Rust range,
 	// for i in a..b: i is not changed in the body, and b does not change.
 	Counted map[*ast.ForStmt]bool

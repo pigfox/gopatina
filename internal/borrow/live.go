@@ -56,6 +56,11 @@ func equal(s, t set) bool {
 type live struct {
 	a  *analyzer
 	fn *Func
+	// lends are the interface copies b := a that may be borrows of a, and
+	// lendBad those that cannot: a changes while b is in use, or b is
+	// changed or handed on.
+	lends   map[*types.Var]lendCand
+	lendBad map[*types.Var]bool
 	// Targets of break and continue, innermost last. A switch has no
 	// continue target (nil).
 	brk, cont []set
@@ -71,8 +76,12 @@ func (a *analyzer) liveness(fn *Func) {
 		}
 		return true
 	})
-	l := &live{a: a, fn: fn}
+	l := &live{a: a, fn: fn, lends: a.lendCands(fn), lendBad: map[*types.Var]bool{}}
+	for b := range l.lends {
+		delete(a.res.Lent, b) // decided again on each pass (decideLends)
+	}
 	l.stmts(fn.Decl.Body.List, set{})
+	l.decideLends()
 	for _, p := range a.allParams(fn) {
 		a.paramFix(fn, p)
 	}
@@ -439,6 +448,7 @@ func (l *live) apply(evs []event, out set) set {
 	lv := out.copy()
 	for i := len(evs) - 1; i >= 0; i-- {
 		ev := evs[i]
+		l.lendConflict(ev, lv)
 		l.conflicts(ev, lv)
 		l.mutability(ev)
 		if ev.kind == evDef {
@@ -677,4 +687,95 @@ func (l *live) sameStatement(ev event, plan *subset.PtrPlan) {
 		}
 		return true
 	})
+}
+
+// Interface copies lent (RFC 0012 with RFC 0017). An interface value
+// cannot be changed through itself, so Go's copy b := a and a borrow of a
+// read the same value while a does not change. A copy that is only read,
+// and whose source does not change while it is in use, is lent as
+// let b = &a, with no clone; any other stays a clone.
+
+// lendCand is an interface copy b := a that may be lent: its source a and
+// the expression copied.
+type lendCand struct {
+	src *types.Var
+	rhs ast.Expr
+}
+
+// lendCands returns fn's interface copies that may be lent: b := a, both
+// local variables or parameters of an interface type, b declared only
+// there, never assigned or its address taken (the subset has no function
+// literals that could capture it).
+func (a *analyzer) lendCands(fn *Func) map[*types.Var]lendCand {
+	info := a.pkg.Info
+	cands := map[*types.Var]lendCand{}
+	assigned := map[*types.Var]bool{}
+	ast.Inspect(fn.Decl.Body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.UnaryExpr:
+			if id, ok := ast.Unparen(x.X).(*ast.Ident); ok && x.Op == token.AND {
+				if v, ok := info.Uses[id].(*types.Var); ok {
+					assigned[v] = true
+				}
+			}
+		case *ast.AssignStmt:
+			if x.Tok == token.DEFINE && len(x.Lhs) == 1 && len(x.Rhs) == 1 {
+				lhs, ok1 := x.Lhs[0].(*ast.Ident)
+				rhs, ok2 := ast.Unparen(x.Rhs[0]).(*ast.Ident)
+				if ok1 && ok2 {
+					b, _ := info.Defs[lhs].(*types.Var)
+					src, _ := info.Uses[rhs].(*types.Var)
+					if b != nil && src != nil && subset.IsIface(b.Type()) && types.Identical(b.Type(), src.Type()) && src.Parent() != src.Pkg().Scope() {
+						cands[b] = lendCand{src: src, rhs: x.Rhs[0]}
+						return true
+					}
+				}
+			}
+			for _, l := range x.Lhs {
+				if id, ok := ast.Unparen(l).(*ast.Ident); ok {
+					if v, ok := info.Uses[id].(*types.Var); ok {
+						assigned[v] = true
+					}
+				}
+			}
+		}
+		return true
+	})
+	for b := range cands {
+		if assigned[b] {
+			delete(cands, b)
+		}
+	}
+	return cands
+}
+
+// lendConflict marks the interface copies that cannot be lent at ev: a
+// change, move or new value of a copy's source while the copy is in use,
+// or a change or hand-off of the copy itself.
+func (l *live) lendConflict(ev event, lv set) {
+	if ev.kind != evMut && ev.kind != evConsume && ev.kind != evDef {
+		return
+	}
+	if _, cand := l.lends[ev.v]; cand && ev.kind != evDef {
+		l.lendBad[ev.v] = true // the copy is changed or handed on
+	}
+	for b, c := range l.lends {
+		if _, inUse := lv[b]; inUse && c.src == ev.v {
+			l.lendBad[b] = true
+		}
+	}
+}
+
+// decideLends makes each interface copy that would be cloned, and can be
+// lent, a borrow of its source.
+func (l *live) decideLends() {
+	a := l.a
+	for b, c := range l.lends {
+		if l.lendBad[b] || a.res.Actions[c.rhs] != Clone {
+			continue // moved (not used after), or changed, kept or outlived
+		}
+		a.res.Actions[c.rhs] = Lend
+		a.res.Lent[b] = true
+		a.fix(c.rhs.Pos(), fmt.Sprintf("lent %s to %s: %s only reads it, and %s does not change while %s is in use, so no copy is made", c.src.Name(), b.Name(), b.Name(), c.src.Name(), b.Name()))
+	}
 }

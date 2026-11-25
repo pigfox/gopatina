@@ -661,6 +661,10 @@ func (g *gen) errorUses() {
 	g.line("ev, eerr := F%d(%s)", k, v())
 	g.line("fmt.Println(ev, eerr, eerr == nil)")
 	g.line("_, eerr2 := F%d(%s)", k, v())
+	// A copy of an interface value only read while its source does not
+	// change: lent, let ecp = &eerr (RFC 0012 with RFC 0017).
+	g.line("ecp := eerr2")
+	g.line("fmt.Println(ecp == eerr2, ecp == nil, ecp)")
 	g.line("eerrs := []error{eerr, eerr2, nil, eerr}")
 	g.line("for _, ee := range eerrs {")
 	g.depth++

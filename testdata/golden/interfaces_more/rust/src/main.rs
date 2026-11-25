@@ -144,7 +144,7 @@ fn pick(i: i64) -> Iface {
 fn kind(x: &Iface) -> String {
     {
         let dyn_x = x;
-        match dyn_x.as_deref() {
+        match dyn_x.as_ref() {
             None => {
                 let v = dyn_x.clone();
                 return String::from("nil");
@@ -180,7 +180,7 @@ fn kind(x: &Iface) -> String {
 fn sort(x: &Iface) -> String {
     {
         let dyn_x = x;
-        match dyn_x.as_deref() {
+        match dyn_x.as_ref() {
             Some(d) if iface_missing_sizer(d).is_none() => {
                 return String::from("sizer or bool");
             }
@@ -327,6 +327,7 @@ fn main() {
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
+#[derive(Clone)]
 pub enum Dyn {
     Box(Box2),
     Level(i64),
@@ -348,12 +349,13 @@ pub enum Dyn {
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
-/// value cannot be changed through the interface, so copies share it.
-pub type Iface = Option<std::rc::Rc<Dyn>>;
+/// value cannot be changed through the interface, so a copy is a clone, as
+/// Go copies it.
+pub type Iface = Option<Dyn>;
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(std::rc::Rc::new(d))
+    Some(d)
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -413,12 +415,12 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
 
 /// %T of an interface value.
 pub fn iface_type(x: &Iface) -> &'static str {
-    iface_name(x.as_deref())
+    iface_name(x.as_ref())
 }
 
 /// %v of an interface value.
 pub fn iface_show(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         None => String::from("<nil>"),
         Some(Dyn::Box(v)) => format!("{{{} {}}}", v.w, v.h),
         Some(Dyn::Level(v)) => level_string(*v),
@@ -453,7 +455,7 @@ pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
 
 /// x.(I) to an interface type I: x, or Go's panic.
 pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
-    match x.as_deref() {
+    match x.as_ref() {
         None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
         Some(d) => {
             if let Some(m) = missing(d) {
@@ -469,7 +471,7 @@ pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &
 
 /// v, ok := x.(I) to an interface type I.
 pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
@@ -483,7 +485,7 @@ pub fn iface_slice<T>(v: &[T], show: impl Fn(&T) -> String) -> String {
 
 /// v, ok := x.(main.Box).
 pub fn iface_try_box(x: &Iface) -> (Box2, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Box(v)) => (*v, true),
         _ => (Box2::default(), false),
     }
@@ -491,7 +493,7 @@ pub fn iface_try_box(x: &Iface) -> (Box2, bool) {
 
 /// x.(float32): the dynamic value, or Go's panic.
 pub fn iface_get_float32(x: &Iface, iface: &str) -> f32 {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Float32(v)) => *v,
         d => iface_assert_fail(d, iface, "float32"),
     }
@@ -499,7 +501,7 @@ pub fn iface_get_float32(x: &Iface, iface: &str) -> f32 {
 
 /// x.(string): the dynamic value, or Go's panic.
 pub fn iface_get_string(x: &Iface, iface: &str) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::String(v)) => v.clone(),
         d => iface_assert_fail(d, iface, "string"),
     }
@@ -507,7 +509,7 @@ pub fn iface_get_string(x: &Iface, iface: &str) -> String {
 
 /// x.(main.Pair): the dynamic value, or Go's panic.
 pub fn iface_get_pair(x: &Iface, iface: &str) -> Pair {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Pair(v)) => v.clone(),
         d => iface_assert_fail(d, iface, "main.Pair"),
     }
@@ -515,7 +517,7 @@ pub fn iface_get_pair(x: &Iface, iface: &str) -> Pair {
 
 /// v, ok := x.(main.Outer).
 pub fn iface_try_outer(x: &Iface) -> (Outer, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Outer(v)) => (*v, true),
         _ => (Outer::default(), false),
     }
@@ -608,7 +610,7 @@ pub fn iface_missing_named(d: &Dyn) -> Option<&'static str> {
 
 /// Calls Scale on an interface value's dynamic value.
 pub fn dyn_scale(x: &Iface, a0: i64, a1: String) -> (i64, String) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Box(v)) => (*v).scale(a0, &a1),
         Some(Dyn::Level(v)) => level_scale(*v, a0, a1),
         None => panic!(
@@ -620,7 +622,7 @@ pub fn dyn_scale(x: &Iface, a0: i64, a1: String) -> (i64, String) {
 
 /// Calls Name on an interface value's dynamic value.
 pub fn dyn_name(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Box(v)) => (*v).name(),
         Some(Dyn::Level(v)) => level_name(*v),
         Some(Dyn::Pair(v)) => v.clone().name(),
@@ -635,7 +637,7 @@ pub fn dyn_name(x: &Iface) -> String {
 
 /// Calls Size on an interface value's dynamic value.
 pub fn dyn_size(x: &Iface) -> i64 {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Box(v)) => (*v).size(),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
@@ -646,7 +648,7 @@ pub fn dyn_size(x: &Iface) -> i64 {
 
 /// Calls Size on an interface value's dynamic value.
 pub fn dyn_size_2(x: &Iface, a0: i64) -> i64 {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Tag(v)) => v.size(a0),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"

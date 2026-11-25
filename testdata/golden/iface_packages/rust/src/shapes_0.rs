@@ -41,7 +41,7 @@ pub(crate) fn total(all: &[crate::Iface]) -> i64 {
     for s in all {
         {
             let dyn_x = s;
-            match dyn_x.as_deref() {
+            match dyn_x.as_ref() {
                 Some(crate::Dyn::ShapesRect(_)) => {
                     println!("a rect of {}", crate::dyn_area(s));
                 }
