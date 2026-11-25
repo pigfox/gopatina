@@ -460,8 +460,20 @@ temporary borrow, and may be compared with nil or with another pointer
 one, a `&mut` borrow, is not supported yet, and the error says so. Until
 interface values are owned, a type whose pointers an interface holds,
 directly or through fields, keeps its cells, which express these uses;
-so do types not owned for other reasons yet (a field address lent,
-`inc(&p.n)`; a struct value holding a pointer in a field).
+so do types not owned for other reasons yet (a struct value holding a
+pointer in a field).
+
+**Field addresses lent** ([RFC 0017](rfcs/0017-one-owner.md)). The
+address of a field of data inside an owned pointer's box, lent to a call
+that keeps nothing (`inc(&p.n)`, `(&p.in).Inc()`, `p.in.Inc()`), is
+Rust's `inc(&mut p.n)` and `p.r#in.inc()`; through a pointer that may be
+nil, `inc(&mut q.as_mut().unwrap().n)`. Rust unwraps such a pointer whole
+to lend its field, so another argument that reads through it is computed
+first, as Go evaluates it (`let arg = q.as_ref().unwrap().next...;`, a
+string's as a copy), and one that changes it is an error
+(`testdata/reject/owned_lend_through_nil`). The field's pointer type must
+not escape elsewhere in the program: an escaping `*int` makes every
+`&x.f` of type `*int` a pointer into a struct, not supported yet.
 
 **Kept parameters** ([RFC 0017](rfcs/0017-one-owner.md), step 8). A
 parameter that its function keeps (returns, moves into a variable, a

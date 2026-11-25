@@ -68,5 +68,6 @@ func main() {
 	(&p.in).Inc()
 	fill(&p.items)
 	e := *getE()
-	fmt.Println(p.items, p.in.n, p.bag.Sum(), e.n)
+	var held any = get() // an interface holds a *T: its pointers are cells (RFC 0013)
+	fmt.Println(p.items, p.in.n, p.bag.Sum(), e.n, held != nil)
 }

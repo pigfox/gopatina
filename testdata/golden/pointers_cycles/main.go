@@ -91,7 +91,7 @@ func main() {
 	o.In.Back.N = 3
 	o.In.Back.Note(4)
 	o.Peer = &Link{}
-	fmt.Println(o.In.Back.N, o.In.Back.In.Back == nil, o.In.Back == o, len(o.In.Back.Seen), o.Peer.O == nil)
+	fmt.Println(o.In.Back.N, o.In.Back.In.Back == nil, o.In.Back == o, len(o.In.Back.Seen), o.Peer.O == nil, o.Peer != nil)
 	w := Owner{Item: &Item{V: 4}}
 	s := Start{Head: &Chain{Next: &Chain{}}}
 	fmt.Println(w.Item.V, s.Head.Next.Next == nil)

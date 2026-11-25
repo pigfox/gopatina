@@ -8,12 +8,27 @@ type In struct{ n int }
 
 func (i *In) Inc() { i.n++ }
 
+// Get reads a copy.
+func (i In) Get() int { return i.n + 1 }
+
+// T's pointers are cells: Total and Zero take a copy of a T, which shares
+// its items with the T in the box.
 type T struct {
 	in    In
 	items []int
 	name  string
 	n     int
+	bag   Bag
 }
+
+// Bag holds a slice: a copy of one shares it.
+type Bag struct{ s []int }
+
+// Sum reads a copy.
+func (b Bag) Sum() int { return sum(b.s) }
+
+// two returns two ints.
+func two() (int, int) { return 6, 7 }
 
 func (t T) Total() int { return sum(t.items) + t.n }
 
@@ -31,7 +46,7 @@ func set(s []int, v int) { s[len(s)-1] = v }
 
 func inc(x *int) { *x++ }
 
-func keep(n int) *T { return &T{items: []int{1, 2, 3}, n: n} }
+func keep(n int) *T { return &T{items: []int{1, 2, 3}, n: n, bag: Bag{s: []int{n, n}}} }
 
 func addr(x float64) *float64 { return &x }
 
@@ -117,6 +132,11 @@ func main() {
 	p.n *= 3
 	p.n -= p.n / 4
 	fmt.Println(p.items, p.name, p.n)
+	pq := keep(5)
+	pq.name = "abab"
+	p.n, _ = two()
+	set(p.items, p.n) // p.n read inside the cell's borrow, before the lend
+	fmt.Println(p.name == pq.name, p.in.Get(), p.bag.Sum(), p.n, p.items)
 	x := addr(5)
 	y := addr(5)
 	*y += *x

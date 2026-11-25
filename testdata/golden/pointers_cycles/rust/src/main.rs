@@ -224,7 +224,7 @@ fn main() {
     });
     o.with_mut(|v| v.peer = val_2);
     println!(
-        "{} {} {} {} {}",
+        "{} {} {} {} {} {}",
         o.with(|v| v.r#in.back.clone()).with(|v| v.n),
         o.with(|v| v.r#in.back.clone())
             .with(|v| v.r#in.back.is_nil()),
@@ -232,6 +232,7 @@ fn main() {
         o.with(|v| v.r#in.back.clone())
             .with(|v| v.seen.len() as i64),
         o.with(|v| v.peer.clone()).with(|v| v.o.is_nil()),
+        !o.with(|v| v.peer.is_nil()),
     );
     let w = Owner {
         item: Some(Box::new(Item { v: 4 })),

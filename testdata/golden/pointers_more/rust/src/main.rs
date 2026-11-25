@@ -124,8 +124,8 @@ fn show(c: &Counter) -> String {
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Tree {
-    pub left: rt::Ptr<Tree>,
-    pub right: rt::Ptr<Tree>,
+    pub left: Option<Box<Tree>>,
+    pub right: Option<Box<Tree>>,
     pub key: i64,
     r#in: In,
     bag: Bag,
@@ -133,36 +133,51 @@ pub struct Tree {
     name: String,
 }
 
+/// Frees a chain one link at a time, so a long one cannot overflow
+/// the stack.
+impl Drop for Tree {
+    fn drop(&mut self) {
+        let mut links: Vec<Box<Tree>> = Vec::new();
+        links.extend(self.left.take());
+        links.extend(self.right.take());
+        while let Some(mut link) = links.pop() {
+            links.extend(link.left.take());
+            links.extend(link.right.take());
+        }
+    }
+}
+
 impl Tree {
     /// depth tests its fields for nil inside the cell, without copying them.
-    fn depth(t: &rt::Ptr<Tree>) -> i64 {
-        if t.with(|v| v.left.is_nil()) && t.with(|v| v.right.is_nil()) {
+    fn depth(&self) -> i64 {
+        if self.left.is_none() && self.right.is_none() {
             return 1;
         }
         let mut d: i64 = 0;
-        if !t.with(|v| v.left.is_nil()) {
-            d = Tree::depth(&t.with(|v| v.left.clone()));
+        if let Some(left) = self.left.as_deref() {
+            d = left.depth();
         }
         d + 1
     }
 }
 
-fn leaf(k: i64) -> rt::Ptr<Tree> {
-    rt::Ptr::new(Tree {
+fn leaf(k: i64) -> Box<Tree> {
+    Box::new(Tree {
         key: k,
         bag: Bag { s: vec![k, k] },
         items: vec![k],
         name: String::from("t"),
-        ..Default::default()
+        left: None,
+        right: None,
+        r#in: In::default(),
     })
 }
 
-fn push(t: rt::Ptr<Tree>, k: i64) -> rt::Ptr<Tree> {
-    if t.is_nil() {
-        return leaf(k);
+fn push(mut t: Option<Box<Tree>>, k: i64) -> Option<Box<Tree>> {
+    if t.is_none() {
+        return Some(leaf(k));
     }
-    let val = push(t.with(|v| v.left.clone()), k);
-    t.with_mut(|v| v.left = val);
+    t.as_mut().unwrap().left = push(t.as_mut().unwrap().left.take(), k);
     t
 }
 
@@ -176,22 +191,22 @@ fn boxed(b: Big) -> Box<Big> {
     Box::new(b)
 }
 
-fn pair_of(t: &rt::Ptr<Tree>) -> (i64, i64) {
-    (t.with(|v| v.key), t.with(|v| v.key) + 1)
+fn pair_of(t: &Tree) -> (i64, i64) {
+    (t.key, t.key + 1)
 }
 
 fn add_n(s: &mut [i64], n: i64, name: &str) {
     s[0] += n + name.len() as i64;
 }
 
-fn split(t: &rt::Ptr<Tree>) -> (i64, i64) {
-    let call = pair_sum(t);
-    (t.with(|v| v.key), call)
+fn split(mut t: Option<&mut Tree>) -> (i64, i64) {
+    let call = pair_sum(t.as_deref_mut().unwrap());
+    (t.as_ref().unwrap().key, call)
 }
 
-fn pair_sum(t: &rt::Ptr<Tree>) -> i64 {
-    t.with_mut(|v| v.key += 1);
-    t.with(|v| v.key)
+fn pair_sum(t: &mut Tree) -> i64 {
+    t.key += 1;
+    t.key
 }
 
 fn xs() -> Vec<i64> {
@@ -238,51 +253,127 @@ fn main() {
     x1.with_mut(|v| *v += val);
     println!("{} {}", x1.with(|v| *v), x2.with(|v| *v));
 
-    let forest = push(push(push(rt::Ptr::nil(), 3), 2), 1);
+    let mut forest = push(push(push(None, 3), 2), 1);
     println!(
         "{} {}",
         forest
-            .with(|v| v.left.clone())
-            .with(|v| v.left.clone())
-            .with(|v| v.key),
-        forest.with(|v| v.left.clone()).with(|v| v.right.is_nil()),
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .key,
+        forest
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .right
+            .is_none(),
     );
     println!(
         "{} {}",
         forest
-            .with(|v| v.left.clone())
-            .with(|v| v.left.clone())
-            .with(|v| v.left.is_nil()),
-        forest.with(|v| v.left.clone()).with(|v| v.right.is_nil()),
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .is_none(),
+        forest
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .right
+            .is_none(),
     );
-    let call = Tree::depth(&forest);
-    let call_2 = Tree::depth(&forest.with(|v| v.left.clone()).with(|v| v.left.clone()));
-    println!("{} {}", call, call_2);
-    let tr = forest.with(|v| v.left.clone()).with(|v| v.left.clone());
+    println!(
+        "{} {}",
+        forest.as_ref().unwrap().depth(),
+        forest
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .depth(),
+    );
+    let tr = forest
+        .as_ref()
+        .unwrap()
+        .left
+        .as_ref()
+        .unwrap()
+        .left
+        .as_deref();
     println!(
         "{} {}",
         forest
-            .with(|v| v.left.clone())
-            .with(|v| v.left.clone())
-            .with(|v| v.key)
-            + tr.with(|v| v.key),
-        tr == forest.with(|v| v.left.clone()).with(|v| v.left.clone()),
-    );
-    forest.with_mut(|v| v.r#in.inc());
-    forest.with_mut(|v| v.r#in.inc());
-    let call_3 = forest.with(|v| v.r#in).get();
-    let call_4 = forest.with(|v| v.bag.sum());
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .key
+            + tr.unwrap().key,
+        tr.map(std::ptr::from_ref)
+            == forest
+                .as_ref()
+                .unwrap()
+                .left
+                .as_ref()
+                .unwrap()
+                .left
+                .as_deref()
+                .map(std::ptr::from_ref),
+    ); // tr's last use: forest changes next
+    forest.as_mut().unwrap().r#in.inc();
+    forest.as_mut().unwrap().r#in.inc();
     println!(
         "{} {} {} {}",
-        call_3,
-        call_4,
-        forest.with(|v| v.name.clone()).as_bytes()[0],
-        forest.with(|v| v.name.clone()) == tr.with(|v| v.name.clone()),
+        forest.as_ref().unwrap().r#in.get(),
+        forest.as_ref().unwrap().bag.sum(),
+        forest.as_ref().unwrap().name.as_bytes()[0],
+        forest.as_ref().unwrap().name
+            == forest
+                .as_ref()
+                .unwrap()
+                .left
+                .as_ref()
+                .unwrap()
+                .left
+                .as_ref()
+                .unwrap()
+                .name,
     );
-    let val_2 = tr.with(|v| v.key);
-    let val_3 = tr.with(|v| v.name.clone());
-    forest.with_mut(|v| add_n(&mut v.items, val_2, &val_3));
-    println!("{}", rt::Slice(&forest.with(|v| v.items.clone())));
+    let arg = forest
+        .as_ref()
+        .unwrap()
+        .left
+        .as_ref()
+        .unwrap()
+        .left
+        .as_ref()
+        .unwrap()
+        .key;
+    add_n(&mut forest.as_mut().unwrap().items, arg, "t"); // the Key is read before forest.items is lent
+    println!("{}", rt::Slice(&forest.as_ref().unwrap().items));
 
     let mut c: Counter = Counter::default();
     c.hit();
@@ -303,33 +394,60 @@ fn main() {
     b.n += 2;
     println!("{} {}", b.name, b.n);
 
-    let (k, mut extra) = pair_of(&forest);
+    let (k, mut extra) = pair_of(forest.as_ref().unwrap());
     let k = rt::Ptr::new(k);
     let cell = k.clone();
-    let call_5 = ptr_to(6);
-    println!("{} {} {}", cell.with(|v| *v), extra, call_5.with(|v| *v));
-    let (val_4, val_5) = pair_of(&tr);
+    let call = ptr_to(6);
+    println!("{} {} {}", cell.with(|v| *v), extra, call.with(|v| *v));
+    let (val_2, val_3) = pair_of(
+        forest
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap(),
+    );
+    k.with_mut(|v| *v = val_2);
+    extra = val_3;
+    let (val_4, val_5) = pair_of(forest.as_ref().unwrap());
     k.with_mut(|v| *v = val_4);
-    extra = val_5;
-    let (val_6, val_7) = pair_of(&forest);
-    k.with_mut(|v| *v = val_6);
-    let more = val_7;
+    let more = val_5;
     println!("{} {} {}", k.with(|v| *v), more, extra);
-    let (val_8, val_9) = pair_of(&tr);
-    k.with_mut(|v| *v = val_8);
-    let fresh: rt::Ptr<i64> = rt::Ptr::new(val_9);
+    let (val_6, val_7) = pair_of(
+        forest
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap(),
+    );
+    k.with_mut(|v| *v = val_6);
+    let fresh: rt::Ptr<i64> = rt::Ptr::new(val_7);
     let cell2 = fresh.clone();
-    let val_10 = k.with(|v| *v);
-    cell2.with_mut(|v| *v += val_10);
+    let val_8 = k.with(|v| *v);
+    cell2.with_mut(|v| *v += val_8);
     println!("{} {}", k.with(|v| *v), cell2.with(|v| *v));
     println!("{}", fresh.with(|v| *v));
-    let (val_11, val_12) = pair_of(&tr);
-    forest.with_mut(|v| v.key = val_11);
-    let val_13 = forest.with(|v| v.key);
-    forest.with_mut(|v| v.key = 7);
-    extra = val_13;
-    println!("{} {}", forest.with(|v| v.key), extra);
-    let (s1, s2) = split(&forest);
+    (forest.as_mut().unwrap().key, _) = pair_of(
+        forest
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap()
+            .left
+            .as_ref()
+            .unwrap(),
+    );
+    (forest.as_mut().unwrap().key, extra) = (7, forest.as_ref().unwrap().key);
+    println!("{} {}", forest.as_ref().unwrap().key, extra);
+    let (s1, s2) = split(forest.as_deref_mut());
     println!("{} {}", s1, s2);
 
     let list: rt::Ptr<Vec<i64>> = rt::Ptr::new(xs());

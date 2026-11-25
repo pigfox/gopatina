@@ -419,7 +419,11 @@ func (g *gen) mutRef(e ast.Expr) node {
 		return g.stdValue(sel)
 	}
 	if g.isPlace(e) {
-		return atom{"&mut " + paren(g.place(e), precUnary), precUnary}
+		saved := g.writing
+		g.writing = true // a place under an owned pointer that may be nil: as_mut (RFC 0017)
+		n := g.place(e)
+		g.writing = saved
+		return atom{"&mut " + paren(n, precUnary), precUnary}
 	}
 	return &addrOf{"&mut ", g.value(e)}
 }

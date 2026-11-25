@@ -201,7 +201,11 @@ func (g *gen) receiver(x ast.Expr, p *borrow.Param) node {
 		return g.owned(x)
 	}
 	if g.isPlace(x) {
-		return g.place(x)
+		saved := g.writing
+		g.writing = p.Mode == borrow.RefMut // &mut self: as_mut through an owned pointer (RFC 0017)
+		n := g.place(x)
+		g.writing = saved
+		return n
 	}
 	return g.value(x)
 }

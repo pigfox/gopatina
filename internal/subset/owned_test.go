@@ -348,3 +348,26 @@ func main() {
 		t.Errorf("*Kid: %q, %v", why, ok)
 	}
 }
+
+// TestWrittenThroughMap checks a write into a map a field holds,
+// n.m["a"] = 1: not data the box owns, so the type is shared.
+func TestWrittenThroughMap(t *testing.T) {
+	const src = `package main
+
+import "fmt"
+
+type Node struct{ m map[string]int }
+
+func mk() *Node { return &Node{m: map[string]int{}} }
+
+func main() {
+	n := mk()
+	n.m["a"] = 1
+	fmt.Println(n.m["a"])
+}
+`
+	p, node := ownedOf(t, src)
+	if _, why, ok := p.SharedReason(node); !ok || !strings.Contains(why, "its field m") {
+		t.Errorf("*Node: %q, %v", why, ok)
+	}
+}
