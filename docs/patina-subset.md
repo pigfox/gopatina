@@ -431,12 +431,37 @@ field (`Kids []*Node`): a `Vec<Option<Box<T>>>` owning each. `x.f =
 append(x.f, ...)` pushes new pointers or moves local ones in
 (`x.kids.push(Some(...))`). An element is read, changed in place and lent
 by index (`x.kids[i].as_ref().unwrap().v`), and through elements of
-elements. The value of a `range` over the slice borrows each element in
-turn (`for k in &x.kids`), and it must be a temporary borrow: one kept
-elsewhere would give the element two owners, and keeps the type shared.
+elements, and an element is given a new pointer (`ps[0] = leaf(7)` is
+`ps[0] = Some(leaf(7))`). The value of a `range` over the slice borrows
+each element in turn (`for k in &x.kids`), and it must be a temporary
+borrow: one kept elsewhere would give the element two owners, an error.
 A cycle, such as vertices whose edges point back at them, has no single
 owner, and is refused once its types are owned
 (`testdata/reject/owned_graph_cycle`).
+
+**Second owners are errors** ([RFC 0017](rfcs/0017-one-owner.md)). A
+use that gives an object a second owner, which one owner per object
+cannot express, is an error naming the use and how to write it with one:
+
+- a pointer copied out of a place and kept, `k0 := root.Kids[0]` changed
+  through, `[]*Node{root, root.Kids[1]}`, `ps[0] = root` with `root` used
+  after, one tag stored in every leaf, a ring closed through `Prev` and
+  `Next` (`testdata/reject/owned_aliases_kept`);
+- a range variable that keeps or changes through an element;
+- a variable's address held in a variable, field or literal while the
+  variable is still used by name (`cp := &cx`, then `cx` beside `cp`:
+  `testdata/reject/owned_address_kept`);
+- a borrow a function lends back kept in a field or literal, or in a
+  local while its source changes (`testdata/reject/owned_returned_borrow_kept`).
+
+A local that only reads through a pointer another place owns is a
+temporary borrow, and may be compared with nil or with another pointer
+(`for p := head; p != stop; p = p.Next`). A local that changes through
+one, a `&mut` borrow, is not supported yet, and the error says so. Until
+interface values are owned, a type whose pointers an interface holds,
+directly or through fields, keeps its cells, which express these uses;
+so do types not owned for other reasons yet (a field address lent,
+`inc(&p.n)`; a struct value holding a pointer in a field).
 
 **Kept parameters** ([RFC 0017](rfcs/0017-one-owner.md), step 8). A
 parameter that its function keeps (returns, moves into a variable, a

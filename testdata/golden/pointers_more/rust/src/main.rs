@@ -202,9 +202,21 @@ fn keep_slice(p: rt::Ptr<Vec<i64>>) -> rt::Ptr<Vec<i64>> {
     p
 }
 
+fn keep_names(p: rt::Ptr<Vec<String>>) -> rt::Ptr<Vec<String>> {
+    p
+}
+
 fn ptr_to(x: i64) -> rt::Ptr<i64> {
     let x = rt::Ptr::new(x);
     x.clone()
+}
+
+/// ints returns two new ints, declared together: a and b live in cells.
+fn ints() -> (rt::Ptr<i64>, rt::Ptr<i64>) {
+    let (a, b): (i64, i64) = (4, 5);
+    let a = rt::Ptr::new(a);
+    let b = rt::Ptr::new(b);
+    (a.clone(), b.clone())
 }
 
 fn set(s: &mut [i64]) {
@@ -221,6 +233,10 @@ fn main() {
     let ns = new_nums();
     ns.with_mut(|v| nums_set(v));
     println!("{}", rt::Slice(&ns.load()));
+    let (x1, x2) = ints();
+    let val = x2.with(|v| *v);
+    x1.with_mut(|v| *v += val);
+    println!("{} {}", x1.with(|v| *v), x2.with(|v| *v));
 
     let forest = push(push(push(rt::Ptr::nil(), 3), 2), 1);
     println!(
@@ -263,9 +279,9 @@ fn main() {
         forest.with(|v| v.name.clone()).as_bytes()[0],
         forest.with(|v| v.name.clone()) == tr.with(|v| v.name.clone()),
     );
-    let val = tr.with(|v| v.key);
-    let val_2 = tr.with(|v| v.name.clone());
-    forest.with_mut(|v| add_n(&mut v.items, val, &val_2));
+    let val_2 = tr.with(|v| v.key);
+    let val_3 = tr.with(|v| v.name.clone());
+    forest.with_mut(|v| add_n(&mut v.items, val_2, &val_3));
     println!("{}", rt::Slice(&forest.with(|v| v.items.clone())));
 
     let mut c: Counter = Counter::default();
@@ -292,26 +308,26 @@ fn main() {
     let cell = k.clone();
     let call_5 = ptr_to(6);
     println!("{} {} {}", cell.with(|v| *v), extra, call_5.with(|v| *v));
-    let (val_3, val_4) = pair_of(&tr);
-    k.with_mut(|v| *v = val_3);
-    extra = val_4;
-    let (val_5, val_6) = pair_of(&forest);
-    k.with_mut(|v| *v = val_5);
-    let more = val_6;
+    let (val_4, val_5) = pair_of(&tr);
+    k.with_mut(|v| *v = val_4);
+    extra = val_5;
+    let (val_6, val_7) = pair_of(&forest);
+    k.with_mut(|v| *v = val_6);
+    let more = val_7;
     println!("{} {} {}", k.with(|v| *v), more, extra);
-    let (val_7, val_8) = pair_of(&tr);
-    k.with_mut(|v| *v = val_7);
-    let fresh: rt::Ptr<i64> = rt::Ptr::new(val_8);
+    let (val_8, val_9) = pair_of(&tr);
+    k.with_mut(|v| *v = val_8);
+    let fresh: rt::Ptr<i64> = rt::Ptr::new(val_9);
     let cell2 = fresh.clone();
-    let val_9 = k.with(|v| *v);
-    cell2.with_mut(|v| *v += val_9);
+    let val_10 = k.with(|v| *v);
+    cell2.with_mut(|v| *v += val_10);
     println!("{} {}", k.with(|v| *v), cell2.with(|v| *v));
     println!("{}", fresh.with(|v| *v));
-    let (val_10, val_11) = pair_of(&tr);
-    forest.with_mut(|v| v.key = val_10);
-    let val_12 = forest.with(|v| v.key);
+    let (val_11, val_12) = pair_of(&tr);
+    forest.with_mut(|v| v.key = val_11);
+    let val_13 = forest.with(|v| v.key);
     forest.with_mut(|v| v.key = 7);
-    extra = val_12;
+    extra = val_13;
     println!("{} {}", forest.with(|v| v.key), extra);
     let (s1, s2) = split(&forest);
     println!("{} {}", s1, s2);
@@ -320,12 +336,21 @@ fn main() {
     keep_slice(list.clone());
     list.with_mut(|v| set(&mut *v));
     println!("{}", rt::Slice(&list.load()));
-    // x's address is taken again while p, which writes through it, is in
-    // use: Rust allows no shared borrow beside a &mut, so x lives in a cell
-    // (pointers_heap compares two separate borrows instead).
+    let names: rt::Ptr<Vec<String>> = rt::Ptr::new(vec![String::from("x"), String::from("y")]);
+    keep_names(names.clone());
+    let mut all: String = String::from("");
+    let items = names.load();
+    for nm in &items {
+        // names lives in a cell: a copy of it is ranged over
+        all += nm;
+    }
+    println!("{} {}", all, names.with(|v| (*v).len() as i64));
+    // cx is changed through cp, and used by name only once cp is done
+    // with: cp is a borrow of cx (testdata/reject/owned_address_kept has
+    // cx used beside cp, two owners).
     let cx: rt::Ptr<i64> = rt::Ptr::new(5);
     let cp = cx.clone();
     cp.with_mut(|v| *v = 7);
-    println!("{} {}", cp.with(|v| *v), cp == cx.clone());
+    println!("{}", cp.with(|v| *v));
     println!("{}", cx.with(|v| *v));
 }

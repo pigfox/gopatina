@@ -318,3 +318,33 @@ func TestValueData(t *testing.T) {
 		}
 	}
 }
+
+// TestAliasThroughIface checks that a second pointer to a Kid, held by a
+// Node an interface holds, is no error: Kid's pointers stay cells until
+// interface values are owned, and the cells express it (RFC 0017).
+func TestAliasThroughIface(t *testing.T) {
+	const src = `package main
+
+import "fmt"
+
+type Node struct{ Kid *Kid }
+
+type Kid struct{ V int }
+
+func main() {
+	n := &Node{Kid: &Kid{V: 1}}
+	var a any = n
+	k := n.Kid
+	k.V++
+	fmt.Println(a != nil, n.Kid.V, k.V)
+}
+`
+	p, _ := ownedOf(t, src)
+	if errs := p.ownerErrors(); len(errs) > 0 {
+		t.Errorf("errors: %v", errs)
+	}
+	kid := types.NewPointer(p.pkg.Types.Scope().Lookup("Kid").Type())
+	if _, why, ok := p.SharedReason(kid); !ok || why != "a copy of it is kept" {
+		t.Errorf("*Kid: %q, %v", why, ok)
+	}
+}

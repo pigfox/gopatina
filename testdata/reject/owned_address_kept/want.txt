@@ -1,0 +1,3 @@
+./main.go:14:8: the address of cx is kept while cx is still used by name, so the object has two owners
+    in Rust a variable whose address is kept is borrowed for as long as the pointer lives, and is not used by name meanwhile (RFC 0017)
+    after taking its address, use cx only through the pointer; or make cx a pointer from the start, with new or &T{...}

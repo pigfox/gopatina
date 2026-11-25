@@ -1,5 +1,4 @@
-./main.go:7:6: pointers of type *Node are shared: a copy of it is kept (line 25) (RFC 0016)
-./main.go:9:2: Node.Kids can point back to a Node: a cycle through it is not reclaimed (RFC 0013)
-./main.go:14:10: parameter n is a shared borrow: sum only reads it
-./main.go:27:17: copied root into a composite literal: root is used again on line 27; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
-./main.go:30:10: copied root into ps[0]: root is used again on line 31; a copy of a pointer points at the same variable, as Go's does (RFC 0013)
+./main.go:7:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:15:7: receiver n is an exclusive borrow: add changes it, and the caller sees the change
+./main.go:15:20: parameter k is owned: add keeps it
+./main.go:17:10: parameter n is a shared borrow: sum only reads it

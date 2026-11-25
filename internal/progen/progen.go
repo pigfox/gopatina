@@ -482,6 +482,18 @@ func (g *gen) libUses() {
 	g.line("}")
 	g.line("ll.Bump(v1)")
 	g.line("fmt.Println(ll.Sum(), ll.V, ll.Next.Next.V, ll.Next.Next.Next == nil)")
+	// A walk to a stop pointer, compared by address (std::ptr::eq), and a
+	// new pointer moved into a Vec's element.
+	g.line("lstop := ll.Next.Next")
+	g.line("lsteps := 0")
+	g.line("for p := ll; p != lstop; p = p.Next {")
+	g.depth++
+	g.line("lsteps += p.V")
+	g.depth--
+	g.line("}")
+	g.line("lv := make([]*lib.Lst%d, 2)", k)
+	g.line("lv[0] = lib.Cons%d(v2, nil)", k)
+	g.line("fmt.Println(lsteps, lv[0].V, lv[1] == nil, lv[0] == lstop)")
 }
 
 // shiftUses shifts a value of a random integer type by run-time counts.

@@ -47,7 +47,9 @@ pub struct Vertex {
     pub out: Vec<Option<Box<Edge>>>,
 }
 
-/// Outer reaches itself through a struct value.
+/// Outer can reach itself through a struct value, and through a Link. A
+/// struct value holding a pointer is not owned yet, so Outer's pointers are
+/// cells.
 #[derive(Clone, Default, PartialEq)]
 pub struct Inner {
     pub back: rt::Ptr<Outer>,
@@ -57,6 +59,23 @@ pub struct Inner {
 pub struct Outer {
     pub r#in: Inner,
     pub n: i64,
+    pub seen: Vec<i64>,
+    pub peer: rt::Ptr<Link>,
+}
+
+impl Outer {
+    /// Note clears the last value seen, written through the Outer's cell.
+    pub fn note(o: &rt::Ptr<Outer>, v: i64) {
+        o.with_mut(|v_2| v_2.seen.push(v));
+        let idx = o.with(|v_2| v_2.seen.len() as i64) - 1;
+        o.with_mut(|v_2| v_2.seen[idx as usize] = 0);
+    }
+}
+
+/// Link leads back to an Outer.
+#[derive(Clone, Default, PartialEq)]
+pub struct Link {
+    pub o: rt::Ptr<Outer>,
 }
 
 /// Item never leads back to Owner, and Chain only to itself: no note on
@@ -81,54 +100,60 @@ pub struct Start {
     pub head: Option<Box<Chain>>,
 }
 
-/// Ring is a doubly linked ring: every node is in two cycles.
+/// Ring could close into a ring through Next and Prev; here it is a chain
+/// through Next, each node owned by the one before it.
 #[derive(Clone, Default, PartialEq)]
 pub struct Ring {
     pub v: i64,
-    pub prev: rt::Ptr<Ring>,
-    pub next: rt::Ptr<Ring>,
+    pub prev: Option<Box<Ring>>,
+    pub next: Option<Box<Ring>>,
     pub seen: Vec<i64>,
-    pub h: rt::Ptr<Hand>,
+    pub h: Option<Box<Hand>>,
 }
 
-impl Ring {
-    /// Note clears the last value seen, written through the ring's cell.
-    pub fn note(r: &rt::Ptr<Ring>, v: i64) {
-        r.with_mut(|v_2| v_2.seen.push(v));
-        let idx = r.with(|v_2| v_2.seen.len() as i64) - 1;
-        r.with_mut(|v_2| v_2.seen[idx as usize] = 0);
+/// Frees a chain one link at a time, so a long one cannot overflow
+/// the stack.
+impl Drop for Ring {
+    fn drop(&mut self) {
+        let mut links: Vec<Box<Ring>> = Vec::new();
+        links.extend(self.prev.take());
+        links.extend(self.next.take());
+        while let Some(mut link) = links.pop() {
+            links.extend(link.prev.take());
+            links.extend(link.next.take());
+        }
     }
 }
 
-/// Hand holds a place on a ring, and the ring node it is at holds it back:
-/// Ring.H leads back to a Ring through Hand.At.
+impl Ring {
+    /// Note clears the last value seen, written through the node.
+    pub fn note(&mut self, v: i64) {
+        self.seen.push(v);
+        let idx = self.seen.len() as i64 - 1;
+        self.seen[idx as usize] = 0;
+    }
+}
+
+/// Hand holds a place on a ring, and a ring node can hold a Hand: Ring.H
+/// can lead back to a Ring through Hand.At.
 #[derive(Clone, Default, PartialEq)]
 pub struct Hand {
-    pub at: rt::Ptr<Ring>,
+    pub at: Option<Box<Ring>>,
     pub n: i64,
 }
 
-fn ring(n: i64) -> rt::Ptr<Ring> {
-    let first = rt::Ptr::new(Ring {
-        v: 0,
-        ..Default::default()
-    });
-    let val = first.clone();
-    let val_2 = first.clone();
-    first.with_mut(|v| v.prev = val);
-    first.with_mut(|v| v.next = val_2);
-    for i in 1..n {
-        let r = rt::Ptr::new(Ring {
+fn ring(n: i64) -> Option<Box<Ring>> {
+    let mut first: Option<Box<Ring>> = None;
+    let mut i = n - 1;
+    while i >= 0 {
+        first = Some(Box::new(Ring {
             v: i,
-            prev: first.with(|v| v.prev.clone()),
-            next: first.clone(),
-            ..Default::default()
-        });
-        let val_3 = r.clone();
-        let ptr = first.with(|v| v.prev.clone());
-        ptr.with_mut(|v| v.next = val_3);
-        let val_4 = r;
-        first.with_mut(|v| v.prev = val_4);
+            next: first,
+            prev: None,
+            seen: Vec::new(),
+            h: None,
+        }));
+        i -= 1;
     }
     first
 }
@@ -186,14 +211,27 @@ fn main() {
         n: 1,
         ..Default::default()
     });
-    let val = o.clone();
+    let val = rt::Ptr::new(Outer {
+        n: 2,
+        ..Default::default()
+    });
     o.with_mut(|v| v.r#in.back = val);
+    let ptr = o.with(|v| v.r#in.back.clone());
+    ptr.with_mut(|v| v.n = 3);
+    Outer::note(&o.with(|v| v.r#in.back.clone()), 4);
+    let val_2 = rt::Ptr::new(Link {
+        ..Default::default()
+    });
+    o.with_mut(|v| v.peer = val_2);
     println!(
-        "{} {}",
+        "{} {} {} {} {}",
+        o.with(|v| v.r#in.back.clone()).with(|v| v.n),
         o.with(|v| v.r#in.back.clone())
-            .with(|v| v.r#in.back.clone())
-            .with(|v| v.n),
+            .with(|v| v.r#in.back.is_nil()),
         o.with(|v| v.r#in.back.clone()) == o,
+        o.with(|v| v.r#in.back.clone())
+            .with(|v| v.seen.len() as i64),
+        o.with(|v| v.peer.clone()).with(|v| v.o.is_nil()),
     );
     let w = Owner {
         item: Some(Box::new(Item { v: 4 })),
@@ -220,36 +258,35 @@ fn main() {
     let mut sum: i64 = 0;
     for _ in 0_i64..3 {
         let r = ring(5);
-        let mut p = r.with(|v| v.next.clone());
-        while p != r {
-            sum += p.with(|v| v.v) + p.with(|v| v.prev.clone()).with(|v| v.v);
-            p = p.with(|v| v.next.clone());
+        let mut p = r.as_ref().unwrap().next.as_deref();
+        while let Some(ring_2) = p {
+            sum += ring_2.v + r.as_ref().unwrap().v;
+            p = ring_2.next.as_deref();
         }
     }
     println!("{}", sum);
-    let h = rt::Ptr::new(Hand { at: ring(3), n: 1 });
-    let val_2 = h.clone();
-    let ptr = h.with(|v| v.at.clone());
-    ptr.with_mut(|v| v.h = val_2);
-    Ring::note(
-        &h.with(|v| v.at.clone()).with(|v| v.next.clone()),
-        h.with(|v| v.n),
-    );
+    let mut h = Box::new(Hand { at: ring(3), n: 1 });
+    h.at.as_mut().unwrap().h = Some(Box::new(Hand {
+        n: 2,
+        ..Default::default()
+    }));
+    h.at.as_mut().unwrap().next.as_mut().unwrap().note(h.n);
     println!(
-        "{} {} {} {} {}",
-        h.with(|v| v.at.clone())
-            .with(|v| v.next.clone())
-            .with(|v| v.v),
-        h.with(|v| v.at.clone())
-            .with(|v| v.next.clone())
-            .with(|v| v.seen.len() as i64),
-        h.with(|v| v.at.clone())
-            .with(|v| v.next.clone())
-            .with(|v| v.seen[0]),
-        h.with(|v| v.at.clone())
-            .with(|v| v.prev.clone())
-            .with(|v| v.next.clone())
-            == h.with(|v| v.at.clone()),
-        h.with(|v| v.at.clone()).with(|v| v.h.clone()).with(|v| v.n),
+        "{} {} {} {} {} {}",
+        h.at.as_ref().unwrap().next.as_ref().unwrap().v,
+        h.at.as_ref().unwrap().next.as_ref().unwrap().seen.len() as i64,
+        h.at.as_ref().unwrap().next.as_ref().unwrap().seen[0],
+        h.at.as_ref()
+            .unwrap()
+            .next
+            .as_ref()
+            .unwrap()
+            .next
+            .as_ref()
+            .unwrap()
+            .next
+            .is_none(),
+        h.at.as_ref().unwrap().prev.is_none(),
+        h.at.as_ref().unwrap().h.as_ref().unwrap().n,
     );
 }

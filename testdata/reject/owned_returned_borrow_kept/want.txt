@@ -1,0 +1,7 @@
+./main.go:25:11: hold(&c) lends back a pointer its caller owns, and it is kept in keepC, so the object has two owners
+    in Rust the result borrows the argument, and lasts only while the argument is unchanged (RFC 0017)
+    a new local is such a borrow when the argument is a pointer variable, p := f(x); hold(&c) lends another argument, not supported yet
+    read through the result or pass it to a call where it is returned, or keep the argument's own pointer instead
+./main.go:31:15: hold(d) lends back a pointer its caller owns, and it is kept, so the object has two owners
+    in Rust the result borrows the argument, and lasts only while the argument is unchanged (RFC 0017)
+    read through the result or pass it to a call where it is returned, or keep the argument's own pointer instead
