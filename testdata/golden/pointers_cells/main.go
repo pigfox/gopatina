@@ -117,6 +117,9 @@ type Rack struct {
 	Up   *Rack
 	Seen []int
 	L    *Link
+	in   In
+	bag  Bag
+	name string
 }
 
 // Link leads back to a Rack.
@@ -177,6 +180,20 @@ func main() {
 	rack.Up.N = 3 // written through a pointer read through the cell
 	rack.Up.Note(4)
 	fmt.Println(rack.Up != nil, nil == rack.Up.Up, rack.L == nil, rack.Up.N, len(rack.Up.Seen), anyR != nil)
+	// Fields of a cell's value, lent to value methods and calls inside it.
+	rack.bag = Bag{s: []int{2, 3}}
+	rack.Seen = []int{0, 1}
+	rack.in.Inc()
+	rack.name = "r"
+	rack.N, _ = two()
+	set(rack.Seen, rack.N)
+	fmt.Println(rack.in.Get(), rack.bag.Sum(), rack.name == rack.Up.name, rack.N, rack.Seen)
+	rack2 := &Rack{N: 9}
+	var anyR2 any = rack2
+	inc(&rack.N)                        // a field of a cell lent by address
+	rack.Seen = append(rack.Seen, 7, 8) // two pushes inside the cell
+	rack.Up.name = rack.name + rack.Up.name + "a name long enough that its write wraps over lines"
+	fmt.Println(rack == rack2, rack != rack.Up, rack.N, len(rack.Up.name), anyR2 != nil)
 	ta := newTag("ab")
 	var held any = newTag("in an interface")
 	*ta += "c"

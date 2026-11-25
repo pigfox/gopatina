@@ -1187,6 +1187,11 @@ func (o *ownership) readOrLend(par, child ast.Node, stack []ast.Node) bool {
 				return true // (*p)[i] of a slice of data: an element of the box's Vec
 			}
 		case *ast.CallExpr:
+			if sel, ok := ast.Unparen(q.Fun).(*ast.SelectorExpr); ok && plainData(o.info.TypeOf(p)) {
+				if fn, ok := o.info.Uses[sel.Sel].(*types.Func); ok && fn.Pkg() != nil && fn.Pkg().Path() == "fmt" {
+					return true // fmt.Println(*p): printed, a read of the box's value
+				}
+			}
 			if id, ok := ast.Unparen(q.Fun).(*ast.Ident); ok && len(q.Args) == 1 && plainData(o.info.TypeOf(p)) {
 				if b, ok := o.info.Uses[id].(*types.Builtin); ok && b.Name() == "len" {
 					return true // len(*p): a read of the box's Vec
@@ -1210,8 +1215,11 @@ func (o *ownership) readOrLend(par, child ast.Node, stack []ast.Node) bool {
 			recv := s.Obj().(*types.Func).Signature().Recv()
 			_, ptrRecv := types.Unalias(recv.Type()).(*types.Pointer)
 			// A value method copies a value-data value out for the call
-			// (RFC 0017), sharing nothing.
-			return (ptrRecv || valueData(recv.Type())) && o.programCallee(call) != nil && !o.deferred(stack)
+			// (RFC 0017), sharing nothing. One of plain data holding a
+			// slice, which the method does not keep, is lent instead: Go's
+			// copy shares the slice, as Rust's &self or &mut self does.
+			lent := plainData(recv.Type()) && !o.kept[recv]
+			return (ptrRecv || valueData(recv.Type()) || lent) && o.programCallee(call) != nil && !o.deferred(stack)
 		}
 	case *ast.CallExpr:
 		for _, a := range p.Args {

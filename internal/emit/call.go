@@ -103,14 +103,14 @@ func (g *gen) recvArg(x ast.Expr, p *borrow.Param) node {
 	if g.heapPtr(p.Var.Type()) {
 		return g.heapRecvArg(x, p)
 	}
-	if name, ok := g.cellRoot[x]; ok {
-		return text(name) // *p, inside its cell
-	}
 	if g.ownPtr(g.typeOf(x)) && !isPointerType(p.Var.Type()) {
 		// A value receiver of a named number or string, called through an
 		// owned pointer (RFC 0017): lent, or copied out of the box.
-		if p.Mode == borrow.Ref {
+		switch p.Mode {
+		case borrow.Ref:
 			return g.ptrAs(x, repRef) // &Box<T> coerces to &T
+		case borrow.RefMut:
+			return g.ptrAs(x, repRefMut) // changed through, sharing its slices as Go's copy does
 		}
 		return g.boxValue(x) // a copy: a value receiver's changes are its own
 	}
@@ -173,14 +173,20 @@ func (g *gen) ownedCopy(x ast.Expr) node {
 // receiver renders the receiver of a method call.
 func (g *gen) receiver(x ast.Expr, p *borrow.Param) node {
 	x = ast.Unparen(x)
-	if name, ok := g.cellRoot[x]; ok {
-		return text(name) // *p, inside its cell
-	}
 	if g.ownPtr(g.typeOf(x)) && !isPointerType(p.Var.Type()) {
 		// A value receiver called through an owned pointer (plain data,
 		// RFC 0017): the method borrows the box's value, or takes a copy.
 		if p.Mode == borrow.Ref || borrow.KindOf(p.Var.Type()) == borrow.Copy {
 			return g.ptrThrough(x)
+		}
+		if p.Mode == borrow.RefMut {
+			// A value receiver changed through, sharing a slice with the
+			// box's value as Go's copy does: &mut self.
+			saved := g.writing
+			g.writing = true
+			n := g.ptrThrough(x)
+			g.writing = saved
+			return n
 		}
 		return g.ownedCopy(x)
 	}

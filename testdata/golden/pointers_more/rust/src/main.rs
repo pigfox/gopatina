@@ -62,9 +62,8 @@ pub fn nums_set(ns: &mut [i64]) {
     ns[0] = 9;
 }
 
-fn new_nums() -> rt::Ptr<Vec<i64>> {
-    let ns: rt::Ptr<Vec<i64>> = rt::Ptr::new(vec![1, 2]);
-    ns.clone()
+fn new_nums() -> Vec<i64> {
+    vec![1, 2]
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
@@ -242,9 +241,9 @@ fn main() {
     println!("{} {}", n, num_get(n));
     let nm = new_name();
     println!("{}", name_up(&nm));
-    let ns = new_nums();
-    ns.with_mut(|v| nums_set(v));
-    println!("{}", rt::Slice(&ns.load()));
+    let mut ns = new_nums();
+    nums_set(&mut ns);
+    println!("{}", rt::Slice(&ns));
     let (mut x1, x2) = ints();
     *x1.as_mut().unwrap() += *x2.as_ref().unwrap();
     println!("{} {}", *x1.as_ref().unwrap(), *x2.as_ref().unwrap());

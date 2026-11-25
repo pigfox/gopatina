@@ -18,3 +18,5 @@
     see docs/compat.md for what patina mode supports
 ./main.go:52:9: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
+./main.go:58:17: converting *main.T to an interface, where main.T holds a slice and has value methods (a copy would not share its elements) is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports

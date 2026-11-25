@@ -478,6 +478,15 @@ string's as a copy), and one that changes it is an error
 not escape elsewhere in the program: an escaping `*int` makes every
 `&x.f` of type `*int` a pointer into a struct, not supported yet.
 
+**Value methods of types holding a slice** ([RFC 0017](rfcs/0017-one-owner.md)).
+Go's copy of a value holding a slice shares the slice. So a value method
+called through an owned pointer (`p.Total()`, `ns.Set(9)` on a named
+slice) borrows the box's value rather than cloning it: `&self` where the
+method only reads, `&mut self` where it changes the slice's elements
+(`s.clear()`, `nums_set(&mut ns, 9)`). A value method that keeps or
+returns its receiver still copies it, and keeps the type shared.
+`*p` of such a value may be printed (`fmt.Println(*ns)`).
+
 **Walking to a returned borrow** ([RFC 0017](rfcs/0017-one-owner.md)).
 A function may walk from its pointer input to the node it returns: a
 local only ever given the input, a field of itself (`p = p.Next`) or

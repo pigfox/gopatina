@@ -2,6 +2,7 @@
 ./main.go:17:7: receiver n is a shared borrow: Up only reads it
 ./main.go:21:10: moved n into a new pointer: n is not used afterwards
 ./main.go:26:7: receiver ns is an exclusive borrow: Set changes it, and the caller sees the change
+./main.go:30:10: moved ns into a new pointer: ns is not used afterwards
 ./main.go:37:7: receiver i is an exclusive borrow: Inc changes it, and the caller sees the change
 ./main.go:41:7: receiver b is a shared borrow: Sum only reads it
 ./main.go:49:6: pointers of type *Counter are never shared: each has one owner (RFC 0016)

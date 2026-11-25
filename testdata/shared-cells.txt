@@ -25,5 +25,4 @@ testdata/golden/package_vars	package variable in a RefCell
 testdata/golden/pointers_cells	pointer cells (RFC 0013)
 testdata/golden/pointers_ifaces	pointer cells (RFC 0013); interface values
 testdata/golden/pointers_methods	pointer cells (RFC 0013); interface values
-testdata/golden/pointers_more	pointer cells (RFC 0013)
 testdata/golden/sentinel_errors	interface values

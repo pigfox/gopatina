@@ -167,6 +167,12 @@ func (g *gen) libDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc (l *Lst%d) Sum() int {\n\tt := 0\n\tfor p := l; p != nil; p = p.Next {\n\t\tt += p.V\n\t}\n\treturn t\n}\n", k)
 	fmt.Fprintf(b, "\n// Tally%d counts; no pointer to one escapes, so &l.T is lent as &mut.\ntype Tally%d int\n", k, k)
 	fmt.Fprintf(b, "\nfunc AddTo%d(x *Tally%d, d int) { *x += Tally%d(d) }\n", k, k, k)
+	// Value methods of a type holding a slice, through an owned pointer:
+	// &self and &mut self, sharing the slice as Go's copy does (RFC 0017).
+	fmt.Fprintf(b, "\n// Bin%d holds a slice.\ntype Bin%d struct{ Xs []int }\n", k, k)
+	fmt.Fprintf(b, "\nfunc NewBin%d(x int) *Bin%d { return &Bin%d{Xs: []int{x, x + 1}} }\n", k, k, k)
+	fmt.Fprintf(b, "\nfunc (b Bin%d) Sum() int { return b.Xs[0] + b.Xs[1] }\n", k)
+	fmt.Fprintf(b, "\nfunc (b Bin%d) Zero() { b.Xs[0] = 0 }\n", k)
 	// Escape boxes: two values declared together, and a slice, each moved
 	// into a new Box at its & (RFC 0017).
 	fmt.Fprintf(b, "\n// Tw%d is a number whose pointers escape (Two).\ntype Tw%d int\n", k, k)
@@ -508,6 +514,10 @@ func (g *gen) libUses() {
 	g.line("lkh := &lib.Hold%d{}", k)
 	g.line("lib.KeepIn%d(lkh, &lkv)", k)
 	g.line("fmt.Println(lkh.P.V, lkh.P.Next == nil)")
+	g.line("lbn := lib.NewBin%d(v0)", k)
+	g.line("lbs := lbn.Sum()")
+	g.line("lbn.Zero()")
+	g.line("fmt.Println(lbs, lbn.Sum(), lbn.Xs)")
 	g.line("lta, ltb := lib.Two%d(v1)", k)
 	g.line("*lta += *ltb")
 	g.line("lns := lib.NewInts%d(v2)", k)
