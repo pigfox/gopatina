@@ -1327,23 +1327,26 @@ func (g *gen) ptrUses() {
 	g.line("trP.R = mkTr%d(%d, %s)", k, g.qr.IntN(3), v())
 	g.line("fmt.Println(trL.Sum(), trR.V, trP.L == nil, trDepth%d(trR))", k)
 	g.line("fmt.Println(trP.Leaf(), trP.R.Leaf(), trRight%d(trP, %s), trRight%d(mkTr%d(%d, %s), %s), trDepth%d(trP), trP.Sum())", k, v(), k, k, 1+g.qr.IntN(4), v(), v(), k)
-	// Slices of pointers, and pointers in interfaces (RFC 0013, step 2).
-	g.line("ptrL.Kids = append(ptrL.Kids, ptrA, newNd%d(%s, nil), ptrL.Next)", k, v())
-	g.line("ptrK := []*Nd%d{ptrL.Next, nil, ptrN}", k)
-	g.line("ptrK = append(ptrK, ptrL.Kids[%d])", g.qr.IntN(3))
+	// Slices of pointers, and pointers in interfaces (RFC 0013, step 2),
+	// one owner per object (RFC 0017): each node is moved into one slice
+	// or interface, or is a new one; a second pointer to a node is only a
+	// comparison or a read.
+	g.line("ptrL.Kids = append(ptrL.Kids, ptrA, newNd%d(%s, nil), newNd%d(%s, nil))", k, v(), k, v())
+	g.line("ptrK := []*Nd%d{newNd%d(%s, nil), nil, newNd%d(%s, nil)}", k, k, v(), k, v())
+	g.line("ptrK = append(ptrK, newNd%d(%s, nil))", k, v())
 	g.line("ptrT := 0")
-	g.line("for _, kd := range ptrL.Kids {")
+	g.line("for i := 0; i < len(ptrL.Kids); i++ {")
 	g.depth++
-	g.line("kd.V %s= %s", op(), v())
-	g.line("ptrT += kd.V")
+	g.line("ptrL.Kids[i].V %s= %s", op(), v())
+	g.line("ptrT += ptrL.Kids[i].V")
 	g.depth--
 	g.line("}")
 	g.line("fmt.Println(ptrT, len(ptrL.Kids), ptrK, ptrK[1] == nil, ptrK[0] == ptrL.Next)")
-	g.line("var ptrS Sz%d = ptrL", k)
+	g.line("var ptrS Sz%d = newNd%d(%s, nil)", k, k, v())
 	g.line("var ptrZ2 *Nd%d", k)
-	g.line("ptrS2 := []Sz%d{ptrS, ptrL.Next, ptrZ2}", k)
-	g.line("fmt.Println(ptrS.Sum(), ptrS, ptrS2[2] != nil, ptrS == Sz%d(ptrL), ptrS2[1] == ptrS)", k)
-	g.line("fmt.Printf(\"%%T %%v\\n\", ptrS, ptrS2[2])")
+	g.line("ptrS2 := []Sz%d{newNd%d(%s, newNd%d(%s, nil)), ptrZ2, nil}", k, k, v(), k, v())
+	g.line("fmt.Println(ptrS.Sum(), ptrS, ptrS2[1] != nil, ptrS == ptrS2[0], ptrS2[2] == nil)")
+	g.line("fmt.Printf(\"%%T %%v\\n\", ptrS, ptrS2[1])")
 	g.line("if ptrQ, ok := ptrS2[%d].(*Nd%d); ok {", g.qr.IntN(3), k)
 	g.depth++
 	g.line("fmt.Println(\"nd\", ptrQ == nil, ptrQ == ptrL)")
