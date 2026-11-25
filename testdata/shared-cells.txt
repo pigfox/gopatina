@@ -27,6 +27,4 @@ testdata/golden/pointers_cycles	pointer cells (RFC 0013)
 testdata/golden/pointers_ifaces	pointer cells (RFC 0013); interface values
 testdata/golden/pointers_methods	pointer cells (RFC 0013); interface values
 testdata/golden/pointers_more	pointer cells (RFC 0013)
-testdata/golden/pointers_owned	pointer cells (RFC 0013)
-testdata/golden/pointers_slices	pointer cells (RFC 0013)
 testdata/golden/sentinel_errors	interface values

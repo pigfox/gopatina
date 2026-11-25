@@ -5,8 +5,8 @@ package main
 
 import "fmt"
 
-// Tag is shared (a slice holds its pointers), so it stays a
-// reference-counted cell, held inside the owned nodes.
+// Tag is owned too: each leaf gets a Tag of its own, made from a label,
+// so no two nodes hold one Tag (RFC 0017).
 type Tag struct{ Label string }
 
 type Node struct {
@@ -16,9 +16,9 @@ type Node struct {
 	Tag         *Tag
 }
 
-func build(depth, key int, tags []*Tag) *Node {
+func build(depth, key int, tags []string) *Node {
 	if depth == 0 {
-		return &Node{Key: key, Name: fmt.Sprint("leaf", key), Tag: tags[key%2]}
+		return &Node{Key: key, Name: fmt.Sprint("leaf", key), Tag: &Tag{Label: tags[key%2]}}
 	}
 	n := &Node{Left: build(depth-1, 2*key, tags), Right: build(depth-1, 2*key+1, tags), Key: key, Name: "inner"}
 	return n
@@ -85,7 +85,7 @@ func length(l *List) int {
 }
 
 func main() {
-	tags := []*Tag{{Label: "even"}, {Label: "odd"}}
+	tags := []string{"even", "odd"}
 	t := build(3, 1, tags)
 	fmt.Println(t.sum(), t.depth(), leftmost(t), t.Key, t.Name)
 	fmt.Println(label(t), label(t.Left.Left.Left), label(t.Right.Right.Right), t.Left.Right.Left.Tag.Label)

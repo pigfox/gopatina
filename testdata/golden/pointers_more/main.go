@@ -117,7 +117,15 @@ func xs() []int { return []int{4, 5} }
 
 func keepSlice(p *[]int) *[]int { return p }
 
+func keepNames(p *[]string) *[]string { return p }
+
 func ptrTo(x int) *int { return &x }
+
+// ints returns two new ints, declared together: a and b live in cells.
+func ints() (*int, *int) {
+	a, b := 4, 5
+	return &a, &b
+}
 
 func set(s []int) { s[1] = 50 }
 
@@ -130,6 +138,9 @@ func main() {
 	ns := newNums()
 	ns.Set()
 	fmt.Println(*ns)
+	x1, x2 := ints()
+	*x1 += *x2
+	fmt.Println(*x1, *x2)
 
 	forest := push(push(push(nil, 3), 2), 1)
 	fmt.Println(forest.Left.Left.Key, forest.Left.Right == nil)
@@ -174,12 +185,19 @@ func main() {
 	keepSlice(&list)
 	set(list)
 	fmt.Println(list)
-	// x's address is taken again while p, which writes through it, is in
-	// use: Rust allows no shared borrow beside a &mut, so x lives in a cell
-	// (pointers_heap compares two separate borrows instead).
+	names := []string{"x", "y"}
+	keepNames(&names)
+	all := ""
+	for _, nm := range names { // names lives in a cell: a copy of it is ranged over
+		all += nm
+	}
+	fmt.Println(all, len(names))
+	// cx is changed through cp, and used by name only once cp is done
+	// with: cp is a borrow of cx (testdata/reject/owned_address_kept has
+	// cx used beside cp, two owners).
 	cx := 5
 	cp := &cx
 	*cp = 7
-	fmt.Println(*cp, cp == &cx)
+	fmt.Println(*cp)
 	fmt.Println(cx)
 }

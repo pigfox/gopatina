@@ -35,58 +35,67 @@ mod rt;
 #[derive(Clone, Default, PartialEq)]
 pub struct Node {
     pub v: i64,
-    pub kids: Vec<rt::Ptr<Node>>,
+    pub kids: Vec<Option<Box<Node>>>,
 }
 
-fn leaf(v: i64) -> rt::Ptr<Node> {
-    rt::Ptr::new(Node {
+impl Node {
+    /// add appends k to n's kids, which own it.
+    fn add(mut n: Option<&mut Node>, k: Option<Box<Node>>) {
+        n.as_mut().unwrap().kids.push(k);
+    }
+}
+
+fn leaf(v: i64) -> Box<Node> {
+    Box::new(Node {
         v,
         ..Default::default()
     })
 }
 
-fn sum(n: &rt::Ptr<Node>) -> i64 {
-    let mut t = n.with(|v| v.v);
-    let items = n.with(|v| v.kids.clone());
-    for k in &items {
-        t += sum(k);
+fn sum(n: &Node) -> i64 {
+    let mut t = n.v;
+    for k in &n.kids {
+        t += sum(k.as_ref().unwrap());
     }
     t
 }
 
 fn main() {
     rt::exit_on_panic();
-    let root = leaf(1);
-    let call = leaf(2);
-    let call_2 = leaf(3);
-    let val = call;
-    let val_2 = call_2;
-    root.with_mut(|v| {
-        v.kids.push(val);
-        v.kids.push(val_2);
-    });
-    let k0 = root.with(|v| v.kids[0].clone());
-    let call_3 = leaf(4);
-    let val_3 = call_3;
-    k0.with_mut(|v| v.kids.push(val_3));
-    let all: Vec<rt::Ptr<Node>> = vec![root.clone(), root.with(|v| v.kids[1].clone())];
-    all[1].with_mut(|v| v.v += 10);
-    let mut ps: Vec<rt::Ptr<Node>> = vec![rt::Ptr::nil(); 3];
-    ps[0] = root.clone();
-    let call_4 = sum(&root);
+    let mut root = leaf(1);
+    root.kids.push(Some(leaf(2)));
+    root.kids.push(Some(leaf(3)));
+    Node::add(root.kids[0].as_deref_mut(), Some(leaf(4)));
+    root.kids[1].as_mut().unwrap().v += 10;
+    let mut all: Vec<Option<Box<Node>>> = vec![Some(leaf(5)), Some(leaf(6))];
+    all[1].as_mut().unwrap().v += 10;
+    let mut ps: Vec<Option<Box<Node>>> = vec![None; 3];
+    ps[0] = Some(leaf(7));
     println!(
         "{} {} {} {} {} {}",
-        call_4,
+        sum(&root),
         all.len() as i64,
-        all[0] == root,
-        ps[1].is_nil(),
-        ps[0].with(|v| v.v),
-        root.with(|v| v.kids[1].clone()).with(|v| v.v),
+        all[0].as_deref().map(std::ptr::from_ref) == all[1].as_deref().map(std::ptr::from_ref),
+        ps[1].is_none(),
+        ps[0].as_ref().unwrap().v,
+        root.kids[1].as_ref().unwrap().v,
     );
-    for (i, p) in all.iter().enumerate() {
-        let i = i as i64;
-        p.with_mut(|v| v.v *= 2);
-        println!("{} {}", i, p.with(|v| v.v));
+    for i in 0..all.len() as i64 {
+        all[i as usize].as_mut().unwrap().v *= 2;
+        println!("{} {}", i, all[i as usize].as_ref().unwrap().v);
     }
-    println!("{}", sum(&root));
+    let call = sum(root.kids[0].as_ref().unwrap());
+    let call_2 = sum(root.kids[1].as_ref().unwrap());
+    println!(
+        "{} {} {} {}",
+        root.kids[0].as_ref().unwrap().v,
+        root.kids[0].as_ref().unwrap().kids.len() as i64,
+        call,
+        call_2,
+    );
+    println!(
+        "{} {}",
+        sum(&root),
+        sum(all[0].as_ref().unwrap()) + sum(all[1].as_ref().unwrap()),
+    );
 }

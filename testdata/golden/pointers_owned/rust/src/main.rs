@@ -32,8 +32,8 @@
 
 mod rt;
 
-/// Tag is shared (a slice holds its pointers), so it stays a
-/// reference-counted cell, held inside the owned nodes.
+/// Tag is owned too: each leaf gets a Tag of its own, made from a label,
+/// so no two nodes hold one Tag (RFC 0017).
 #[derive(Clone, Default, PartialEq)]
 pub struct Tag {
     pub label: String,
@@ -45,7 +45,7 @@ pub struct Node {
     pub right: Option<Box<Node>>,
     pub key: i64,
     pub name: String,
-    pub tag: rt::Ptr<Tag>,
+    pub tag: Option<Box<Tag>>,
 }
 
 impl Node {
@@ -75,12 +75,14 @@ impl Node {
     }
 }
 
-fn build(depth: i64, key: i64, tags: &[rt::Ptr<Tag>]) -> Box<Node> {
+fn build(depth: i64, key: i64, tags: &[String]) -> Box<Node> {
     if depth == 0 {
         return Box::new(Node {
             key,
             name: format!("leaf{}", key),
-            tag: tags[(key % 2) as usize].clone(),
+            tag: Some(Box::new(Tag {
+                label: tags[(key % 2) as usize].clone(),
+            })),
             ..Default::default()
         });
     }
@@ -105,7 +107,7 @@ fn pair(a: i64, b: i64) -> Box<Node> {
         })),
         key: a + b,
         name: String::from("pair"),
-        tag: rt::Ptr::nil(),
+        tag: None,
     })
 }
 
@@ -117,10 +119,10 @@ fn leftmost(n: &Node) -> String {
 }
 
 fn label(n: &Node) -> String {
-    if n.tag.is_nil() {
+    if n.tag.is_none() {
         return String::from("none");
     }
-    n.tag.with(|v| v.label.clone())
+    n.tag.as_ref().unwrap().label.clone()
 }
 
 /// List is a long chain of owned pointers: dropping it must not need one
@@ -150,14 +152,7 @@ fn length(l: Option<&List>) -> i64 {
 
 fn main() {
     rt::exit_on_panic();
-    let tags: Vec<rt::Ptr<Tag>> = vec![
-        rt::Ptr::new(Tag {
-            label: String::from("even"),
-        }),
-        rt::Ptr::new(Tag {
-            label: String::from("odd"),
-        }),
-    ];
+    let tags: Vec<String> = vec![String::from("even"), String::from("odd")];
     let mut t = Some(build(3, 1, &tags));
     println!(
         "{} {} {} {} {}",
@@ -167,38 +162,35 @@ fn main() {
         t.as_ref().unwrap().key,
         t.as_ref().unwrap().name,
     );
-    let call = label(t.as_ref().unwrap());
-    let call_2 = label(
-        t.as_ref()
-            .unwrap()
-            .left
-            .as_ref()
-            .unwrap()
-            .left
-            .as_ref()
-            .unwrap()
-            .left
-            .as_ref()
-            .unwrap(),
-    );
-    let call_3 = label(
-        t.as_ref()
-            .unwrap()
-            .right
-            .as_ref()
-            .unwrap()
-            .right
-            .as_ref()
-            .unwrap()
-            .right
-            .as_ref()
-            .unwrap(),
-    );
     println!(
         "{} {} {} {}",
-        call,
-        call_2,
-        call_3,
+        label(t.as_ref().unwrap()),
+        label(
+            t.as_ref()
+                .unwrap()
+                .left
+                .as_ref()
+                .unwrap()
+                .left
+                .as_ref()
+                .unwrap()
+                .left
+                .as_ref()
+                .unwrap(),
+        ),
+        label(
+            t.as_ref()
+                .unwrap()
+                .right
+                .as_ref()
+                .unwrap()
+                .right
+                .as_ref()
+                .unwrap()
+                .right
+                .as_ref()
+                .unwrap(),
+        ),
         t.as_ref()
             .unwrap()
             .left
@@ -211,19 +203,21 @@ fn main() {
             .as_ref()
             .unwrap()
             .tag
-            .with(|v| v.label.clone()),
+            .as_ref()
+            .unwrap()
+            .label,
     );
     let p = pair(3, 4);
-    let call_4 = Node::sum(Some(&*p));
-    let call_5 = p.depth();
-    let call_6 = label(&p);
+    let call = Node::sum(Some(&*p));
+    let call_2 = p.depth();
+    let call_3 = label(&p);
     println!(
         "{} {} {} {} {}",
-        call_4,
+        call,
         p.left.as_ref().unwrap().key,
         p.right.as_ref().unwrap().key,
-        call_5,
-        call_6,
+        call_2,
+        call_3,
     );
     t = Some(build(1, 5, &tags));
     println!(
@@ -231,7 +225,7 @@ fn main() {
         Node::sum(t.as_deref()),
         t.as_ref().unwrap().left.is_none(),
         t.as_ref().unwrap().right.as_ref().unwrap().left.is_none(),
-        !t.as_ref().unwrap().left.as_ref().unwrap().tag.is_nil(),
+        t.as_ref().unwrap().left.as_ref().unwrap().tag.is_some(),
     );
     let empty: Option<Box<Node>> = None;
     println!("{} {}", Node::sum(empty.as_deref()), empty.is_none());

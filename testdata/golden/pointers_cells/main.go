@@ -124,12 +124,15 @@ func main() {
 	a, b := pair()
 	*a, *b = *b, *a
 	fmt.Println(*a, *b)
-	var c Counter
-	keepC := hold(&c)
+	c := &Counter{}
 	c.Hit()
+	keepC := hold(c) // a borrow of c, used before c is again
 	keepC.Hit()
-	fmt.Println(c.hits, keepC.hits, c.Hit()+keepC.Hit(), c.hits)
-	cells := []int{c.hits, keepC.Hit(), c.hits}
+	fmt.Println(keepC.Hit(), hold(keepC).hits)
+	fmt.Println(c.hits)
+	two := c.Hit() + c.Hit()
+	fmt.Println(two, c.hits)
+	cells := []int{c.hits, two, c.hits * 2}
 	fmt.Println(cells)
 	var q *T
 	if q == nil {

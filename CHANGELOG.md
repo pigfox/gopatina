@@ -8,7 +8,27 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Second owners are errors** (RFC 0017). A use that gives an object a
+  second owner made its pointer type a shared cell (`rt::Ptr`) until now;
+  it is now an error naming the use, why Rust has one owner, and how to
+  write it: a pointer copied out of a place and kept, a range variable
+  that keeps an element, a variable's address held while the variable is
+  still used by name, and a borrow a function lends back kept. Types an
+  interface holds keep their cells until interface values are owned.
+  Reject goldens `owned_aliases_kept`, `owned_address_kept` and
+  `owned_returned_borrow_kept`; pointers_owned and pointers_slices now hold
+  no cell.
+
 ### Added
+
+- A temporary borrow may be compared with another pointer, by address
+  (`for p := head; p != stop; p = p.Next` is
+  `while p.map(std::ptr::from_ref) != stop.map(std::ptr::from_ref)`),
+  and an element of a slice of owned pointers may be given a pointer
+  (`ps[0] = leaf(7)`, `ps[0] = Some(leaf(7))`). Both kept the type a
+  shared cell until now.
 
 - Owned pointers compare by address without sharing their type (RFC 0017):
   `a == b` is `std::ptr::eq(&*a, &*b)` for two never nil,

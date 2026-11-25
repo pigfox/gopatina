@@ -1,0 +1,19 @@
+./main.go:29:21: tags[depth % 2] is copied and kept, so its object has two owners
+    one owner per object (RFC 0017): a pointer kept elsewhere is moved there, and only read through or lent while its owner stays unchanged
+    use one name for the object from here on, read through it or pass it to a call, or give the copy an object of its own
+./main.go:40:26: first.Prev is copied and kept, so its object has two owners
+    one owner per object (RFC 0017): a pointer kept elsewhere is moved there, and only read through or lent while its owner stays unchanged
+    use one name for the object from here on, read through it or pass it to a call, or give the copy an object of its own
+./main.go:50:8: root.Kids[0] is copied and kept in k0, so its object has two owners
+    one owner per object (RFC 0017): a pointer kept elsewhere is moved there, and only read through or lent while its owner stays unchanged
+    a local variable that only reads through it is a borrow; one that changes through it, or is used once its owner changes, would be an exclusive borrow (&mut), not supported yet
+    use one name for the object from here on, read through it or pass it to a call, or give the copy an object of its own
+./main.go:52:23: root.Kids[1] is copied and kept, so its object has two owners
+    one owner per object (RFC 0017): a pointer kept elsewhere is moved there, and only read through or lent while its owner stays unchanged
+    use one name for the object from here on, read through it or pass it to a call, or give the copy an object of its own
+./main.go:54:10: root is copied and kept in ps[0], so its object has two owners
+    one owner per object (RFC 0017): a pointer kept elsewhere is moved there, and only read through or lent while its owner stays unchanged
+    use one name for the object from here on, read through it or pass it to a call, or give the copy an object of its own
+./main.go:55:9: range variable p keeps a second pointer to an element of all
+    the slice owns each element, so in Rust a range over it lends each one, and the borrow ends with the iteration (RFC 0017)
+    only read through p, or range over the indices and change all[i]

@@ -65,7 +65,7 @@ func (p *PtrPlan) ownedOnce() {
 		return
 	}
 	p.ownedDone = true
-	o := &ownership{p: p, info: p.pkg.Info, why: map[types.Type]sharing{}, boxed: Ifaces(p.pkg).Boxed, chained: map[types.Type]bool{}}
+	o := &ownership{p: p, info: p.pkg.Info, why: map[types.Type]sharing{}, ifaced: map[types.Type]bool{}, boxed: Ifaces(p.pkg).Boxed, chained: map[types.Type]bool{}}
 	o.run()
 	for _, h := range p.heap {
 		if s, ok := o.whyOf(h); ok {
@@ -76,6 +76,12 @@ func (p *PtrPlan) ownedOnce() {
 	}
 	for _, e := range o.errs {
 		if _, shared := o.whyOf(e.t); !shared {
+			p.ownerErrs = append(p.ownerErrs, e)
+		}
+	}
+	ifaced := o.ifacedTypes()
+	for _, e := range o.aliases {
+		if !ifaced[e.t] {
 			p.ownerErrs = append(p.ownerErrs, e)
 		}
 	}
@@ -116,6 +122,12 @@ type ownerError struct {
 // ownership finds the heap types that are shared.
 type ownership struct {
 	errs []ownerError
+	// aliases are the uses that give an object a second owner: refused
+	// (RFC 0017) unless an interface holds the type's pointers, which keep
+	// their cells until interface values are owned too.
+	aliases []ownerError
+	// ifaced are the element types an interface value holds a pointer to.
+	ifaced map[types.Type]bool
 	// kept are the parameters their function keeps: returns, stores or
 	// moves (RFC 0017, step 8). The caller moves its pointer in.
 	kept map[*types.Var]bool
@@ -150,6 +162,43 @@ func (o *ownership) refuse(t types.Type, e ast.Expr, msg string, notes ...string
 	o.errs = append(o.errs, ownerError{t: t, pos: e.Pos(), msg: msg, notes: notes})
 }
 
+// alias records that element type t is shared at e because a use gives
+// its object a second owner, which one owner per object refuses (RFC
+// 0017): why says so for SharedReason, msg and notes for the error.
+func (o *ownership) alias(t types.Type, e ast.Node, why, msg string, notes ...string) {
+	o.share(t, e.Pos(), why)
+	o.aliases = append(o.aliases, ownerError{t: t, pos: e.Pos(), msg: msg, notes: notes})
+}
+
+// ifacedTypes returns the element types whose pointers stay cells because
+// an interface holds them: those an interface value holds, and those a
+// field of one holds, through any number of fields.
+func (o *ownership) ifacedTypes() map[types.Type]bool {
+	set := map[types.Type]bool{}
+	for t := range o.ifaced {
+		set[t] = true
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, h := range o.p.heap {
+			if !set[h] {
+				continue
+			}
+			st, ok := h.Underlying().(*types.Struct)
+			if !ok {
+				continue
+			}
+			for i := 0; i < st.NumFields(); i++ {
+				if el := o.elemOf(st.Field(i).Type()); el != nil && !set[el] {
+					set[el] = true
+					changed = true
+				}
+			}
+		}
+	}
+	return set
+}
+
 // share records that element type t is shared, at pos, because of why.
 func (o *ownership) share(t types.Type, pos token.Pos, why string) {
 	for k, s := range o.why {
@@ -164,12 +213,19 @@ func (o *ownership) share(t types.Type, pos token.Pos, why string) {
 }
 
 // elemOf returns the element type T of e's type if it is a heap pointer
-// type *T, or nil.
+// type *T, or nil. It is the heap's own T, so identical types are one map
+// key.
 func (o *ownership) elemOf(t types.Type) types.Type {
-	if t == nil || !o.p.HeapType(t) {
+	pt, ok := types.Unalias(t).(*types.Pointer)
+	if !ok {
 		return nil
 	}
-	return types.Unalias(t).(*types.Pointer).Elem()
+	for _, h := range o.p.heap {
+		if types.Identical(h, pt.Elem()) {
+			return h
+		}
+	}
+	return nil
 }
 
 func (o *ownership) run() {
@@ -230,6 +286,7 @@ func (o *ownership) run() {
 	// A variable whose address is kept while the variable is still used
 	// lives in a cell the two names share: not an escape box, nor only
 	// lent to callees that keep nothing.
+	held := o.heldAddrs()
 	for v := range o.p.Cells {
 		el := o.elemOf(types.NewPointer(v.Type()))
 		if el == nil || o.escapeVar(v) {
@@ -239,7 +296,17 @@ func (o *ownership) run() {
 			o.p.lentOK[v] = true
 			continue
 		}
-		o.share(el, v.Pos(), "its address is kept while the variable is still used")
+		at := held[v]
+		if at == nil || !o.usedAfter(v, at.End()) {
+			// &x lent to calls, or kept with no use of x after: not
+			// supported yet for every x, but no second owner.
+			o.share(el, v.Pos(), "its address is kept")
+			continue
+		}
+		o.alias(el, at, "its address is kept while the variable is still used",
+			fmt.Sprintf("the address of %s is kept while %s is still used by name, so the object has two owners", v.Name(), v.Name()),
+			"in Rust a variable whose address is kept is borrowed for as long as the pointer lives, and is not used by name meanwhile (RFC 0017)",
+			fmt.Sprintf("after taking its address, use %[1]s only through the pointer; or make %[1]s a pointer from the start, with new or &T{...}", v.Name()))
 	}
 	o.ranges()
 	for _, f := range o.p.pkg.Files {
@@ -329,7 +396,10 @@ func (o *ownership) ranges() {
 				return true
 			}
 			if v, ok := o.info.Defs[id].(*types.Var); ok && !o.p.BorrowVar(v) {
-				o.share(o.elemOf(v.Type()), id.Pos(), "a range variable takes a copy of an element and keeps it")
+				o.alias(o.elemOf(v.Type()), id, "a range variable takes a copy of an element and keeps it",
+					fmt.Sprintf("range variable %s keeps a second pointer to an element of %s", id.Name, types.ExprString(r.X)),
+					"the slice owns each element, so in Rust a range over it lends each one, and the borrow ends with the iteration (RFC 0017)",
+					fmt.Sprintf("only read through %s, or range over the indices and change %s[i]", id.Name, types.ExprString(r.X)))
 			}
 			return true
 		})
@@ -711,6 +781,7 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 	}
 	if _, boxed := o.boxed[e]; boxed {
 		o.share(el, e.Pos(), "an interface value holds it")
+		o.ifaced[el] = true
 		return
 	}
 	if c, ok := e.(*ast.CallExpr); ok && o.p.retBorrowCall(c) != nil {
@@ -843,7 +914,7 @@ func (o *ownership) freshUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	case *ast.AssignStmt:
 		if p.Tok == token.DEFINE || p.Tok == token.ASSIGN {
 			for i, r := range p.Rhs {
-				if r == child && len(p.Lhs) == len(p.Rhs) && (o.localVar(p.Lhs[i]) || o.fieldPlace(p.Lhs[i])) {
+				if r == child && len(p.Lhs) == len(p.Rhs) && (o.localVar(p.Lhs[i]) || o.fieldPlace(p.Lhs[i]) || o.elemPlace(p.Lhs[i])) {
 					if o.fieldPlace(p.Lhs[i]) {
 						o.chained[el] = true
 					}
@@ -910,8 +981,8 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 						"assign the new pointer to a new local variable instead, and use that from here on")
 					return
 				}
-				if o.localVar(l) || o.fieldPlace(l) {
-					return // a variable or a field assigned a pointer, which moves there (RFC 0017, step 4)
+				if o.localVar(l) || o.fieldPlace(l) || o.elemPlace(l) {
+					return // a variable, a field or a Vec's element assigned a pointer, which moves there (RFC 0017, step 4)
 				}
 				o.share(el, e.Pos(), "it is written through")
 				return
@@ -939,7 +1010,97 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 		// (RFC 0017).
 		return
 	}
-	o.share(el, e.Pos(), "a copy of it is kept")
+	if valueCopy(o.info, par, child) {
+		// *p, or p.M() for a value receiver, of a type holding a slice: a
+		// copy of the value shares the slice's elements with *p, not
+		// supported yet, but no second pointer.
+		o.share(el, e.Pos(), "a copy of its value shares its elements")
+		return
+	}
+	notes := []string{"one owner per object (RFC 0017): a pointer kept elsewhere is moved there, and only read through or lent while its owner stays unchanged"}
+	if l := keptAt(par, child); l != nil && o.localVar(l) {
+		notes = append(notes, "a local variable that only reads through it is a borrow; one that changes through it, or is used once its owner changes, would be an exclusive borrow (&mut), not supported yet")
+	}
+	notes = append(notes, "use one name for the object from here on, read through it or pass it to a call, or give the copy an object of its own")
+	o.alias(el, e, "a copy of it is kept",
+		fmt.Sprintf("%s is copied and kept%s, so its object has two owners", types.ExprString(e), keptIn(keptAt(par, child))), notes...)
+}
+
+// heldAddrs returns, for each variable, the first &x of the program held
+// in a variable, a field or a composite literal: kept, not lent to a call.
+func (o *ownership) heldAddrs() map[*types.Var]*ast.UnaryExpr {
+	held := map[*types.Var]*ast.UnaryExpr{}
+	for _, f := range o.p.pkg.Files {
+		var stack []ast.Node
+		ast.Inspect(f, func(n ast.Node) bool {
+			if n == nil {
+				stack = stack[:len(stack)-1]
+				return true
+			}
+			stack = append(stack, n)
+			u, ok := n.(*ast.UnaryExpr)
+			if !ok || u.Op != token.AND {
+				return true
+			}
+			id, ok := ast.Unparen(u.X).(*ast.Ident)
+			if !ok {
+				return true
+			}
+			v, ok := o.info.Uses[id].(*types.Var)
+			if !ok || held[v] != nil {
+				return true
+			}
+			switch par, _, _ := parent(stack); par.(type) {
+			case *ast.AssignStmt, *ast.ValueSpec, *ast.CompositeLit, *ast.KeyValueExpr:
+				held[v] = u
+			}
+			return true
+		})
+	}
+	return held
+}
+
+// usedAfter reports whether v is used after pos.
+func (o *ownership) usedAfter(v *types.Var, pos token.Pos) bool {
+	for id, obj := range o.info.Uses {
+		if obj == v && id.Pos() > pos {
+			return true
+		}
+	}
+	return false
+}
+
+// valueCopy reports whether par copies the value child points to: *child,
+// or child.M() for a method with a value receiver.
+func valueCopy(info *types.Info, par, child ast.Node) bool {
+	switch p := par.(type) {
+	case *ast.StarExpr:
+		return true
+	case *ast.SelectorExpr:
+		s := info.Selections[p]
+		return p.X == child && s != nil && s.Kind() == types.MethodVal && !isPointer(s.Obj().(*types.Func).Signature().Recv().Type())
+	}
+	return false
+}
+
+// keptAt returns the place par assigns child to, or nil.
+func keptAt(par, child ast.Node) ast.Expr {
+	if as, ok := par.(*ast.AssignStmt); ok && len(as.Lhs) == len(as.Rhs) {
+		for i, r := range as.Rhs {
+			if r == child {
+				return as.Lhs[i]
+			}
+		}
+	}
+	return nil
+}
+
+// keptIn names place l for a message: " in l", or nothing for nil.
+func keptIn(l ast.Expr) string {
+	if l == nil {
+		return ""
+	}
+	return " in " + types.ExprString(l)
 }
 
 // returnsBorrow reports whether e, returned, is a place rooted at the
@@ -982,7 +1143,14 @@ func (o *ownership) borrowUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	if b, ok := par.(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
 		return // compared: a read of its address (std::ptr::eq)
 	}
-	o.share(el, e.Pos(), "a borrow a call returns is kept")
+	l := keptAt(par, child)
+	notes := []string{"in Rust the result borrows the argument, and lasts only while the argument is unchanged (RFC 0017)"}
+	if as, ok := par.(*ast.AssignStmt); ok && as.Tok == token.DEFINE && o.localVar(l) {
+		notes = append(notes, fmt.Sprintf("a new local is such a borrow when the argument is a pointer variable, p := f(x); %s lends another argument, not supported yet", types.ExprString(e)))
+	}
+	notes = append(notes, "read through the result or pass it to a call where it is returned, or keep the argument's own pointer instead")
+	o.alias(el, e, "a borrow a call returns is kept",
+		fmt.Sprintf("%s lends back a pointer its caller owns, and it is kept%s, so the object has two owners", types.ExprString(e), keptIn(l)), notes...)
 }
 
 // readOrLend reports whether child, a pointer, is read through by par (a

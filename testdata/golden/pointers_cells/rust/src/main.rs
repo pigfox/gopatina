@@ -103,13 +103,13 @@ pub struct Counter {
 }
 
 impl Counter {
-    pub fn hit(c: &rt::Ptr<Counter>) -> i64 {
-        c.with_mut(|v| v.hits += 1);
-        c.with(|v| v.hits)
+    pub fn hit(&mut self) -> i64 {
+        self.hits += 1;
+        self.hits
     }
 }
 
-fn hold(c: rt::Ptr<Counter>) -> rt::Ptr<Counter> {
+fn hold(c: Option<&mut Counter>) -> Option<&mut Counter> {
     c
 }
 
@@ -255,21 +255,21 @@ fn main() {
     a.with_mut(|v| *v = val_9);
     b.with_mut(|v| *v = val_10);
     println!("{} {}", a.load(), b.load());
-    let c: rt::Ptr<Counter> = rt::Ptr::new(Counter::default());
-    let keep_c = hold(c.clone());
-    Counter::hit(&c);
-    Counter::hit(&keep_c);
-    let call_7 = Counter::hit(&c);
-    let call_8 = Counter::hit(&keep_c);
+    let mut c = Box::new(Counter {
+        ..Default::default()
+    });
+    c.hit();
+    let mut keep_c = hold(Some(&mut *c)); // a borrow of c, used before c is again
+    keep_c.as_mut().unwrap().hit();
     println!(
-        "{} {} {} {}",
-        c.with(|v| v.hits),
-        keep_c.with(|v| v.hits),
-        call_7 + call_8,
-        c.with(|v| v.hits),
+        "{} {}",
+        keep_c.as_mut().unwrap().hit(),
+        hold(keep_c).as_ref().unwrap().hits,
     );
-    let call_9 = Counter::hit(&keep_c);
-    let cells: Vec<i64> = vec![c.with(|v| v.hits), call_9, c.with(|v| v.hits)];
+    println!("{}", c.hits);
+    let two = c.hit() + c.hit();
+    println!("{} {}", two, c.hits);
+    let cells: Vec<i64> = vec![c.hits, two, c.hits * 2];
     println!("{}", rt::Slice(&cells));
     let mut q: rt::Ptr<T> = rt::Ptr::nil();
     if q.is_nil() {

@@ -277,7 +277,7 @@ func (b *borrowFinder) lendable(e ast.Expr, cand map[*types.Var]bool) bool {
 }
 
 // reads reports whether use u of borrow v only reads: v.f read, a method
-// called, v compared with nil, v lent to a call, or v assigned to another
+// called, v compared with nil or another pointer, v lent to a call, or v assigned to another
 // borrow.
 func (b *borrowFinder) reads(v *types.Var, u use, cand map[*types.Var]bool) bool {
 	switch p := u.par.(type) {
@@ -292,7 +292,7 @@ func (b *borrowFinder) reads(v *types.Var, u use, cand map[*types.Var]bool) bool
 		}
 		return true
 	case *ast.BinaryExpr:
-		return (p.Op == token.EQL || p.Op == token.NEQ) && (b.info.Types[p.X].IsNil() || b.info.Types[p.Y].IsNil())
+		return p.Op == token.EQL || p.Op == token.NEQ // compared with nil, or by address (std::ptr::eq)
 	case *ast.CallExpr:
 		fn := b.callee(p)
 		for i, a := range p.Args {
