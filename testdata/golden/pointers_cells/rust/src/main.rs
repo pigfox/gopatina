@@ -406,11 +406,9 @@ fn main() {
         (*a.as_ref().unwrap()).clone(),
     );
     println!("{} {}", *a.as_ref().unwrap(), *b.as_ref().unwrap());
-    let mut c = Box::new(Counter {
-        ..Default::default()
-    });
+    let mut c: Counter = Counter::default();
     c.hit();
-    let mut keep_c = hold(Some(&mut *c)); // a borrow of c, used before c is again
+    let mut keep_c = hold(Some(&mut c)); // a borrow of c, used before c is again
     keep_c.as_mut().unwrap().hit();
     println!(
         "{} {}",

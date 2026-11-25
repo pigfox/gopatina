@@ -1146,14 +1146,10 @@ func (o *ownership) borrowUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	if b, ok := par.(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
 		return // compared: a read of its address (std::ptr::eq)
 	}
-	l := keptAt(par, child)
-	notes := []string{"in Rust the result borrows the argument, and lasts only while the argument is unchanged (RFC 0017)"}
-	if as, ok := par.(*ast.AssignStmt); ok && as.Tok == token.DEFINE && o.localVar(l) {
-		notes = append(notes, fmt.Sprintf("a new local is such a borrow when the argument is a pointer variable, p := f(x); %s lends another argument, not supported yet", types.ExprString(e)))
-	}
-	notes = append(notes, "read through the result or pass it to a call where it is returned, or keep the argument's own pointer instead")
 	o.alias(el, e, "a borrow a call returns is kept",
-		fmt.Sprintf("%s lends back a pointer its caller owns, and it is kept%s, so the object has two owners", types.ExprString(e), keptIn(l)), notes...)
+		fmt.Sprintf("%s lends back a pointer its caller owns, and it is kept%s, so the object has two owners", types.ExprString(e), keptIn(keptAt(par, child))),
+		"in Rust the result borrows the argument, and lasts only while the argument is unchanged (RFC 0017)",
+		"read through the result or pass it to a call where it is returned, or keep the argument's own pointer instead")
 }
 
 // readOrLend reports whether child, a pointer, is read through by par (a

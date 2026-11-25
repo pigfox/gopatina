@@ -451,8 +451,12 @@ cannot express, is an error naming the use and how to write it with one:
 - a variable's address held in a variable, field or literal while the
   variable is still used by name (`cp := &cx`, then `cx` beside `cp`:
   `testdata/reject/owned_address_kept`);
-- a borrow a function lends back kept in a field or literal, or in a
-  local while its source changes (`testdata/reject/owned_returned_borrow_kept`).
+- a borrow a function lends back kept in a field or literal
+  (`testdata/reject/owned_returned_borrow_kept`). Kept in a local, it is a
+  borrow of the argument's variable, `keepC := hold(&c)` as
+  `let keep_c = hold(Some(&mut c))`, and a change to `c` while `keepC` is
+  in use is the borrow checker's error
+  (`testdata/reject/owned_returned_borrow_addr`).
 
 A local that only reads through a pointer another place owns is a
 temporary borrow, and may be compared with nil or with another pointer

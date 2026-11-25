@@ -247,7 +247,11 @@ func (p *PtrPlan) localRefs() {
 				if as, ok := stack[len(stack)-2].(*ast.AssignStmt); ok && as.Tok == token.DEFINE && len(as.Lhs) == 1 && len(as.Rhs) == 1 {
 					if c, ok := ast.Unparen(as.Rhs[0]).(*ast.CallExpr); ok && p.retBorrowCall(c) != nil {
 						// p := f(x), f lending x back: a borrow of x's root.
-						if xv := placeRoot(info, p.retBorrowCall(c)); xv != nil && !xv.IsField() && xv.Parent() != xv.Pkg().Scope() {
+						arg := p.retBorrowCall(c)
+						if u, ok := ast.Unparen(arg).(*ast.UnaryExpr); ok && u.Op == token.AND {
+							arg = u.X // p := f(&x): a borrow of x itself
+						}
+						if xv := placeRoot(info, arg); xv != nil && !xv.IsField() && xv.Parent() != xv.Pkg().Scope() {
 							cand[v] = true
 							p.refSources[v] = xv
 							p.refCalls[v] = c

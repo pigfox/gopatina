@@ -23,6 +23,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- A function that lends back a variable's address makes a local borrow
+  of the variable (RFC 0017): `keepC := hold(&c)` is
+  `let keep_c = hold(Some(&mut c))`, as `p := f(x)` was for a pointer
+  variable. Until now it was an error (since second owners are errors),
+  and before that a shared cell. A change to `c` while `keepC` is in use
+  is refused by the borrow checker (reject golden
+  `owned_returned_borrow_addr`).
+
 - More local values move into a new box at their `&` (RFC 0017), instead
   of living in a shared cell: each of several names declared together
   (`a, b := "a", "b"; return &a, &b`), and a local slice of data
