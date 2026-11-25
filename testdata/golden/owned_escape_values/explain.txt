@@ -1,0 +1,8 @@
+./main.go:18:10: moved a into a new pointer: a is not used afterwards
+./main.go:18:14: moved b into a new pointer: b is not used afterwards
+./main.go:23:10: moved x into a new pointer: x is not used afterwards
+./main.go:23:14: moved y into a new pointer: y is not used afterwards
+./main.go:28:10: moved ns into a new pointer: ns is not used afterwards
+./main.go:33:10: moved w into a new pointer: w is not used afterwards
+./main.go:38:11: copied *b into *a: b is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:38:15: copied *a into *b: a is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning

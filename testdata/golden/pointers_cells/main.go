@@ -27,6 +27,23 @@ type Bag struct{ s []int }
 // Sum reads a copy.
 func (b Bag) Sum() int { return sum(b.s) }
 
+// Cnt and Words are an int and a slice that interfaces hold pointers to.
+type Cnt int
+
+type Words []string
+
+type Names []string
+
+func newCnt(n int) *Cnt {
+	c := Cnt(n)
+	return &c
+}
+
+func setWord(w []string) { w[0] = "z" }
+
+// twoCnt returns a Cnt and an int.
+func twoCnt() (Cnt, int) { return 6, 7 }
+
 // two returns two ints.
 func two() (int, int) { return 6, 7 }
 
@@ -133,6 +150,27 @@ func main() {
 	kept := (&shelf).Keep()
 	kept.Bump()
 	fmt.Println(sp.Count(), show(&shelf), anyS != nil)
+	// An int and a slice whose addresses an interface holds live in cells.
+	ni, nj := Cnt(5), 0
+	var anyN any = &ni
+	ni++
+	ni, nj = twoCnt()
+	ws := Words{"x", "y"}
+	var anyWs any = &ws
+	all := ""
+	for _, w := range ws { // a copy of the cell's slice is ranged over
+		all += w
+	}
+	fmt.Println(ni, nj, all, anyN != nil, anyWs != nil)
+	ni, nj = Cnt(nj+1), int(ni) // several values into a cell
+	cp := newCnt(3)
+	var anyC any = cp
+	*cp += ni // written through a pointer to a cell
+	fmt.Println(ni, nj, *cp, anyC != nil)
+	wz := Names{"p", "q"}
+	var anyWz any = &wz
+	setWord(wz) // the cell's slice lent to a call
+	fmt.Println(wz, anyWz != nil)
 	rack := &Rack{}
 	var anyR any = rack
 	rack.Up = &Rack{N: 1}

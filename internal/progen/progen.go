@@ -165,6 +165,12 @@ func (g *gen) libDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc (l *Lst%d) Sum() int {\n\tt := 0\n\tfor p := l; p != nil; p = p.Next {\n\t\tt += p.V\n\t}\n\treturn t\n}\n", k)
 	fmt.Fprintf(b, "\n// Tally%d counts; no pointer to one escapes, so &l.T is lent as &mut.\ntype Tally%d int\n", k, k)
 	fmt.Fprintf(b, "\nfunc AddTo%d(x *Tally%d, d int) { *x += Tally%d(d) }\n", k, k, k)
+	// Escape boxes: two values declared together, and a slice, each moved
+	// into a new Box at its & (RFC 0017).
+	fmt.Fprintf(b, "\n// Tw%d is a number whose pointers escape (Two).\ntype Tw%d int\n", k, k)
+	fmt.Fprintf(b, "\nfunc Two%d(x int) (*Tw%d, *Tw%d) {\n\ta, b := Tw%d(x), Tw%d(x+1)\n\treturn &a, &b\n}\n", k, k, k, k, k)
+	fmt.Fprintf(b, "\n// Ints%d is a slice moved into a Box.\ntype Ints%d []int\n", k, k)
+	fmt.Fprintf(b, "\nfunc NewInts%d(x int) *Ints%d {\n\tns := Ints%d{x, x + 1}\n\treturn &ns\n}\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc (l *Lst%d) Bump(d int) {\n\tl.V += d\n\tif l.Next != nil {\n\t\tl.Next.Bump(d)\n\t}\n}\n", k)
 	ops := []string{"+", "-", "*", "&", "|", "^"}
 	expr := "x"
@@ -491,6 +497,10 @@ func (g *gen) libUses() {
 	g.line("ll.Side.P = lib.Cons%d(v2, nil)", k)
 	g.line("ll.Side.P.V++")
 	g.line("fmt.Println(ll.Side.P.V, ll.Next.Side.P == nil)")
+	g.line("lta, ltb := lib.Two%d(v1)", k)
+	g.line("*lta += *ltb")
+	g.line("lns := lib.NewInts%d(v2)", k)
+	g.line("fmt.Println(*lta, *ltb, len(*lns), (*lns)[1])")
 	g.line("fmt.Println(ll.Sum(), ll.V, ll.Next.Next.V, ll.Next.Next.Next == nil)")
 	// A walk to a stop pointer, compared by address (std::ptr::eq), and a
 	// new pointer moved into a Vec's element.

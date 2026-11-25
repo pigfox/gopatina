@@ -513,8 +513,13 @@ after: `n := Node{V: 1}; n.Name = "n"; return &n` is
 `let mut n = Node { .. }; n.name = ..; Some(Box::new(n))`. Until the `&`
 it is a plain local, read and changed through its fields. The `&` must be
 its only one, and must not run again with the value already moved: not in
-a loop or function literal the value is declared outside of. Other
-addresses of locals still make the type shared.
+a loop or function literal the value is declared outside of. Each of
+several names declared together takes its own box (`a, b := "a", "b";
+return &a, &b`), unless one call gives them all (`a, b := f()`). A local
+slice of data moves the same way when nothing else uses it
+(`ns := Ints{1, 2}; return &ns` is `vec![1, 2]`); through its pointer it
+is indexed (`(*p)[i]` is `p[i]`), changed in place and measured
+(`len(*p)`). Other addresses of locals still make the type shared.
 
 **Local borrows** ([RFC 0017](rfcs/0017-one-owner.md)). A pointer to a
 local, `p := &x`, that the function uses itself (through `*p` and `p.f`,

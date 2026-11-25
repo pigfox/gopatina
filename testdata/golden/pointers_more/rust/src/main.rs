@@ -213,25 +213,22 @@ fn xs() -> Vec<i64> {
     vec![4, 5]
 }
 
-fn keep_slice(p: rt::Ptr<Vec<i64>>) -> rt::Ptr<Vec<i64>> {
+fn keep_slice(p: Option<&Vec<i64>>) -> Option<&Vec<i64>> {
     p
 }
 
-fn keep_names(p: rt::Ptr<Vec<String>>) -> rt::Ptr<Vec<String>> {
+fn keep_names(p: Option<&Vec<String>>) -> Option<&Vec<String>> {
     p
 }
 
-fn ptr_to(x: i64) -> rt::Ptr<i64> {
-    let x = rt::Ptr::new(x);
-    x.clone()
+fn ptr_to(x: i64) -> i64 {
+    x
 }
 
 /// ints returns two new ints, declared together: a and b live in cells.
-fn ints() -> (rt::Ptr<i64>, rt::Ptr<i64>) {
+fn ints() -> (Option<i64>, Option<i64>) {
     let (a, b): (i64, i64) = (4, 5);
-    let a = rt::Ptr::new(a);
-    let b = rt::Ptr::new(b);
-    (a.clone(), b.clone())
+    (Some(a), Some(b))
 }
 
 fn set(s: &mut [i64]) {
@@ -248,10 +245,9 @@ fn main() {
     let ns = new_nums();
     ns.with_mut(|v| nums_set(v));
     println!("{}", rt::Slice(&ns.load()));
-    let (x1, x2) = ints();
-    let val = x2.with(|v| *v);
-    x1.with_mut(|v| *v += val);
-    println!("{} {}", x1.with(|v| *v), x2.with(|v| *v));
+    let (mut x1, x2) = ints();
+    *x1.as_mut().unwrap() += *x2.as_ref().unwrap();
+    println!("{} {}", *x1.as_ref().unwrap(), *x2.as_ref().unwrap());
 
     let mut forest = push(push(push(None, 3), 2), 1);
     println!(
@@ -394,12 +390,10 @@ fn main() {
     b.n += 2;
     println!("{} {}", b.name, b.n);
 
-    let (k, mut extra) = pair_of(forest.as_ref().unwrap());
-    let k = rt::Ptr::new(k);
-    let cell = k.clone();
-    let call = ptr_to(6);
-    println!("{} {} {}", cell.with(|v| *v), extra, call.with(|v| *v));
-    let (val_2, val_3) = pair_of(
+    let (mut k, mut extra) = pair_of(forest.as_ref().unwrap());
+    let cell = &k;
+    println!("{} {} {}", *cell, extra, ptr_to(6));
+    (k, extra) = pair_of(
         forest
             .as_ref()
             .unwrap()
@@ -410,13 +404,11 @@ fn main() {
             .as_ref()
             .unwrap(),
     );
-    k.with_mut(|v| *v = val_2);
-    extra = val_3;
-    let (val_4, val_5) = pair_of(forest.as_ref().unwrap());
-    k.with_mut(|v| *v = val_4);
-    let more = val_5;
-    println!("{} {} {}", k.with(|v| *v), more, extra);
-    let (val_6, val_7) = pair_of(
+    let more;
+    (k, more) = pair_of(forest.as_ref().unwrap());
+    println!("{} {} {}", k, more, extra);
+    let mut fresh;
+    (k, fresh) = pair_of(
         forest
             .as_ref()
             .unwrap()
@@ -427,13 +419,10 @@ fn main() {
             .as_ref()
             .unwrap(),
     );
-    k.with_mut(|v| *v = val_6);
-    let fresh: rt::Ptr<i64> = rt::Ptr::new(val_7);
-    let cell2 = fresh.clone();
-    let val_8 = k.with(|v| *v);
-    cell2.with_mut(|v| *v += val_8);
-    println!("{} {}", k.with(|v| *v), cell2.with(|v| *v));
-    println!("{}", fresh.with(|v| *v));
+    let cell2 = &mut fresh;
+    *cell2 += k;
+    println!("{} {}", k, *cell2);
+    println!("{}", fresh);
     (forest.as_mut().unwrap().key, _) = pair_of(
         forest
             .as_ref()
@@ -450,25 +439,24 @@ fn main() {
     let (s1, s2) = split(forest.as_deref_mut());
     println!("{} {}", s1, s2);
 
-    let list: rt::Ptr<Vec<i64>> = rt::Ptr::new(xs());
-    keep_slice(list.clone());
-    list.with_mut(|v| set(&mut *v));
-    println!("{}", rt::Slice(&list.load()));
-    let names: rt::Ptr<Vec<String>> = rt::Ptr::new(vec![String::from("x"), String::from("y")]);
-    keep_names(names.clone());
+    let mut list = xs();
+    keep_slice(Some(&list));
+    set(&mut list);
+    println!("{}", rt::Slice(&list));
+    let names: Vec<String> = vec![String::from("x"), String::from("y")];
+    keep_names(Some(&names));
     let mut all: String = String::from("");
-    let items = names.load();
-    for nm in &items {
+    for nm in &names {
         // names lives in a cell: a copy of it is ranged over
         all += nm;
     }
-    println!("{} {}", all, names.with(|v| (*v).len() as i64));
+    println!("{} {}", all, names.len() as i64);
     // cx is changed through cp, and used by name only once cp is done
     // with: cp is a borrow of cx (testdata/reject/owned_address_kept has
     // cx used beside cp, two owners).
-    let cx: rt::Ptr<i64> = rt::Ptr::new(5);
-    let cp = cx.clone();
-    cp.with_mut(|v| *v = 7);
-    println!("{}", cp.with(|v| *v));
-    println!("{}", cx.with(|v| *v));
+    let mut cx: i64 = 5;
+    let cp = &mut cx;
+    *cp = 7;
+    println!("{}", *cp);
+    println!("{}", cx);
 }

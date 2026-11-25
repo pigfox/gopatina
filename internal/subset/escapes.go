@@ -53,8 +53,8 @@ func (p *PtrPlan) escapeBoxes() {
 			lends := map[*types.Var][]*types.Var{}
 			for _, fl := range fd.Type.Params.List {
 				for _, name := range fl.Names {
-					if v, ok := info.Defs[name].(*types.Var); ok && p.escapable(v) {
-						declared[v] = true // a value parameter: the caller's copy
+					if v, ok := info.Defs[name].(*types.Var); ok && p.escapable(v) && (valueData(v.Type()) || isStruct(v.Type())) {
+						declared[v] = true // a value parameter: the caller's copy, which a slice's shares
 					}
 				}
 			}
@@ -389,49 +389,48 @@ func (p *PtrPlan) escapable(v *types.Var) bool {
 		return false
 	}
 	_, st := v.Type().Underlying().(*types.Struct)
-	return (st || valueData(v.Type())) && p.HeapType(types.NewPointer(v.Type()))
+	return (st || plainData(v.Type())) && p.HeapType(types.NewPointer(v.Type()))
 }
 
 // declInit returns the composite literal declaring id (nil for none),
 // with ok false when id is declared another way: from another value, or
-// as a parameter, a range variable or one of several names.
+// as a parameter, a range variable or one of several names given by one
+// call. Each of several names declared together takes its own value
+// (a, b := 4, 5).
 func (p *PtrPlan) declInit(id *ast.Ident, stack []ast.Node) (*ast.CompositeLit, bool) {
+	var val ast.Expr // the value declaring id, or nil for none
+	switch d := stack[len(stack)-2].(type) {
+	case *ast.AssignStmt:
+		if len(d.Lhs) != len(d.Rhs) {
+			return nil, false // a, b := f()
+		}
+		for i, l := range d.Lhs {
+			if l == id {
+				val = d.Rhs[i]
+			}
+		}
+	case *ast.ValueSpec:
+		if len(d.Values) != 0 && len(d.Values) != len(d.Names) {
+			return nil, false
+		}
+		for i, n := range d.Names {
+			if n == id && len(d.Values) > 0 {
+				val = d.Values[i]
+			}
+		}
+		if val == nil {
+			return nil, true // var x T
+		}
+	default:
+		return nil, false // a parameter or a range variable
+	}
+	lit, isLit := ast.Unparen(val).(*ast.CompositeLit)
 	if v, _ := p.pkg.Info.Defs[id].(*types.Var); valueData(v.Type()) {
 		// A number, a string or a struct of them, declared from any one
 		// value: a copy of it shares nothing.
-		switch d := stack[len(stack)-2].(type) {
-		case *ast.AssignStmt:
-			if len(d.Lhs) == 1 && len(d.Rhs) == 1 {
-				lit, _ := ast.Unparen(d.Rhs[0]).(*ast.CompositeLit)
-				return lit, true
-			}
-		case *ast.ValueSpec:
-			if len(d.Names) == 1 && len(d.Values) <= 1 {
-				var lit *ast.CompositeLit
-				if len(d.Values) == 1 {
-					lit, _ = ast.Unparen(d.Values[0]).(*ast.CompositeLit)
-				}
-				return lit, true
-			}
-		}
-		return nil, false
+		return lit, true
 	}
-	switch d := stack[len(stack)-2].(type) {
-	case *ast.AssignStmt:
-		if len(d.Lhs) == 1 && len(d.Rhs) == 1 {
-			lit, ok := ast.Unparen(d.Rhs[0]).(*ast.CompositeLit)
-			return lit, ok
-		}
-	case *ast.ValueSpec:
-		if len(d.Names) == 1 && len(d.Values) == 0 {
-			return nil, true
-		}
-		if len(d.Names) == 1 && len(d.Values) == 1 {
-			lit, ok := ast.Unparen(d.Values[0]).(*ast.CompositeLit)
-			return lit, ok
-		}
-	}
-	return nil, false
+	return lit, isLit
 }
 
 // handsOn reports whether the &x on top of stack hands the pointer on: it
@@ -492,4 +491,10 @@ func (p *PtrPlan) EscapeBox(e ast.Expr) *types.Var {
 		return nil
 	}
 	return v
+}
+
+// isStruct reports whether t is a struct type.
+func isStruct(t types.Type) bool {
+	_, ok := t.Underlying().(*types.Struct)
+	return ok
 }

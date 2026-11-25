@@ -23,6 +23,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- More local values move into a new box at their `&` (RFC 0017), instead
+  of living in a shared cell: each of several names declared together
+  (`a, b := "a", "b"; return &a, &b`), and a local slice of data
+  (`ns := Ints{1, 2}; return &ns` is `vec![1, 2]`), which is then indexed
+  and measured through its pointer (`(*p)[0] = 5`, `len(*p)` are
+  `p[0] = 5`, `p.len()`). A string or other value borrowed through an
+  owner that may be nil is `y.as_ref().unwrap()`, not `&*`. Golden
+  `owned_escape_values`.
+
 - A struct value holding owned pointers may be a field of an owned
   pointer's struct (RFC 0017): `type Outer struct{ In Inner }` with
   `type Inner struct{ Back *Outer }` is `pub r#in: Inner` beside
