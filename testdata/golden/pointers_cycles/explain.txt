@@ -1,11 +1,9 @@
 ./main.go:12:6: pointers of type *Edge are never shared: each has one owner (RFC 0016)
 ./main.go:17:6: pointers of type *Vertex are never shared: each has one owner (RFC 0016)
 ./main.go:25:20: Inner.Back can point back to an Outer: a cycle through it is not reclaimed (RFC 0013)
-./main.go:27:6: pointers of type *Outer are shared: its field In is of type Inner (line 28) (RFC 0016)
-./main.go:31:2: Outer.Peer can point back to an Outer: a cycle through it is not reclaimed (RFC 0013)
-./main.go:35:7: receiver o is a shared borrow: Note only reads it
-./main.go:41:6: pointers of type *Link are shared: a field of a shared type holds it (line 31) (RFC 0016)
-./main.go:41:19: Link.O can point back to a Link: a cycle through it is not reclaimed (RFC 0013)
+./main.go:27:6: pointers of type *Outer are never shared: each has one owner (RFC 0016)
+./main.go:35:7: receiver o is an exclusive borrow: Note changes it, and the caller sees the change
+./main.go:41:6: pointers of type *Link are never shared: each has one owner (RFC 0016)
 ./main.go:45:6: pointers of type *Item are never shared: each has one owner (RFC 0016)
 ./main.go:49:6: pointers of type *Chain are never shared: each has one owner (RFC 0016)
 ./main.go:55:6: pointers of type *Ring are never shared: each has one owner (RFC 0016)

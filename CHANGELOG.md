@@ -23,6 +23,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- A struct value holding owned pointers may be a field of an owned
+  pointer's struct (RFC 0017): `type Outer struct{ In Inner }` with
+  `type Inner struct{ Back *Outer }` is `pub r#in: Inner` beside
+  `pub back: Option<Box<Outer>>`, not a shared cell. pointers_cycles holds
+  no cell now; `o.In.Back = o`, a cycle, is refused (reject golden
+  `owned_struct_value_cycle`).
+
 - A field's address lent to a call keeps its owned pointer owned (RFC
   0017): `inc(&p.n)` is `inc(&mut p.n)`, `(&p.in).Inc()` and `p.in.Inc()`
   are `p.r#in.inc()`, and through a pointer that may be nil the field is

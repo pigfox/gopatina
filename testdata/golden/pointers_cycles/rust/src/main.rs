@@ -52,7 +52,7 @@ pub struct Vertex {
 /// cells.
 #[derive(Clone, Default, PartialEq)]
 pub struct Inner {
-    pub back: rt::Ptr<Outer>,
+    pub back: Option<Box<Outer>>,
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -60,22 +60,22 @@ pub struct Outer {
     pub r#in: Inner,
     pub n: i64,
     pub seen: Vec<i64>,
-    pub peer: rt::Ptr<Link>,
+    pub peer: Option<Box<Link>>,
 }
 
 impl Outer {
     /// Note clears the last value seen, written through the Outer's cell.
-    pub fn note(o: &rt::Ptr<Outer>, v: i64) {
-        o.with_mut(|v_2| v_2.seen.push(v));
-        let idx = o.with(|v_2| v_2.seen.len() as i64) - 1;
-        o.with_mut(|v_2| v_2.seen[idx as usize] = 0);
+    pub fn note(&mut self, v: i64) {
+        self.seen.push(v);
+        let idx = self.seen.len() as i64 - 1;
+        self.seen[idx as usize] = 0;
     }
 }
 
 /// Link leads back to an Outer.
 #[derive(Clone, Default, PartialEq)]
 pub struct Link {
-    pub o: rt::Ptr<Outer>,
+    pub o: Option<Box<Outer>>,
 }
 
 /// Item never leads back to Owner, and Chain only to itself: no note on
@@ -207,32 +207,27 @@ fn main() {
                 .as_deref()
                 .map(std::ptr::from_ref),
     );
-    let o = rt::Ptr::new(Outer {
+    let mut o = Box::new(Outer {
         n: 1,
         ..Default::default()
     });
-    let val = rt::Ptr::new(Outer {
+    o.r#in.back = Some(Box::new(Outer {
         n: 2,
         ..Default::default()
-    });
-    o.with_mut(|v| v.r#in.back = val);
-    let ptr = o.with(|v| v.r#in.back.clone());
-    ptr.with_mut(|v| v.n = 3);
-    Outer::note(&o.with(|v| v.r#in.back.clone()), 4);
-    let val_2 = rt::Ptr::new(Link {
+    }));
+    o.r#in.back.as_mut().unwrap().n = 3;
+    o.r#in.back.as_mut().unwrap().note(4);
+    o.peer = Some(Box::new(Link {
         ..Default::default()
-    });
-    o.with_mut(|v| v.peer = val_2);
+    }));
     println!(
         "{} {} {} {} {} {}",
-        o.with(|v| v.r#in.back.clone()).with(|v| v.n),
-        o.with(|v| v.r#in.back.clone())
-            .with(|v| v.r#in.back.is_nil()),
-        o.with(|v| v.r#in.back.clone()) == o,
-        o.with(|v| v.r#in.back.clone())
-            .with(|v| v.seen.len() as i64),
-        o.with(|v| v.peer.clone()).with(|v| v.o.is_nil()),
-        !o.with(|v| v.peer.is_nil()),
+        o.r#in.back.as_ref().unwrap().n,
+        o.r#in.back.as_ref().unwrap().r#in.back.is_none(),
+        o.r#in.back.as_deref().is_some_and(|p| std::ptr::eq(p, &*o)),
+        o.r#in.back.as_ref().unwrap().seen.len() as i64,
+        o.peer.as_ref().unwrap().o.is_none(),
+        o.peer.is_some(),
     );
     let w = Owner {
         item: Some(Box::new(Item { v: 4 })),
@@ -259,10 +254,10 @@ fn main() {
     let mut sum: i64 = 0;
     for _ in 0_i64..3 {
         let r = ring(5);
-        let mut p = r.as_ref().unwrap().next.as_deref();
-        while let Some(ring_2) = p {
+        let mut p_2 = r.as_ref().unwrap().next.as_deref();
+        while let Some(ring_2) = p_2 {
             sum += ring_2.v + r.as_ref().unwrap().v;
-            p = ring_2.next.as_deref();
+            p_2 = ring_2.next.as_deref();
         }
     }
     println!("{}", sum);

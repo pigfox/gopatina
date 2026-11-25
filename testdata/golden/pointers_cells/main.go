@@ -93,6 +93,24 @@ func (s *Shelf) Bump() { s.N++ }
 // Keep returns its receiver.
 func (s *Shelf) Keep() *Shelf { return s }
 
+// Rack's pointers are cells: an interface holds one. Up and L can lead
+// back to a Rack.
+type Rack struct {
+	N    int
+	Up   *Rack
+	Seen []int
+	L    *Link
+}
+
+// Link leads back to a Rack.
+type Link struct{ R *Rack }
+
+// Note clears the last value seen, written through the rack's cell.
+func (r *Rack) Note(v int) {
+	r.Seen = append(r.Seen, v)
+	r.Seen[len(r.Seen)-1] = 0
+}
+
 // show reads through the pointer.
 func show(s *Shelf) int { return s.N }
 
@@ -115,6 +133,12 @@ func main() {
 	kept := (&shelf).Keep()
 	kept.Bump()
 	fmt.Println(sp.Count(), show(&shelf), anyS != nil)
+	rack := &Rack{}
+	var anyR any = rack
+	rack.Up = &Rack{N: 1}
+	rack.Up.N = 3 // written through a pointer read through the cell
+	rack.Up.Note(4)
+	fmt.Println(rack.Up != nil, nil == rack.Up.Up, rack.L == nil, rack.Up.N, len(rack.Up.Seen), anyR != nil)
 	ta := newTag("ab")
 	var held any = newTag("in an interface")
 	*ta += "c"

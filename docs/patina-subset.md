@@ -460,8 +460,7 @@ temporary borrow, and may be compared with nil or with another pointer
 one, a `&mut` borrow, is not supported yet, and the error says so. Until
 interface values are owned, a type whose pointers an interface holds,
 directly or through fields, keeps its cells, which express these uses;
-so do types not owned for other reasons yet (a struct value holding a
-pointer in a field).
+so do types not owned for other reasons yet.
 
 **Field addresses lent** ([RFC 0017](rfcs/0017-one-owner.md)). The
 address of a field of data inside an owned pointer's box, lent to a call
@@ -499,7 +498,11 @@ each would have two owners.
 A struct of the program that is not behind a pointer, and whose fields
 are owned pointers, slices of them and plain data, owns its pointers as a
 Rust struct owns its `Box` fields: built by a literal, given new pointers
-in its fields, lent, returned and moved whole. A copy of one that is still
+in its fields, lent, returned and moved whole. It may also be a field of
+an owned pointer's struct (`o.In.Back = &Outer{}` is
+`o.r#in.back = Some(Box::new(..))`); storing an object in such a field
+inside itself (`o.In.Back = o`) is a cycle, refused
+(`testdata/reject/owned_struct_value_cycle`). A copy of one that is still
 used is an error, as for a slice of pointers: each pointer would have two
 owners.
 
