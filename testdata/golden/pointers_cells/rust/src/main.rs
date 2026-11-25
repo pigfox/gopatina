@@ -125,8 +125,8 @@ fn inc(x: &mut i64) {
     *x += 1;
 }
 
-fn keep(n: i64) -> rt::Ptr<T> {
-    rt::Ptr::new(T {
+fn keep(n: i64) -> Box<T> {
+    Box::new(T {
         items: vec![1, 2, 3],
         n,
         bag: Bag { s: vec![n, n] },
@@ -213,6 +213,9 @@ pub struct Rack {
     pub up: rt::Ptr<Rack>,
     pub seen: Vec<i64>,
     pub l: rt::Ptr<Link>,
+    r#in: In,
+    bag: Bag,
+    name: String,
 }
 
 impl Rack {
@@ -330,64 +333,91 @@ fn main() {
         rack.with(|v| v.up.clone()).with(|v| v.seen.len() as i64),
         any_r.is_some(),
     );
+    // Fields of a cell's value, lent to value methods and calls inside it.
+    let val_13 = Bag { s: vec![2, 3] };
+    rack.with_mut(|v| v.bag = val_13);
+    let val_14 = vec![0, 1];
+    rack.with_mut(|v| v.seen = val_14);
+    rack.with_mut(|v| v.r#in.inc());
+    rack.with_mut(|v| v.name = String::from("r"));
+    let (val_15, val_16) = two();
+    rack.with_mut(|v| v.n = val_15);
+    let val_17 = rack.with(|v| v.n);
+    rack.with_mut(|v| set(&mut v.seen, val_17));
+    let call_3 = rack.with(|v| v.r#in).get();
+    let call_4 = rack.with(|v| v.bag.sum());
+    println!(
+        "{} {} {} {} {}",
+        call_3,
+        call_4,
+        rack.with(|v| v.name.clone()) == rack.with(|v| v.up.clone()).with(|v| v.name.clone()),
+        rack.with(|v| v.n),
+        rt::Slice(&rack.with(|v| v.seen.clone())),
+    );
+    let rack2 = rt::Ptr::new(Rack {
+        n: 9,
+        ..Default::default()
+    });
+    let any_r2: Iface = boxed(Dyn::PtrRack(rack2.clone()));
+    rack.with_mut(|v| inc(&mut v.n)); // a field of a cell lent by address
+    rack.with_mut(|v| {
+        v.seen.push(7);
+        v.seen.push(8);
+    }); // two pushes inside the cell
+    let val_18 = format!(
+        "{}{}a name long enough that its write wraps over lines",
+        rack.with(|v| v.name.clone()),
+        rack.with(|v| v.up.clone()).with(|v| v.name.clone()),
+    );
+    let ptr_2 = rack.with(|v| v.up.clone());
+    ptr_2.with_mut(|v| v.name = val_18);
+    println!(
+        "{} {} {} {} {}",
+        rack == rack2,
+        rack != rack.with(|v| v.up.clone()),
+        rack.with(|v| v.n),
+        rack.with(|v| v.up.clone()).with(|v| v.name.len() as i64),
+        any_r2.is_some(),
+    );
     let ta = new_tag("ab");
     let held: Iface = boxed(Dyn::PtrTag(new_tag("in an interface")));
     ta.with_mut(|v| *v += "c");
-    let call_3 = tag_len(&ta.load());
-    let call_4 = tag_up(&ta.load());
-    println!("{} {} {} {}", call_3, call_4, ta.load(), held.is_some());
-    let p = keep(4);
-    p.with_mut(|v| v.r#in.inc());
-    p.with_mut(|v| v.r#in.inc());
-    p.with_mut(|v| inc(&mut v.n));
-    p.with_mut(|v| set(&mut v.items, 30));
-    let call_5 = p.with(|v| sum(&v.items));
-    let call_6 = p.with(|v| v.total());
+    let call_5 = tag_len(&ta.load());
+    let call_6 = tag_up(&ta.load());
+    println!("{} {} {} {}", call_5, call_6, ta.load(), held.is_some());
+    let mut p = keep(4);
+    p.r#in.inc();
+    p.r#in.inc();
+    inc(&mut p.n);
+    set(&mut p.items, 30);
     println!(
         "{} {} {} {} {} {}",
-        p.with(|v| v.r#in.n),
-        p.with(|v| v.n),
-        rt::Slice(&p.with(|v| v.items.clone())),
-        call_5,
-        call_6,
-        p.with(|v| v.items.len() as i64),
+        p.r#in.n,
+        p.n,
+        rt::Slice(&p.items),
+        sum(&p.items),
+        p.total(),
+        p.items.len() as i64,
     );
-    p.with_mut(|v| v.zero());
-    p.with_mut(|v| {
-        v.items.push(7);
-        v.items.push(8);
-    });
-    p.with_mut(|v| v.name += "ab");
-    let val_13 = format!(
-        "{}{}",
-        p.with(|v| v.name.clone()),
-        p.with(|v| v.name.clone()),
-    );
-    p.with_mut(|v| v.name = val_13);
-    p.with_mut(|v| v.n *= 3);
-    let val_14 = p.with(|v| v.n) / 4;
-    p.with_mut(|v| v.n -= val_14);
-    println!(
-        "{} {} {}",
-        rt::Slice(&p.with(|v| v.items.clone())),
-        p.with(|v| v.name.clone()),
-        p.with(|v| v.n),
-    );
-    let pq = keep(5);
-    pq.with_mut(|v| v.name = String::from("abab"));
-    let (val_15, val_16) = two();
-    p.with_mut(|v| v.n = val_15);
-    let val_17 = p.with(|v| v.n);
-    p.with_mut(|v| set(&mut v.items, val_17)); // p.n read inside the cell's borrow, before the lend
-    let call_7 = p.with(|v| v.r#in).get();
-    let call_8 = p.with(|v| v.bag.sum());
+    p.zero();
+    p.items.push(7);
+    p.items.push(8);
+    p.name += "ab";
+    p.name = format!("{}{}", p.name, p.name);
+    p.n *= 3;
+    p.n -= p.n / 4;
+    println!("{} {} {}", rt::Slice(&p.items), p.name, p.n);
+    let mut pq = keep(5);
+    pq.name = String::from("abab");
+    (p.n, _) = two();
+    set(&mut p.items, p.n); // p.n read inside the cell's borrow, before the lend
     println!(
         "{} {} {} {} {}",
-        p.with(|v| v.name.clone()) == pq.with(|v| v.name.clone()),
-        call_7,
-        call_8,
-        p.with(|v| v.n),
-        rt::Slice(&p.with(|v| v.items.clone())),
+        p.name == pq.name,
+        p.r#in.get(),
+        p.bag.sum(),
+        p.n,
+        rt::Slice(&p.items),
     );
     let x = addr(5.0);
     let mut y = addr(5.0);
@@ -420,17 +450,17 @@ fn main() {
     println!("{} {}", two, c.hits);
     let cells: Vec<i64> = vec![c.hits, two, c.hits * 2];
     println!("{}", rt::Slice(&cells));
-    let mut q: rt::Ptr<T> = rt::Ptr::nil();
-    if q.is_nil() {
-        q = keep(1);
+    let mut q: Option<Box<T>> = None;
+    if q.is_none() {
+        q = Some(keep(1));
     }
-    q.with_mut(|v| v.items[1] += 40);
-    q.with_mut(|v| v.r#in.n -= 1);
+    q.as_mut().unwrap().items[1] += 40;
+    q.as_mut().unwrap().r#in.n -= 1;
     println!(
         "{} {} {}",
-        q.with(|v| v.items[1]),
-        q.with(|v| v.r#in.n),
-        q != p,
+        q.as_ref().unwrap().items[1],
+        q.as_ref().unwrap().r#in.n,
+        !q.as_deref().is_some_and(|p_2| std::ptr::eq(p_2, &*p)),
     );
 }
 

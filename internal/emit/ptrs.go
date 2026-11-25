@@ -1050,21 +1050,10 @@ func (g *gen) cellCall(e *ast.CallExpr) (node, bool) {
 		if u, ok := x.(*ast.UnaryExpr); ok && u.Op == token.AND {
 			x = ast.Unparen(u.X)
 		}
+		// p.M() for a value method of a cell whose type holds a slice no
+		// longer happens: such a value is lent to the method from an owned
+		// box (RFC 0017), and an interface does not hold one (subset).
 		recv := fn.Recv.Var.Type()
-		if !isPointerType(recv) && g.heapPtr(g.typeOf(x)) && !borrow.HeapExact(types.Unalias(g.typeOf(x)).(*types.Pointer).Elem()) {
-			// p.M() for a value method: *p, inside its cell.
-			g.inCellCall[e] = true
-			saved := g.inCellWrite
-			g.inCellWrite = true
-			method := "with"
-			if fn.Recv.Mode == borrow.RefMut {
-				method = "with_mut"
-			}
-			n := g.inCell(x, x, method, func() node { return g.call(e) })
-			g.inCellWrite = saved
-			delete(g.inCellCall, e)
-			return n, true
-		}
 		if _, _, ok := g.heapRoot(x); ok {
 			switch {
 			case isPointerType(recv) && !g.heapPtr(recv):

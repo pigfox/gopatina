@@ -1,0 +1,6 @@
+./main.go:11:6: pointers of type *Stock are never shared: each has one owner (RFC 0016)
+./main.go:17:7: receiver s is a shared borrow: Total only reads it
+./main.go:26:7: receiver s is an exclusive borrow: Clear changes it, and the caller sees the change
+./main.go:36:7: receiver ns is a shared borrow: Sum only reads it
+./main.go:45:7: receiver ns is an exclusive borrow: Set changes it, and the caller sees the change
+./main.go:51:10: moved ns into a new pointer: ns is not used afterwards

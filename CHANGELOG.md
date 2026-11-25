@@ -23,6 +23,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- A value method of a type holding a slice, called through an owned
+  pointer, borrows the box's value (RFC 0017): `&self` where it reads,
+  `&mut self` where it changes the slice's elements (`s.clear()`,
+  `nums_set(&mut ns, 9)`), as Go's copy shares the slice. Until now the
+  copy kept the type a shared cell. pointers_more holds no cell now.
+  Golden `owned_value_receivers`.
+
 - A function may walk from its input to the node it returns (RFC 0017):
   `for p := head; p != nil; p = p.Next { if p.V == v { return p } }` lends
   `head` back, `fn find(head: Option<&Node>, v: i64) -> Option<&Node>`.

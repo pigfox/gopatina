@@ -336,10 +336,6 @@ func (w *walker) call(e *ast.CallExpr) {
 func (w *walker) receiver(ops *operands, x ast.Expr, callee *Func) {
 	r := callee.Recv
 	switch {
-	case r.Mode == RefMut && heapPtrType(w.info().TypeOf(x)) && !subset.Ptrs(w.a.pkg).Owned(w.info().TypeOf(x)):
-		// A value method changing *p, inside p's cell (RFC 0013): p itself
-		// is only read.
-		ops.add(x, true, false, false, func() { w.read(x) })
 	case r.Mode == RefMut:
 		ops.add(x, true, true, false, func() { w.expr(x, evMut) })
 	case r.Mode == Owned && !isPointerT(r.Var.Type()) && subset.Ptrs(w.a.pkg).Owned(w.info().TypeOf(x)):
