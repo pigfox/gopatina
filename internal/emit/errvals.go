@@ -318,15 +318,25 @@ func (g *gen) errorsAPI() {
 	h := g.ifc.helpers
 	if g.ifc.wrap {
 		g.line("")
-		g.line("/// Go's *fmt.wrapError: fmt.Errorf's value with one %w.")
+		g.line("/// Go's *fmt.wrapError: fmt.Errorf's value with one %w. Each one is a")
+		g.line("/// new pointer in Go; id stands for that identity.")
+		g.line("#[derive(Clone)]")
 		g.line("pub struct WrapError {")
 		g.line("    msg: String,")
 		g.line("    err: Iface,")
+		g.line("    id: u64,")
+		g.line("}")
+		g.line("")
+		g.line("impl WrapError {")
+		g.line("    fn id(&self) -> u64 {")
+		g.line("        self.id")
+		g.line("    }")
 		g.line("}")
 		g.line("")
 		g.line("/// fmt.Errorf with %w: the message, wrapping err.")
 		g.line("pub fn go_wrap(msg: String, err: Iface) -> Iface {")
-		g.line("    boxed(Dyn::FmtWrapError(WrapError { msg, err }))")
+		g.line("    let id = rt::error_id();")
+		g.line("    boxed(Dyn::FmtWrapError(WrapError { msg, err, id }))")
 		g.line("}")
 	}
 	if h["iface_w"] {
@@ -359,11 +369,11 @@ func (g *gen) errorsAPI() {
 		g.line("    }")
 		cmp := "err == *target"
 		if len(uncomparable) > 0 {
-			if one := "    let comparable = !matches!(target.as_deref(), Some(" + strings.Join(uncomparable, " | ") + "));"; len(one) <= maxWidth {
+			if one := "    let comparable = !matches!(target." + g.view() + "(), Some(" + strings.Join(uncomparable, " | ") + "));"; len(one) <= maxWidth {
 				g.line(one)
 			} else {
 				g.line("    let comparable = !matches!(")
-				g.line("        target.as_deref(),")
+				g.line("        target." + g.view() + "(),")
 				if some := "        Some(" + strings.Join(uncomparable, " | ") + ")"; len(some) <= maxWidth {
 					g.line(some)
 				} else {
@@ -387,7 +397,7 @@ func (g *gen) errorsAPI() {
 		g.line("            return true;")
 		g.line("        }")
 		if len(is) > 0 {
-			g.line("        let says = match err.as_deref() {")
+			g.line("        let says = match err." + g.view() + "() {")
 			for j, i := range is {
 				g.line("            Some(Dyn::" + g.ifc.variants[i] + "(v)) => " + g.methodOn(ms[j], g.ifc.plan.Dyn[i], "v", []string{"target.clone()"}) + ",")
 			}
@@ -413,14 +423,14 @@ func (g *gen) errorsAPI() {
 		g.line("    loop {")
 		switch v := g.variant(t); {
 		case subset.IsIface(t):
-			g.line("        if let Some(d) = err.as_deref() {")
+			g.line("        if let Some(d) = err." + g.view() + "() {")
 			g.line("            if " + g.missing(t) + "(d).is_none() {")
 			g.line("                *target = err.clone();")
 			g.line("                return true;")
 			g.line("            }")
 			g.line("        }")
 		case v != "":
-			g.line("        if let Some(Dyn::" + v + "(v)) = err.as_deref() {")
+			g.line("        if let Some(Dyn::" + v + "(v)) = err." + g.view() + "() {")
 			g.line("            *target = " + copyOut(t, "v") + ";")
 			g.line("            return true;")
 			g.line("        }")
@@ -438,7 +448,7 @@ func (g *gen) errorsAPI() {
 		g.line("/// Unwrap() error of the dynamic value: the error it wraps, or None if it has")
 		g.line("/// no such method.")
 		g.line("pub fn iface_unwrap(x: &Iface) -> Option<Iface> {")
-		g.line("    match x.as_deref() {")
+		g.line("    match x." + g.view() + "() {")
 		if g.ifc.wrap {
 			g.line("        Some(Dyn::FmtWrapError(v)) => Some(v.err.clone()),")
 		}

@@ -431,6 +431,7 @@ func (g *gen) std(e *ast.CallExpr, name string) node {
 	case "fmt.Errorf":
 		if w := g.wrapped(e); w != nil {
 			g.ifc.wrap = true
+			g.rt["Error"] = true // its identity (rt::error_id)
 			return &call{head: g.helper("go_wrap"), open: "(", close: ")", args: []node{g.fmtCall(e, name), g.owned(w)}}
 		}
 		return g.goError(g.fmtCall(e, name))

@@ -120,12 +120,17 @@ A program with no conversion to an interface has no `Dyn`, and pays nothing.
 
 ### Interface values
 
-An interface value is `Iface = Option<Rc<Dyn>>`. `None` is the nil
-interface. Converting a value `x` of dynamic type `T` is
-`Some(Rc::new(Dyn::T(x)))`, a copy, as in Go; copying an interface value
-copies the `Rc`. A value stored in an interface cannot be changed through
-it (it is not addressable, and pointer-receiver methods are not in a
-non-pointer type's method set), so sharing it is exactly Go's copy.
+An interface value is `Iface = Option<Dyn>`. `None` is the nil interface.
+Converting a value `x` of dynamic type `T` is `Some(Dyn::T(x))`, a copy, as
+in Go. Where a dynamic value can hold an interface value (an error wrapped
+with `%w`, a struct with an interface field), `Dyn` is recursive and
+`Iface = Option<Box<Dyn>>`. A value stored in an interface cannot be
+changed through it (it is not addressable, and pointer-receiver methods are
+not in a non-pointer type's method set). So a copy of an interface value
+that is only read while its source does not change is a borrow of the
+source (`b := a` is `let b = &a;`). Any other copy is a clone, Go's copy.
+(Until 2026-11-25 every interface value was an `Rc<Dyn>` whose copies
+shared it; one owner per object, RFC 0017, replaced that.)
 Interfaces holding pointers (`*T` as a dynamic type) come with the
 pointers RFC, which defines how a pointer is held.
 
@@ -159,8 +164,9 @@ exhaustiveness Rust requires.)
 and equal values. A dynamic type that is not comparable (a slice, a map, a
 function, a struct holding one) panics with Go's message, `runtime error:
 comparing uncomparable type []int`. A provided error from `errors.New` is
-compared by identity (`Rc::ptr_eq`), as Go compares the pointers: two
-`errors.New("x")` differ, `ErrX == ErrX` holds. Comparing an interface with
+compared by identity, as Go compares the pointers: each error value has its
+own identity, a number its copies keep (`rt::error_id`), so two
+`errors.New("x")` differ and `ErrX == ErrX` holds. Comparing an interface with
 a concrete value converts the value first, as Go does.
 
 ### Type assertions and switches

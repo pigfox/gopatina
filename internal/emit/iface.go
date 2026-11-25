@@ -36,6 +36,61 @@ type ifaceState struct {
 	ases     map[string]types.Type // errors.As helpers by name
 	asKeys   []string
 	helpers  map[string]bool // error helpers used (errvals.go)
+	// boxDyn is set when a dynamic value can hold an interface value (a
+	// %w error, a struct with an interface field): Dyn is then recursive,
+	// and an interface value holds it in a Box. Otherwise it is held by
+	// value, Option<Dyn>.
+	boxDyn bool
+}
+
+// dynRecursive reports whether a dynamic value of the program can hold an
+// interface value by value: fmt.Errorf with %w (WrapError holds the error
+// it wraps), or a dynamic type with an interface in a field or a struct
+// value it holds. A slice of them is a Vec, which needs no Box.
+func (g *gen) dynRecursive() bool {
+	found := false
+	for _, f := range g.pkg.Files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			if c, ok := n.(*ast.CallExpr); ok && !found {
+				if sel, ok := ast.Unparen(c.Fun).(*ast.SelectorExpr); ok && sel.Sel.Name == "Errorf" {
+					if fn, ok := g.info.Uses[sel.Sel].(*types.Func); ok && fn.Pkg() != nil && fn.Pkg().Path() == "fmt" && len(c.Args) > 0 && g.info.Types[c.Args[0]].Value != nil {
+						found = g.wrapped(c) != nil
+					}
+				}
+			}
+			return !found
+		})
+	}
+	for _, t := range g.ifc.plan.Dyn {
+		found = found || holdsIface(t)
+	}
+	return found
+}
+
+// holdsIface reports whether a value of type t holds an interface value
+// by value: in itself or a struct field (arrays are not in the subset,
+// and a struct cannot hold itself by value).
+func holdsIface(t types.Type) bool {
+	if subset.IsIface(t) {
+		return true
+	}
+	if st, ok := t.Underlying().(*types.Struct); ok {
+		for i := 0; i < st.NumFields(); i++ {
+			if holdsIface(st.Field(i).Type()) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// view is the method that borrows an interface value's dynamic value,
+// Option<&Dyn>: as_deref through a Box, as_ref without one.
+func (g *gen) view() string {
+	if g.ifc.boxDyn {
+		return "as_deref"
+	}
+	return "as_ref"
 }
 
 // dispatch is one dispatcher: a method called through an interface.
@@ -54,6 +109,7 @@ func (g *gen) initIfaces() {
 		helpers: map[string]bool{},
 		ases:    map[string]types.Type{},
 	}
+	g.ifc.boxDyn = g.dynRecursive()
 	seen := map[string]int{}
 	for _, t := range g.ifc.plan.Dyn {
 		n := variantName(t)
@@ -232,7 +288,7 @@ func (g *gen) typeSwitch(s *ast.TypeSwitchStmt) {
 	g.line("{")
 	g.ind++
 	g.stmtLine("let dyn_x = ", g.ref(x), ";")
-	g.line("match dyn_x.as_deref() {")
+	g.line("match dyn_x." + g.view() + "() {")
 	g.ind++
 	var def *ast.CaseClause
 	covered := map[string]bool{}
@@ -353,7 +409,23 @@ func (g *gen) ifaceCompare(e *ast.BinaryExpr) node {
 		}
 	}
 	op := binOps[e.Op]
-	return &binary{op: op.op, l: g.ifaceOperand(e.X), r: g.ifaceOperand(e.Y), p: op.prec, nonAssoc: true}
+	l, r := g.ifaceOperand(e.X), g.ifaceOperand(e.Y)
+	if lb, rb := g.ifaceBorrow(e.X), g.ifaceBorrow(e.Y); lb != rb {
+		// A borrow (&Iface) beside a value: compared through the borrow.
+		if lb {
+			l = atom{"*" + paren(l, precUnary), precUnary}
+		} else {
+			r = atom{"*" + paren(r, precUnary), precUnary}
+		}
+	}
+	return &binary{op: op.op, l: l, r: r, p: op.prec, nonAssoc: true}
+}
+
+// ifaceBorrow reports whether interface operand e is a local variable
+// bound to a borrow (&Iface): a parameter lent, or a lent copy.
+func (g *gen) ifaceBorrow(e ast.Expr) bool {
+	id, ok := ast.Unparen(e).(*ast.Ident)
+	return ok && g.localVar(id) != nil && g.bindingOf(g.localVar(id)) == bRef && !g.boxedExpr(e)
 }
 
 // ifaceOperand renders an operand of an interface comparison.
@@ -380,8 +452,10 @@ func (g *gen) ifaceItems() {
 	n := len(dyn) + len(g.builtins()) // variants, with Go's own error types
 	g.line("/// The dynamic types of the program's interface values (RFC 0012).")
 	if n == 0 {
+		g.line("#[derive(Clone)]")
 		g.line("pub enum Dyn {}")
 	} else {
+		g.line("#[derive(Clone)]")
 		g.line("pub enum Dyn {")
 		for i, t := range dyn {
 			g.line("    " + vs[i] + "(" + g.rustType(t) + "),")
@@ -393,12 +467,21 @@ func (g *gen) ifaceItems() {
 	}
 	g.line("")
 	g.line("/// An interface value: its dynamic value, or None for a nil interface. The")
-	g.line("/// value cannot be changed through the interface, so copies share it.")
-	g.line("pub type Iface = Option<std::rc::Rc<Dyn>>;")
+	g.line("/// value cannot be changed through the interface, so a copy is a clone, as")
+	g.line("/// Go copies it.")
+	if g.ifc.boxDyn {
+		g.line("pub type Iface = Option<Box<Dyn>>; // boxed: a dynamic value can hold one")
+	} else {
+		g.line("pub type Iface = Option<Dyn>;")
+	}
 	g.line("")
 	g.line("/// Converts a value to an interface value.")
 	g.line("pub fn boxed(d: Dyn) -> Iface {")
-	g.line("    Some(std::rc::Rc::new(d))")
+	if g.ifc.boxDyn {
+		g.line("    Some(Box::new(d))")
+	} else {
+		g.line("    Some(d)")
+	}
 	g.line("}")
 	g.line("")
 	g.line("/// Go's == on two dynamic values: the same type and equal values; a type")
@@ -426,8 +509,9 @@ func (g *gen) ifaceItems() {
 			}
 		}
 		for _, b := range g.builtins() {
-			// Go compares the pointers errors.New and fmt.Errorf return.
-			g.line("            (Dyn::" + b.variant + "(a), Dyn::" + b.variant + "(b)) => std::ptr::eq(a, b),")
+			// Go compares the pointers errors.New and fmt.Errorf return:
+			// each value has its own identity, which its clones keep.
+			g.line("            (Dyn::" + b.variant + "(a), Dyn::" + b.variant + "(b)) => a.id() == b.id(),")
 		}
 		if n > 1 {
 			g.line("            _ => false,")
@@ -453,12 +537,12 @@ func (g *gen) ifaceItems() {
 	g.line("")
 	g.line("/// %T of an interface value.")
 	g.line("pub fn iface_type(x: &Iface) -> &'static str {")
-	g.line("    iface_name(x.as_deref())")
+	g.line("    iface_name(x." + g.view() + "())")
 	g.line("}")
 	g.line("")
 	g.line("/// %v of an interface value.")
 	g.line("pub fn iface_show(x: &Iface) -> String {")
-	g.line("    match x.as_deref() {")
+	g.line("    match x." + g.view() + "() {")
 	g.line("        None => String::from(\"<nil>\"),")
 	for i, t := range dyn {
 		g.line("        Some(Dyn::" + vs[i] + "(v)) => " + g.show(t, "v") + ",")
@@ -483,7 +567,7 @@ func (g *gen) ifaceItems() {
 	g.line("")
 	g.line("/// x.(I) to an interface type I: x, or Go's panic.")
 	g.line("pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {")
-	g.line("    match x.as_deref() {")
+	g.line("    match x." + g.view() + "() {")
 	g.line("        None => panic!(\"gopatina-user-panic:interface conversion: interface is nil, not {want}\"),")
 	g.line("        Some(d) => {")
 	g.line("            if let Some(m) = missing(d) {")
@@ -499,7 +583,7 @@ func (g *gen) ifaceItems() {
 	g.line("")
 	g.line("/// v, ok := x.(I) to an interface type I.")
 	g.line("pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {")
-	g.line("    match x.as_deref() {")
+	g.line("    match x." + g.view() + "() {")
 	g.line("        Some(d) if missing(d).is_none() => (x.clone(), true),")
 	g.line("        _ => (None, false),")
 	g.line("    }")
@@ -581,7 +665,7 @@ func (g *gen) getterFn(name string, t types.Type) {
 		if v == "" {
 			g.line("    (" + g.zero(t).flat() + ", false)")
 		} else {
-			g.line("    match x.as_deref() {")
+			g.line("    match x." + g.view() + "() {")
 			g.line("        Some(Dyn::" + v + "(v)) => (" + copyOut(t, "v") + ", true),")
 			g.line("        _ => (" + g.zero(t).flat() + ", false),")
 			g.line("    }")
@@ -593,9 +677,9 @@ func (g *gen) getterFn(name string, t types.Type) {
 	g.line("pub fn " + name + "(x: &Iface, iface: &str) -> " + ty + " {")
 	want := strLit(goTypeName(t))
 	if v == "" {
-		g.line("    iface_assert_fail(x.as_deref(), iface, " + want + ")")
+		g.line("    iface_assert_fail(x." + g.view() + "(), iface, " + want + ")")
 	} else {
-		g.line("    match x.as_deref() {")
+		g.line("    match x." + g.view() + "() {")
 		g.line("        Some(Dyn::" + v + "(v)) => " + copyOut(t, "v") + ",")
 		g.line("        d => iface_assert_fail(d, iface, " + want + "),")
 		g.line("    }")
@@ -621,7 +705,7 @@ func (g *gen) dispatcher(d dispatch) {
 	g.line("")
 	g.line("/// Calls " + d.m.Name() + " on an interface value's dynamic value.")
 	g.line("pub fn " + d.name + "(" + strings.Join(params, ", ") + ")" + ret + " {")
-	g.line("    match x.as_deref() {")
+	g.line("    match x." + g.view() + "() {")
 	all := true
 	for i, t := range g.ifc.plan.Dyn {
 		obj, _, _ := types.LookupFieldOrMethod(t, false, d.m.Pkg(), d.m.Name())

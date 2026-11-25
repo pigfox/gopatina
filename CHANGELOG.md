@@ -10,6 +10,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- **Interface values hold their value, with no reference count**
+  (RFC 0012 with RFC 0017). An interface value is `Option<Dyn>`, or
+  `Option<Box<Dyn>>` where a dynamic value can hold an interface value,
+  in place of `Option<Rc<Dyn>>`. A copy that is only read while its source
+  does not change is a borrow (`b := a` is `let b = &a;`); any other copy
+  is a clone, Go's copy. Error values keep Go's identity through an id
+  their copies share (`rt::error_id`), and `rt::Error` no longer compares
+  by message. 19 crates leave testdata/shared-cells.txt (23 to 4). New
+  bench cases `iface-copy` and `iface-keep`.
+
 - **Second owners are errors** (RFC 0017). A use that gives an object a
   second owner made its pointer type a shared cell (`rt::Ptr`) until now;
   it is now an error naming the use, why Rust has one owner, and how to

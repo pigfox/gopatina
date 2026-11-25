@@ -64,17 +64,19 @@ fn main() {
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
+#[derive(Clone)]
 pub enum Dyn {
     Sq(Sq),
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
-/// value cannot be changed through the interface, so copies share it.
-pub type Iface = Option<std::rc::Rc<Dyn>>;
+/// value cannot be changed through the interface, so a copy is a clone, as
+/// Go copies it.
+pub type Iface = Option<Dyn>;
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(std::rc::Rc::new(d))
+    Some(d)
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -97,12 +99,12 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
 
 /// %T of an interface value.
 pub fn iface_type(x: &Iface) -> &'static str {
-    iface_name(x.as_deref())
+    iface_name(x.as_ref())
 }
 
 /// %v of an interface value.
 pub fn iface_show(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         None => String::from("<nil>"),
         Some(Dyn::Sq(v)) => format!("{{{}}}", rt::Float(v.s)),
     }
@@ -121,7 +123,7 @@ pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
 
 /// x.(I) to an interface type I: x, or Go's panic.
 pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
-    match x.as_deref() {
+    match x.as_ref() {
         None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
         Some(d) => {
             if let Some(m) = missing(d) {
@@ -137,7 +139,7 @@ pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &
 
 /// v, ok := x.(I) to an interface type I.
 pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
@@ -145,7 +147,7 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
 
 /// x.(main.Sq): the dynamic value, or Go's panic.
 pub fn iface_get_sq(x: &Iface, iface: &str) -> Sq {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Sq(v)) => *v,
         d => iface_assert_fail(d, iface, "main.Sq"),
     }
@@ -153,5 +155,5 @@ pub fn iface_get_sq(x: &Iface, iface: &str) -> Sq {
 
 /// x.(main.Circle): the dynamic value, or Go's panic.
 pub fn iface_get_circle(x: &Iface, iface: &str) -> Circle {
-    iface_assert_fail(x.as_deref(), iface, "main.Circle")
+    iface_assert_fail(x.as_ref(), iface, "main.Circle")
 }

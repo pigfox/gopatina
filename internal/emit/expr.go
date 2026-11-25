@@ -46,6 +46,9 @@ func (g *gen) bindingOf(v *types.Var) binding {
 	if g.refElem[v] {
 		return bRefElem
 	}
+	if g.res.Lent[v] {
+		return bRef // b := a of an interface value, lent (RFC 0012)
+	}
 	return bOwned
 }
 
@@ -325,6 +328,9 @@ func (g *gen) owned(e ast.Expr) node {
 	if g.boxedExpr(e) {
 		return g.box(e)
 	}
+	if g.res.Actions[e] == borrow.Lend {
+		return g.ref(e) // an interface copy only read: a borrow of its source
+	}
 	if next, taken := g.ptrs.Take(e); taken && g.ownPtr(g.typeOf(e)) {
 		// Moved out of its field, which the next statement refills (RFC
 		// 0017, step 6): Rust's take, which leaves None, so a nil refill
@@ -396,6 +402,11 @@ func (g *gen) ref(e ast.Expr) node {
 	if id, ok := e.(*ast.Ident); ok && g.localVar(id) != nil {
 		if b := g.bindingOf(g.localVar(id)); b != bOwned {
 			return text(g.varName(g.localVar(id)))
+		}
+	}
+	if st, ok := e.(*ast.StarExpr); ok {
+		if id, ok := ast.Unparen(st.X).(*ast.Ident); ok && g.localVar(id) != nil && g.bindingOf(g.localVar(id)) == bRef {
+			return text(g.varName(g.localVar(id))) // *p borrowed, p a shared borrow: p itself, not &*p (clippy)
 		}
 	}
 	if st, ok := e.(*ast.StarExpr); ok && g.ownPtr(g.typeOf(st.X)) && g.ptrRep(st.X) == repOptBox {

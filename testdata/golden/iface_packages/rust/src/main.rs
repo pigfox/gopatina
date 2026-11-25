@@ -76,6 +76,7 @@ fn main() {
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
+#[derive(Clone)]
 pub enum Dyn {
     ShapesRect(crate::shapes_0::Rect),
     ShapesUnit(i64),
@@ -83,12 +84,13 @@ pub enum Dyn {
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
-/// value cannot be changed through the interface, so copies share it.
-pub type Iface = Option<std::rc::Rc<Dyn>>;
+/// value cannot be changed through the interface, so a copy is a clone, as
+/// Go copies it.
+pub type Iface = Option<Dyn>;
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(std::rc::Rc::new(d))
+    Some(d)
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -116,12 +118,12 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
 
 /// %T of an interface value.
 pub fn iface_type(x: &Iface) -> &'static str {
-    iface_name(x.as_deref())
+    iface_name(x.as_ref())
 }
 
 /// %v of an interface value.
 pub fn iface_show(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         None => String::from("<nil>"),
         Some(Dyn::ShapesRect(v)) => format!("{{{} {}}}", v.w, v.h),
         Some(Dyn::ShapesUnit(v)) => v.to_string(),
@@ -142,7 +144,7 @@ pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
 
 /// x.(I) to an interface type I: x, or Go's panic.
 pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
-    match x.as_deref() {
+    match x.as_ref() {
         None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
         Some(d) => {
             if let Some(m) = missing(d) {
@@ -158,7 +160,7 @@ pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &
 
 /// v, ok := x.(I) to an interface type I.
 pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
@@ -166,7 +168,7 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
 
 /// v, ok := x.(shapes.Unit).
 pub fn iface_try_shapes_unit(x: &Iface) -> (i64, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::ShapesUnit(v)) => (*v, true),
         _ => (0, false),
     }
@@ -174,7 +176,7 @@ pub fn iface_try_shapes_unit(x: &Iface) -> (i64, bool) {
 
 /// Calls Area on an interface value's dynamic value.
 pub fn dyn_area(x: &Iface) -> i64 {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::ShapesRect(v)) => (*v).area(),
         Some(Dyn::ShapesUnit(v)) => crate::shapes_0::unit_area(*v),
         Some(Dyn::Tri(v)) => (*v).area(),
@@ -186,7 +188,7 @@ pub fn dyn_area(x: &Iface) -> i64 {
 
 /// Calls Name on an interface value's dynamic value.
 pub fn dyn_name(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::ShapesRect(v)) => (*v).name(),
         Some(Dyn::ShapesUnit(v)) => crate::shapes_0::unit_name(*v),
         Some(Dyn::Tri(v)) => (*v).name(),

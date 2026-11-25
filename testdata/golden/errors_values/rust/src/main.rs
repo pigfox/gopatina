@@ -160,7 +160,7 @@ pub struct Result2 {
 fn describe(err: &Iface) -> String {
     {
         let dyn_x = err;
-        match dyn_x.as_deref() {
+        match dyn_x.as_ref() {
             None => {
                 let e = dyn_x.clone();
                 return String::from("no error");
@@ -189,10 +189,10 @@ fn main() {
     rt::exit_on_panic();
     let sentinel = go_error("same text");
     let other = go_error("same text");
-    let copied = sentinel.clone();
+    let copied = &sentinel;
     println!(
         "{} {} {} {}",
-        sentinel == copied,
+        sentinel == *copied,
         sentinel == other,
         sentinel.is_some(),
         dyn_error(&sentinel) == dyn_error(&other),
@@ -308,7 +308,7 @@ fn main() {
     let anything: Iface = boxed(Dyn::Temporary(1));
     {
         let dyn_x = &anything;
-        match dyn_x.as_deref() {
+        match dyn_x.as_ref() {
             Some(d) if iface_missing_error(d).is_none() => {
                 println!("an error");
             }
@@ -337,6 +337,7 @@ fn main() {
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
+#[derive(Clone)]
 pub enum Dyn {
     Temporary(i64),
     NotFound(NotFound),
@@ -347,12 +348,13 @@ pub enum Dyn {
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
-/// value cannot be changed through the interface, so copies share it.
-pub type Iface = Option<std::rc::Rc<Dyn>>;
+/// value cannot be changed through the interface, so a copy is a clone, as
+/// Go copies it.
+pub type Iface = Option<Dyn>;
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(std::rc::Rc::new(d))
+    Some(d)
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -377,7 +379,7 @@ impl PartialEq for Dyn {
                     "gopatina-user-panic:runtime error: comparing uncomparable type main.YetAnotherUncomparableError"
                 )
             }
-            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => std::ptr::eq(a, b),
+            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => a.id() == b.id(),
             _ => false,
         }
     }
@@ -398,12 +400,12 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
 
 /// %T of an interface value.
 pub fn iface_type(x: &Iface) -> &'static str {
-    iface_name(x.as_deref())
+    iface_name(x.as_ref())
 }
 
 /// %v of an interface value.
 pub fn iface_show(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         None => String::from("<nil>"),
         Some(Dyn::Temporary(v)) => temporary_error(*v),
         Some(Dyn::NotFound(v)) => v.error(),
@@ -427,7 +429,7 @@ pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
 
 /// x.(I) to an interface type I: x, or Go's panic.
 pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
-    match x.as_deref() {
+    match x.as_ref() {
         None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
         Some(d) => {
             if let Some(m) = missing(d) {
@@ -443,7 +445,7 @@ pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &
 
 /// v, ok := x.(I) to an interface type I.
 pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
@@ -451,7 +453,7 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
 
 /// v, ok := x.(main.NotFound).
 pub fn iface_try_not_found(x: &Iface) -> (NotFound, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::NotFound(v)) => (v.clone(), true),
         _ => (NotFound::default(), false),
     }
@@ -463,7 +465,7 @@ pub fn iface_is(err: &Iface, target: &Iface) -> bool {
         return err.is_none() && target.is_none();
     }
     let comparable = !matches!(
-        target.as_deref(),
+        target.as_ref(),
         Some(
             Dyn::UncomparableListOfStrings(_)
                 | Dyn::AnotherUncomparableSliceError(_)
@@ -485,7 +487,7 @@ pub fn iface_is(err: &Iface, target: &Iface) -> bool {
 /// Unwrap() error of the dynamic value: the error it wraps, or None if it has
 /// no such method.
 pub fn iface_unwrap(x: &Iface) -> Option<Iface> {
-    match x.as_deref() {
+    match x.as_ref() {
         _ => None,
     }
 }
@@ -528,7 +530,7 @@ pub fn iface_missing_retrier(d: &Dyn) -> Option<&'static str> {
 
 /// Calls ErrCode on an interface value's dynamic value.
 pub fn dyn_err_code(x: &Iface) -> i64 {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::NotFound(v)) => v.err_code(),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
@@ -539,7 +541,7 @@ pub fn dyn_err_code(x: &Iface) -> i64 {
 
 /// Calls Error on an interface value's dynamic value.
 pub fn dyn_error(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Temporary(v)) => temporary_error(*v),
         Some(Dyn::NotFound(v)) => v.error(),
         Some(Dyn::UncomparableListOfStrings(v)) => uncomparable_list_of_strings_error(v),
@@ -554,7 +556,7 @@ pub fn dyn_error(x: &Iface) -> String {
 
 /// Calls Retry on an interface value's dynamic value.
 pub fn dyn_retry(x: &Iface) -> bool {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Temporary(v)) => temporary_retry(*v),
         Some(Dyn::NotFound(v)) => v.retry(),
         Some(Dyn::UncomparableListOfStrings(v)) => uncomparable_list_of_strings_retry(v),

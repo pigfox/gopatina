@@ -49,6 +49,7 @@ fn main() {
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
+#[derive(Clone)]
 pub enum Dyn {
     Path(Vec<i64>),
     SliceInt(Vec<i64>),
@@ -57,12 +58,13 @@ pub enum Dyn {
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
-/// value cannot be changed through the interface, so copies share it.
-pub type Iface = Option<std::rc::Rc<Dyn>>;
+/// value cannot be changed through the interface, so a copy is a clone, as
+/// Go copies it.
+pub type Iface = Option<Dyn>;
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(std::rc::Rc::new(d))
+    Some(d)
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -77,7 +79,7 @@ impl PartialEq for Dyn {
                 panic!("gopatina-user-panic:runtime error: comparing uncomparable type []int")
             }
             (Dyn::String(a), Dyn::String(b)) => a == b,
-            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => std::ptr::eq(a, b),
+            (Dyn::ErrorsErrorString(a), Dyn::ErrorsErrorString(b)) => a.id() == b.id(),
             _ => false,
         }
     }
@@ -96,12 +98,12 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
 
 /// %T of an interface value.
 pub fn iface_type(x: &Iface) -> &'static str {
-    iface_name(x.as_deref())
+    iface_name(x.as_ref())
 }
 
 /// %v of an interface value.
 pub fn iface_show(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         None => String::from("<nil>"),
         Some(Dyn::Path(v)) => path_error(v),
         Some(Dyn::SliceInt(v)) => iface_slice(v, |e| e.to_string()),
@@ -123,7 +125,7 @@ pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
 
 /// x.(I) to an interface type I: x, or Go's panic.
 pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
-    match x.as_deref() {
+    match x.as_ref() {
         None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
         Some(d) => {
             if let Some(m) = missing(d) {
@@ -139,7 +141,7 @@ pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &
 
 /// v, ok := x.(I) to an interface type I.
 pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
@@ -156,7 +158,7 @@ pub fn iface_is(err: &Iface, target: &Iface) -> bool {
     if err.is_none() || target.is_none() {
         return err.is_none() && target.is_none();
     }
-    let comparable = !matches!(target.as_deref(), Some(Dyn::Path(_) | Dyn::SliceInt(_)));
+    let comparable = !matches!(target.as_ref(), Some(Dyn::Path(_) | Dyn::SliceInt(_)));
     let mut err = err.clone();
     loop {
         if comparable && err == *target {
@@ -172,7 +174,7 @@ pub fn iface_is(err: &Iface, target: &Iface) -> bool {
 /// Unwrap() error of the dynamic value: the error it wraps, or None if it has
 /// no such method.
 pub fn iface_unwrap(x: &Iface) -> Option<Iface> {
-    match x.as_deref() {
+    match x.as_ref() {
         _ => None,
     }
 }

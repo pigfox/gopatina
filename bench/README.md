@@ -39,6 +39,8 @@ added as the patina subset grows to support them:
 | `fannkuch-redux` | slices, permutations, mutation through borrows | 2 |
 | `binary-trees` | allocation and freeing of many small trees through pointers (where a GC would run); hand-written Rust uses `Box` | RFC 0013 (in place) |
 | `cycles` | doubly linked lists built and dropped, their nodes in one slice and linked by index, as one owner per object requires (RFC 0017) and as Rust programmers write them; hand-written Rust does the same with `Vec` and `Option<usize>` | RFC 0017 (in place) |
+| `iface-copy` | 200M copies of an interface value, each only read: lent, with no clone; hand-written Rust uses an enum and a borrow | RFC 0012 with RFC 0017 (in place) |
+| `iface-keep` | 4M copies of an interface value kept in a slice: cloned; hand-written Rust pushes clones of the value | RFC 0012 with RFC 0017 (in place) |
 | `json-roundtrip` | strings, maps, the standard library subset | 4 |
 | `chan-pipeline` | goroutines and channels | 3 |
 

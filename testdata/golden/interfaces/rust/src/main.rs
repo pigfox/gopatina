@@ -71,7 +71,7 @@ impl Square {
 fn describe(x: &Iface) -> String {
     {
         let dyn_x = x;
-        match dyn_x.as_deref() {
+        match dyn_x.as_ref() {
             None => {
                 let v = dyn_x.clone();
                 return String::from("nil");
@@ -128,6 +128,7 @@ fn main() {
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
+#[derive(Clone)]
 pub enum Dyn {
     Circle(Circle),
     Square(Square),
@@ -136,12 +137,13 @@ pub enum Dyn {
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
-/// value cannot be changed through the interface, so copies share it.
-pub type Iface = Option<std::rc::Rc<Dyn>>;
+/// value cannot be changed through the interface, so a copy is a clone, as
+/// Go copies it.
+pub type Iface = Option<Dyn>;
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(std::rc::Rc::new(d))
+    Some(d)
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -171,12 +173,12 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
 
 /// %T of an interface value.
 pub fn iface_type(x: &Iface) -> &'static str {
-    iface_name(x.as_deref())
+    iface_name(x.as_ref())
 }
 
 /// %v of an interface value.
 pub fn iface_show(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         None => String::from("<nil>"),
         Some(Dyn::Circle(v)) => format!("{{{}}}", rt::Float(v.r)),
         Some(Dyn::Square(v)) => (*v).string(),
@@ -198,7 +200,7 @@ pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
 
 /// x.(I) to an interface type I: x, or Go's panic.
 pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
-    match x.as_deref() {
+    match x.as_ref() {
         None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
         Some(d) => {
             if let Some(m) = missing(d) {
@@ -214,7 +216,7 @@ pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &
 
 /// v, ok := x.(I) to an interface type I.
 pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
@@ -222,7 +224,7 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
 
 /// v, ok := x.(main.Circle).
 pub fn iface_try_circle(x: &Iface) -> (Circle, bool) {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Circle(v)) => (*v, true),
         _ => (Circle::default(), false),
     }
@@ -238,7 +240,7 @@ pub fn iface_missing_shape(d: &Dyn) -> Option<&'static str> {
 
 /// Calls Name on an interface value's dynamic value.
 pub fn dyn_name(x: &Iface) -> String {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Circle(v)) => (*v).name(),
         Some(Dyn::Square(v)) => (*v).name(),
         None => panic!(
@@ -250,7 +252,7 @@ pub fn dyn_name(x: &Iface) -> String {
 
 /// Calls Area on an interface value's dynamic value.
 pub fn dyn_area(x: &Iface) -> f64 {
-    match x.as_deref() {
+    match x.as_ref() {
         Some(Dyn::Circle(v)) => (*v).area(),
         Some(Dyn::Square(v)) => (*v).area(),
         None => panic!(
