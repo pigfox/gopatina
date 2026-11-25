@@ -1,0 +1,10 @@
+./list/list.go:7:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./list/list.go:14:11: parameter head is owned: Push keeps it
+./list/list.go:14:30: parameter name is owned: Push keeps it
+./list/list.go:19:7: receiver n is a shared borrow: Sum only reads it
+./list/list.go:28:7: receiver n is an exclusive borrow: Bump changes it, and the caller sees the change
+./list/list.go:36:12: parameter head is a shared borrow: Index only reads it
+./list/list.go:48:6: pointers of type *Tree are never shared: each has one owner (RFC 0016)
+./list/list.go:62:7: receiver t is a shared borrow: Count only reads it
+./main.go:18:7: receiver s is an exclusive borrow: Push changes it, and the caller sees the change
+./main.go:26:20: moved head into list.Push: head is not used afterwards

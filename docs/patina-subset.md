@@ -320,7 +320,8 @@ pointer that may be absent; no runtime type stands between. Its pointers
 are only ever new (`&T{...}` or a function's result), moved once into the
 variable, field or result that owns them, and then only read through,
 tested for `nil` and lent to functions; `T` is a struct of numbers,
-booleans, strings and heap pointers. That is a tree built and then read.
+booleans, strings and heap pointers, declared in any package of the
+program. That is a tree built and then read.
 A parameter or receiver that is lent one is an `Option<&T>`; a read
 through it is `n.unwrap().f`, through a variable or field
 `p.as_ref().unwrap().f`, a lend `p.as_deref()`, and `p == nil` is

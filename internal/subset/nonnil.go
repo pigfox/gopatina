@@ -171,7 +171,7 @@ func (a *nonNilAnalysis) index() {
 				case *types.Var:
 					a.uses[obj] = append(a.uses[obj], x)
 				case *types.Func:
-					if obj.Pkg() == a.p.pkg.Types && !a.calledAs(x, stack) {
+					if a.p.pkg.Local[obj.Pkg()] && !a.calledAs(x, stack) {
 						a.escaped[obj] = true
 					}
 				}
@@ -243,7 +243,7 @@ func (a *nonNilAnalysis) callee(c *ast.CallExpr) *types.Func {
 	case *ast.SelectorExpr:
 		fn, _ = a.info.Uses[f.Sel].(*types.Func)
 	}
-	if fn == nil || fn.Pkg() != a.p.pkg.Types {
+	if fn == nil || !a.p.pkg.Local[fn.Pkg()] {
 		return nil
 	}
 	return fn

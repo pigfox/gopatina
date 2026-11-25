@@ -182,7 +182,7 @@ func (o *ownership) run() {
 		if !isStruct && plainData(h) {
 			continue // a number, a string, a slice of data: a Box<i64>, a Box<String> (RFC 0017)
 		}
-		if !ok || !isStruct || named.Obj().Pkg() != o.p.pkg.Types {
+		if !ok || !isStruct || !o.p.pkg.Local[named.Obj().Pkg()] {
 			o.share(h, token.NoPos, "its element is not a struct type of the program")
 			continue
 		}
@@ -397,7 +397,7 @@ func plainDataIn(t types.Type, seen map[types.Type]bool) bool {
 // refuses.
 func (o *ownership) ownerStruct(t types.Type) bool {
 	n, ok := types.Unalias(t).(*types.Named)
-	if !ok || n.Obj().Pkg() != o.p.pkg.Types {
+	if !ok || !o.p.pkg.Local[n.Obj().Pkg()] {
 		return false
 	}
 	st, ok := n.Underlying().(*types.Struct)
@@ -824,7 +824,7 @@ func (o *ownership) programCallee(c *ast.CallExpr) *types.Func {
 	case *ast.SelectorExpr:
 		fn, _ = o.info.Uses[f.Sel].(*types.Func)
 	}
-	if fn == nil || fn.Pkg() != o.p.pkg.Types {
+	if fn == nil || !o.p.pkg.Local[fn.Pkg()] {
 		return nil
 	}
 	return fn

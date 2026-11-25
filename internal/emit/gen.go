@@ -288,10 +288,10 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 		// An exported function may return a value of an unexported type,
 		// as in Go; and the crate's own items are pub(crate).
 		head.WriteString("#![allow(private_interfaces)] // Go exports may name unexported types\n")
-	} else if g.ifc.used && len(pkg.Pkgs) > 1 {
-		// Dyn is public, for main's exported interface types, and holds
-		// the types of the program's other packages, which are pub(crate).
-		head.WriteString("#![allow(private_interfaces)] // Dyn holds other packages' types\n")
+	} else if len(pkg.Pkgs) > 1 {
+		// main's exported types, and Dyn, are public, and may hold the
+		// types of the program's other packages, which are pub(crate).
+		head.WriteString("#![allow(private_interfaces)] // main's types may hold other packages' types\n")
 	}
 	head.WriteString("\n")
 	rtRS = rtModule(g.rt)
