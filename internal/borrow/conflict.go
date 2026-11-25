@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+
+	"github.com/pigfox/gopatina/internal/subset"
 )
 
 // An operand is one argument (or the receiver) of a call, or one operand
@@ -54,12 +56,13 @@ func (o *operands) check(call *ast.CallExpr, name string, pos token.Pos, stmtLev
 			continue
 		}
 		top := w.evs[op.top]
+		whole := op.excl && w.throughMaybeNil(top.e)
 		for j := i + 1; j < len(o.ops); j++ {
 			later := o.ops[j]
 			conflict, copyOnly, twice := false, true, false
 			for k := later.from; k < later.to; k++ {
 				ev := w.evs[k]
-				if ev.v != top.v || !overlaps(ev.path, top.path) {
+				if ev.v != top.v || !overlaps(ev.path, top.path) && !whole {
 					continue
 				}
 				if ev.kind == evConsume && !ev.force && KindOf(a.pkg.Info.Types[ev.e].Type) == Value {
@@ -73,6 +76,13 @@ func (o *operands) check(call *ast.CallExpr, name string, pos token.Pos, stmtLev
 				changes := ev.kind == evMut || ev.kind == evBorrow || (ev.kind == evConsume && !ev.force) || ev.kind == evDef
 				held := later.top == k && KindOf(a.pkg.Info.Types[ev.e].Type) != Copy
 				switch {
+				case whole && !overlaps(ev.path, top.path):
+					// The lend goes through an owned pointer that may be
+					// nil, which Rust unwraps whole (v.as_mut().unwrap().f):
+					// a read of another field comes first, a string's as a
+					// copy (RFC 0017); a change is refused.
+					conflict = true
+					copyOnly = copyOnly && !changes
 				case op.excl && op.explicit:
 					conflict = true
 					if changes || held {
@@ -117,6 +127,27 @@ func (o *operands) check(call *ast.CallExpr, name string, pos token.Pos, stmtLev
 			a.report(pos, a.errorf(pos, "%s is passed to %s, and a later argument changes %s before the call", trimElem(p), name, rootName(p)).With(
 				"patina mode keeps a value passed to a call in place until the call runs, so nothing else may change it meanwhile",
 				fmt.Sprintf("compute the argument that changes %s into a variable in its own statement first", rootName(p))))
+		}
+	}
+}
+
+// throughMaybeNil reports whether place e is reached through an owned
+// pointer variable that may be nil (an Option<Box<T>> or Option<&mut T>,
+// RFC 0017): Rust's place unwraps the variable itself.
+func (w *walker) throughMaybeNil(e ast.Expr) bool {
+	plan := subset.Ptrs(w.a.pkg)
+	for {
+		switch x := ast.Unparen(stripAddr(e)).(type) {
+		case *ast.SelectorExpr:
+			if id, ok := ast.Unparen(x.X).(*ast.Ident); ok {
+				v := w.localVar(id)
+				return v != nil && plan.Owned(v.Type()) && !plan.NonNilVar(v)
+			}
+			e = x.X
+		case *ast.IndexExpr:
+			e = x.X
+		default:
+			return false
 		}
 	}
 }

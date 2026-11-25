@@ -147,11 +147,11 @@ func main() {
 	fmt.Println(forest.Left.Left.Left == nil, nil == forest.Left.Right)
 	fmt.Println(forest.depth(), forest.Left.Left.depth())
 	tr := forest.Left.Left
-	fmt.Println(forest.Left.Left.Key+tr.Key, tr == forest.Left.Left)
+	fmt.Println(forest.Left.Left.Key+tr.Key, tr == forest.Left.Left) // tr's last use: forest changes next
 	forest.in.Inc()
 	(&forest.in).Inc()
-	fmt.Println(forest.in.Get(), forest.bag.Sum(), forest.name[0], forest.name == tr.name)
-	addN(forest.items, tr.Key, tr.name)
+	fmt.Println(forest.in.Get(), forest.bag.Sum(), forest.name[0], forest.name == forest.Left.Left.name)
+	addN(forest.items, forest.Left.Left.Key, "t") // the Key is read before forest.items is lent
 	fmt.Println(forest.items)
 
 	var c Counter
@@ -167,15 +167,15 @@ func main() {
 	k, extra := pairOf(forest)
 	cell := &k
 	fmt.Println(*cell, extra, *ptrTo(6))
-	k, extra = pairOf(tr)
+	k, extra = pairOf(forest.Left.Left)
 	k, more := pairOf(forest)
 	fmt.Println(k, more, extra)
-	k, fresh := pairOf(tr)
+	k, fresh := pairOf(forest.Left.Left)
 	cell2 := &fresh
 	*cell2 += k
 	fmt.Println(k, *cell2)
 	fmt.Println(fresh)
-	forest.Key, _ = pairOf(tr)
+	forest.Key, _ = pairOf(forest.Left.Left)
 	forest.Key, extra = 7, forest.Key
 	fmt.Println(forest.Key, extra)
 	s1, s2 := split(forest)

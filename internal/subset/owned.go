@@ -1370,8 +1370,14 @@ func (o *ownership) plainWrite(stack []ast.Node) bool {
 			// A pointer field assigned: the value moves there, and is
 			// checked where it is (RFC 0017, step 4).
 			return basic || o.elemOf(t) != nil || plainData(t) // data the box owns, replaced in place
+		case *ast.UnaryExpr:
+			// &p.f of data lent to a call that keeps nothing: Rust lends
+			// &mut p.f for the call (RFC 0017).
+			t := o.info.TypeOf(place.(ast.Expr))
+			v := o.p.lentTo(stack[:j+1])
+			return p.Op == token.AND && p.X == place && v != nil && o.inputs[v] && !o.kept[v] && !o.deferred(stack[:j+1]) && plainData(t)
 		}
-		return false // &p.f, or p.s[i] = x
+		return false // p.s[i] = x, or &p.f kept
 	}
 }
 

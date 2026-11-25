@@ -41,14 +41,22 @@ impl In {
     pub fn inc(&mut self) {
         self.n += 1;
     }
+
+    /// Get reads a copy.
+    pub fn get(self) -> i64 {
+        self.n + 1
+    }
 }
 
+/// T's pointers are cells: Total and Zero take a copy of a T, which shares
+/// its items with the T in the box.
 #[derive(Clone, Default, PartialEq)]
 pub struct T {
     r#in: In,
     items: Vec<i64>,
     name: String,
     n: i64,
+    bag: Bag,
 }
 
 impl T {
@@ -59,6 +67,24 @@ impl T {
     pub fn zero(&mut self) {
         self.items[0] = 0;
     }
+}
+
+/// Bag holds a slice: a copy of one shares it.
+#[derive(Clone, Default, PartialEq)]
+pub struct Bag {
+    s: Vec<i64>,
+}
+
+impl Bag {
+    /// Sum reads a copy.
+    pub fn sum(&self) -> i64 {
+        sum(&self.s)
+    }
+}
+
+/// two returns two ints.
+fn two() -> (i64, i64) {
+    (6, 7)
 }
 
 fn sum(s: &[i64]) -> i64 {
@@ -82,6 +108,7 @@ fn keep(n: i64) -> rt::Ptr<T> {
     rt::Ptr::new(T {
         items: vec![1, 2, 3],
         n,
+        bag: Bag { s: vec![n, n] },
         ..Default::default()
     })
 }
@@ -238,6 +265,22 @@ fn main() {
         p.with(|v| v.name.clone()),
         p.with(|v| v.n),
     );
+    let pq = keep(5);
+    pq.with_mut(|v| v.name = String::from("abab"));
+    let (val_9, val_10) = two();
+    p.with_mut(|v| v.n = val_9);
+    let val_11 = p.with(|v| v.n);
+    p.with_mut(|v| set(&mut v.items, val_11)); // p.n read inside the cell's borrow, before the lend
+    let call_7 = p.with(|v| v.r#in).get();
+    let call_8 = p.with(|v| v.bag.sum());
+    println!(
+        "{} {} {} {} {}",
+        p.with(|v| v.name.clone()) == pq.with(|v| v.name.clone()),
+        call_7,
+        call_8,
+        p.with(|v| v.n),
+        rt::Slice(&p.with(|v| v.items.clone())),
+    );
     let x = addr(5.0);
     let mut y = addr(5.0);
     y += x;
@@ -250,10 +293,10 @@ fn main() {
         std::ptr::eq(&x, &x),
     );
     let (a, b) = pair();
-    let val_9 = b.load();
-    let val_10 = a.load();
-    a.with_mut(|v| *v = val_9);
-    b.with_mut(|v| *v = val_10);
+    let val_12 = b.load();
+    let val_13 = a.load();
+    a.with_mut(|v| *v = val_12);
+    b.with_mut(|v| *v = val_13);
     println!("{} {}", a.load(), b.load());
     let mut c = Box::new(Counter {
         ..Default::default()

@@ -23,6 +23,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- A field's address lent to a call keeps its owned pointer owned (RFC
+  0017): `inc(&p.n)` is `inc(&mut p.n)`, `(&p.in).Inc()` and `p.in.Inc()`
+  are `p.r#in.inc()`, and through a pointer that may be nil the field is
+  reached with `as_mut()`. Until now such a lend made the type a shared
+  cell. Another argument reading through the same pointer is computed
+  first (a string's as a copy); one that changes it is an error (reject
+  golden `owned_lend_through_nil`). An `Option<&mut T>` parameter lent to a
+  call computed before an earlier read of it is reborrowed
+  (`t.as_deref_mut()`), not moved. Golden `owned_field_lends`.
+
 - A temporary borrow may be compared with another pointer, by address
   (`for p := head; p != stop; p = p.Next` is
   `while p.map(std::ptr::from_ref) != stop.map(std::ptr::from_ref)`),

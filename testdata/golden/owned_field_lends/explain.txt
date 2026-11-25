@@ -1,0 +1,10 @@
+./main.go:13:7: receiver i is an exclusive borrow: Inc changes it, and the caller sees the change
+./main.go:16:6: pointers of type *T are never shared: each has one owner (RFC 0016)
+./main.go:24:10: parameter x is an exclusive borrow: inc changes it, and the caller sees the change
+./main.go:26:12: parameter x is an exclusive borrow: addTo changes it, and the caller sees the change
+./main.go:28:11: parameter s is an exclusive borrow: push changes it, and the caller sees the change
+./main.go:30:13: parameter x is an exclusive borrow: addLen changes it, and the caller sees the change
+./main.go:30:21: parameter s is a shared borrow: addLen only reads it
+./main.go:35:7: receiver t is an exclusive borrow: grow changes it, and the caller sees the change
+./main.go:43:11: parameter t is an exclusive borrow: both changes it, and the caller sees the change
+./main.go:47:11: parameter t is an exclusive borrow: bump changes it, and the caller sees the change

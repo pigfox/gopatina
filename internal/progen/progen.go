@@ -159,9 +159,11 @@ func (g *gen) libDecls(b *strings.Builder) {
 	fmt.Fprintf(b, "\nconst K%d = %d\n", k, g.lr.IntN(2001)-1000)
 	// A list of package lib that main builds and owns (RFC 0017 with RFC
 	// 0009): a Box of another package's type, not a shared cell.
-	fmt.Fprintf(b, "\n// Lst%d is program %d's list, newest first.\ntype Lst%d struct {\n\tV    int\n\tNext *Lst%d\n}\n", k, k, k, k)
+	fmt.Fprintf(b, "\n// Lst%d is program %d's list, newest first.\ntype Lst%d struct {\n\tV    int\n\tT    Tally%d\n\tNext *Lst%d\n}\n", k, k, k, k, k)
 	fmt.Fprintf(b, "\nfunc Cons%d(v int, next *Lst%d) *Lst%d { return &Lst%d{V: v, Next: next} }\n", k, k, k, k)
 	fmt.Fprintf(b, "\nfunc (l *Lst%d) Sum() int {\n\tt := 0\n\tfor p := l; p != nil; p = p.Next {\n\t\tt += p.V\n\t}\n\treturn t\n}\n", k)
+	fmt.Fprintf(b, "\n// Tally%d counts; no pointer to one escapes, so &l.T is lent as &mut.\ntype Tally%d int\n", k, k)
+	fmt.Fprintf(b, "\nfunc AddTo%d(x *Tally%d, d int) { *x += Tally%d(d) }\n", k, k, k)
 	fmt.Fprintf(b, "\nfunc (l *Lst%d) Bump(d int) {\n\tl.V += d\n\tif l.Next != nil {\n\t\tl.Next.Bump(d)\n\t}\n}\n", k)
 	ops := []string{"+", "-", "*", "&", "|", "^"}
 	expr := "x"
@@ -481,6 +483,10 @@ func (g *gen) libUses() {
 	g.depth--
 	g.line("}")
 	g.line("ll.Bump(v1)")
+	// A field's address lent to a call, as &mut ll.v, its other argument
+	// read through the same list first (Go evaluates it before the call).
+	g.line("lib.AddTo%d(&ll.T, ll.Next.V)", k)
+	g.line("fmt.Println(ll.T, ll.Next.T)")
 	g.line("fmt.Println(ll.Sum(), ll.V, ll.Next.Next.V, ll.Next.Next.Next == nil)")
 	// A walk to a stop pointer, compared by address (std::ptr::eq), and a
 	// new pointer moved into a Vec's element.

@@ -9,9 +9,7 @@
 ./main.go:56:7: receiver c is an exclusive borrow: Hit changes it, and the caller sees the change
 ./main.go:61:7: receiver c is a shared borrow: Self only reads it
 ./main.go:63:11: parameter c is a shared borrow: show only reads it
-./main.go:65:6: pointers of type *Tree are shared: it is written through (line 152) (RFC 0016)
-./main.go:66:2: Tree.Left can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
-./main.go:66:8: Tree.Right can point back to a Tree: a cycle through it is not reclaimed (RFC 0013)
+./main.go:65:6: pointers of type *Tree are never shared: each has one owner (RFC 0016)
 ./main.go:75:7: receiver t is a shared borrow: depth only reads it
 ./main.go:88:11: parameter t is owned: push keeps it
 ./main.go:96:6: pointers of type *Big are never shared: each has one owner (RFC 0016)
@@ -20,8 +18,8 @@
 ./main.go:103:13: parameter t is a shared borrow: pairOf only reads it
 ./main.go:105:11: parameter s is an exclusive borrow: addN changes it, and the caller sees the change
 ./main.go:105:27: parameter name is a shared borrow: addN only reads it
-./main.go:107:12: parameter t is a shared borrow: split only reads it
-./main.go:111:14: parameter t is a shared borrow: pairSum only reads it
+./main.go:107:12: parameter t is an exclusive borrow: split changes it, and the caller sees the change
+./main.go:111:14: parameter t is an exclusive borrow: pairSum changes it, and the caller sees the change
 ./main.go:118:16: parameter p is owned: keepSlice keeps it
 ./main.go:120:16: parameter p is owned: keepNames keeps it
 ./main.go:130:10: parameter s is an exclusive borrow: set changes it, and the caller sees the change

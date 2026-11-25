@@ -2094,8 +2094,8 @@ func (g *gen) hoist(s ast.Stmt) {
 	fn := g.calledFunc(c)
 	for i, a := range c.Args {
 		p := fn.Params[i]
-		if p.Mode == borrow.RefMut {
-			continue
+		if p.Mode == borrow.RefMut || g.info.Types[a].Value != nil {
+			continue // lent to be changed, or a constant, which nothing changes
 		}
 		name := g.lnames.name("", func(string) string { return "arg" })
 		if p.Mode == borrow.Ref && borrow.KindOf(g.typeOf(a)) != borrow.Copy && g.isPlace(a) {

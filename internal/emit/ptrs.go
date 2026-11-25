@@ -384,7 +384,24 @@ func (g *gen) ptrAs(e ast.Expr, want ptrRep) node {
 // round to it again.
 func (g *gen) usedAfter(e ast.Expr) bool {
 	id, ok := ast.Unparen(e).(*ast.Ident) // a parameter, a borrow, or a call's temporary
-	return ok && g.usedAfterPos(id, id.Pos())
+	return ok && (g.usedAfterPos(id, id.Pos()) || g.usedInHoisting(id))
+}
+
+// usedInHoisting reports whether id is in a call computed first out of
+// the statement being hoisted (hoistCalls), which names id's variable
+// elsewhere too: that use comes after the call, wherever it is written.
+func (g *gen) usedInHoisting(id *ast.Ident) bool {
+	if g.hoisting == nil {
+		return false
+	}
+	v, again := g.localVar(id), false
+	ast.Inspect(g.hoisting, func(n ast.Node) bool {
+		if x, ok := n.(*ast.Ident); ok && x != id && g.localVar(x) == v {
+			again = true
+		}
+		return !again
+	})
+	return again
 }
 
 // usedAfterPos reports whether id's variable may be used again after pos:

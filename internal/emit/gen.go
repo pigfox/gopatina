@@ -50,6 +50,9 @@ type gen struct {
 	initVarsName map[*types.Package]string
 	galias       map[*types.Var]string
 	callTemps    map[*ast.CallExpr]string
+	// hoisting is the statement whose calls are being computed first
+	// (hoistCalls), or nil.
+	hoisting     ast.Stmt
 	inGlobalStmt bool
 	modules      []Module    // the other packages' Rust modules, once written
 	ifc          *ifaceState // interface values (RFC 0012, iface.go)

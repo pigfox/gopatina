@@ -1,0 +1,3 @@
+./main.go:26:2: q.n is passed to addTo, and a later argument changes q before the call
+    patina mode keeps a value passed to a call in place until the call runs, so nothing else may change it meanwhile
+    compute the argument that changes q into a variable in its own statement first

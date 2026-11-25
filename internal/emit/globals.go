@@ -345,7 +345,9 @@ func (g *gen) hoistCalls(s ast.Stmt, all bool) {
 			decl = "let mut "
 		}
 		g.boxSlot[c] = true // a call's local holds what it returns: a Box stays one
+		g.hoisting = s
 		g.stmtLine(decl+name+" = ", g.value(c), ";")
+		g.hoisting = nil
 		delete(g.boxSlot, c) // read from its local, it is wrapped where an Option is wanted
 		g.callTemps[c] = name
 	}
