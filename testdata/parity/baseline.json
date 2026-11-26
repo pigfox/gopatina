@@ -1,22 +1,23 @@
 {
   "programs": 190,
-  "skipped": 51,
-  "tested": 139,
+  "skipped": 52,
+  "tested": 138,
   "accepted": 33,
-  "compiled": 32,
-  "matched": 30,
-  "linted": 32,
-  "lint_clean": 30,
+  "compiled": 33,
+  "matched": 31,
+  "linted": 33,
+  "lint_clean": 31,
   "rates": {
-    "accepted": 23.7,
-    "compiled": 23,
-    "lint_clean": 93.8,
-    "matched": 21.6
+    "accepted": 23.9,
+    "compiled": 23.9,
+    "lint_clean": 93.9,
+    "matched": 22.5
   },
   "skips": {
     "does not build with Go": 6,
     "does not finish within 10s with Go": 1,
     "goroutine scheduling order (skip.txt)": 5,
+    "goroutine scheduling order (two sums received as they finish) (skip.txt)": 1,
     "imports golang.org/x/tour/pic, not in the standard library": 4,
     "imports golang.org/x/tour/reader, not in the standard library": 2,
     "imports golang.org/x/tour/tree, not in the standard library": 3,
@@ -56,24 +57,6 @@
       ]
     },
     {
-      "fingerprint": "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/channel-buffering",
-        "gobyexample/channel-directions",
-        "gobyexample/channel-synchronization",
-        "gobyexample/channels",
-        "gobyexample/closing-channels",
-        "gobyexample/non-blocking-channel-operations",
-        "gobyexample/range-over-channels",
-        "gobyexample/select",
-        "gobyexample/timeouts",
-        "gotour/concurrency/buffered-channels",
-        "gotour/concurrency/channels",
-        "gotour/concurrency/range-and-close",
-        "gotour/concurrency/select"
-      ]
-    },
-    {
       "fingerprint": "uses the standard package unicode/utf8, which patina mode does not support yet",
       "programs": [
         "gobyexample/command-line-flags",
@@ -89,6 +72,23 @@
         "gobyexample/text-templates",
         "gobyexample/writing-files",
         "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-buffering",
+        "gobyexample/channel-directions",
+        "gobyexample/channel-synchronization",
+        "gobyexample/channels",
+        "gobyexample/closing-channels",
+        "gobyexample/non-blocking-channel-operations",
+        "gobyexample/range-over-channels",
+        "gobyexample/select",
+        "gobyexample/timeouts",
+        "gotour/concurrency/buffered-channels",
+        "gotour/concurrency/range-and-close",
+        "gotour/concurrency/select"
       ]
     },
     {
@@ -135,21 +135,6 @@
         "gotour/moretypes/function-closures",
         "gotour/moretypes/function-values",
         "gotour/solutions/fib"
-      ]
-    },
-    {
-      "fingerprint": "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/channel-synchronization",
-        "gobyexample/channels",
-        "gobyexample/closing-channels",
-        "gobyexample/select",
-        "gobyexample/timeouts",
-        "gobyexample/timers",
-        "gotour/concurrency/channels",
-        "gotour/concurrency/mutex-counter",
-        "gotour/concurrency/range-and-close",
-        "gotour/concurrency/select"
       ]
     },
     {
@@ -209,6 +194,20 @@
       ]
     },
     {
+      "fingerprint": "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-synchronization",
+        "gobyexample/channels",
+        "gobyexample/closing-channels",
+        "gobyexample/select",
+        "gobyexample/timeouts",
+        "gobyexample/timers",
+        "gotour/concurrency/mutex-counter",
+        "gotour/concurrency/range-and-close",
+        "gotour/concurrency/select"
+      ]
+    },
+    {
       "fingerprint": "uses the standard package internal/strconv, which patina mode does not support yet",
       "programs": [
         "gobyexample/base64-encoding",
@@ -231,7 +230,6 @@
         "gobyexample/closing-channels",
         "gobyexample/range-over-channels",
         "gotour/concurrency/buffered-channels",
-        "gotour/concurrency/channels",
         "gotour/concurrency/range-and-close"
       ]
     },
@@ -283,17 +281,6 @@
       ]
     },
     {
-      "fingerprint": "the \u003c- operator is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/channel-buffering",
-        "gobyexample/channel-directions",
-        "gobyexample/channels",
-        "gobyexample/closing-channels",
-        "gotour/concurrency/buffered-channels",
-        "gotour/concurrency/channels"
-      ]
-    },
-    {
       "fingerprint": "uses the standard package internal/filepathlite, which patina mode does not support yet",
       "programs": [
         "gobyexample/defer",
@@ -326,13 +313,13 @@
       ]
     },
     {
-      "fingerprint": "make of chan int is not supported in patina mode yet",
+      "fingerprint": "the \u003c- operator is not supported in patina mode yet",
       "programs": [
+        "gobyexample/channel-buffering",
+        "gobyexample/channel-directions",
+        "gobyexample/channels",
         "gobyexample/closing-channels",
-        "gotour/concurrency/buffered-channels",
-        "gotour/concurrency/channels",
-        "gotour/concurrency/range-and-close",
-        "gotour/concurrency/select"
+        "gotour/concurrency/buffered-channels"
       ]
     },
     {
@@ -380,6 +367,15 @@
         "gotour/concurrency/exercise-web-crawler",
         "gotour/methods/reader",
         "gotour/methods/type-switches"
+      ]
+    },
+    {
+      "fingerprint": "make of chan int is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/closing-channels",
+        "gotour/concurrency/buffered-channels",
+        "gotour/concurrency/range-and-close",
+        "gotour/concurrency/select"
       ]
     },
     {
@@ -1141,12 +1137,6 @@
       "fingerprint": "range over a channel (chan string) is not supported in patina mode yet",
       "programs": [
         "gobyexample/range-over-channels"
-      ]
-    },
-    {
-      "fingerprint": "rustc: error: literal out of range for `_`",
-      "programs": [
-        "gotour/basics/numeric-constants"
       ]
     },
     {
@@ -2405,10 +2395,9 @@
     },
     {
       "name": "gotour/basics/numeric-constants",
-      "stage": "not compiled",
-      "fingerprints": [
-        "rustc: error: literal out of range for `_`"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/basics/packages",
@@ -2466,14 +2455,8 @@
     },
     {
       "name": "gotour/concurrency/channels",
-      "stage": "refused",
-      "fingerprints": [
-        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
-        "a channel send (planned, RFC N) is not supported in patina mode yet",
-        "make of chan int is not supported in patina mode yet",
-        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
-        "the \u003c- operator is not supported in patina mode yet"
-      ]
+      "stage": "skipped",
+      "reason": "goroutine scheduling order (two sums received as they finish) (skip.txt)"
     },
     {
       "name": "gotour/concurrency/default-selection",
