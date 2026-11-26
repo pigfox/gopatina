@@ -1294,6 +1294,12 @@ func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
 		ok = kind(types.IsBoolean) && v.Prec < 0 && !v.Plus && !v.Zero
 	case 'f', 'F':
 		ok = kind(types.IsFloat)
+	case 'g':
+		// Go's %g of a float is its %v: the shortest digits, an exponent
+		// below 1e-4 and from 1e+06 up. Not yet a precision, which counts
+		// digits there, nor the + flag, which %g honours (+1e+06, +NaN)
+		// and %v does not.
+		ok = kind(types.IsFloat) && !v.Zero && !v.Plus && v.Prec < 0
 	}
 	if !ok || v.Space || (v.Sharp && v.Verb != 'x' && v.Verb != 'X') {
 		return fmt.Sprintf("the format %s with a value of type %s", v.Spec, t)

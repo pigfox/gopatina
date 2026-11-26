@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 52,
   "tested": 138,
-  "accepted": 39,
-  "compiled": 39,
-  "matched": 39,
-  "linted": 39,
-  "lint_clean": 37,
+  "accepted": 40,
+  "compiled": 40,
+  "matched": 40,
+  "linted": 40,
+  "lint_clean": 38,
   "rates": {
-    "accepted": 28.3,
-    "compiled": 28.3,
-    "lint_clean": 94.9,
-    "matched": 28.3
+    "accepted": 29,
+    "compiled": 29,
+    "lint_clean": 95,
+    "matched": 29
   },
   "skips": {
     "does not build with Go": 6,
@@ -459,14 +459,6 @@
         "gobyexample/base64-encoding",
         "gobyexample/reading-files",
         "gobyexample/xml"
-      ]
-    },
-    {
-      "fingerprint": "format string: \"S\": the verb %g is not supported in patina mode yet",
-      "programs": [
-        "gotour/basics/imports",
-        "gotour/flowcontrol/if-and-else",
-        "gotour/solutions/errors"
       ]
     },
     {
@@ -2360,10 +2352,9 @@
     },
     {
       "name": "gotour/basics/imports",
-      "stage": "refused",
-      "fingerprints": [
-        "format string: \"S\": the verb %g is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/basics/multiple-results",
@@ -2554,8 +2545,7 @@
       "name": "gotour/flowcontrol/if-and-else",
       "stage": "refused",
       "fingerprints": [
-        "math.Pow is not supported in patina mode yet",
-        "format string: \"S\": the verb %g is not supported in patina mode yet"
+        "math.Pow is not supported in patina mode yet"
       ]
     },
     {
@@ -2978,7 +2968,6 @@
       "name": "gotour/solutions/errors",
       "stage": "refused",
       "fingerprints": [
-        "format string: \"S\": the verb %g is not supported in patina mode yet",
         "converting to an interface a value whose _ method may panic is not supported in patina mode yet",
         "printing a value of type (float64, error) is not supported in patina mode yet",
         "the results of _ used here other than as v..., err := _(...) or return _(...)"
