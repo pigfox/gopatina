@@ -7,7 +7,7 @@
 | accepted by patina mode | 39 | 28.3% |
 | compiled to Rust | 39 | 28.3% |
 | output matches Go | 39 | 28.3% |
-| clippy clean (of 39 linted) | 36 | 92.3% |
+| clippy clean (of 39 linted) | 37 | 94.9% |
 
 ## Failure clusters, largest first
 
@@ -115,7 +115,6 @@
 | 1 | bytes.ToUpper is not supported _ patina mode yet | gobyexample/regular-expressions |
 | 1 | calling a pointer-receiver method on a package-level variable is not supported in patina mode yet | gobyexample/base64-encoding |
 | 1 | clippy: error: this loop never actually loops | gobyexample/for |
-| 1 | clippy: error: type `_` is more private than the item `_` | gobyexample/interfaces |
 | 1 | clippy: error: unnecessary use of `_` | gotour/moretypes/range-continued |
 | 1 | converting _ pointer to _ type other than _ named type of the program to an interface is not supported in patina mode yet | gotour/solutions/rot13 |
 | 1 | converting a []byte to a string (patina strings must be valid UTF-N) is not supported _ patina mode yet | gobyexample/regular-expressions |

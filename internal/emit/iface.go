@@ -947,3 +947,27 @@ func (g *gen) noDyn(indent string) {
 		g.line(indent + "Some(d) => match *d {},")
 	}
 }
+
+// dynHoldsPrivate reports whether a variant of Dyn holds an unexported
+// struct type of main, a private struct, while Dyn is public.
+func (g *gen) dynHoldsPrivate() bool {
+	for _, t := range g.ifc.plan.Dyn {
+		for {
+			switch u := types.Unalias(t).(type) {
+			case *types.Pointer:
+				t = u.Elem()
+				continue
+			case *types.Slice:
+				t = u.Elem()
+				continue
+			case *types.Named:
+				// Only a struct is an item of its own: a named int is i64.
+				if _, ok := u.Underlying().(*types.Struct); ok && !u.Obj().Exported() {
+					return true
+				}
+			}
+			break
+		}
+	}
+	return false
+}
