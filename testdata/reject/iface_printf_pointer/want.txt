@@ -1,0 +1,2 @@
+./main.go:16:27: printing an interface value in a program that converts *main.T to one: printing a pointer of type *main.T, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports

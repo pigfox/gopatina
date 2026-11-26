@@ -2,15 +2,15 @@
   "programs": 190,
   "skipped": 52,
   "tested": 138,
-  "accepted": 33,
-  "compiled": 33,
+  "accepted": 31,
+  "compiled": 31,
   "matched": 31,
-  "linted": 33,
-  "lint_clean": 31,
+  "linted": 31,
+  "lint_clean": 29,
   "rates": {
-    "accepted": 23.9,
-    "compiled": 23.9,
-    "lint_clean": 93.9,
+    "accepted": 22.5,
+    "compiled": 22.5,
+    "lint_clean": 93.5,
     "matched": 22.5
   },
   "skips": {
@@ -523,7 +523,7 @@
       ]
     },
     {
-      "fingerprint": "printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet",
+      "fingerprint": "printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet",
       "programs": [
         "gobyexample/structs",
         "gotour/methods/indirection",
@@ -655,13 +655,6 @@
       ]
     },
     {
-      "fingerprint": "output: exit status differs",
-      "programs": [
-        "gotour/methods/interface-values",
-        "gotour/methods/interface-values-with-nil"
-      ]
-    },
-    {
       "fingerprint": "printing _ value of type [N]int is not supported in patina mode yet",
       "programs": [
         "gobyexample/arrays",
@@ -694,6 +687,13 @@
       "programs": [
         "gotour/moretypes/map-literals",
         "gotour/moretypes/map-literals-continued"
+      ]
+    },
+    {
+      "fingerprint": "printing an interface value in a program that converts *main._ to one: printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/interface-values",
+        "gotour/methods/interface-values-with-nil"
       ]
     },
     {
@@ -2163,7 +2163,7 @@
       "stage": "refused",
       "fingerprints": [
         "printing a value of type main._ is not supported in patina mode yet",
-        "printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet",
+        "printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet",
         "an anonymous struct type is not supported in patina mode yet",
         "printing a value of type struct{_ string; _ bool} is not supported in patina mode yet"
       ]
@@ -2674,7 +2674,7 @@
       "stage": "refused",
       "fingerprints": [
         "printing a value of type main._ is not supported in patina mode yet",
-        "printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet"
+        "printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet"
       ]
     },
     {
@@ -2686,21 +2686,17 @@
     },
     {
       "name": "gotour/methods/interface-values",
-      "stage": "mismatched",
+      "stage": "refused",
       "fingerprints": [
-        "output: exit status differs"
-      ],
-      "linted": true,
-      "lint_clean": true
+        "printing an interface value in a program that converts *main._ to one: printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet"
+      ]
     },
     {
       "name": "gotour/methods/interface-values-with-nil",
-      "stage": "mismatched",
+      "stage": "refused",
       "fingerprints": [
-        "output: exit status differs"
-      ],
-      "linted": true,
-      "lint_clean": true
+        "printing an interface value in a program that converts *main._ to one: printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet"
+      ]
     },
     {
       "name": "gotour/methods/interfaces",
@@ -2975,7 +2971,7 @@
         "a *_ with more than one owner (a package-level variable holds it) is not supported in patina mode yet",
         "a pointer here (RFC N supports pointers in variables, parameters, results and fields) is not supported in patina mode yet",
         "printing a value of type main._ is not supported in patina mode yet",
-        "printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet"
+        "printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet"
       ]
     },
     {

@@ -1,4 +1,4 @@
-./main.go:21:14: printing a pointer of type *main.Pt, which has no String or Error method (fmt prints its address) is not supported in patina mode yet
+./main.go:21:14: printing a pointer of type *main.Pt, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
-./main.go:23:14: printing an interface value in a program that converts *main.Bag to one: printing a pointer of type *main.Bag, which has no String or Error method (fmt prints its address) is not supported in patina mode yet
+./main.go:23:14: printing an interface value in a program that converts *main.Bag to one: printing a pointer of type *main.Bag, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet
     see docs/compat.md for what patina mode supports

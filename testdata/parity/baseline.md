@@ -4,10 +4,10 @@
 
 | of 138 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 33 | 23.9% |
-| compiled to Rust | 33 | 23.9% |
+| accepted by patina mode | 31 | 22.5% |
+| compiled to Rust | 31 | 22.5% |
 | output matches Go | 31 | 22.5% |
-| clippy clean (of 33 linted) | 31 | 93.9% |
+| clippy clean (of 31 linted) | 29 | 93.5% |
 
 ## Failure clusters, largest first
 
@@ -57,7 +57,7 @@
 | 3 | make of map[string]int is not supported in patina mode yet | gobyexample/maps, gotour/concurrency/mutex-counter, gotour/moretypes/mutating-maps |
 | 3 | os.Create is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/writing-files |
 | 3 | package sync is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/mutexes, gotour/concurrency/mutex-counter |
-| 3 | printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet | gobyexample/structs, gotour/methods/indirection, gotour/moretypes/struct-literals |
+| 3 | printing a pointer of type *main._, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet | gobyexample/structs, gotour/methods/indirection, gotour/moretypes/struct-literals |
 | 3 | the address of _ kept where its object would have more than one owner is not supported in patina mode yet | gobyexample/command-line-flags, gobyexample/xml, gotour/moretypes/pointers |
 | 3 | the close built-in is not supported in patina mode yet | gobyexample/closing-channels, gobyexample/range-over-channels, gotour/concurrency/range-and-close |
 | 3 | time.Now is not supported in patina mode yet | gobyexample/switch, gotour/flowcontrol/switch-evaluation-order, gotour/flowcontrol/switch-with-no-condition |
@@ -75,12 +75,12 @@
 | 2 | comparing a slice with nil is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/nil-slices |
 | 2 | converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet | gobyexample/line-filters, gobyexample/reading-files |
 | 2 | os.Args is not supported in patina mode yet | gobyexample/command-line-arguments, gobyexample/command-line-subcommands |
-| 2 | output: exit status differs | gotour/methods/interface-values, gotour/methods/interface-values-with-nil |
 | 2 | printing _ value of type [N]int is not supported in patina mode yet | gobyexample/arrays, gotour/moretypes/array |
 | 2 | printing _ value of type [N]string is not supported in patina mode yet | gotour/moretypes/array, gotour/moretypes/slices-pointers |
 | 2 | printing a value of type (float64, error) is not supported in patina mode yet | gotour/methods/exercise-errors, gotour/solutions/errors |
 | 2 | printing a value of type map[string]int is not supported in patina mode yet | gobyexample/maps, gobyexample/mutexes |
 | 2 | printing a value of type map[string]main._ is not supported in patina mode yet | gotour/moretypes/map-literals, gotour/moretypes/map-literals-continued |
+| 2 | printing an interface value in a program that converts *main._ to one: printing a pointer of type *main._, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet | gotour/methods/interface-values, gotour/methods/interface-values-with-nil |
 | 2 | strings.NewReader is not supported in patina mode yet | gotour/methods/reader, gotour/solutions/rot13 |
 | 2 | the delete built-in is not supported in patina mode yet | gobyexample/maps, gotour/moretypes/mutating-maps |
 | 2 | the results of _ used here other than as v..., err := _(...) or return _(...) | gotour/methods/exercise-errors, gotour/solutions/errors |
