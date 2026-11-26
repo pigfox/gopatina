@@ -1,0 +1,4 @@
+./main.go:9:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:15:13: parameter n is a shared borrow: second only reads it
+./main.go:21:12: parameter n is a shared borrow: third only reads it
+./main.go:27:11: parameter n is a shared borrow: last only reads it

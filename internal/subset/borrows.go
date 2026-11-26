@@ -53,7 +53,7 @@ func (p *PtrPlan) borrowsOnce() {
 		for _, val := range vals {
 			lends = lends || val != nil && !b.info.Types[val].IsNil()
 		}
-		if p.HeapType(v.Type()) && !b.params[v] && !p.Cells[v] && lends {
+		if p.HeapType(v.Type()) && (!b.params[v] || p.walked[v]) && !p.Cells[v] && lends { // a walked named result borrows too
 			cand[v] = true
 		}
 	}

@@ -134,11 +134,13 @@ func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) (ok, mut b
 			if len(x.Results) == 0 {
 				// A bare return gives the named result: nil if fd never
 				// assigns it, as return nil does; else as return r.
-				named := fd.Type.Results.List[0].Names[0]
-				if !assigned(info, fd.Body, info.Defs[named]) {
+				named := info.Defs[fd.Type.Results.List[0].Names[0]].(*types.Var)
+				if !assigned(info, fd.Body, named) {
 					return true
 				}
-				r = named
+				ok = ok && walk[named] // r = n.Next; return: a walker lent back
+				some = true
+				return ok
 			} else {
 				r = ast.Unparen(x.Results[0])
 			}
@@ -188,6 +190,13 @@ func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) (ok, mut b
 func (p *PtrPlan) walkers(fd *ast.FuncDecl, input *types.Var) map[*types.Var]bool {
 	info := p.pkg.Info
 	cand := map[*types.Var]bool{}
+	for _, fl := range fd.Type.Results.List { // a function lending back has one result
+		for _, name := range fl.Names { // a named result starts nil: r = n.Next; return
+			if v := info.Defs[name].(*types.Var); types.Identical(v.Type(), input.Type()) {
+				cand[v] = true
+			}
+		}
+	}
 	ast.Inspect(fd.Body, func(n ast.Node) bool {
 		if id, ok := n.(*ast.Ident); ok {
 			if v, ok := info.Defs[id].(*types.Var); ok && isPointer(v.Type()) && types.Identical(v.Type(), input.Type()) {
@@ -307,15 +316,29 @@ func walkerUse(info *types.Info, stack []ast.Node) bool {
 	return false
 }
 
-// walkerValue reports whether the input on top of stack is the value a
-// walker is given (p := head).
+// walkerValue reports whether the input on top of stack, or a field
+// reached through it, is the value a walker is given (p := head,
+// r := n.Next).
 func walkerValue(info *types.Info, stack []ast.Node, walk map[*types.Var]bool) bool {
-	as, ok := stack[len(stack)-2].(*ast.AssignStmt)
+	i := len(stack) - 1
+	place := stack[i]
+	for i--; ; i-- { // an input's use always has a parent: its statement at least
+		if q, ok := stack[i].(*ast.SelectorExpr); ok && q.X == place && info.Selections[q] != nil && info.Selections[q].Kind() == types.FieldVal {
+			place = q
+			continue
+		}
+		if q, ok := stack[i].(*ast.ParenExpr); ok {
+			place = q
+			continue
+		}
+		break
+	}
+	as, ok := stack[i].(*ast.AssignStmt)
 	if !ok || len(as.Lhs) != len(as.Rhs) {
 		return false
 	}
-	for i, r := range as.Rhs {
-		if r == stack[len(stack)-1] && walk[localVarOf(info, ast.Unparen(as.Lhs[i]))] {
+	for j, r := range as.Rhs {
+		if r == place && walk[localVarOf(info, ast.Unparen(as.Lhs[j]))] {
 			return true
 		}
 	}
