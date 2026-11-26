@@ -290,6 +290,10 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 		// main's exported types, and Dyn, are public, and may hold the
 		// types of the program's other packages, which are pub(crate).
 		head.WriteString("#![allow(private_interfaces)] // main's types may hold other packages' types\n")
+	} else if g.dynHoldsPrivate() {
+		// Dyn and its helpers are public, and may hold main's unexported
+		// types, which are private.
+		head.WriteString("#![allow(private_interfaces)] // Dyn may hold main's unexported types\n")
 	}
 	head.WriteString("\n")
 	rtRS = rtModule(g.rt)

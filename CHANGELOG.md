@@ -167,6 +167,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- **Clippy warning**: a program keeping one of main's unexported struct
+  types in an interface got a crate that warned `private_interfaces`: the
+  interface enum `Dyn` is public and held the private struct. Such a crate
+  now allows the lint, as a crate of several packages already did
+  (gobyexample/interfaces in the parity corpus).
 - **Wrong output**: a constant shifted by a count known only at run time
   (`uint64(1) << s`, `var c int64 = 1 << s`) was shifted as Rust's
   default `i32`, since its type was not written: `1 << 40` gave 0. It now

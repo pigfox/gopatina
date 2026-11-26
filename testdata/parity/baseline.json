@@ -6,11 +6,11 @@
   "compiled": 39,
   "matched": 39,
   "linted": 39,
-  "lint_clean": 36,
+  "lint_clean": 37,
   "rates": {
     "accepted": 28.3,
     "compiled": 28.3,
-    "lint_clean": 92.3,
+    "lint_clean": 94.9,
     "matched": 28.3
   },
   "skips": {
@@ -896,12 +896,6 @@
       "fingerprint": "clippy: error: this loop never actually loops",
       "programs": [
         "gobyexample/for"
-      ]
-    },
-    {
-      "fingerprint": "clippy: error: type `_` is more private than the item `_`",
-      "programs": [
-        "gobyexample/interfaces"
       ]
     },
     {
@@ -1834,10 +1828,8 @@
     {
       "name": "gobyexample/interfaces",
       "stage": "matched",
-      "fingerprints": [
-        "clippy: error: type `_` is more private than the item `_`"
-      ],
-      "linted": true
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gobyexample/json",
