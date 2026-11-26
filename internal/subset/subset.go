@@ -1109,7 +1109,7 @@ func (c *checker) dynPointerPrintProblem(t types.Type) string {
 func (c *checker) ptrPrintProblem(t types.Type) string {
 	m := PtrPrintMethod(t)
 	if m == nil {
-		return fmt.Sprintf("printing a pointer of type %s, which has no String or Error method (fmt prints its address)", t)
+		return fmt.Sprintf("printing a pointer of type %s, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value)", t)
 	}
 	saved := c.nilRecv
 	c.nilRecv = m.Signature().Recv()
@@ -1251,6 +1251,9 @@ func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
 	}
 	if IsIface(t) && !isError(t) {
 		if (v.Verb == 'v' || v.Verb == 'T') && v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero && !v.Space && !v.Sharp {
+			if v.Verb == 'v' {
+				return c.printProblem(t) // through its dynamic types, as Println's operands are
+			}
 			return ""
 		}
 		return fmt.Sprintf("the format %s with an interface value", v.Spec)
