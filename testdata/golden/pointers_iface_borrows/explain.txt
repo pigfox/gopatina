@@ -1,22 +1,24 @@
 ./main.go:12:6: pointers of type *Box are never shared: each has one owner (RFC 0016)
 ./main.go:14:7: receiver b is a shared borrow: Area only reads it
 ./main.go:16:7: receiver b is an exclusive borrow: Grow changes it, and the caller sees the change
-./main.go:20:7: receiver t is a shared borrow: Area only reads it
-./main.go:22:7: receiver t is an exclusive borrow: Grow changes it, and the caller sees the change
-./main.go:36:6: pointers of type *Pair are never shared: each has one owner (RFC 0016)
-./main.go:41:7: receiver q is owned: Area changes its own copy
-./main.go:47:7: receiver q is a shared borrow: Grow only reads it
-./main.go:49:6: pointers of type *Maybe are never shared: each has one owner (RFC 0016)
-./main.go:51:7: receiver m is a shared borrow: Area only reads it
-./main.go:58:7: receiver m is a shared borrow: Grow only reads it
-./main.go:65:6: pointers of type *Fail are never shared: each has one owner (RFC 0016)
-./main.go:67:7: receiver f is a shared borrow: Error only reads it
-./main.go:79:7: receiver c is a shared borrow: Error only reads it
-./main.go:91:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
-./main.go:96:21: parameter next is owned: newNode keeps it
-./main.go:98:7: receiver n is a shared borrow: Area only reads it
-./main.go:100:7: receiver n is an exclusive borrow: Grow changes it, and the caller sees the change
-./main.go:108:14: read g.W into a local first: g, a borrow of shapes, would still hold it where shapes is read in the same statement
-./main.go:113:18: read *m into a local first: m, a borrow of shapes, would still hold it where shapes is read in the same statement
-./main.go:119:31: moved base into fmt.Errorf's %w: base is not used afterwards
-./main.go:136:16: moved list into s: list is not used afterwards
+./main.go:20:6: pointers of type *Tagged are never shared: each has one owner (RFC 0016)
+./main.go:22:7: receiver t is a shared borrow: String only reads it
+./main.go:26:7: receiver t is a shared borrow: Area only reads it
+./main.go:28:7: receiver t is an exclusive borrow: Grow changes it, and the caller sees the change
+./main.go:42:6: pointers of type *Pair are never shared: each has one owner (RFC 0016)
+./main.go:47:7: receiver q is owned: Area changes its own copy
+./main.go:53:7: receiver q is a shared borrow: Grow only reads it
+./main.go:55:6: pointers of type *Maybe are never shared: each has one owner (RFC 0016)
+./main.go:57:7: receiver m is a shared borrow: Area only reads it
+./main.go:64:7: receiver m is a shared borrow: Grow only reads it
+./main.go:71:6: pointers of type *Fail are never shared: each has one owner (RFC 0016)
+./main.go:73:7: receiver f is a shared borrow: Error only reads it
+./main.go:85:7: receiver c is a shared borrow: Error only reads it
+./main.go:97:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:102:21: parameter next is owned: newNode keeps it
+./main.go:104:7: receiver n is a shared borrow: Area only reads it
+./main.go:106:7: receiver n is an exclusive borrow: Grow changes it, and the caller sees the change
+./main.go:114:14: read g.W into a local first: g, a borrow of shapes, would still hold it where shapes is read in the same statement
+./main.go:119:18: read *m into a local first: m, a borrow of shapes, would still hold it where shapes is read in the same statement
+./main.go:125:31: moved base into fmt.Errorf's %w: base is not used afterwards
+./main.go:144:16: moved list into s: list is not used afterwards

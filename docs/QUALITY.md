@@ -261,7 +261,8 @@ The parity workflow runs it every Monday and on demand, not on pull
 requests; it fails when fewer programs are accepted, compiled or matched
 than in the baseline (counts, not rates: a program may move between
 skipped and tested). A change that raises the numbers updates the
-baseline in the same pull request.
+baseline in the same pull request. Each such change adds a row to
+`testdata/parity/history.md`, so the trend shows.
 
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |

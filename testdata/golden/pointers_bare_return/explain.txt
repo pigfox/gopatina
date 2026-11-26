@@ -1,0 +1,2 @@
+./main.go:8:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:14:11: parameter n is a shared borrow: find only reads it

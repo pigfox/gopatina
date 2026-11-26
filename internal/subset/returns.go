@@ -87,6 +87,27 @@ func (p *PtrPlan) retBorrowsOf() (found map[*types.Func]*types.Var, exclusive ma
 	return found, exclusive
 }
 
+// assigned reports whether body assigns v or takes its address.
+func assigned(info *types.Info, body *ast.BlockStmt, v types.Object) bool {
+	found := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.AssignStmt:
+			for _, l := range x.Lhs {
+				if id, ok := ast.Unparen(l).(*ast.Ident); ok && info.Uses[id] == v {
+					found = true
+				}
+			}
+		case *ast.UnaryExpr:
+			if id, ok := ast.Unparen(x.X).(*ast.Ident); ok && x.Op == token.AND && info.Uses[id] == v {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
+}
+
 // returnsBorrowOf reports whether every return of fd gives nil or a place
 // rooted at input, at least one of them the latter, and fd otherwise only
 // reads or changes through input, or lends it to a call (ok), and whether
@@ -104,8 +125,23 @@ func (p *PtrPlan) returnsBorrowOf(fd *ast.FuncDecl, input *types.Var) (ok, mut b
 		}
 		stack = append(stack, n)
 		switch x := n.(type) {
+		case *ast.FuncLit:
+			ok = false // a closure's returns are not fd's: not followed
+			stack = stack[:len(stack)-1]
+			return false
 		case *ast.ReturnStmt:
-			r := ast.Unparen(x.Results[0])
+			var r ast.Expr
+			if len(x.Results) == 0 {
+				// A bare return gives the named result: nil if fd never
+				// assigns it, as return nil does; else as return r.
+				named := fd.Type.Results.List[0].Names[0]
+				if !assigned(info, fd.Body, info.Defs[named]) {
+					return true
+				}
+				r = named
+			} else {
+				r = ast.Unparen(x.Results[0])
+			}
 			if info.Types[r].IsNil() {
 				return true
 			}
@@ -290,14 +326,12 @@ func walkerValue(info *types.Info, stack []ast.Node, walk map[*types.Var]bool) b
 // input lent (ok): the place it starts (x.f, x[i], *x) is returned, given
 // to a call that lends it back, compared with nil, read as a value,
 // written, or lent to a call of the program (whose keeping is checked with
-// the ownership); not its address taken, nor a pointer copied or kept,
-// nor inside a function literal. changes reports a write through it or a
-// lend to a call, which make the borrow returned exclusive.
+// the ownership); not its address taken, nor a pointer copied or kept
+// (returnsBorrowOf gives up at a function literal before any use in one).
+// changes reports a write through it or a lend to a call, which make the
+// borrow returned exclusive.
 func (p *PtrPlan) lendsBack(stack []ast.Node) (ok, changes bool) {
 	info := p.pkg.Info
-	if inFuncLit(stack) {
-		return false, false
-	}
 	i := len(stack) - 1
 	place := stack[i].(ast.Expr)
 	for i--; i >= 0; i-- {

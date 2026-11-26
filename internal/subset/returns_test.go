@@ -347,3 +347,63 @@ func main() {
 		t.Errorf("%d walkers, want 3", walked)
 	}
 }
+
+// TestBareReturns checks returns that lend a borrow back with no result
+// written (found by gopatina-parity in regexp and text/template, where a
+// bare return crashed the analysis): a named result never assigned is nil,
+// as return nil is; one assigned, or whose address is taken, is returned
+// as itself; and a function literal's returns are not the function's.
+func TestBareReturns(t *testing.T) {
+	const src = `package main
+
+import "fmt"
+
+type Node struct {
+	V    int
+	Next *Node
+}
+
+func find(n *Node, v int) (r *Node) {
+	if n.V == v {
+		return n
+	}
+	return
+}
+
+func next(n *Node) (r *Node) {
+	r = n.Next
+	return
+}
+
+func held(n *Node) (r *Node) {
+	q := &r
+	_ = q
+	return
+}
+
+func inner(n *Node) *Node {
+	f := func() *Node { return nil }
+	_ = f
+	return n
+}
+
+func main() {
+	l := &Node{V: 1, Next: &Node{V: 2}}
+	fmt.Println(find(l, 1) != nil, next(l) != nil, held(l) == nil, inner(l) != nil)
+}
+`
+	pkg, err := load.Source("/bare", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := Ptrs(pkg)
+	fn := func(name string) *types.Func { return pkg.Types.Scope().Lookup(name).(*types.Func) }
+	if p.RetBorrow(fn("find")) == nil {
+		t.Error("find: a bare return of a named result never assigned is nil; find lends n back")
+	}
+	for _, name := range []string{"next", "held", "inner"} {
+		if p.RetBorrow(fn(name)) != nil {
+			t.Errorf("%s: lends its input back", name)
+		}
+	}
+}

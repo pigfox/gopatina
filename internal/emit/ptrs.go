@@ -209,7 +209,9 @@ func (g *gen) retRep(fn *types.Func) ptrRep {
 	r := g.paramRep(in)
 	itself := true
 	ast.Inspect(g.res.Funcs[fn].Decl.Body, func(n ast.Node) bool {
-		if ret, ok := n.(*ast.ReturnStmt); ok {
+		if ret, ok := n.(*ast.ReturnStmt); ok && len(ret.Results) == 0 {
+			itself = false // a bare return: the named result, not the input
+		} else if ok {
 			id, isID := ast.Unparen(ret.Results[0]).(*ast.Ident)
 			itself = itself && isID && g.info.Uses[id] == in
 		}

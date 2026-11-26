@@ -152,6 +152,40 @@ pub fn f64_to_i64(x: f64) -> i64 {
     x as i64
 }
 
+/// A slice printed the way Go's fmt prints one, each element through its
+/// String or Error method.
+pub struct SliceMap<'a, T, F: Fn(&T) -> String>(pub &'a [T], pub F);
+
+impl<T, F: Fn(&T) -> String> fmt::Display for SliceMap<'_, T, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        slice_fmt(f, self.0.iter().map(&self.1))
+    }
+}
+
+/// Writes [a b c]. Go applies a width to each element, not to the whole
+/// slice.
+fn slice_fmt(f: &mut fmt::Formatter<'_>, elems: impl Iterator<Item = String>) -> fmt::Result {
+    let mut s = String::from("[");
+    for (i, e) in elems.enumerate() {
+        if i > 0 {
+            s.push(' ');
+        }
+        let fill = " ".repeat(f.width().unwrap_or(0).saturating_sub(e.chars().count()));
+        match f.align() {
+            Some(fmt::Alignment::Left) => {
+                s.push_str(&e);
+                s.push_str(&fill);
+            }
+            _ => {
+                s.push_str(&fill);
+                s.push_str(&e);
+            }
+        }
+    }
+    s.push(']');
+    f.write_str(&s)
+}
+
 /// A Go error value made by errors.New or fmt.Errorf. Functions that
 /// return (T, error) in Go return Result<T, Error> here. Each one is a new
 /// pointer in Go, equal only to itself and its copies; id stands for that
