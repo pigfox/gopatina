@@ -63,7 +63,7 @@ fn run(max_depth: i64) {
     let long = bottom_up(max_depth);
     let mut d: i64 = 4;
     while d <= max_depth {
-        let iters = rt::shl(1, (max_depth - d + 4) as i128);
+        let iters = rt::shl(1_i64, (max_depth - d + 4) as i128);
         let mut total: i64 = 0;
         for _ in 0..iters {
             total += bottom_up(d).check();

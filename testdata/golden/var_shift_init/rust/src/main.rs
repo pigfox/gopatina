@@ -63,7 +63,7 @@ fn main() {
         x >> 7,
         rt::shl(u, u as i128),
         rt::shr(u, big as i128),
-        rt::shl(1, s as i128),
+        rt::shl(1_i64, s as i128),
         rt::shl(w, big as i128),
         rt::shr(w, big as i128),
         rt::shr(-w, big as i128),

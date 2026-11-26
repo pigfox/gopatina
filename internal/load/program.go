@@ -25,6 +25,7 @@ import (
 // is translated from its Go source (RFC 0009).
 var Bridged = map[string]bool{
 	"fmt": true, "strings": true, "errors": true, "os": true, "io": true, "slices": true, "bytes": true,
+	"math": true,
 }
 
 // provided are the packages GoPatina provides in Rust instead of

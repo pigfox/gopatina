@@ -19,6 +19,15 @@ Until 1.0.0, minor versions may contain breaking changes.
   clustered by fingerprint. Baseline: of 139 tested, 23.7% accepted, 23.0%
   compiled, 21.6% matching Go. A weekly workflow fails when fewer programs
   get through than in the baseline.
+- **Package math, the functions exact by IEEE 754** (RFC 0011). `Sqrt`,
+  `Abs`, `Floor`, `Ceil`, `Trunc`, `Copysign`, `Signbit`, `IsNaN`, `IsInf`,
+  `Inf`, `NaN`, `Float64bits` and `Float64frombits` are provided in Rust,
+  not translated, each giving Go's result bit for bit, NaNs included
+  (Go's quiet NaN from `Floor`, `Ceil` and `Trunc`, Go's own `NaN()`).
+  `testdata/golden/math_exact` checks them over edge values and 200,000
+  random inputs on amd64 and, in a CI job of its own, arm64. `Max` and
+  `Min` are left out: Go returns a different NaN for them on amd64 and on
+  arm64.
 
 ### Removed
 
@@ -158,6 +167,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- **Wrong output**: a constant shifted by a count known only at run time
+  (`uint64(1) << s`, `var c int64 = 1 << s`) was shifted as Rust's
+  default `i32`, since its type was not written: `1 << 40` gave 0. It now
+  has the type Go gives it (`rt::shl(1_u64, ...)`). The benchmark
+  `binary_trees` computed `1 << (maxDepth - d + 4)` this way, wrong from
+  depth 28 on.
 - **Refused**: an `&x` given to a parameter that its callee keeps, with
   nothing using `x` after (`keepIn(h, &tt)`), was refused as "&tt is copied
   and kept, so its object has two owners" since second owners became

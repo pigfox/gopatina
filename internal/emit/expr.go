@@ -609,7 +609,10 @@ func (g *gen) binary(e *ast.BinaryExpr) node {
 	if e.Op == token.SHL || e.Op == token.SHR {
 		l = parenCastTail(l)
 		if g.info.Types[e.Y].Value == nil {
-			return g.varShift(e.Op, l, e.Y)
+			// A constant shifted needs its type, which Rust would
+			// otherwise infer as i32 for rt::shl's generic operand:
+			// uint64(1) << s is rt::shl(1_u64, ...), not rt::shl(1, ...).
+			return g.varShift(e.Op, g.receiverValue(e.X), e.Y)
 		}
 		if w, ok := g.wideShift(xt, e.Y); ok {
 			return wideShift(e.Op, isUnsigned(xt), w, l)
