@@ -84,9 +84,57 @@
         "gobyexample/number-parsing",
         "gobyexample/panic",
         "gobyexample/reading-files",
+        "gobyexample/regular-expressions",
         "gobyexample/strings-and-runes",
+        "gobyexample/text-templates",
         "gobyexample/writing-files",
         "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package internal/stringslite, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/file-paths",
+        "gobyexample/number-parsing",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/text-templates",
+        "gobyexample/writing-files",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "a function literal (closure) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/atomic-counters",
+        "gobyexample/closures",
+        "gobyexample/directories",
+        "gobyexample/mutexes",
+        "gobyexample/recursion",
+        "gobyexample/switch",
+        "gobyexample/text-templates",
+        "gotour/moretypes/function-closures",
+        "gotour/moretypes/function-values",
+        "gotour/solutions/fib"
+      ]
+    },
+    {
+      "fingerprint": "a function type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/closures",
+        "gobyexample/directories",
+        "gobyexample/mutexes",
+        "gobyexample/recursion",
+        "gobyexample/string-functions",
+        "gobyexample/switch",
+        "gobyexample/text-templates",
+        "gotour/moretypes/function-closures",
+        "gotour/moretypes/function-values",
+        "gotour/solutions/fib"
       ]
     },
     {
@@ -105,43 +153,28 @@
       ]
     },
     {
-      "fingerprint": "uses the standard package internal/stringslite, which patina mode does not support yet",
+      "fingerprint": "a map type is not supported in patina mode yet",
       "programs": [
-        "gobyexample/command-line-flags",
-        "gobyexample/command-line-subcommands",
-        "gobyexample/defer",
-        "gobyexample/directories",
-        "gobyexample/file-paths",
-        "gobyexample/number-parsing",
-        "gobyexample/panic",
-        "gobyexample/reading-files",
-        "gobyexample/writing-files",
-        "gobyexample/xml"
+        "gobyexample/enums",
+        "gobyexample/maps",
+        "gobyexample/mutexes",
+        "gobyexample/text-templates",
+        "gotour/concurrency/mutex-counter",
+        "gotour/moretypes/map-literals",
+        "gotour/moretypes/map-literals-continued",
+        "gotour/moretypes/maps",
+        "gotour/moretypes/mutating-maps"
       ]
     },
     {
-      "fingerprint": "a function literal (closure) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/atomic-counters",
-        "gobyexample/closures",
-        "gobyexample/directories",
-        "gobyexample/mutexes",
-        "gobyexample/recursion",
-        "gobyexample/switch",
-        "gotour/moretypes/function-closures",
-        "gotour/moretypes/function-values",
-        "gotour/solutions/fib"
-      ]
-    },
-    {
-      "fingerprint": "a function type is not supported in patina mode yet",
+      "fingerprint": "calling a function value is not supported in patina mode yet",
       "programs": [
         "gobyexample/closures",
         "gobyexample/directories",
-        "gobyexample/mutexes",
         "gobyexample/recursion",
         "gobyexample/string-functions",
         "gobyexample/switch",
+        "gobyexample/text-templates",
         "gotour/moretypes/function-closures",
         "gotour/moretypes/function-values",
         "gotour/solutions/fib"
@@ -162,6 +195,34 @@
       ]
     },
     {
+      "fingerprint": "panic with a value that is not a string is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/enums",
+        "gobyexample/file-paths",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/text-templates",
+        "gobyexample/writing-files",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package internal/strconv, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/base64-encoding",
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/number-parsing",
+        "gobyexample/regular-expressions",
+        "gobyexample/sha256-hashes",
+        "gobyexample/text-templates",
+        "gobyexample/xml",
+        "gotour/methods/images"
+      ]
+    },
+    {
       "fingerprint": "a channel send (planned, RFC N) is not supported in patina mode yet",
       "programs": [
         "gobyexample/channel-buffering",
@@ -172,45 +233,6 @@
         "gotour/concurrency/buffered-channels",
         "gotour/concurrency/channels",
         "gotour/concurrency/range-and-close"
-      ]
-    },
-    {
-      "fingerprint": "a map type is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/enums",
-        "gobyexample/maps",
-        "gobyexample/mutexes",
-        "gotour/concurrency/mutex-counter",
-        "gotour/moretypes/map-literals",
-        "gotour/moretypes/map-literals-continued",
-        "gotour/moretypes/maps",
-        "gotour/moretypes/mutating-maps"
-      ]
-    },
-    {
-      "fingerprint": "calling a function value is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/closures",
-        "gobyexample/directories",
-        "gobyexample/recursion",
-        "gobyexample/string-functions",
-        "gobyexample/switch",
-        "gotour/moretypes/function-closures",
-        "gotour/moretypes/function-values",
-        "gotour/solutions/fib"
-      ]
-    },
-    {
-      "fingerprint": "panic with a value that is not a string is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/defer",
-        "gobyexample/directories",
-        "gobyexample/enums",
-        "gobyexample/file-paths",
-        "gobyexample/panic",
-        "gobyexample/reading-files",
-        "gobyexample/writing-files",
-        "gobyexample/xml"
       ]
     },
     {
@@ -226,15 +248,27 @@
       ]
     },
     {
-      "fingerprint": "uses the standard package internal/strconv, which patina mode does not support yet",
+      "fingerprint": "uses the standard package io/fs, which patina mode does not support yet",
       "programs": [
-        "gobyexample/base64-encoding",
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/file-paths",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/text-templates",
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package iter, which patina mode does not support yet",
+      "programs": [
         "gobyexample/command-line-flags",
         "gobyexample/command-line-subcommands",
-        "gobyexample/number-parsing",
-        "gobyexample/sha256-hashes",
-        "gobyexample/xml",
-        "gotour/methods/images"
+        "gobyexample/maps",
+        "gobyexample/range-over-iterators",
+        "gobyexample/regular-expressions",
+        "gobyexample/text-templates",
+        "gobyexample/xml"
       ]
     },
     {
@@ -271,14 +305,24 @@
       ]
     },
     {
-      "fingerprint": "uses the standard package io/fs, which patina mode does not support yet",
+      "fingerprint": "uses the standard package strconv, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/number-parsing",
+        "gobyexample/regular-expressions",
+        "gobyexample/text-templates",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "_ is copied and kept, so its object has two owners",
       "programs": [
         "gobyexample/defer",
-        "gobyexample/directories",
-        "gobyexample/file-paths",
-        "gobyexample/panic",
         "gobyexample/reading-files",
-        "gobyexample/writing-files"
+        "gobyexample/text-templates",
+        "gobyexample/timers",
+        "gotour/methods/reader"
       ]
     },
     {
@@ -302,22 +346,13 @@
       ]
     },
     {
-      "fingerprint": "uses the standard package iter, which patina mode does not support yet",
+      "fingerprint": "uses the standard package unicode, which patina mode does not support yet",
       "programs": [
         "gobyexample/command-line-flags",
         "gobyexample/command-line-subcommands",
-        "gobyexample/maps",
-        "gobyexample/range-over-iterators",
+        "gobyexample/regular-expressions",
+        "gobyexample/text-templates",
         "gobyexample/xml"
-      ]
-    },
-    {
-      "fingerprint": "_ is copied and kept, so its object has two owners",
-      "programs": [
-        "gobyexample/defer",
-        "gobyexample/reading-files",
-        "gobyexample/timers",
-        "gotour/methods/reader"
       ]
     },
     {
@@ -402,11 +437,20 @@
       ]
     },
     {
-      "fingerprint": "uses the standard package strconv, which patina mode does not support yet",
+      "fingerprint": "uses the standard package internal/unsafeheader, which patina mode does not support yet",
       "programs": [
         "gobyexample/command-line-flags",
         "gobyexample/command-line-subcommands",
-        "gobyexample/number-parsing",
+        "gobyexample/text-templates",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package reflect, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/text-templates",
         "gobyexample/xml"
       ]
     },
@@ -424,6 +468,14 @@
         "gotour/moretypes/slice-bounds",
         "gotour/moretypes/slice-len-cap",
         "gotour/moretypes/slices"
+      ]
+    },
+    {
+      "fingerprint": "an anonymous struct type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/structs",
+        "gobyexample/text-templates",
+        "gotour/moretypes/slice-literals"
       ]
     },
     {
@@ -515,27 +567,11 @@
       ]
     },
     {
-      "fingerprint": "uses the standard package internal/unsafeheader, which patina mode does not support yet",
+      "fingerprint": "uses the standard package path, which patina mode does not support yet",
       "programs": [
-        "gobyexample/command-line-flags",
-        "gobyexample/command-line-subcommands",
-        "gobyexample/xml"
-      ]
-    },
-    {
-      "fingerprint": "uses the standard package reflect, which patina mode does not support yet",
-      "programs": [
-        "gobyexample/command-line-flags",
-        "gobyexample/command-line-subcommands",
-        "gobyexample/xml"
-      ]
-    },
-    {
-      "fingerprint": "uses the standard package unicode, which patina mode does not support yet",
-      "programs": [
-        "gobyexample/command-line-flags",
-        "gobyexample/command-line-subcommands",
-        "gobyexample/xml"
+        "gobyexample/file-paths",
+        "gobyexample/text-templates",
+        "gobyexample/writing-files"
       ]
     },
     {
@@ -595,13 +631,6 @@
       ]
     },
     {
-      "fingerprint": "an anonymous struct type is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/structs",
-        "gotour/moretypes/slice-literals"
-      ]
-    },
-    {
       "fingerprint": "an instantiated generic function (Go N.N) is not supported in patina mode yet",
       "programs": [
         "gobyexample/custom-errors",
@@ -620,13 +649,6 @@
       "programs": [
         "gobyexample/line-filters",
         "gobyexample/reading-files"
-      ]
-    },
-    {
-      "fingerprint": "gopatina: panic: runtime error: index out of range [N] with length N",
-      "programs": [
-        "gobyexample/regular-expressions",
-        "gobyexample/text-templates"
       ]
     },
     {
@@ -728,17 +750,17 @@
       ]
     },
     {
+      "fingerprint": "uses the standard package cmp, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sorting-by-functions",
+        "gobyexample/text-templates"
+      ]
+    },
+    {
       "fingerprint": "uses the standard package flag, which patina mode does not support yet",
       "programs": [
         "gobyexample/command-line-flags",
         "gobyexample/command-line-subcommands"
-      ]
-    },
-    {
-      "fingerprint": "uses the standard package path, which patina mode does not support yet",
-      "programs": [
-        "gobyexample/file-paths",
-        "gobyexample/writing-files"
       ]
     },
     {
@@ -876,6 +898,12 @@
       ]
     },
     {
+      "fingerprint": "bytes.ToUpper is not supported _ patina mode yet",
+      "programs": [
+        "gobyexample/regular-expressions"
+      ]
+    },
+    {
       "fingerprint": "calling a pointer-receiver method on a package-level variable is not supported in patina mode yet",
       "programs": [
         "gobyexample/base64-encoding"
@@ -897,6 +925,12 @@
       "fingerprint": "converting _ pointer to _ type other than _ named type of the program to an interface is not supported in patina mode yet",
       "programs": [
         "gotour/solutions/rot13"
+      ]
+    },
+    {
+      "fingerprint": "converting a []byte to a string (patina strings must be valid UTF-N) is not supported _ patina mode yet",
+      "programs": [
+        "gobyexample/regular-expressions"
       ]
     },
     {
@@ -1050,6 +1084,12 @@
       ]
     },
     {
+      "fingerprint": "printing a value of type [][]int is not supported _ patina mode yet",
+      "programs": [
+        "gobyexample/regular-expressions"
+      ]
+    },
+    {
       "fingerprint": "printing a value of type [][]int is not supported in patina mode yet",
       "programs": [
         "gobyexample/slices"
@@ -1152,6 +1192,18 @@
       ]
     },
     {
+      "fingerprint": "template.Must(_.Parse(\"S\")) lends back a pointer its caller owns, and it is kept in _, so the object has two owners",
+      "programs": [
+        "gobyexample/text-templates"
+      ]
+    },
+    {
+      "fingerprint": "template.Must(template.New(_).Parse(_)) lends back a pointer its caller owns, and it is kept, so the object has two owners",
+      "programs": [
+        "gobyexample/text-templates"
+      ]
+    },
+    {
       "fingerprint": "the address of _ is kept while _ is still used by name, so the object has two owners",
       "programs": [
         "gotour/moretypes/pointers"
@@ -1206,6 +1258,12 @@
       ]
     },
     {
+      "fingerprint": "the results of Parse used here other than as v..., _ := Parse(...) or return Parse(...)",
+      "programs": [
+        "gobyexample/text-templates"
+      ]
+    },
+    {
       "fingerprint": "time.NewTimer is not supported in patina mode yet",
       "programs": [
         "gobyexample/timers"
@@ -1251,12 +1309,6 @@
       "fingerprint": "type time.Weekday is not supported in patina mode yet",
       "programs": [
         "gotour/flowcontrol/switch-evaluation-order"
-      ]
-    },
-    {
-      "fingerprint": "uses the standard package cmp, which patina mode does not support yet",
-      "programs": [
-        "gobyexample/sorting-by-functions"
       ]
     },
     {
@@ -1404,6 +1456,12 @@
       ]
     },
     {
+      "fingerprint": "uses the standard package internal/fmtsort, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/text-templates"
+      ]
+    },
+    {
       "fingerprint": "uses the standard package maps, which patina mode does not support yet",
       "programs": [
         "gobyexample/maps"
@@ -1413,6 +1471,48 @@
       "fingerprint": "uses the standard package math/cmplx, which patina mode does not support yet",
       "programs": [
         "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package net/netip, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/text-templates"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package net/url, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/text-templates"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package regexp, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/regular-expressions"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package regexp/syntax, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/regular-expressions"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package text/template, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/text-templates"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package text/template/parse, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/text-templates"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package unique, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/text-templates"
       ]
     },
     {
@@ -1938,9 +2038,18 @@
     },
     {
       "name": "gobyexample/regular-expressions",
-      "stage": "crashed",
+      "stage": "refused",
       "fingerprints": [
-        "gopatina: panic: runtime error: index out of range [N] with length N"
+        "printing a value of type [][]int is not supported _ patina mode yet",
+        "bytes.ToUpper is not supported _ patina mode yet",
+        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported _ patina mode yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet",
+        "uses the standard package iter, which patina mode does not support yet",
+        "uses the standard package regexp, which patina mode does not support yet",
+        "uses the standard package regexp/syntax, which patina mode does not support yet",
+        "uses the standard package strconv, which patina mode does not support yet",
+        "uses the standard package unicode, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
       ]
     },
     {
@@ -2092,9 +2201,35 @@
     },
     {
       "name": "gobyexample/text-templates",
-      "stage": "crashed",
+      "stage": "refused",
       "fingerprints": [
-        "gopatina: panic: runtime error: index out of range [N] with length N"
+        "_ is copied and kept, so its object has two owners",
+        "panic with a value that is not a string is not supported in patina mode yet",
+        "template.Must(_.Parse(\"S\")) lends back a pointer its caller owns, and it is kept in _, so the object has two owners",
+        "the results of Parse used here other than as v..., _ := Parse(...) or return Parse(...)",
+        "a function type is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "template.Must(template.New(_).Parse(_)) lends back a pointer its caller owns, and it is kept, so the object has two owners",
+        "calling a function value is not supported in patina mode yet",
+        "an anonymous struct type is not supported in patina mode yet",
+        "a map type is not supported in patina mode yet",
+        "uses the standard package cmp, which patina mode does not support yet",
+        "uses the standard package internal/fmtsort, which patina mode does not support yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package internal/unsafeheader, which patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package iter, which patina mode does not support yet",
+        "uses the standard package net/netip, which patina mode does not support yet",
+        "uses the standard package net/url, which patina mode does not support yet",
+        "uses the standard package path, which patina mode does not support yet",
+        "uses the standard package reflect, which patina mode does not support yet",
+        "uses the standard package strconv, which patina mode does not support yet",
+        "uses the standard package text/template, which patina mode does not support yet",
+        "uses the standard package text/template/parse, which patina mode does not support yet",
+        "uses the standard package unicode, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet",
+        "uses the standard package unique, which patina mode does not support yet"
       ]
     },
     {

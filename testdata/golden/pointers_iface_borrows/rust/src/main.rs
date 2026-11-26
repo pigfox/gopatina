@@ -48,6 +48,14 @@ impl Box2 {
     }
 }
 
+/// Tagged is declared from Box, so its methods are functions taking the
+/// receiver first (RFC 0007).
+pub type Tagged = Box2;
+
+pub fn tagged_string(t: &Box2) -> String {
+    format!("tagged {}", t.w)
+}
+
 pub type Temp = f64;
 
 pub fn temp_area(t: &f64) -> i64 {
@@ -227,6 +235,20 @@ fn main() {
         println!("code {}", *c.unwrap());
     }
 
+    let tags: Vec<Option<Box<Box2>>> = vec![
+        Some(Box::new(Box2 {
+            w: 4,
+            ..Default::default()
+        })),
+        Some(Box::new(Box2 {
+            w: 5,
+            ..Default::default()
+        })),
+    ];
+    println!(
+        "{}",
+        rt::SliceMap(&tags, |e| rt::show_ref(e, tagged_string)),
+    );
     let mut head: Option<Box<Node>> = None; // may be nil: Go makes the calls before reading head.V
     if shapes.len() as i64 > 1 {
         head = Some(new_node(1, None));

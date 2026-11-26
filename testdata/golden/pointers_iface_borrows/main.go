@@ -15,6 +15,12 @@ func (b *Box) Area() int { return b.W * b.H }
 
 func (b *Box) Grow(n int) { b.W += n }
 
+// Tagged is declared from Box, so its methods are functions taking the
+// receiver first (RFC 0007).
+type Tagged Box
+
+func (t *Tagged) String() string { return fmt.Sprint("tagged ", t.W) }
+
 type Temp float64
 
 func (t *Temp) Area() int { return int(*t) }
@@ -128,6 +134,8 @@ func main() {
 		fmt.Println("code", *c)
 	}
 
+	tags := []*Tagged{{W: 4}, {W: 5}}
+	fmt.Println(tags)
 	var head *Node // may be nil: Go makes the calls before reading head.V
 	if len(shapes) > 1 {
 		head = newNode(1, nil)

@@ -164,7 +164,14 @@ func (g *gen) funcBody(fd *ast.FuncDecl, obj *types.Func, sig *types.Signature, 
 	}
 	res := sig.Results()
 	for i := 0; i < res.Len(); i++ {
-		if r := res.At(i); r.Name() != "" && r.Name() != "_" {
+		r := res.At(i)
+		switch {
+		case r.Name() == "" || r.Name() == "_":
+		case isPointerType(r.Type()) && g.ptrs.RetBorrow(obj) != nil:
+			// The named result of a function lending back a borrow
+			// (decision 4): held as the result is, nil until assigned.
+			g.line("let " + g.mutPrefix(r) + g.varName(r) + ": " + g.borrowType(r.Type(), g.retRep(obj), g.life) + " = None;")
+		default:
 			g.letZero(r)
 		}
 	}
