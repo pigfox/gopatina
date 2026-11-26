@@ -47,9 +47,8 @@ pub struct Vertex {
     pub out: Vec<Option<Box<Edge>>>,
 }
 
-/// Outer can reach itself through a struct value, and through a Link. A
-/// struct value holding a pointer is not owned yet, so Outer's pointers are
-/// cells.
+/// Outer can reach another Outer through a struct value, and through a
+/// Link: each has one owner, so no cycle forms.
 #[derive(Clone, Default, PartialEq)]
 pub struct Inner {
     pub back: Option<Box<Outer>>,

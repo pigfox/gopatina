@@ -19,9 +19,6 @@ const userPanicMarker = "gopatina-user-panic:"
 
 // call renders a call expression as a value.
 func (g *gen) call(e *ast.CallExpr) node {
-	if n, ok := g.cellCall(e); ok {
-		return n // lent a place inside a cell (RFC 0013)
-	}
 	fun := ast.Unparen(e.Fun)
 	if tv := g.info.Types[fun]; tv.IsType() {
 		return g.conversion(e, tv.Type)
@@ -114,14 +111,6 @@ func (g *gen) recvArg(x ast.Expr, p *borrow.Param) node {
 		}
 		return g.boxValue(x) // a copy: a value receiver's changes are its own
 	}
-	if g.heapPtr(g.typeOf(x)) && !isPointerType(p.Var.Type()) {
-		// A value receiver called through a heap pointer: a copy.
-		n := node(&call{recv: g.ptrValue(x), head: ".load", open: "(", close: ")"})
-		if p.Mode == borrow.Ref || p.Mode == borrow.RefMut {
-			n = &addrOf{"&", n}
-		}
-		return n
-	}
 	if u, ok := x.(*ast.UnaryExpr); ok && !isPointerType(p.Var.Type()) {
 		x = u.X // (&v).M() with a value receiver
 	}
@@ -189,13 +178,6 @@ func (g *gen) receiver(x ast.Expr, p *borrow.Param) node {
 			return n
 		}
 		return g.ownedCopy(x)
-	}
-	if g.heapPtr(g.typeOf(x)) {
-		// A value receiver called through a heap pointer: a copy.
-		return &call{recv: g.ptrValue(x), head: ".load", open: "(", close: ")"}
-	}
-	if n, ok := g.heapValue(x); ok {
-		return n
 	}
 	if u, ok := x.(*ast.UnaryExpr); ok {
 		x = u.X // (&v).M()
@@ -278,12 +260,6 @@ func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
 func (g *gen) builtin(e *ast.CallExpr, name string) node {
 	switch name {
 	case "len":
-		if root, ptr, ok := g.heapRoot(e.Args[0]); ok {
-			// Read inside the cell, not out of it (RFC 0013).
-			return g.inCell(root, ptr, "with", func() node {
-				return atom{(&call{recv: g.place(e.Args[0]), head: ".len", open: "(", close: ")"}).flat() + " as i64", precCast}
-			})
-		}
 		return atom{(&call{recv: g.strRef(e.Args[0]), head: ".len", open: "(", close: ")"}).flat() + " as i64", precCast}
 	case "min", "max":
 		// Go's min/max take two or more arguments; Rust's take two, so

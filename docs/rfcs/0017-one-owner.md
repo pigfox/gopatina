@@ -12,7 +12,10 @@
   owned pointers held in fields; step 8, parameters a function keeps,
   moved in; then local slices of owned pointers, struct values owning
   pointers, and the address of a local value handed on, moved into a new
-  box (docs/patina-subset.md)
+  box (docs/patina-subset.md); interface values owning the pointers they
+  hold, with borrows for assertions, errors.As and type switches; then
+  the shared cells (`rt::Ptr`) removed: a pointer type with more than one
+  owner is not supported, with the use that gives it a second one
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file

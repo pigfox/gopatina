@@ -111,11 +111,7 @@ fn main() {
         let (mut q, ok) = iface_try_mut_ptr_sq(&mut shapes[1]);
         if ok {
             q.as_mut().unwrap().grow(10); // q borrows the *Sq shapes[1] owns: the change is the interface's
-            println!(
-                "{} {}",
-                q.as_ref().unwrap().s,
-                rt::show_opt(&q, |x| x.as_deref().unwrap().string()),
-            );
+            println!("{} {}", q.as_ref().unwrap().s, rt::show_ref(&q, Sq::string));
             println!("{}", dyn_area(&shapes[1]));
         }
     }
@@ -152,7 +148,7 @@ fn main() {
         println!("as {} {}", deep.unwrap().key, iface_show(&wrapped));
     }
     let sq: Option<Box<Sq>> = None;
-    println!("{}", rt::show_opt(&sq, |x| x.as_deref().unwrap().string()));
+    println!("{}", rt::show_ref(&sq, Sq::string));
     let nil_shape: Iface = boxed(Dyn::PtrSq(None)); // sq is nil: no object to own, so it stays usable
     println!("{} {}", nil_shape.is_some(), sq.is_none());
     let sqs: Vec<Option<Box<Sq>>> = vec![
@@ -160,13 +156,7 @@ fn main() {
         None,
         Some(Box::new(Sq { s: 3 })),
     ];
-    println!(
-        "{}",
-        rt::SliceMap(
-            &sqs,
-            |e| rt::show_opt(e, |x| x.as_deref().unwrap().string()),
-        ),
-    );
+    println!("{}", rt::SliceMap(&sqs, |e| rt::show_ref(e, Sq::string)));
     let none: Iface = boxed(Dyn::PtrSq(None));
     println!("{}", none.is_some());
 }
@@ -230,9 +220,9 @@ pub fn iface_type(x: &Iface) -> &'static str {
 pub fn iface_show(x: &Iface) -> String {
     match x.as_deref() {
         None => String::from("<nil>"),
-        Some(Dyn::PtrNotFound(v)) => rt::show_opt(v, |x| x.as_deref().unwrap().error()),
+        Some(Dyn::PtrNotFound(v)) => rt::show_ref(v, NotFound::error),
         Some(Dyn::PtrRect(v)) => unreachable!("fmt prints the address of a *main.Rect"),
-        Some(Dyn::PtrSq(v)) => rt::show_opt(v, |x| x.as_deref().unwrap().string()),
+        Some(Dyn::PtrSq(v)) => rt::show_ref(v, Sq::string),
         Some(Dyn::FmtWrapError(v)) => v.msg.clone(),
     }
 }

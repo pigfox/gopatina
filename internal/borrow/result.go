@@ -100,7 +100,9 @@ type Fix struct {
 
 // Result is the outcome of the borrow checker for a package.
 type Result struct {
-	Funcs map[*types.Func]*Func
+	// implsOf caches impls: each interface method's implementations.
+	implsOf map[*types.Func][]impl
+	Funcs   map[*types.Func]*Func
 	// Actions holds the decision for every place (a variable, field or
 	// element of a non-Copy type) handed to a new owner.
 	Actions map[ast.Expr]Action
@@ -156,17 +158,39 @@ func (r *Result) Param(v *types.Var) *Param { return r.params[v] }
 // pointer receiver lent exclusively). Such an interface value is lent
 // mutably to the call (RFC 0012 with RFC 0017).
 func (r *Result) IfaceMut(dyn []types.Type, m *types.Func) bool {
-	for _, t := range dyn {
-		obj, _, _ := types.LookupFieldOrMethod(t, false, m.Pkg(), m.Name())
-		impl, ok := obj.(*types.Func)
-		if !ok {
-			continue
-		}
-		if fn := r.Funcs[impl]; fn != nil && fn.Recv != nil && fn.Recv.Mode == RefMut {
+	for _, impl := range r.impls(dyn, m) {
+		if fn := r.Funcs[impl.fn]; fn != nil && fn.Recv != nil && fn.Recv.Mode == RefMut {
 			return true
 		}
 	}
 	return false
+}
+
+// impl is a dynamic type's method implementing an interface method.
+type impl struct {
+	t  types.Type
+	fn *types.Func
+}
+
+// impls returns the methods of the dynamic types dyn that implement
+// interface method m, looked up once per method: the types and their
+// methods do not change while the receivers' modes are inferred.
+func (r *Result) impls(dyn []types.Type, m *types.Func) []impl {
+	if is, ok := r.implsOf[m]; ok {
+		return is
+	}
+	var is []impl
+	for _, t := range dyn {
+		obj, _, _ := types.LookupFieldOrMethod(t, false, m.Pkg(), m.Name())
+		if fn, ok := obj.(*types.Func); ok {
+			is = append(is, impl{t, fn})
+		}
+	}
+	if r.implsOf == nil {
+		r.implsOf = map[*types.Func][]impl{}
+	}
+	r.implsOf[m] = is
+	return is
 }
 
 // IfaceKeeps returns a dynamic type of the program that implements
@@ -174,14 +198,9 @@ func (r *Result) IfaceMut(dyn []types.Type, m *types.Func) bool {
 // stores), or nil. Called through an interface, which owns that object,
 // the method would give it a second owner (RFC 0017).
 func (r *Result) IfaceKeeps(dyn []types.Type, m *types.Func) types.Type {
-	for _, t := range dyn {
-		obj, _, _ := types.LookupFieldOrMethod(t, false, m.Pkg(), m.Name())
-		impl, ok := obj.(*types.Func)
-		if !ok {
-			continue
-		}
-		if fn := r.Funcs[impl]; fn != nil && fn.Recv != nil && fn.Recv.Mode == Owned && isPointerT(fn.Recv.Var.Type()) {
-			return t
+	for _, impl := range r.impls(dyn, m) {
+		if fn := r.Funcs[impl.fn]; fn != nil && fn.Recv != nil && fn.Recv.Mode == Owned && isPointerT(fn.Recv.Var.Type()) {
+			return impl.t
 		}
 	}
 	return nil

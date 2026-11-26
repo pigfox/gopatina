@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"sort"
+	"sync"
 
 	"github.com/pigfox/gopatina/internal/load"
 )
@@ -32,8 +33,26 @@ func IsIface(t types.Type) bool {
 	return t != nil && types.IsInterface(t) && !isWriter(t)
 }
 
-// Ifaces analyses pkg, every package of the program, for RFC 0012.
+var (
+	ifaceMu    sync.Mutex
+	ifacePlans = map[*load.Package]*IfacePlan{}
+)
+
+// Ifaces returns pkg's interface plan (RFC 0012), made once: callers only
+// read it.
 func Ifaces(pkg *load.Package) *IfacePlan {
+	ifaceMu.Lock()
+	defer ifaceMu.Unlock()
+	if p, ok := ifacePlans[pkg]; ok {
+		return p
+	}
+	p := ifaces(pkg)
+	ifacePlans[pkg] = p
+	return p
+}
+
+// ifaces analyses pkg, every package of the program, for RFC 0012.
+func ifaces(pkg *load.Package) *IfacePlan {
 	p := &IfacePlan{Boxed: map[ast.Expr]types.Type{}, CommaOk: map[*ast.TypeAssertExpr]bool{}}
 	info := pkg.Info
 	conv := func(e ast.Expr, target types.Type) {

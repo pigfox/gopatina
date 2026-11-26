@@ -13,8 +13,9 @@ import (
 
 // Interface values (RFC 0012). The program's dynamic types are the
 // variants of one enum, Dyn; an interface value is Iface, an Option of a
-// reference-counted Dyn, None for a nil interface. Values are converted
-// with boxed(Dyn::V(x)), so the reference count is chosen in one place.
+// Dyn held by value (boxed where a Dyn can hold an interface value), None
+// for a nil interface. Values are converted with boxed(Dyn::V(x)), so the
+// representation is chosen in one place.
 // Method calls through an interface are dispatcher functions matching the
 // dynamic types that have the method.
 
@@ -841,7 +842,7 @@ func (g *gen) methodOn(m *types.Func, t types.Type, v string, args []string) str
 		as = append(as, a)
 	}
 	if p, ok := t.(*types.Pointer); ok {
-		return g.methodOnPtr(m, p, v, as) // RFC 0013
+		return g.methodOnOwned(m, p, v, as) // RFC 0017
 	}
 	recv := v // a borrow
 	switch {

@@ -73,8 +73,7 @@ impl Pt {
         self.x * self.y
     }
 
-    pub fn grow(self, n: i64) {
-    }
+    pub fn grow(self, n: i64) {}
 }
 
 /// Pair's Area changes its own copy: the interface's object stays as it is.
@@ -92,8 +91,7 @@ impl Pair {
         self.a + self.tag.len() as i64
     }
 
-    pub fn grow(&self, n: i64) {
-    }
+    pub fn grow(&self, n: i64) {}
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
@@ -109,8 +107,7 @@ impl Maybe {
         m.unwrap().n
     }
 
-    pub fn grow(m: Option<&Maybe>, n: i64) {
-    }
+    pub fn grow(m: Option<&Maybe>, n: i64) {}
 }
 
 pub type Shape = Iface;
@@ -324,7 +321,7 @@ pub fn iface_type(x: &Iface) -> &'static str {
 pub fn iface_show(x: &Iface) -> String {
     match x.as_deref() {
         None => String::from("<nil>"),
-        Some(Dyn::PtrFail(v)) => rt::show_opt(v, |x| x.as_deref().unwrap().error()),
+        Some(Dyn::PtrFail(v)) => rt::show_ref(v, Fail::error),
         Some(Dyn::PtrCode(v)) => rt::show_opt(v, |x| code_error(x.as_ref())),
         Some(Dyn::PtrBox(v)) => unreachable!("fmt prints the address of a *main.Box"),
         Some(Dyn::PtrTemp(v)) => unreachable!("fmt prints the address of a *main.Temp"),

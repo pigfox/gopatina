@@ -25,5 +25,5 @@
 ./main.go:129:7: receiver r is an exclusive borrow: Note changes it, and the caller sees the change
 ./main.go:135:11: parameter s is a shared borrow: show only reads it
 ./main.go:138:11: parameter s is a shared borrow: both only reads it
-./main.go:223:11: copied *b into *a: b is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
-./main.go:223:15: copied *a into *b: a is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:224:11: copied *b into *a: b is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:224:15: copied *a into *b: a is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning

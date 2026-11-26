@@ -535,3 +535,29 @@ func main() {
 		t.Errorf("*Ints shared: %s", why)
 	}
 }
+
+// TestPlansMadeOnce checks that the interface plan and the pointer plan are
+// made once per package, and that once the pointer plan is complete its
+// answers are kept: callers ask per use, and a 200-program difftest batch
+// spent most of an hour rebuilding them (RFC 0017).
+func TestPlansMadeOnce(t *testing.T) {
+	pkg, err := load.Source("/once", "main.go", tree, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if Ifaces(pkg) != Ifaces(pkg) {
+		t.Error("Ifaces rebuilt its plan")
+	}
+	p := Ptrs(pkg)
+	if p != Ptrs(pkg) || !p.complete {
+		t.Fatal("Ptrs rebuilt its plan, or left it incomplete")
+	}
+	node := types.NewPointer(pkg.Types.Scope().Lookup("Node").Type())
+	if !p.HeapType(node) || !p.Owned(node) {
+		t.Fatal("*Node not an owned heap pointer")
+	}
+	elem := node.Elem()
+	if !p.heapOf[elem] || !p.ownedOf[elem] {
+		t.Error("HeapType and Owned did not keep their answers")
+	}
+}

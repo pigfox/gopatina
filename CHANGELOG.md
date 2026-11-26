@@ -8,6 +8,17 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ## [Unreleased]
 
+### Removed
+
+- **Shared cells** (`rt::Ptr`, RFC 0013). Every pointer has one owner
+  (RFC 0017), so the reference-counted cells, their runtime pieces
+  (`rt::Ptr`, `rt::show_ptr`) and the borrow checker's cell rules are
+  gone. A pointer type whose objects would still have more than one owner
+  is not supported yet, with the use that gives them a second one. A
+  value method that changes its copy, called through a pointer, stays an
+  error. `-explain` no longer warns of cycles that are not reclaimed: none
+  can form.
+
 ### Changed
 
 - **Interfaces own the pointers they hold** (RFC 0012 with RFC 0017). A

@@ -677,129 +677,18 @@ impl fmt::Display for Error {
 `,
 	},
 	{
-		name: "Ptr",
-		uses: []string{"any::Any", "cell::Cell", "cell::RefCell", "rc::Rc"},
-		code: `/// A Go pointer that escapes (RFC 0013): nil, or a cell shared by every
-/// copy of the pointer. Each access borrows the cell for that access only,
-/// so no borrow is held while other code runs.
-pub struct Ptr<T: 'static>(Option<Shared<T>>);
-
-/// The one place the sharing is chosen: Rc now; Arc and a lock once
-/// goroutines come (RFC 0002).
-type Shared<T> = Rc<RefCell<T>>;
-
-impl<T> Ptr<T> {
-    /// A new cell holding v: Go's &T{...}, or a variable whose address
-    /// escapes.
-    pub fn new(v: T) -> Self {
-        Ptr(Some(Rc::new(RefCell::new(v))))
+		name: "show_ref",
+		code: `/// %v of an owned pointer, or a borrow of one, through a String or Error
+/// method that takes &self: <nil> for a nil pointer, as Go's fmt prints
+/// for a method that dereferences it.
+pub fn show_ref<P: std::ops::Deref<Target = T>, T: ?Sized>(
+    p: &Option<P>,
+    show: impl FnOnce(&T) -> String,
+) -> String {
+    match p {
+        Some(v) => show(v),
+        None => String::from("<nil>"),
     }
-
-    pub fn nil() -> Self {
-        Ptr(None)
-    }
-
-    pub fn is_nil(&self) -> bool {
-        self.0.is_none()
-    }
-
-    fn cell(&self) -> &RefCell<T> {
-        match &self.0 {
-            Some(c) => c,
-            None => panic!(
-                "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
-            ),
-        }
-    }
-
-    /// Reads through the pointer.
-    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        f(&self.cell().borrow())
-    }
-
-    /// Writes through the pointer.
-    pub fn with_mut<R>(&self, f: impl FnOnce(&mut T) -> R) -> R {
-        f(&mut self.cell().borrow_mut())
-    }
-}
-
-impl<T: Clone> Ptr<T> {
-    /// A copy of the value pointed at: Go's *p.
-    pub fn load(&self) -> T {
-        self.cell().borrow().clone()
-    }
-}
-
-impl<T> Clone for Ptr<T> {
-    fn clone(&self) -> Self {
-        Ptr(self.0.clone())
-    }
-}
-
-impl<T> Default for Ptr<T> {
-    fn default() -> Self {
-        Ptr(None)
-    }
-}
-
-/// Go compares pointers by the variable they point at.
-impl<T> PartialEq for Ptr<T> {
-    fn eq(&self, other: &Self) -> bool {
-        match (&self.0, &other.0) {
-            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
-            (None, None) => true,
-            _ => false,
-        }
-    }
-}
-
-/// The last pointer to a cell frees it through release, so freeing a long
-/// list frees one cell at a time, as Go's collector does, instead of one
-/// call deeper per cell (which would overflow the stack).
-impl<T> Drop for Ptr<T> {
-    fn drop(&mut self) {
-        let Some(c) = self.0.take() else {
-            return;
-        };
-        if Rc::strong_count(&c) == 1 {
-            release(c);
-        }
-    }
-}
-
-thread_local! {
-    static PENDING: RefCell<Vec<Rc<dyn Any>>> = const { RefCell::new(Vec::new()) };
-    static RELEASING: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Frees cell c, and the cells freeing it frees, in a loop.
-fn release(c: Rc<dyn Any>) {
-    PENDING.with_borrow_mut(|p| p.push(c));
-    if RELEASING.get() {
-        return; // the loop below, further up, frees it
-    }
-    RELEASING.set(true);
-    while let Some(c) = PENDING.with_borrow_mut(|p| p.pop()) {
-        drop(c);
-    }
-    RELEASING.set(false);
-}
-`,
-	},
-	{
-		name: "show_ptr",
-		deps: []string{"Ptr"},
-		code: `/// %v of a pointer through its String or Error method. As Go's fmt does,
-/// a method that panics for a nil pointer prints <nil>.
-pub fn show_ptr<T>(p: &Ptr<T>, show: impl FnOnce(&Ptr<T>) -> String) -> String {
-    if !p.is_nil() {
-        return show(p);
-    }
-    let hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let shown = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| show(p)));
-    std::panic::set_hook(hook);
-    shown.unwrap_or_else(|_| String::from("<nil>"))
 }
 `,
 	},

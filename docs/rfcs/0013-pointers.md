@@ -7,7 +7,9 @@
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-22
 - **Discussion:** the pull request that adds this file
-- **Supersedes / superseded by:** extends phase 1's pointers (borrows only)
+- **Supersedes / superseded by:** extends phase 1's pointers (borrows only);
+  its heap cells (`rt::Ptr`) are superseded by RFC 0017's one owner per
+  object, and were removed once no accepted program reached them
 
 ## Summary
 

@@ -118,14 +118,8 @@ func (g *gen) rootVar(e ast.Expr) *types.Var {
 // *p, rooted at a local variable.
 func (g *gen) isPlace(e ast.Expr) bool {
 	e = ast.Unparen(e)
-	if _, ok := g.cellRoot[e]; ok {
-		return true // a cell's contents, while an access to it is written
-	}
 	if _, ok := g.temps[e]; ok {
 		return true // computed into a local first
-	}
-	if _, _, ok := g.heapRoot(e); ok {
-		return false // read with heapValue
 	}
 	if v := g.globalOf(e); v != nil {
 		// A string read into a local is read as a copy (s += s), and
@@ -161,9 +155,6 @@ func (g *gen) place(e ast.Expr) node {
 		p, _ := g.globalPlace(v)
 		return p
 	}
-	if n, ok := g.cellRoot[ast.Unparen(e)]; ok {
-		return atom{"*" + n, precUnary} // a cell's contents
-	}
 	if name, ok := g.temps[ast.Unparen(e)]; ok {
 		return text(name)
 	}
@@ -175,10 +166,6 @@ func (g *gen) place(e ast.Expr) node {
 		return text(g.varName(g.localVar(x)))
 	case *ast.SelectorExpr:
 		base := ast.Unparen(x.X)
-		if n, ok := g.cellRoot[base]; ok {
-			field := g.fields[g.info.Selections[x].Obj().(*types.Var)]
-			return atom{n + "." + field, precPostfix}
-		}
 		if st, ok := base.(*ast.StarExpr); ok {
 			base = st.X
 		}
@@ -269,9 +256,6 @@ func (g *gen) value(e ast.Expr) node {
 	if name, ok := g.temps[e]; ok {
 		return text(name)
 	}
-	if n, ok := g.heapValue(e); ok {
-		return n
-	}
 	if v := g.globalOf(e); v != nil {
 		return g.globalValue(v)
 	}
@@ -350,12 +334,6 @@ func (g *gen) owned(e ast.Expr) node {
 		// A pointer never nil moved where an Option<Box<T>> holds it.
 		return &call{head: "Some", open: "(", close: ")", args: []node{g.rawPtr(x)}}
 	}
-	if name, ok := g.temps[ast.Unparen(e)]; ok {
-		return text(name)
-	}
-	if n, ok := g.heapValue(e); ok {
-		return n
-	}
 	tv := g.info.Types[e]
 	if tv.Value != nil {
 		if tv.Value.Kind() == constant.String {
@@ -371,7 +349,7 @@ func (g *gen) owned(e ast.Expr) node {
 	if borrow.KindOf(tv.Type) == borrow.Copy {
 		return p
 	}
-	if g.res.Actions[e] == borrow.Move && !g.inCellRead && !g.inCellWrite {
+	if g.res.Actions[e] == borrow.Move {
 		return p
 	}
 	method := ".clone"
@@ -390,16 +368,7 @@ func (g *gen) ref(e ast.Expr) node {
 		return &addrOf{"&", g.box(e)}
 	}
 	e = ast.Unparen(e)
-	if name, ok := g.temps[e]; ok {
-		return text("&" + name)
-	}
-	if n, ok := g.heapValue(e); ok {
-		return &addrOf{"&", n}
-	}
 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
-		if g.heapPtr(g.typeOf(e)) {
-			return &addrOf{"&", g.heapAddr(u)}
-		}
 		return g.ref(u.X)
 	}
 	if v := g.globalOf(e); v != nil && g.globals[v] == subset.GlobalStatic && g.galias[v] == "" && !g.localStatic(v) {
@@ -462,9 +431,6 @@ func (g *gen) strRef(e ast.Expr) node {
 	}
 	if x, ok := g.identityConversion(e); ok {
 		return g.strRef(x) // string(n) for a named string n (RFC 0007)
-	}
-	if n, ok := g.heapValue(e); ok {
-		return n // a String copied out of its cell, as a place's String
 	}
 	if g.isPlace(e) {
 		return g.place(e)
@@ -780,9 +746,6 @@ func (g *gen) cmpOperand(e ast.Expr) node {
 	if tv.Value != nil {
 		return g.constant(tv.Value, tv.Type)
 	}
-	if n, ok := g.heapValue(e); ok {
-		return n
-	}
 	if g.isPlace(e) {
 		if id, ok := ast.Unparen(e).(*ast.Ident); ok {
 			v := g.localVar(id)
@@ -868,12 +831,9 @@ func (g *gen) needsElemSuffix(t types.Type, elts []ast.Expr) bool {
 func (g *gen) composite(e *ast.CompositeLit) node {
 	t := g.typeOf(e)
 	if p, ok := t.(*types.Pointer); ok {
-		// {...} for &T{...}, in a literal of pointers (RFC 0013).
-		n := g.ptrNew(t, g.compositeOf(e, p.Elem()))
-		if g.ownPtr(p) {
-			return &call{head: "Some", open: "(", close: ")", args: []node{n}} // an element of a Vec<Option<Box<T>>>
-		}
-		return n
+		// {...} for &T{...}, in a literal of pointers (RFC 0013): an
+		// element of a Vec<Option<Box<T>>>.
+		return &call{head: "Some", open: "(", close: ")", args: []node{g.ptrNew(t, g.compositeOf(e, p.Elem()))}}
 	}
 	return g.compositeOf(e, t)
 }

@@ -1,6 +1,2 @@
-./main.go:62:13: q is used after its T moved into a composite literal on line 61
-    in patina mode an object has one owner (RFC 0017): once q moves, only its new owner names the T
-    use the T through its new owner, or give q its own T
-./main.go:64:29: q is used after its T moved into a composite literal on line 62
-    in patina mode an object has one owner (RFC 0017): once q moves, only its new owner names the T
-    use the T through its new owner, or give q its own T
+./main.go:71:2: a *E with more than one owner (a value of the type itself is held outside its box) is not supported in patina mode yet
+    see docs/compat.md for what patina mode supports

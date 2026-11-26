@@ -76,17 +76,19 @@ type config struct {
 	gopatina, goCmd, work, failed string
 	gocache                       string // the run's own GOCACHE
 	timeout                       time.Duration
-	cargo                         string // the cargo command, for the checks below
-	lint, libraries               int    // run clippy, and a library check, every N batches (0: never)
+	buildTimeout                  time.Duration // build time allowed per program of a batch
+	cargo                         string        // the cargo command, for the checks below
+	lint, libraries               int           // run clippy, and a library check, every N batches (0: never)
 }
 
 // outcome is one batch's result.
 type outcome struct {
-	first, n    int
-	mismatched  []int // programs whose output differs
-	buildFailed bool  // patina mode did not build the batch
-	panicBad    bool  // the panic case (program first+n) differs
-	goDisagree  []int // programs whose two Go builds disagree
+	first, n     int
+	mismatched   []int // programs whose output differs
+	buildFailed  bool  // patina mode did not build the batch
+	buildTimeout bool  // ... because its build ran past -build-timeout
+	panicBad     bool  // the panic case (program first+n) differs
+	goDisagree   []int // programs whose two Go builds disagree
 	// The batch's crate linted, and failing clippy; a library check run,
 	// and failing (extra.go).
 	lintChecked, lintFailed, libChecked, libFailed bool
@@ -135,6 +137,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&c.work, "work", "", "working directory (default: a temporary one, removed after)")
 	fs.StringVar(&c.failed, "failures", "difftest-failures", "where failing batches are kept")
 	fs.DurationVar(&c.timeout, "timeout", time.Minute, "limit for running one batch binary")
+	fs.DurationVar(&c.buildTimeout, "build-timeout", 10*time.Second, "build time allowed per program: one build of a batch (gopatina, go or cargo) past this times the batch's programs fails the batch")
 	fs.StringVar(&c.cargo, "cargo", "cargo", "the cargo command")
 	fs.IntVar(&c.lint, "lint", 10, "run cargo clippy -D warnings on every Nth batch's crate (0: never)")
 	fs.IntVar(&c.libraries, "libraries", 1, "run a library check (RFC 0014) every Nth batch (0: never)")
@@ -209,6 +212,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 					mu.Lock()
 					fmt.Fprintf(stderr, "batch %d-%d: %d mismatched, build failed %t, %d Go disagreements\n",
 						batches[i].first, batches[i].first+batches[i].n-1, len(results[i].mismatched), results[i].buildFailed, len(results[i].goDisagree))
+					if results[i].buildTimeout {
+						fmt.Fprintf(stderr, "batch %d-%d: %s build timed out after %v (%v per program; programs %d-%d, kept in %s)\n",
+							batches[i].first, batches[i].first+batches[i].n-1, c.gopatina, c.buildLimit(), c.buildTimeout,
+							batches[i].first, batches[i].first+batches[i].n-1, c.failed)
+					}
 					mu.Unlock()
 				}
 			}
@@ -315,15 +323,18 @@ func batch(c config, worker, first, n int) (outcome, error) {
 	}
 	goBin, refBin, pBin := filepath.Join(dir, "go.bin"), filepath.Join(dir, "goref.bin"), filepath.Join(dir, "patina.bin")
 	goEnv := []string{"GOCACHE=" + c.gocache}
-	if out, err := build(dir, goEnv, c.goCmd, "build", "-gcflags=all=-N -l", "-o", refBin, "."); err != nil {
+	if out, err := build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-gcflags=all=-N -l", "-o", refBin, "."); err != nil {
 		return o, fmt.Errorf("batch %d: go build (reference): %v\n%s", first, err, out)
 	}
-	if out, err := build(dir, goEnv, c.goCmd, "build", "-o", goBin, "."); err != nil {
+	if out, err := build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-o", goBin, "."); err != nil {
 		return o, fmt.Errorf("batch %d: go build: %v\n%s", first, err, out)
 	}
 	cache := "GOPATINA_CACHE=" + filepath.Join(c.work, "cache-"+strconv.Itoa(worker))
-	pOut, err := build(dir, append(goEnv, cache), c.gopatina, "build", "-patina", "-o", pBin, ".")
-	if _, ran := err.(*exec.ExitError); err != nil && !ran {
+	pOut, err := build(c.buildLimit(), dir, append(goEnv, cache), c.gopatina, "build", "-patina", "-o", pBin, ".")
+	if err == errBuildTimeout {
+		o.buildTimeout = true
+		pOut = append(pOut, fmt.Sprintf("\ngopatina-difftest: the build ran past %v (-build-timeout %v per program) and was stopped\n", c.buildLimit(), c.buildTimeout)...)
+	} else if _, ran := err.(*exec.ExitError); err != nil && !ran {
 		return o, fmt.Errorf("batch %d: %s could not run: %v", first, c.gopatina, err)
 	}
 	if err != nil {
@@ -384,12 +395,29 @@ func checks(c config, worker, first, n int, src, dir string, o outcome) (outcome
 	return o, nil
 }
 
-// build runs a build command in dir and returns its combined output.
-func build(dir string, env []string, name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
+// buildLimit is the time one build of a batch may take: -build-timeout
+// for each of its programs and its panic case. A batch's crate grows with
+// its programs (200 programs are some 500,000 lines of Rust).
+func (c config) buildLimit() time.Duration {
+	return c.buildTimeout * time.Duration(c.per+1)
+}
+
+// errBuildTimeout is build's error for a build stopped at its limit.
+var errBuildTimeout = errors.New("build timed out")
+
+// build runs a build command in dir, stopped after limit, and returns its
+// combined output; errBuildTimeout if it ran past the limit.
+func build(limit time.Duration, dir string, env []string, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
-	return cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return out, errBuildTimeout
+	}
+	return out, err
 }
 
 // execute runs bin with a time limit and returns its output and exit

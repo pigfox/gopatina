@@ -1,5 +1,5 @@
-// Variables whose address escapes live in cells (RFC 0013), and a field or
-// slice inside a cell is lent to a call inside the cell's one borrow.
+// Variables whose address escapes move into a box of their own (RFC 0013
+// with RFC 0017), and a field or slice inside a box is lent to a call.
 package main
 
 import "fmt"
@@ -11,8 +11,8 @@ func (i *In) Inc() { i.n++ }
 // Get reads a copy.
 func (i In) Get() int { return i.n + 1 }
 
-// T's pointers are cells: Total and Zero take a copy of a T, which shares
-// its items with the T in the box.
+// Total and Zero take a T by value: lent the T in the box, as Go's copy
+// shares its items with it.
 type T struct {
 	in    In
 	items []int
@@ -110,8 +110,8 @@ func (s *Shelf) Bump() { s.N++ }
 // Keep returns its receiver.
 func (s *Shelf) Keep() *Shelf { return s }
 
-// Rack's pointers are cells: an interface holds one. Up and L can lead
-// back to a Rack.
+// An interface owns the *Rack it holds. Up and L lead to other Racks,
+// each with one owner.
 type Rack struct {
 	N    int
 	Up   *Rack
@@ -152,7 +152,8 @@ func main() {
 	kept := (&shelf).Keep()
 	kept.Bump()
 	fmt.Println(shelf.Count(), show(&shelf), anyS != nil)
-	// An int and a slice whose addresses an interface holds live in cells.
+	// An int and a slice whose addresses an interface holds, each in its
+	// own box.
 	ni, nj := Cnt(5), 0
 	var anyN any = newCnt(0)
 	ni++

@@ -187,6 +187,19 @@ impl fmt::Display for Error {
     }
 }
 
+/// %v of an owned pointer, or a borrow of one, through a String or Error
+/// method that takes &self: <nil> for a nil pointer, as Go's fmt prints
+/// for a method that dereferences it.
+pub fn show_ref<P: std::ops::Deref<Target = T>, T: ?Sized>(
+    p: &Option<P>,
+    show: impl FnOnce(&T) -> String,
+) -> String {
+    match p {
+        Some(v) => show(v),
+        None => String::from("<nil>"),
+    }
+}
+
 /// %v of an owned pointer, or a borrow of one, through its String or
 /// Error method. As Go's fmt does, a method that panics for a nil pointer
 /// prints <nil>.

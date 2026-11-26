@@ -1,5 +1,5 @@
 // More of RFC 0013: methods of named non-struct types through heap
-// pointers, value methods, multiple assignments, nil and cells.
+// pointers, value methods, multiple assignments and nil.
 package main
 
 import "fmt"
@@ -121,7 +121,7 @@ func keepNames(p *[]string) *[]string { return p }
 
 func ptrTo(x int) *int { return &x }
 
-// ints returns two new ints, declared together: a and b live in cells.
+// ints returns two new ints, declared together: a and b move into boxes.
 func ints() (*int, *int) {
 	a, b := 4, 5
 	return &a, &b

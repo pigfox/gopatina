@@ -1,6 +1,7 @@
 package subset
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -70,6 +71,11 @@ type PtrPlan struct {
 	refAsserts map[*types.Var]*ast.TypeAssertExpr
 	refAs      map[*types.Var]*ast.CallExpr
 	nilConv    map[*ast.Ident]bool
+	// complete is set once the plan is made; from then on HeapType and
+	// Owned keep their answers, by element type, in heapOf and ownedOf.
+	complete bool
+	heapOf   map[types.Type]bool
+	ownedOf  map[types.Type]bool
 	// retBorrow holds, by function, the input whose borrow it returns
 	// (returns.go).
 	retBorrow map[*types.Func]*types.Var
@@ -87,12 +93,20 @@ func (p *PtrPlan) HeapType(t types.Type) bool {
 	if !ok {
 		return false
 	}
+	if is, ok := p.heapOf[pt.Elem()]; ok {
+		return is
+	}
+	is := false
 	for _, h := range p.heap {
 		if types.Identical(h, pt.Elem()) {
-			return true
+			is = true
+			break
 		}
 	}
-	return false
+	if p.complete {
+		p.heapOf[pt.Elem()] = is // the plan no longer changes
+	}
+	return is
 }
 
 // Heap reports whether the program has a heap pointer.
@@ -110,7 +124,7 @@ func Ptrs(pkg *load.Package) *PtrPlan {
 	if p, ok := ptrPlans[pkg]; ok {
 		return p
 	}
-	p := &PtrPlan{pkg: pkg, Cells: map[*types.Var]bool{}, nilConv: map[*ast.Ident]bool{}}
+	p := &PtrPlan{pkg: pkg, Cells: map[*types.Var]bool{}, nilConv: map[*ast.Ident]bool{}, heapOf: map[types.Type]bool{}, ownedOf: map[types.Type]bool{}}
 	p.build()
 	p.retBorrows()
 	p.localRefs()
@@ -126,6 +140,7 @@ func Ptrs(pkg *load.Package) *PtrPlan {
 			delete(p.Cells, v) // a plain local, lent (escapes.go)
 		}
 	}
+	p.complete = true
 	ptrPlans[pkg] = p
 	return p
 }
@@ -288,6 +303,21 @@ func (c *checker) checkPtrs() {
 	p := Ptrs(c.pkg)
 	for _, e := range p.ownerErrors() {
 		c.diags = append(c.diags, diag.Errorf(c.pkg.Fset.Position(e.pos), "%s", e.msg).With(e.notes...))
+	}
+	reported := len(p.ownerErrors()) > 0 || len(p.Interior) > 0
+	for _, sh := range p.shared {
+		// One owner per object is the only representation of a pointer
+		// (RFC 0017): a type it cannot be inferred for is not supported,
+		// unless an error above already says why.
+		if reported {
+			break
+		}
+		c.unsupported(&ast.Ident{NamePos: sh.pos, Name: "_"}, fmt.Sprintf("a *%s with more than one owner (%s)", types.TypeString(sh.t, types.RelativeTo(c.pkg.Types)), sh.why))
+	}
+	for v := range p.Cells {
+		if !isPointer(v.Type()) && !p.Owned(types.NewPointer(v.Type())) {
+			c.unsupported(&ast.Ident{NamePos: v.Pos(), Name: v.Name()}, fmt.Sprintf("the address of %s kept where its object would have more than one owner", v.Name()))
+		}
 	}
 	for _, x := range p.Interior {
 		c.unsupported(x, "a pointer into a struct field or a slice element that escapes (RFC 0013)")

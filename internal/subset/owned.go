@@ -29,12 +29,20 @@ func (p *PtrPlan) Owned(t types.Type) bool {
 		return false
 	}
 	p.ownedOnce()
+	if is, ok := p.ownedOf[pt.Elem()]; ok {
+		return is
+	}
+	is := false
 	for _, o := range p.owned {
 		if types.Identical(o, pt.Elem()) {
-			return true
+			is = true
+			break
 		}
 	}
-	return false
+	if p.complete {
+		p.ownedOf[pt.Elem()] = is
+	}
+	return is
 }
 
 // SharedReason returns why the heap pointer type t is not owned, and
@@ -124,6 +132,11 @@ type ownership struct {
 	// (RFC 0017) unless an interface holds the type's pointers, which keep
 	// their cells until interface values are owned too.
 	aliases []ownerError
+	// ownerFields are the fields of the owner structs (ownerStructField),
+	// found once: a field asks for every type of the program.
+	ownerFields map[*types.Var]bool
+	// nilVars are the variables always nil (nilVar), found once.
+	nilVars map[*types.Var]bool
 	// kept are the parameters their function keeps: returns, stores or
 	// moves (RFC 0017, step 8). The caller moves its pointer in.
 	kept map[*types.Var]bool
@@ -190,28 +203,37 @@ func (o *ownership) ifaceConvert(el types.Type, e ast.Expr) {
 // nilVar reports whether v, a pointer variable, is always nil: declared
 // with no value and never assigned.
 func (o *ownership) nilVar(v *types.Var) bool {
-	declared, changed := false, false
-	for _, f := range o.p.pkg.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			switch x := n.(type) {
-			case *ast.ValueSpec:
-				for _, name := range x.Names {
-					if o.info.Defs[name] == v {
-						declared = len(x.Values) == 0
+	if o.nilVars == nil {
+		// Found once: every variable declared with no value, less those
+		// ever assigned.
+		o.nilVars = map[*types.Var]bool{}
+		changed := map[*types.Var]bool{}
+		for _, f := range o.p.pkg.Files {
+			ast.Inspect(f, func(n ast.Node) bool {
+				switch x := n.(type) {
+				case *ast.ValueSpec:
+					for _, name := range x.Names {
+						if w, ok := o.info.Defs[name].(*types.Var); ok && len(x.Values) == 0 {
+							o.nilVars[w] = true
+						}
+					}
+				case *ast.AssignStmt:
+					for _, l := range x.Lhs {
+						if id, ok := ast.Unparen(l).(*ast.Ident); ok {
+							if w, ok := o.info.Uses[id].(*types.Var); ok {
+								changed[w] = true
+							}
+						}
 					}
 				}
-			case *ast.AssignStmt:
-				for _, l := range x.Lhs {
-					if id, ok := ast.Unparen(l).(*ast.Ident); ok && (o.info.Uses[id] == v || o.info.Defs[id] == v) {
-						changed = true
-					}
-				}
-			}
-			return true // &v of a pointer variable is not in the subset
-
-		})
+				return true // &v of a pointer variable is not in the subset
+			})
+		}
+		for w := range changed {
+			delete(o.nilVars, w)
+		}
 	}
-	return declared && !changed
+	return o.nilVars[v]
 }
 
 // alias records that element type t is shared at e because a use gives
@@ -540,29 +562,30 @@ func (o *ownership) ownerStruct(t types.Type) bool {
 
 // ownerStructField reports whether field v belongs to an owner struct.
 func (o *ownership) ownerStructField(v *types.Var) bool {
-	for _, f := range o.p.pkg.Files {
-		for _, d := range f.Decls {
-			g, ok := d.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			for _, sp := range g.Specs {
-				ts, ok := sp.(*ast.TypeSpec)
+	if o.ownerFields == nil {
+		o.ownerFields = map[*types.Var]bool{}
+		for _, f := range o.p.pkg.Files {
+			for _, d := range f.Decls {
+				g, ok := d.(*ast.GenDecl)
 				if !ok {
 					continue
 				}
-				t := o.info.Defs[ts.Name].Type()
-				if st, ok := t.Underlying().(*types.Struct); ok && o.ownerStruct(t) {
-					for i := 0; i < st.NumFields(); i++ {
-						if st.Field(i) == v {
-							return true
+				for _, sp := range g.Specs {
+					ts, ok := sp.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					t := o.info.Defs[ts.Name].Type()
+					if st, ok := t.Underlying().(*types.Struct); ok && o.ownerStruct(t) {
+						for i := 0; i < st.NumFields(); i++ {
+							o.ownerFields[st.Field(i)] = true
 						}
 					}
 				}
 			}
 		}
 	}
-	return false
+	return o.ownerFields[v]
 }
 
 // ownerLit reports whether the composite literal on top of stack (or

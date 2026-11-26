@@ -131,16 +131,15 @@ impl fmt::Display for Error {
     }
 }
 
-/// %v of an owned pointer, or a borrow of one, through its String or
-/// Error method. As Go's fmt does, a method that panics for a nil pointer
-/// prints <nil>.
-pub fn show_opt<P>(p: &Option<P>, show: impl FnOnce(&Option<P>) -> String) -> String {
-    if p.is_some() {
-        return show(p);
+/// %v of an owned pointer, or a borrow of one, through a String or Error
+/// method that takes &self: <nil> for a nil pointer, as Go's fmt prints
+/// for a method that dereferences it.
+pub fn show_ref<P: std::ops::Deref<Target = T>, T: ?Sized>(
+    p: &Option<P>,
+    show: impl FnOnce(&T) -> String,
+) -> String {
+    match p {
+        Some(v) => show(v),
+        None => String::from("<nil>"),
     }
-    let hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let shown = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| show(p)));
-    std::panic::set_hook(hook);
-    shown.unwrap_or_else(|_| String::from("<nil>"))
 }

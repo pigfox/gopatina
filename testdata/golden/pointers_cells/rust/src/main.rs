@@ -48,8 +48,8 @@ impl In {
     }
 }
 
-/// T's pointers are cells: Total and Zero take a copy of a T, which shares
-/// its items with the T in the box.
+/// Total and Zero take a T by value: lent the T in the box, as Go's copy
+/// shares its items with it.
 #[derive(Clone, Default, PartialEq)]
 pub struct T {
     r#in: In,
@@ -203,8 +203,8 @@ impl Shelf {
     }
 }
 
-/// Rack's pointers are cells: an interface holds one. Up and L can lead
-/// back to a Rack.
+/// An interface owns the *Rack it holds. Up and L lead to other Racks,
+/// each with one owner.
 #[derive(Clone, Default, PartialEq)]
 pub struct Rack {
     pub n: i64,
@@ -272,7 +272,8 @@ fn main() {
     let mut kept = Shelf::keep(Some(&mut shelf));
     kept.as_mut().unwrap().bump();
     println!("{} {} {}", shelf.count(), show(&shelf), any_s.is_some());
-    // An int and a slice whose addresses an interface holds live in cells.
+    // An int and a slice whose addresses an interface holds, each in its
+    // own box.
     let (mut ni, mut nj): (i64, i64) = (5, 0);
     let any_n: Iface = boxed(Dyn::PtrCnt(Some(new_cnt(0))));
     ni += 1;

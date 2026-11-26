@@ -224,7 +224,7 @@ fn ptr_to(x: i64) -> i64 {
     x
 }
 
-/// ints returns two new ints, declared together: a and b live in cells.
+/// ints returns two new ints, declared together: a and b move into boxes.
 fn ints() -> (Option<i64>, Option<i64>) {
     let (a, b): (i64, i64) = (4, 5);
     (Some(a), Some(b))

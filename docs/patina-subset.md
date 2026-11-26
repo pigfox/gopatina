@@ -96,8 +96,8 @@ Values fall into four kinds:
 - **Shared**: anything holding a slice. Two Go copies share the backing
   array, so a change through one is seen through the other. A Rust copy
   would not share it, so the checker never copies these on its own.
-- **Pointers**: borrows of a variable, or, when they escape, shared cells
-  (see [Pointers](#pointers)).
+- **Pointers**: borrows of a variable, or, when they escape, boxes with
+  one owner (see [Pointers](#pointers)).
 
 Each parameter and receiver gets a mode from what the function does with it:
 
@@ -321,16 +321,16 @@ field).
 [RFC 0013](rfcs/0013-pointers.md). A pointer that only lends a variable to
 a call stays a borrow, as before. A pointer type `*T` some pointer of which
 escapes (is returned, stored in a field, reassigned, compared, set to
-`nil`, or held by a package-level variable) is a heap pointer: every `*T`
-of the program is an `rt::Ptr<T>`, a shared cell (`Option<Rc<RefCell<T>>>`
-behind one helper, `None` for `nil`), and every variable of type `T` whose
-address is taken lives in a cell. Copying a heap pointer copies the
-pointer; `==` compares which variable it points at.
+`nil`, or held by a package-level variable) is a heap pointer, and every
+object has one owner ([RFC 0017](rfcs/0017-one-owner.md)).
 
 **Owned pointers** ([RFC 0016](rfcs/0016-owned-pointers-and-cycle-collection.md)).
-A heap pointer type that is never shared is a plain `Option<Box<T>>`
-instead, a `Box` with one owner, `None` for `nil`, as Rust writes a
-pointer that may be absent; no runtime type stands between. Its pointers
+A heap pointer is a plain `Option<Box<T>>`, a `Box` with one owner,
+`None` for `nil`, as Rust writes a pointer that may be absent; no runtime
+type stands between, and no reference count. A use that would give an
+object a second owner is an error naming the use, why, and how to write
+it; a pointer type whose one owner cannot be inferred yet is not
+supported yet, with the reason. Its pointers
 are only ever new (`&T{...}` or a function's result), moved once into the
 variable, field or result that owns them, and then only read through,
 tested for `nil` and lent to functions; `T` is a struct of numbers,
@@ -475,10 +475,8 @@ cannot express, is an error naming the use and how to write it with one:
 A local that only reads through a pointer another place owns is a
 temporary borrow, and may be compared with nil or with another pointer
 (`for p := head; p != stop; p = p.Next`). A local that changes through
-one, a `&mut` borrow, is not supported yet, and the error says so. Until
-interface values are owned, a type whose pointers an interface holds,
-directly or through fields, keeps its cells, which express these uses;
-so do types not owned for other reasons yet.
+one, a `&mut` borrow, is not supported yet, and the error says so. An
+interface value owns the pointer it is given ([Interfaces](#interfaces)).
 
 **Field addresses lent** ([RFC 0017](rfcs/0017-one-owner.md)). The
 address of a field of data inside an owned pointer's box, lent to a call
@@ -598,31 +596,14 @@ while the result is.
 
 Moving a pointer out of an element, a slice of pointers held in a
 package-level variable, and a field handed to a keeper without being
-refilled still make the type shared: those are later steps.
-One write through the pointer, one copy kept, or one held in a slice, an
-interface or a package-level variable makes the type shared, a cell as above. `-explain` says which each type
-is and, for a shared one, the first line that shares it.
+refilled are not supported yet: those are later steps. `-explain` notes
+that each struct type's pointers have one owner.
 
-Each access borrows the cell for that access only: a read is
-`p.with(|v| v.f)`, a write `p.with_mut(|v| v.f = x)` with its value
-computed first, and a method with a pointer receiver takes the pointer
-itself (`&rt::Ptr<T>`). No borrow of a cell is held while other code runs,
-so the `RefCell` check never fails. A statement that reads through a heap
-pointer and calls the program makes its calls first, as gc does.
-Dereferencing `nil` panics with Go's message,
+A statement that reads through a heap pointer and calls the program makes
+its calls first, as gc does. Dereferencing `nil` panics with Go's message,
 `runtime error: invalid memory address or nil pointer dereference`, and
 exit status 2; a method call on a nil pointer works until the method
 dereferences it.
-
-A slice, or a struct holding one, is used inside its cell: indexed,
-measured with `len`, written, appended to, printed, or lent to a call that
-cannot reach any heap pointer (its parameters hold none), which then runs
-inside the cell's one borrow (`p.with_mut(|v| fill(&mut v.items))`). A copy
-taken out would not share its elements, so it is rejected. A range over such
-a slice ranges over a copy of it, which is Go's range as long as nothing
-changes an element of a slice of that type held through a pointer during the
-program (a slice in a cell has no other copy); the checker rejects the range
-where something does.
 
 Slices of pointers (`[]*T`) are vectors of heap pointers. A pointer to a
 named type of the program can be an interface's dynamic type: method calls
@@ -646,25 +627,17 @@ Not supported yet, each with its own error:
   named type of the program in an interface;
 - converting `*T` to an interface where `T` holds a slice and has value
   methods (a call would run on a copy that does not share its elements);
-- copying a slice held through a heap pointer out (`s := p.items`,
-  `return p.items`), handing it to a function that keeps it, or ranging
-  over it in a program that changes the elements of such a slice;
-- lending a place held through a heap pointer to a call that can reach
-  heap pointers, two such places to one call, or a value method that
-  changes its copy of such a value;
+- a pointer type whose objects would have more than one owner, with the
+  use that gives them a second one;
+- calling, through a heap pointer, a value method that changes its copy
+  of a value holding a slice;
 - a condition that reads through a heap pointer and calls a function of
   the program, and a package-level pointer variable that the program
   changes;
 - a package-level variable holding pointers in a slice, an array or a
-  struct (a static cannot hold reference-counted cells);
+  struct;
 - the address of a range variable that escapes.
 
-**Known limitation: cycles are not reclaimed.** Go's garbage collector
-frees a cycle of pointers; a reference count does not. Output is
-unaffected, but a long-running program that builds and drops cycles (a
-doubly linked list, a graph with back edges, a node pointing at itself)
-keeps their memory. A list or a tree that is never closed into a cycle
-frees everything. `-explain` notes each field through which a cycle can
-form (`Node.Next can point back to a Node: a cycle through it is not
-reclaimed`), and the [`cycles` benchmark](../bench/README.md) measures the
-memory such a program keeps.
+With one owner per object, no cycle of pointers can form, and Rust's own
+drop frees every object when its owner goes.
+
