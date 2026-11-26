@@ -192,6 +192,20 @@ defects, defects per million tests and, with no defects, the 95% and 6σ
 bounds for that part; `difftest.log` lists each batch as it finishes, and failing
 batches are kept with both outputs under `difftest-failures`.
 
+A run's disk use is bounded. Each batch builds in a directory of its own,
+with its crate cache and cargo targets, removed once it is compared; the
+run's own Go build cache is cleared whenever it passes `-gocache-max` (2048
+MiB by default), since it keeps every batch's packages, never used again.
+Before each batch the run checks the disk holding its working directory:
+below `-min-free` percent free (15 by default) it clears the Go build
+cache, and if that is not enough it stops with an error naming the batch
+to resume from with `-start`. Everything the run made goes when it ends,
+also on SIGINT or SIGTERM, which first stop every build and program
+running, with what each started (each runs in a process group of its own),
+so none fills the directory again once it is removed. A run killed
+outright leaves its temporary directory, which the next run removes once
+that run's process is gone.
+
 Two more checks run beside the comparison:
 - **Lint** (`-lint N`, default every 10th batch): the batch's crate from
   `gopatina build -emit-rust` must pass `cargo clippy -D warnings`, as the

@@ -29,8 +29,11 @@
 // -ln(alpha) / tests. Defect-free tests bound it at 3.4 per million from
 // 881,098 tests at 95% and from 6,099,050 at 6σ (docs/QUALITY.md).
 // A run removes everything it makes when it ends, also on SIGINT or
-// SIGTERM: each batch once compared, the crate caches, and its own Go build
-// cache (GOCACHE), so the shared one stays small.
+// SIGTERM: each batch once compared, with its crate cache and cargo
+// targets, and its own Go build cache (GOCACHE), so the shared one stays
+// small. Its disk use is bounded while it runs (disk.go): -gocache-max
+// caps the Go build cache, and below -min-free percent free on its disk
+// the run stops, saying where to resume.
 // The exit status is 0 with no defects, 3 with defects, 1 on an error (such
 // as a program the Go toolchain itself does not build or run cleanly, which
 // is a generator bug) and 2 on bad usage. See docs/QUALITY.md.
@@ -49,6 +52,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -79,6 +83,9 @@ type config struct {
 	buildTimeout                  time.Duration // build time allowed per program of a batch
 	cargo                         string        // the cargo command, for the checks below
 	lint, libraries               int           // run clippy, and a library check, every N batches (0: never)
+	gocacheMax                    int64         // MiB the run's Go build cache may take (disk.go)
+	minFree                       float64       // percent of the disk that must stay free
+	cmds                          *commands     // the builds and programs running
 }
 
 // outcome is one batch's result.
@@ -141,11 +148,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&c.cargo, "cargo", "cargo", "the cargo command")
 	fs.IntVar(&c.lint, "lint", 10, "run cargo clippy -D warnings on every Nth batch's crate (0: never)")
 	fs.IntVar(&c.libraries, "libraries", 1, "run a library check (RFC 0014) every Nth batch (0: never)")
+	fs.Int64Var(&c.gocacheMax, "gocache-max", 2048, "MiB the run's Go build cache may take before it is cleared")
+	fs.Float64Var(&c.minFree, "min-free", 15, "percent of the working directory's disk that must stay free: below it the run stops")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if fs.NArg() != 0 || c.programs < 1 || c.per < 1 || c.jobs < 1 || c.start < 0 {
-		fmt.Fprintln(stderr, "usage: gopatina-difftest [flags]; -programs, -per and -jobs must be positive")
+	if fs.NArg() != 0 || c.programs < 1 || c.per < 1 || c.jobs < 1 || c.start < 0 || c.gocacheMax < 1 {
+		fmt.Fprintln(stderr, "usage: gopatina-difftest [flags]; -programs, -per, -jobs and -gocache-max must be positive")
 		return 2
 	}
 	// Builds run in each batch's directory, so a relative path to a tool
@@ -156,13 +165,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 			*tool = abs
 		}
 	}
+	c.cmds = newCommands()
 	begin := now()
 	// Everything a run makes goes under its working directory and is
 	// removed when it ends, also by a signal: the batches (each removed once
-	// compared; failures are kept under -failures), the crate caches, and a
-	// Go build cache of its own, so the oracle's builds of every generated
-	// program do not fill the shared one (~/.cache/go-build). A -work
-	// directory is the caller's: only what the run made in it is removed.
+	// compared, with its crate cache and cargo targets; failures are kept
+	// under -failures), and a Go build cache of its own, so the oracle's
+	// builds of every generated program do not fill the shared one
+	// (~/.cache/go-build). A -work directory is the caller's: only what the
+	// run made in it is removed. A temporary one holds the run's process
+	// id, so a later run can remove it if this one is killed outright.
+	for _, d := range sweep(os.TempDir()) {
+		fmt.Fprintf(stderr, "gopatina-difftest: removed %s, left by a run that was killed\n", d)
+	}
 	var made []string
 	if c.work == "" {
 		dir, err := os.MkdirTemp("", "gopatina-difftest-")
@@ -170,16 +185,26 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "gopatina-difftest:", err)
 			return 1
 		}
+		os.WriteFile(filepath.Join(dir, pidFile), []byte(strconv.Itoa(os.Getpid())), 0o644)
 		c.work, made = dir, []string{dir}
 	} else {
 		made = []string{filepath.Join(c.work, "gocache")}
-		for w := range c.jobs {
-			made = append(made, filepath.Join(c.work, "cache-"+strconv.Itoa(w)))
-		}
 	}
+	c.gocache = filepath.Join(c.work, "gocache")
+	var mu sync.Mutex // guards stderr
+	g := &guard{work: c.work, gocache: c.gocache, max: c.gocacheMax << 20, minFree: c.minFree, logf: func(format string, args ...any) {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(stderr, format, args...)
+	}}
 	var cleanOnce sync.Once
 	clean := func() {
 		cleanOnce.Do(func() {
+			// First stop every build and program, with what each started,
+			// then keep any batch from starting: nothing may write here
+			// once it is removed. The run is over, so the lock stays held.
+			c.cmds.halt()
+			g.mu.Lock()
 			for _, d := range made {
 				os.RemoveAll(d)
 			}
@@ -191,7 +216,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	done := make(chan struct{})
 	defer close(done)
 	go onSignal(sigs, done, clean, stderr)
-	c.gocache = filepath.Join(c.work, "gocache")
 	type job struct{ first, n int }
 	var batches []job
 	for first := c.start; first < c.start+c.programs; first += c.per {
@@ -201,13 +225,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 	errs := make([]error, len(batches))
 	next := make(chan int)
 	var wg sync.WaitGroup
-	var mu sync.Mutex // guards stderr
-	for w := range c.jobs {
+	for range c.jobs {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for i := range next {
-				results[i], errs[i] = batch(c, w, batches[i].first, batches[i].n)
+				if errs[i] = g.before(batches[i].first); errs[i] != nil {
+					continue
+				}
+				g.mu.RLock()
+				results[i], errs[i] = batch(c, batches[i].first, batches[i].n)
+				g.mu.RUnlock()
+				g.after()
 				if errs[i] == nil {
 					mu.Lock()
 					fmt.Fprintf(stderr, "batch %d-%d: %d mismatched, build failed %t, %d Go disagreements\n",
@@ -227,6 +256,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	close(next)
 	wg.Wait()
+	errs = slices.DeleteFunc(errs, func(err error) bool { return err == errSkipped })
 	if err := errors.Join(errs...); err != nil {
 		fmt.Fprintln(stderr, "gopatina-difftest:", err)
 		return 1
@@ -306,7 +336,7 @@ func summarize(c config, results []outcome) report {
 
 // batch generates, builds, runs and compares one batch. An error means the
 // Go side failed, which no generated program may do.
-func batch(c config, worker, first, n int) (outcome, error) {
+func batch(c config, first, n int) (outcome, error) {
 	o := outcome{first: first, n: n}
 	dir := filepath.Join(c.work, fmt.Sprintf("b%d", first))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -323,14 +353,14 @@ func batch(c config, worker, first, n int) (outcome, error) {
 	}
 	goBin, refBin, pBin := filepath.Join(dir, "go.bin"), filepath.Join(dir, "goref.bin"), filepath.Join(dir, "patina.bin")
 	goEnv := []string{"GOCACHE=" + c.gocache}
-	if out, err := build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-gcflags=all=-N -l", "-o", refBin, "."); err != nil {
+	if out, err := c.build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-gcflags=all=-N -l", "-o", refBin, "."); err != nil {
 		return o, fmt.Errorf("batch %d: go build (reference): %v\n%s", first, err, out)
 	}
-	if out, err := build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-o", goBin, "."); err != nil {
+	if out, err := c.build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-o", goBin, "."); err != nil {
 		return o, fmt.Errorf("batch %d: go build: %v\n%s", first, err, out)
 	}
-	cache := "GOPATINA_CACHE=" + filepath.Join(c.work, "cache-"+strconv.Itoa(worker))
-	pOut, err := build(c.buildLimit(), dir, append(goEnv, cache), c.gopatina, "build", "-patina", "-o", pBin, ".")
+	cache := "GOPATINA_CACHE=" + filepath.Join(dir, "cache") // removed with the batch
+	pOut, err := c.build(c.buildLimit(), dir, append(goEnv, cache), c.gopatina, "build", "-patina", "-o", pBin, ".")
 	if err == errBuildTimeout {
 		o.buildTimeout = true
 		pOut = append(pOut, fmt.Sprintf("\ngopatina-difftest: the build ran past %v (-build-timeout %v per program) and was stopped\n", c.buildLimit(), c.buildTimeout)...)
@@ -340,15 +370,15 @@ func batch(c config, worker, first, n int) (outcome, error) {
 	if err != nil {
 		o.buildFailed = true
 		keep(c, first, n, src, map[string][]byte{"patina-build.txt": pOut})
-		return checks(c, worker, first, n, src, dir, o)
+		return checks(c, first, n, src, dir, o)
 	}
-	refStdout, refStderr, refCode := execute(refBin, c.timeout)
+	refStdout, refStderr, refCode := c.execute(refBin, c.timeout)
 	// Only the panic case may fail, and only with a Go panic (status 2).
 	if !(refCode == 0 && len(refStderr) == 0 || refCode == 2 && bytes.HasPrefix(refStderr, []byte("panic: "))) {
 		return o, fmt.Errorf("batch %d: the Go binary exited %d: %s", first, refCode, refStderr)
 	}
-	goStdout, goStderr, goCode := execute(goBin, c.timeout)
-	pStdout, pStderr, pCode := execute(pBin, c.timeout)
+	goStdout, goStderr, goCode := c.execute(goBin, c.timeout)
+	pStdout, pStderr, pCode := c.execute(pBin, c.timeout)
 	ref, g := segments(refStdout), segments(pStdout)
 	o.mismatched = compare(ref, g, first, n)
 	last := first + n
@@ -366,14 +396,14 @@ func batch(c config, worker, first, n int) (outcome, error) {
 			"exit": []byte(fmt.Sprintf("goref %d go %d patina %d\n", refCode, goCode, pCode)),
 		})
 	}
-	return checks(c, worker, first, n, src, dir, o)
+	return checks(c, first, n, src, dir, o)
 }
 
 // checks runs the batch's lint and library checks when they are due
 // (extra.go).
-func checks(c config, worker, first, n int, src, dir string, o outcome) (outcome, error) {
+func checks(c config, first, n int, src, dir string, o outcome) (outcome, error) {
 	if due(c, c.lint, first) && !o.buildFailed {
-		failed, out, err := lintBatch(c, worker, dir)
+		failed, out, err := lintBatch(c, dir)
 		if err != nil {
 			return o, fmt.Errorf("batch %d: lint: %v", first, err)
 		}
@@ -383,7 +413,7 @@ func checks(c config, worker, first, n int, src, dir string, o outcome) (outcome
 		}
 	}
 	if due(c, c.libraries, first) {
-		failed, files, err := libraryCheck(c, worker, first)
+		failed, files, err := libraryCheck(c, first)
 		if err != nil {
 			return o, err
 		}
@@ -407,12 +437,16 @@ var errBuildTimeout = errors.New("build timed out")
 
 // build runs a build command in dir, stopped after limit, and returns its
 // combined output; errBuildTimeout if it ran past the limit.
-func build(limit time.Duration, dir string, env []string, name string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), limit)
+func (c config) build(limit time.Duration, dir string, env []string, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(c.cmds.ctx, limit)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := command(ctx, name, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
+	if !c.cmds.start() {
+		return nil, errStopped
+	}
+	defer c.cmds.end()
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
 		return out, errBuildTimeout
@@ -422,12 +456,16 @@ func build(limit time.Duration, dir string, env []string, name string, args ...s
 
 // execute runs bin with a time limit and returns its output and exit
 // status (-1 if it could not run or was killed).
-func execute(bin string, limit time.Duration) (stdout, stderr []byte, code int) {
-	ctx, cancel := context.WithTimeout(context.Background(), limit)
+func (c config) execute(bin string, limit time.Duration) (stdout, stderr []byte, code int) {
+	ctx, cancel := context.WithTimeout(c.cmds.ctx, limit)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin)
+	cmd := command(ctx, bin)
 	var o, e bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &o, &e
+	if !c.cmds.start() {
+		return nil, nil, -1
+	}
+	defer c.cmds.end()
 	cmd.Run()
 	code = -1
 	if cmd.ProcessState != nil {
@@ -479,8 +517,12 @@ func firstLine(b []byte) string {
 }
 
 // keep saves a failing batch's source and outputs under the failures
-// directory.
+// directory; nothing once the run is stopped, when a build failed
+// because it was stopped.
 func keep(c config, first, n int, src string, files map[string][]byte) {
+	if c.cmds.halted() {
+		return
+	}
 	dir := filepath.Join(c.failed, fmt.Sprintf("seed%d-b%d", c.seed, first))
 	os.MkdirAll(dir, 0o755)
 	os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0o644)

@@ -205,6 +205,7 @@ func TestRunErrors(t *testing.T) {
 		{"flag", []string{"-bogus"}, 2, "not defined"},
 		{"arg", []string{"extra"}, 2, "usage"},
 		{"zero", []string{"-programs", "0"}, 2, "usage"},
+		{"no Go cache", []string{"-gocache-max", "0"}, 2, "usage"},
 		{"go build", []string{"-programs", "1", "-go", fakeTool(t, "go", true, "", "")}, 1, "go build"},
 		{"go stderr", []string{"-programs", "1", "-go", fakeTool(t, "go", false, "x", "echo oops >&2"), "-gopatina", ok}, 1, "oops"},
 		{"go fails", []string{"-programs", "1", "-go", fakeTool(t, "go", false, "x", "echo fatal >&2; exit 2"), "-gopatina", ok}, 1, "fatal"},
@@ -251,7 +252,7 @@ func TestUnwritableBatch(t *testing.T) {
 }
 
 func TestExecuteMissing(t *testing.T) {
-	if _, _, code := execute(filepath.Join(t.TempDir(), "none"), time.Second); code != -1 {
+	if _, _, code := (config{cmds: newCommands()}).execute(filepath.Join(t.TempDir(), "none"), time.Second); code != -1 {
 		t.Errorf("code %d", code)
 	}
 }
@@ -348,7 +349,6 @@ func TestRunLeavesNothing(t *testing.T) {
 	// With -work, the directory is the caller's: it stays, empty.
 	work := t.TempDir()
 	os.MkdirAll(filepath.Join(work, "gocache", "x"), 0o755)
-	os.MkdirAll(filepath.Join(work, "cache-0", "x"), 0o755)
 	if code, _, errs := difftest("-programs", "2", "-work", work, "-go", g, "-gopatina", p); code != 0 {
 		t.Fatalf("code %d: %s", code, errs)
 	}
