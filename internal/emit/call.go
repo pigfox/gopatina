@@ -368,6 +368,9 @@ func (g *gen) std(e *ast.CallExpr, name string) node {
 	method := func(recv node, m string, args ...node) node {
 		return &call{recv: recv, head: "." + m, open: "(", close: ")", args: args}
 	}
+	if strings.HasPrefix(name, "math.") {
+		return g.mathCall(e, name)
+	}
 	switch name {
 	case "strings.Repeat":
 		return method(g.strRef(a[0]), "repeat", text(g.index(a[1])))

@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 52,
   "tested": 138,
-  "accepted": 31,
-  "compiled": 31,
-  "matched": 31,
-  "linted": 31,
-  "lint_clean": 29,
+  "accepted": 39,
+  "compiled": 39,
+  "matched": 39,
+  "linted": 39,
+  "lint_clean": 36,
   "rates": {
-    "accepted": 22.5,
-    "compiled": 22.5,
-    "lint_clean": 93.5,
-    "matched": 22.5
+    "accepted": 28.3,
+    "compiled": 28.3,
+    "lint_clean": 92.3,
+    "matched": 28.3
   },
   "skips": {
     "does not build with Go": 6,
@@ -35,27 +35,6 @@
     "waits for signals (os/signal)": 1
   },
   "clusters": [
-    {
-      "fingerprint": "uses the standard package math, which patina mode does not support yet",
-      "programs": [
-        "gobyexample/constants",
-        "gotour/basics/basic-types",
-        "gotour/basics/imports",
-        "gotour/basics/type-conversions",
-        "gotour/flowcontrol/if",
-        "gotour/flowcontrol/if-and-else",
-        "gotour/flowcontrol/if-with-a-short-statement",
-        "gotour/methods/indirection-values",
-        "gotour/methods/methods",
-        "gotour/methods/methods-funcs",
-        "gotour/methods/methods-pointers",
-        "gotour/methods/methods-pointers-explained",
-        "gotour/methods/methods-with-pointer-receivers",
-        "gotour/moretypes/function-values",
-        "gotour/solutions/errors",
-        "gotour/solutions/loops"
-      ]
-    },
     {
       "fingerprint": "uses the standard package unicode/utf8, which patina mode does not support yet",
       "programs": [
@@ -507,6 +486,14 @@
       ]
     },
     {
+      "fingerprint": "math.Pow is not supported in patina mode yet",
+      "programs": [
+        "gotour/flowcontrol/if-and-else",
+        "gotour/flowcontrol/if-with-a-short-statement",
+        "gotour/moretypes/function-values"
+      ]
+    },
+    {
       "fingerprint": "os.Create is not supported in patina mode yet",
       "programs": [
         "gobyexample/defer",
@@ -912,6 +899,12 @@
       ]
     },
     {
+      "fingerprint": "clippy: error: type `_` is more private than the item `_`",
+      "programs": [
+        "gobyexample/interfaces"
+      ]
+    },
+    {
       "fingerprint": "clippy: error: unnecessary use of `_`",
       "programs": [
         "gotour/moretypes/range-continued"
@@ -963,6 +956,12 @@
       "fingerprint": "make of map[string]main._ is not supported in patina mode yet",
       "programs": [
         "gotour/moretypes/maps"
+      ]
+    },
+    {
+      "fingerprint": "math.Sin is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/constants"
       ]
     },
     {
@@ -1516,12 +1515,6 @@
       "programs": [
         "gobyexample/directories"
       ]
-    },
-    {
-      "fingerprint": "using math.Pow as a value is not supported in patina mode yet",
-      "programs": [
-        "gotour/moretypes/function-values"
-      ]
     }
   ],
   "results": [
@@ -1668,7 +1661,7 @@
       "name": "gobyexample/constants",
       "stage": "refused",
       "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
+        "math.Sin is not supported in patina mode yet"
       ]
     },
     {
@@ -1841,8 +1834,10 @@
     {
       "name": "gobyexample/interfaces",
       "stage": "matched",
-      "linted": true,
-      "lint_clean": true
+      "fingerprints": [
+        "clippy: error: type `_` is more private than the item `_`"
+      ],
+      "linted": true
     },
     {
       "name": "gobyexample/json",
@@ -2345,8 +2340,7 @@
         "the format %T with a value of type uint64 is not supported in patina mode yet",
         "the format %T with a value of type complex128 is not supported in patina mode yet",
         "the format %v with a value of type complex128 is not supported in patina mode yet",
-        "uses the standard package math/cmplx, which patina mode does not support yet",
-        "uses the standard package math, which patina mode does not support yet"
+        "uses the standard package math/cmplx, which patina mode does not support yet"
       ]
     },
     {
@@ -2376,8 +2370,7 @@
       "name": "gotour/basics/imports",
       "stage": "refused",
       "fingerprints": [
-        "format string: \"S\": the verb %g is not supported in patina mode yet",
-        "uses the standard package math, which patina mode does not support yet"
+        "format string: \"S\": the verb %g is not supported in patina mode yet"
       ]
     },
     {
@@ -2412,10 +2405,9 @@
     },
     {
       "name": "gotour/basics/type-conversions",
-      "stage": "refused",
-      "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/basics/type-inference",
@@ -2562,24 +2554,23 @@
     },
     {
       "name": "gotour/flowcontrol/if",
-      "stage": "refused",
-      "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/flowcontrol/if-and-else",
       "stage": "refused",
       "fingerprints": [
-        "format string: \"S\": the verb %g is not supported in patina mode yet",
-        "uses the standard package math, which patina mode does not support yet"
+        "math.Pow is not supported in patina mode yet",
+        "format string: \"S\": the verb %g is not supported in patina mode yet"
       ]
     },
     {
       "name": "gotour/flowcontrol/if-with-a-short-statement",
       "stage": "refused",
       "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
+        "math.Pow is not supported in patina mode yet"
       ]
     },
     {
@@ -2679,10 +2670,9 @@
     },
     {
       "name": "gotour/methods/indirection-values",
-      "stage": "refused",
-      "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/methods/interface-values",
@@ -2711,10 +2701,9 @@
     },
     {
       "name": "gotour/methods/methods",
-      "stage": "refused",
-      "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/methods/methods-continued",
@@ -2724,31 +2713,27 @@
     },
     {
       "name": "gotour/methods/methods-funcs",
-      "stage": "refused",
-      "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/methods/methods-pointers",
-      "stage": "refused",
-      "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/methods/methods-pointers-explained",
-      "stage": "refused",
-      "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/methods/methods-with-pointer-receivers",
       "stage": "refused",
       "fingerprints": [
-        "the format %+_ with a value of type *main._ is not supported in patina mode yet",
-        "uses the standard package math, which patina mode does not support yet"
+        "the format %+_ with a value of type *main._ is not supported in patina mode yet"
       ]
     },
     {
@@ -2835,8 +2820,7 @@
         "a function type is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet",
         "a function literal (closure) is not supported in patina mode yet",
-        "using math.Pow as a value is not supported in patina mode yet",
-        "uses the standard package math, which patina mode does not support yet"
+        "math.Pow is not supported in patina mode yet"
       ]
     },
     {
@@ -3005,8 +2989,7 @@
         "format string: \"S\": the verb %g is not supported in patina mode yet",
         "converting to an interface a value whose _ method may panic is not supported in patina mode yet",
         "printing a value of type (float64, error) is not supported in patina mode yet",
-        "the results of _ used here other than as v..., err := _(...) or return _(...)",
-        "uses the standard package math, which patina mode does not support yet"
+        "the results of _ used here other than as v..., err := _(...) or return _(...)"
       ]
     },
     {
@@ -3030,10 +3013,9 @@
     },
     {
       "name": "gotour/solutions/loops",
-      "stage": "refused",
-      "fingerprints": [
-        "uses the standard package math, which patina mode does not support yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/solutions/maps",

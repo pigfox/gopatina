@@ -37,8 +37,25 @@ var StdFuncs = map[string]bool{
 	"strings.IndexByte":  true,
 	"strings.ReplaceAll": true,
 	"os.Exit":            true,
-	"slices.Clone":       true,
-	"bytes.Clone":        true,
+	// The provided math functions that are exact by IEEE 754: Rust gives
+	// Go's result bit for bit, NaNs included, on amd64 and arm64
+	// (testdata/golden/math_exact). Max and Min are not among them: Go's
+	// NaN result differs between amd64 and arm64.
+	"math.Sqrt":            true,
+	"math.Abs":             true,
+	"math.Floor":           true,
+	"math.Ceil":            true,
+	"math.Trunc":           true,
+	"math.Copysign":        true,
+	"math.Signbit":         true,
+	"math.IsNaN":           true,
+	"math.IsInf":           true,
+	"math.Inf":             true,
+	"math.NaN":             true,
+	"math.Float64bits":     true,
+	"math.Float64frombits": true,
+	"slices.Clone":         true,
+	"bytes.Clone":          true,
 }
 
 // StdVars lists the standard-library variables patina mode supports.

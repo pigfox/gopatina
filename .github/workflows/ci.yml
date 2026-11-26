@@ -63,6 +63,21 @@ jobs:
             exit 1
           fi
 
+  math-arm64:
+    # The provided math functions must give Go's result bit for bit on
+    # arm64 as on amd64 (the Rust tests elsewhere run on amd64 only).
+    name: math bit for bit (macos-latest, arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: Go and the generated Rust print the same bits
+        env:
+          GOPATINA_RUST_TESTS: "1"
+        run: go test ./internal/patina -run 'TestDifferential/(math_exact|shift_const_count)$' -v
+
   site-layout:
     name: site never scrolls sideways on a phone
     runs-on: ubuntu-latest

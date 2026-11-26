@@ -503,6 +503,66 @@ pub fn runes(s: &str) -> impl Iterator<Item = (i64, i32)> + '_ {
 `,
 	},
 	{
+		name: "floor",
+		code: `/// Go's math.Floor: the greatest integer value at most x. A NaN comes back
+/// quiet, as from Go's ROUNDSD on amd64 and FRINT on arm64.
+pub fn floor(x: f64) -> f64 {
+    if x.is_nan() { quiet(x) } else { x.floor() }
+}
+`,
+		deps: []string{"quiet"},
+	},
+	{
+		name: "ceil",
+		code: `/// Go's math.Ceil: the least integer value at least x. A NaN comes back
+/// quiet, as from Go's ROUNDSD on amd64 and FRINT on arm64.
+pub fn ceil(x: f64) -> f64 {
+    if x.is_nan() { quiet(x) } else { x.ceil() }
+}
+`,
+		deps: []string{"quiet"},
+	},
+	{
+		name: "trunc",
+		code: `/// Go's math.Trunc: the integer value of x, rounded toward zero. A NaN comes back
+/// quiet, as from Go's ROUNDSD on amd64 and FRINT on arm64.
+pub fn trunc(x: f64) -> f64 {
+    if x.is_nan() { quiet(x) } else { x.trunc() }
+}
+`,
+		deps: []string{"quiet"},
+	},
+	{
+		name: "quiet",
+		code: `/// The NaN x with its quiet bit set, its sign and payload kept.
+fn quiet(x: f64) -> f64 {
+    f64::from_bits(x.to_bits() | 0x0008_0000_0000_0000)
+}
+`,
+	},
+	{
+		name: "inf",
+		code: `/// Go's math.Inf: positive infinity if sign >= 0, negative infinity
+/// otherwise.
+pub fn inf(sign: i64) -> f64 {
+    if sign >= 0 {
+        f64::INFINITY
+    } else {
+        f64::NEG_INFINITY
+    }
+}
+`,
+	},
+	{
+		name: "is_inf",
+		code: `/// Go's math.IsInf: whether f is an infinity, of either sign when sign
+/// is 0, positive when sign > 0, negative when sign < 0.
+pub fn is_inf(f: f64, sign: i64) -> bool {
+    sign >= 0 && f == f64::INFINITY || sign <= 0 && f == f64::NEG_INFINITY
+}
+`,
+	},
+	{
 		name: "trim_space",
 		code: `/// Go's strings.TrimSpace: removes leading and trailing white space, as
 /// Go's unicode.IsSpace defines it.

@@ -4,16 +4,15 @@
 
 | of 138 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 31 | 22.5% |
-| compiled to Rust | 31 | 22.5% |
-| output matches Go | 31 | 22.5% |
-| clippy clean (of 31 linted) | 29 | 93.5% |
+| accepted by patina mode | 39 | 28.3% |
+| compiled to Rust | 39 | 28.3% |
+| output matches Go | 39 | 28.3% |
+| clippy clean (of 39 linted) | 36 | 92.3% |
 
 ## Failure clusters, largest first
 
 | programs | fingerprint | examples |
 |---|---|---|
-| 16 | uses the standard package math, which patina mode does not support yet | gobyexample/constants, gotour/basics/basic-types, gotour/basics/imports |
 | 13 | uses the standard package unicode/utf8, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/defer |
 | 12 | a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
 | 11 | uses the standard package internal/stringslite, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/defer |
@@ -55,6 +54,7 @@
 | 3 | format string: "S": the verb %g is not supported in patina mode yet | gotour/basics/imports, gotour/flowcontrol/if-and-else, gotour/solutions/errors |
 | 3 | make of chan bool is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/closing-channels, gobyexample/non-blocking-channel-operations |
 | 3 | make of map[string]int is not supported in patina mode yet | gobyexample/maps, gotour/concurrency/mutex-counter, gotour/moretypes/mutating-maps |
+| 3 | math.Pow is not supported in patina mode yet | gotour/flowcontrol/if-and-else, gotour/flowcontrol/if-with-a-short-statement, gotour/moretypes/function-values |
 | 3 | os.Create is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/writing-files |
 | 3 | package sync is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/mutexes, gotour/concurrency/mutex-counter |
 | 3 | printing a pointer of type *main._, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet | gobyexample/structs, gotour/methods/indirection, gotour/moretypes/struct-literals |
@@ -115,6 +115,7 @@
 | 1 | bytes.ToUpper is not supported _ patina mode yet | gobyexample/regular-expressions |
 | 1 | calling a pointer-receiver method on a package-level variable is not supported in patina mode yet | gobyexample/base64-encoding |
 | 1 | clippy: error: this loop never actually loops | gobyexample/for |
+| 1 | clippy: error: type `_` is more private than the item `_` | gobyexample/interfaces |
 | 1 | clippy: error: unnecessary use of `_` | gotour/moretypes/range-continued |
 | 1 | converting _ pointer to _ type other than _ named type of the program to an interface is not supported in patina mode yet | gotour/solutions/rot13 |
 | 1 | converting a []byte to a string (patina strings must be valid UTF-N) is not supported _ patina mode yet | gobyexample/regular-expressions |
@@ -124,6 +125,7 @@
 | 1 | io.EOF is not supported in patina mode yet | gotour/methods/reader |
 | 1 | io.ReadAtLeast is not supported in patina mode yet | gobyexample/reading-files |
 | 1 | make of map[string]main._ is not supported in patina mode yet | gotour/moretypes/maps |
+| 1 | math.Sin is not supported in patina mode yet | gobyexample/constants |
 | 1 | os.Chdir is not supported in patina mode yet | gobyexample/directories |
 | 1 | os.Environ is not supported in patina mode yet | gobyexample/environment-variables |
 | 1 | os.Getenv is not supported in patina mode yet | gobyexample/environment-variables |
@@ -216,7 +218,6 @@
 | 1 | uses the standard package unique, which patina mode does not support yet | gobyexample/text-templates |
 | 1 | using fmt.Println as a value is not supported in patina mode yet | gobyexample/string-functions |
 | 1 | using function _ as a value is not supported in patina mode yet | gobyexample/directories |
-| 1 | using math.Pow as a value is not supported in patina mode yet | gotour/moretypes/function-values |
 
 ## Skipped (not counted)
 

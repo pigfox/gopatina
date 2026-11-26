@@ -108,6 +108,7 @@ var (
 var allowedImports = map[string]bool{
 	"bytes": true, "errors": true, "fmt": true, "io": true, "os": true, "slices": true, "strings": true,
 	"time": true, // RFC 0011: Duration (ProvidedTypes)
+	"math": true, // RFC 0011: the functions exact by IEEE 754 (StdFuncs)
 }
 
 func (c *checker) file(f *ast.File) {
