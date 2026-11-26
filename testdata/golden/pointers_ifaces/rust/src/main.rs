@@ -41,12 +41,12 @@ pub struct Rect {
 }
 
 impl Rect {
-    pub fn area(r: &rt::Ptr<Rect>) -> i64 {
-        r.with(|v| v.w) * r.with(|v| v.h)
+    pub fn area(&self) -> i64 {
+        self.w * self.h
     }
 
-    pub fn grow(r: &rt::Ptr<Rect>, n: i64) {
-        r.with_mut(|v| v.w += n);
+    pub fn grow(&mut self, n: i64) {
+        self.w += n;
     }
 }
 
@@ -56,16 +56,16 @@ pub struct Sq {
 }
 
 impl Sq {
-    pub fn area(s: &rt::Ptr<Sq>) -> i64 {
-        s.with(|v| v.s) * s.with(|v| v.s)
+    pub fn area(&self) -> i64 {
+        self.s * self.s
     }
 
-    pub fn grow(s: &rt::Ptr<Sq>, n: i64) {
-        s.with_mut(|v| v.s += n);
+    pub fn grow(&mut self, n: i64) {
+        self.s += n;
     }
 
-    pub fn string(s: &rt::Ptr<Sq>) -> String {
-        format!("sq{}", s.with(|v| v.s))
+    pub fn string(&self) -> String {
+        format!("sq{}", self.s)
     }
 }
 
@@ -75,8 +75,8 @@ pub struct NotFound {
 }
 
 impl NotFound {
-    pub fn error(e: &rt::Ptr<NotFound>) -> String {
-        format!("not found: {}", e.with(|v| v.key.clone()))
+    pub fn error(&self) -> String {
+        format!("not found: {}", self.key)
     }
 }
 
@@ -84,53 +84,47 @@ fn find(k: String) -> Result<(), Iface> {
     if k.is_empty() {
         return Ok(());
     }
-    Err(boxed(Dyn::PtrNotFound(rt::Ptr::new(NotFound { key: k }))))
+    Err(boxed(Dyn::PtrNotFound(Some(Box::new(NotFound { key: k })))))
 }
 
-fn new_rect(w: i64, h: i64) -> rt::Ptr<Rect> {
-    rt::Ptr::new(Rect { w, h })
+fn new_rect(w: i64, h: i64) -> Box<Rect> {
+    Box::new(Rect { w, h })
 }
 
 fn main() {
     rt::exit_on_panic();
-    let r = new_rect(2, 3);
-    let shapes: Vec<Iface> = vec![
-        boxed(Dyn::PtrRect(r.clone())),
-        boxed(Dyn::PtrSq(rt::Ptr::new(Sq { s: 4 }))),
-    ];
-    for s in &shapes {
+    let mut shapes: Vec<Iface> = vec![
+        boxed(Dyn::PtrRect(Some(new_rect(2, 3)))),
+        boxed(Dyn::PtrSq(Some(Box::new(Sq { s: 4 })))),
+    ]; // each object moved into its interface
+    for s in shapes.iter_mut() {
         dyn_grow(s, 1);
         println!("{}", dyn_area(s));
     }
     println!(
         "{} {} {}",
-        r.with(|v| v.w),
-        shapes[0] == boxed(Dyn::PtrRect(r.clone())),
+        dyn_area(&shapes[0]),
+        shapes[0] == shapes[0],
         shapes[1] == shapes[0],
     );
     {
-        let (q, ok) = iface_try_ptr_sq(&shapes[1]);
+        let (mut q, ok) = iface_try_mut_ptr_sq(&mut shapes[1]);
         if ok {
-            Sq::grow(&q, 10);
-            let call = dyn_area(&shapes[1]);
-            println!(
-                "{} {} {}",
-                q.with(|v| v.s),
-                call,
-                rt::show_ptr(&q, Sq::string),
-            );
+            q.as_mut().unwrap().grow(10); // q borrows the *Sq shapes[1] owns: the change is the interface's
+            println!("{} {}", q.as_ref().unwrap().s, rt::show_ref(&q, Sq::string));
+            println!("{}", dyn_area(&shapes[1]));
         }
     }
     {
         let dyn_x = &shapes[0];
-        match dyn_x.as_ref() {
+        match dyn_x.as_deref() {
             Some(Dyn::PtrSq(v)) => {
-                let v_2 = v.clone();
-                println!("sq {}", v_2.with(|v| v.s));
+                let v = v.as_deref();
+                println!("sq {}", v.as_ref().unwrap().s);
             }
             Some(Dyn::PtrRect(v)) => {
-                let v_2 = v.clone();
-                println!("rect {} {}", v_2.with(|v| v.w), v_2.with(|v| v.h));
+                let v = v.as_deref();
+                println!("rect {} {}", v.as_ref().unwrap().w, v.as_ref().unwrap().h);
             }
             _ => {}
         }
@@ -138,43 +132,52 @@ fn main() {
     println!("{} {}", iface_type(&shapes[0]), iface_type(&shapes[1]));
     let err = iface_err(find(String::from("k")));
     println!("{}", iface_show(&err));
-    let mut nf: rt::Ptr<NotFound> = rt::Ptr::nil();
-    if iface_as_ptr_not_found(&err, &mut nf) {
-        println!("as {}", nf.with(|v| v.key.clone()));
-    }
     println!(
         "{} {}",
         iface_err(find(String::from(""))).is_none(),
         err.is_some(),
     );
-    let sq: rt::Ptr<Sq> = rt::Ptr::nil();
-    println!("{}", rt::show_ptr(&sq, Sq::string));
-    let sqs: Vec<rt::Ptr<Sq>> = vec![
-        rt::Ptr::new(Sq { s: 1 }),
-        rt::Ptr::nil(),
-        rt::Ptr::new(Sq { s: 3 }),
+    let mut nf: Option<&NotFound> = None;
+    if iface_as_ref_ptr_not_found(&err, &mut nf) {
+        // nf borrows the *NotFound err owns
+        println!("as {}", nf.unwrap().key);
+    }
+    let wrapped = go_wrap(format!("lookup: {}", iface_w(&err)), err); // err moves into the new error
+    let mut deep: Option<&NotFound> = None;
+    if iface_as_ref_ptr_not_found(&wrapped, &mut deep) {
+        println!("as {} {}", deep.unwrap().key, iface_show(&wrapped));
+    }
+    let sq: Option<Box<Sq>> = None;
+    println!("{}", rt::show_ref(&sq, Sq::string));
+    let nil_shape: Iface = boxed(Dyn::PtrSq(None)); // sq is nil: no object to own, so it stays usable
+    println!("{} {}", nil_shape.is_some(), sq.is_none());
+    let sqs: Vec<Option<Box<Sq>>> = vec![
+        Some(Box::new(Sq { s: 1 })),
+        None,
+        Some(Box::new(Sq { s: 3 })),
     ];
-    println!("{}", rt::SliceMap(&sqs, |e| rt::show_ptr(e, Sq::string)));
-    let none: Iface = boxed(Dyn::PtrSq(sq));
+    println!("{}", rt::SliceMap(&sqs, |e| rt::show_ref(e, Sq::string)));
+    let none: Iface = boxed(Dyn::PtrSq(None));
     println!("{}", none.is_some());
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
 #[derive(Clone)]
 pub enum Dyn {
-    PtrNotFound(rt::Ptr<NotFound>),
-    PtrRect(rt::Ptr<Rect>),
-    PtrSq(rt::Ptr<Sq>),
+    PtrNotFound(Option<Box<NotFound>>),
+    PtrRect(Option<Box<Rect>>),
+    PtrSq(Option<Box<Sq>>),
+    FmtWrapError(WrapError),
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
 /// value cannot be changed through the interface, so a copy is a clone, as
 /// Go copies it.
-pub type Iface = Option<Dyn>;
+pub type Iface = Option<Box<Dyn>>; // boxed: a dynamic value can hold one
 
 /// Converts a value to an interface value.
 pub fn boxed(d: Dyn) -> Iface {
-    Some(d)
+    Some(Box::new(d))
 }
 
 /// Go's == on two dynamic values: the same type and equal values; a type
@@ -182,9 +185,16 @@ pub fn boxed(d: Dyn) -> Iface {
 impl PartialEq for Dyn {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Dyn::PtrNotFound(a), Dyn::PtrNotFound(b)) => a == b,
-            (Dyn::PtrRect(a), Dyn::PtrRect(b)) => a == b,
-            (Dyn::PtrSq(a), Dyn::PtrSq(b)) => a == b,
+            (Dyn::PtrNotFound(a), Dyn::PtrNotFound(b)) => {
+                a.as_deref().map(std::ptr::from_ref) == b.as_deref().map(std::ptr::from_ref)
+            }
+            (Dyn::PtrRect(a), Dyn::PtrRect(b)) => {
+                a.as_deref().map(std::ptr::from_ref) == b.as_deref().map(std::ptr::from_ref)
+            }
+            (Dyn::PtrSq(a), Dyn::PtrSq(b)) => {
+                a.as_deref().map(std::ptr::from_ref) == b.as_deref().map(std::ptr::from_ref)
+            }
+            (Dyn::FmtWrapError(a), Dyn::FmtWrapError(b)) => a.id() == b.id(),
             _ => false,
         }
     }
@@ -197,21 +207,23 @@ pub fn iface_name(d: Option<&Dyn>) -> &'static str {
         Some(Dyn::PtrNotFound(_)) => "*main.NotFound",
         Some(Dyn::PtrRect(_)) => "*main.Rect",
         Some(Dyn::PtrSq(_)) => "*main.Sq",
+        Some(Dyn::FmtWrapError(_)) => "*fmt.wrapError",
     }
 }
 
 /// %T of an interface value.
 pub fn iface_type(x: &Iface) -> &'static str {
-    iface_name(x.as_ref())
+    iface_name(x.as_deref())
 }
 
 /// %v of an interface value.
 pub fn iface_show(x: &Iface) -> String {
-    match x.as_ref() {
+    match x.as_deref() {
         None => String::from("<nil>"),
-        Some(Dyn::PtrNotFound(v)) => rt::show_ptr(v, NotFound::error),
+        Some(Dyn::PtrNotFound(v)) => rt::show_ref(v, NotFound::error),
         Some(Dyn::PtrRect(v)) => unreachable!("fmt prints the address of a *main.Rect"),
-        Some(Dyn::PtrSq(v)) => rt::show_ptr(v, Sq::string),
+        Some(Dyn::PtrSq(v)) => rt::show_ref(v, Sq::string),
+        Some(Dyn::FmtWrapError(v)) => v.msg.clone(),
     }
 }
 
@@ -228,7 +240,7 @@ pub fn iface_assert_fail(d: Option<&Dyn>, iface: &str, want: &str) -> ! {
 
 /// x.(I) to an interface type I: x, or Go's panic.
 pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &str) -> Iface {
-    match x.as_ref() {
+    match x.as_deref() {
         None => panic!("gopatina-user-panic:interface conversion: interface is nil, not {want}"),
         Some(d) => {
             if let Some(m) = missing(d) {
@@ -244,48 +256,66 @@ pub fn iface_assert(x: Iface, missing: fn(&Dyn) -> Option<&'static str>, want: &
 
 /// v, ok := x.(I) to an interface type I.
 pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface, bool) {
-    match x.as_ref() {
+    match x.as_deref() {
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
 }
 
-/// v, ok := x.(*main.Sq).
-pub fn iface_try_ptr_sq(x: &Iface) -> (rt::Ptr<Sq>, bool) {
-    match x.as_ref() {
-        Some(Dyn::PtrSq(v)) => (v.clone(), true),
-        _ => (rt::Ptr::nil(), false),
+/// q, ok := x.(*main.Sq): a borrow of the pointer x holds.
+pub fn iface_try_mut_ptr_sq(x: &mut Iface) -> (Option<&mut Sq>, bool) {
+    match x.as_deref_mut() {
+        Some(Dyn::PtrSq(v)) => (v.as_deref_mut(), true),
+        _ => (None, false),
     }
 }
 
-/// errors.As to a *main.NotFound: sets target to the first error in err's chain that is one.
-pub fn iface_as_ptr_not_found(err: &Iface, target: &mut rt::Ptr<NotFound>) -> bool {
-    let mut err = err.clone();
-    loop {
-        if let Some(Dyn::PtrNotFound(v)) = err.as_ref() {
-            *target = v.clone();
-            return true;
-        }
-        match iface_unwrap(&err) {
-            Some(next) if next.is_some() => err = next,
-            _ => return false,
-        }
+/// Go's *fmt.wrapError: fmt.Errorf's value with one %w. Each one is a
+/// new pointer in Go; id stands for that identity.
+#[derive(Clone)]
+pub struct WrapError {
+    msg: String,
+    err: Iface,
+    id: u64,
+}
+
+impl WrapError {
+    fn id(&self) -> u64 {
+        self.id
     }
 }
 
-/// Unwrap() error of the dynamic value: the error it wraps, or None if it has
-/// no such method.
-pub fn iface_unwrap(x: &Iface) -> Option<Iface> {
-    match x.as_ref() {
-        _ => None,
+/// fmt.Errorf with %w: the message, wrapping err.
+pub fn go_wrap(msg: String, err: Iface) -> Iface {
+    let id = rt::error_id();
+    boxed(Dyn::FmtWrapError(WrapError { msg, err, id }))
+}
+
+/// %w of an error: its text, or %!w(<nil>).
+pub fn iface_w(x: &Iface) -> String {
+    if x.is_none() {
+        return String::from("%!w(<nil>)");
+    }
+    iface_show(x)
+}
+
+/// errors.As to a *main.NotFound: lends target the first one in err's chain.
+pub fn iface_as_ref_ptr_not_found<'a>(err: &'a Iface, target: &mut Option<&'a NotFound>) -> bool {
+    match err.as_deref() {
+        Some(Dyn::PtrNotFound(v)) => {
+            *target = v.as_deref();
+            true
+        }
+        Some(Dyn::FmtWrapError(w)) => iface_as_ref_ptr_not_found(&w.err, target),
+        _ => false,
     }
 }
 
 /// Calls Grow on an interface value's dynamic value.
-pub fn dyn_grow(x: &Iface, a0: i64) {
-    match x.as_ref() {
-        Some(Dyn::PtrRect(v)) => Rect::grow(v, a0),
-        Some(Dyn::PtrSq(v)) => Sq::grow(v, a0),
+pub fn dyn_grow(x: &mut Iface, a0: i64) {
+    match x.as_deref_mut() {
+        Some(Dyn::PtrRect(v)) => v.as_deref_mut().unwrap().grow(a0),
+        Some(Dyn::PtrSq(v)) => v.as_deref_mut().unwrap().grow(a0),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),
@@ -295,9 +325,9 @@ pub fn dyn_grow(x: &Iface, a0: i64) {
 
 /// Calls Area on an interface value's dynamic value.
 pub fn dyn_area(x: &Iface) -> i64 {
-    match x.as_ref() {
-        Some(Dyn::PtrRect(v)) => Rect::area(v),
-        Some(Dyn::PtrSq(v)) => Sq::area(v),
+    match x.as_deref() {
+        Some(Dyn::PtrRect(v)) => v.as_deref().unwrap().area(),
+        Some(Dyn::PtrSq(v)) => v.as_deref().unwrap().area(),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),

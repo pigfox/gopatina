@@ -3,6 +3,7 @@ package borrow
 import (
 	"fmt"
 	"github.com/pigfox/gopatina/internal/subset"
+	"go/ast"
 	"go/scanner"
 	"go/token"
 	"go/types"
@@ -16,6 +17,10 @@ func (l *live) handOff(ev event, lv set) {
 	a := l.a
 	t := a.pkg.Info.Types[ev.e].Type
 	k := KindOf(t)
+	if id, ok := ev.e.(*ast.Ident); ok && subset.Ptrs(a.pkg).NilConv(id) {
+		a.res.Actions[ev.e] = Move // a nil pointer: nothing moves (RFC 0017)
+		return
+	}
 	if k == Error || k == Writer || k == PointerKind {
 		return
 	}
@@ -68,6 +73,10 @@ func (l *live) handOff(ev event, lv set) {
 		return
 	}
 	a.res.Actions[ev.e] = Clone
+	if subset.IsIface(t) && a.ifaceHoldsPointers(t) {
+		ev.cloneWhy = why
+		l.ifaceClones = append(l.ifaceClones, ev) // refused unless lent (decideLends)
+	}
 	reason := copyReason(t)
 	if k == Shared {
 		reason = fmt.Sprintf("%s neither keeps it nor changes what it shares, so a copy behaves like Go's", ev.into)
@@ -79,8 +88,6 @@ func (l *live) handOff(ev event, lv set) {
 // can change, keeps the program's meaning.
 func copyReason(t types.Type) string {
 	switch {
-	case heapPtrType(t):
-		return "a copy of a pointer points at the same variable, as Go's does (RFC 0013)"
 	case isStruct(t):
 		return "Go copies structs too, and nothing in this one can be shared, so a copy keeps the program's meaning"
 	case subset.IsIface(t):

@@ -1,11 +1,10 @@
 ./main.go:12:6: pointers of type *Edge are never shared: each has one owner (RFC 0016)
 ./main.go:17:6: pointers of type *Vertex are never shared: each has one owner (RFC 0016)
-./main.go:25:20: Inner.Back can point back to an Outer: a cycle through it is not reclaimed (RFC 0013)
-./main.go:27:6: pointers of type *Outer are never shared: each has one owner (RFC 0016)
-./main.go:35:7: receiver o is an exclusive borrow: Note changes it, and the caller sees the change
-./main.go:41:6: pointers of type *Link are never shared: each has one owner (RFC 0016)
-./main.go:45:6: pointers of type *Item are never shared: each has one owner (RFC 0016)
-./main.go:49:6: pointers of type *Chain are never shared: each has one owner (RFC 0016)
-./main.go:55:6: pointers of type *Ring are never shared: each has one owner (RFC 0016)
-./main.go:63:7: receiver r is an exclusive borrow: Note changes it, and the caller sees the change
-./main.go:70:6: pointers of type *Hand are never shared: each has one owner (RFC 0016)
+./main.go:26:6: pointers of type *Outer are never shared: each has one owner (RFC 0016)
+./main.go:34:7: receiver o is an exclusive borrow: Note changes it, and the caller sees the change
+./main.go:40:6: pointers of type *Link are never shared: each has one owner (RFC 0016)
+./main.go:44:6: pointers of type *Item are never shared: each has one owner (RFC 0016)
+./main.go:48:6: pointers of type *Chain are never shared: each has one owner (RFC 0016)
+./main.go:54:6: pointers of type *Ring are never shared: each has one owner (RFC 0016)
+./main.go:62:7: receiver r is an exclusive borrow: Note changes it, and the caller sees the change
+./main.go:69:6: pointers of type *Hand are never shared: each has one owner (RFC 0016)

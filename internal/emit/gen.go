@@ -57,15 +57,10 @@ type gen struct {
 	modules      []Module    // the other packages' Rust modules, once written
 	ifc          *ifaceState // interface values (RFC 0012, iface.go)
 	api          *apiItems   // a library crate's API (RFC 0014, library.go), or nil
-	// Pointers that escape (RFC 0013, ptrs.go): the plan, the node standing
-	// for a cell's contents while an access to it is rendered, and the
-	// values of a write computed first.
-	ptrs        *subset.PtrPlan
-	cellRoot    map[ast.Expr]string
-	inCellRead  bool
-	inCellWrite bool
-	cellName    string
-	temps       map[ast.Expr]string
+	// Pointers that escape (RFC 0013, ptrs.go): the plan, and the values
+	// computed into locals first.
+	ptrs  *subset.PtrPlan
+	temps map[ast.Expr]string
 	// life is the named lifetime of the function being written ("'a "),
 	// where its result borrows from one of several inputs (decision 4).
 	life string
@@ -81,8 +76,7 @@ type gen struct {
 	skip map[ast.Stmt]bool
 	// writing is set while a place being assigned is written: the owned
 	// pointers it goes through are reached exclusively (RFC 0017, step 3).
-	writing    bool
-	inCellCall map[*ast.CallExpr]bool
+	writing bool
 	// rawCalls are calls of functions lowered to Result being rendered as
 	// the Result (errvals.go).
 	rawCalls map[*ast.CallExpr]bool
@@ -162,10 +156,9 @@ func source(pkg *load.Package, res *borrow.Result, errs *subset.ErrPlan) (mainRS
 	}
 	g.ptrs = subset.Ptrs(pkg)
 	borrow.SetHeap(g.ptrs.HeapType)
-	g.cellRoot, g.temps = map[ast.Expr]string{}, map[ast.Expr]string{}
+	g.temps = map[ast.Expr]string{}
 	g.raw, g.boxSlot, g.bound = map[ast.Expr]bool{}, map[ast.Expr]bool{}, map[string]boundPtr{}
 	g.skip = map[ast.Stmt]bool{}
-	g.inCellCall = map[*ast.CallExpr]bool{}
 	g.gnames, g.initVarsName = map[*types.Var]string{}, map[*types.Package]string{}
 	g.galias, g.callTemps = map[*types.Var]string{}, map[*ast.CallExpr]string{}
 	g.nameDecls()

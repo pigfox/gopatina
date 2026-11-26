@@ -1,6 +1,7 @@
 package subset
 
 import (
+	"go/ast"
 	"go/types"
 	"strings"
 	"testing"
@@ -199,7 +200,7 @@ func TestOwnerErrors(t *testing.T) {
 	if errs := p.ownerErrors(); len(errs) != 1 || !strings.Contains(errs[0].msg, "parameter n is assigned another pointer") {
 		t.Errorf("ownerErrors = %v", errs)
 	}
-	shared := strings.Replace(src, "func main() {\n", "func main() {\n\tvar x any = bottomUp(1)\n\t_ = x\n", 1)
+	shared := strings.Replace(src, "func main() {\n", "func main() {\n\tx := bottomUp(1)\n\tf := func() int { return x.V }\n\t_ = f()\n", 1)
 	if p, _ := ownedOf(t, shared); len(p.ownerErrors()) != 0 {
 		t.Errorf("ownerErrors of a shared type = %v", p.ownerErrors())
 	}
@@ -222,7 +223,6 @@ func TestOwnedShared(t *testing.T) {
 		{"value outside its box", "", "var v Node\n\t_ = v", "held outside its box"},
 		{"address of a dereference", "", "a := bottomUp(1)\n\tq := &*a\n\t_ = q", "computed in a way that may share it"},
 		{"dereference", "", "a := bottomUp(1)\n\tv := *a\n\t_ = v", "outside its box"},
-		{"interface", "", "var x any = bottomUp(1)\n\t_ = x", "an interface value holds it"},
 		{"closure", "", "a := bottomUp(1)\n\tf := func() int { return a.V }\n\t_ = f()", "a function literal captures it"},
 		{"method value", "", "a := bottomUp(1)\n\tf := a.check\n\t_ = f", "a copy of it is kept"},
 		{"value method", "func (n Node) get() int { return n.V }", "_ = bottomUp(1).get()", "outside its box"},
@@ -319,33 +319,163 @@ func TestValueData(t *testing.T) {
 	}
 }
 
-// TestAliasThroughIface checks that a second pointer to a Kid, held by a
-// Node an interface holds, is no error: Kid's pointers stay cells until
-// interface values are owned, and the cells express it (RFC 0017).
-func TestAliasThroughIface(t *testing.T) {
+// TestIfaceConversions checks pointers converted to interfaces (RFC 0012
+// with RFC 0017): the interface owns the object, so a new pointer or a
+// variable not used after moves in, and the type stays owned; a variable
+// still used, or a field, is a second owner, refused; a variable known to
+// be nil has no object, so it may be converted and still used.
+func TestIfaceConversions(t *testing.T) {
 	const src = `package main
 
 import "fmt"
 
-type Node struct{ Kid *Kid }
+type Node struct {
+	Kid *Kid
+	V   int
+}
 
 type Kid struct{ V int }
 
 func main() {
+	var a any = &Node{V: 1}
 	n := &Node{Kid: &Kid{V: 1}}
-	var a any = n
-	k := n.Kid
-	k.V++
-	fmt.Println(a != nil, n.Kid.V, k.V)
+	var b any = n
+	var none *Node
+	var c any = none
+	fmt.Println(a != nil, b != nil, c != nil, none == nil)
 }
 `
-	p, _ := ownedOf(t, src)
+	p, node := ownedOf(t, src)
+	if !p.Owned(node) {
+		_, why, _ := p.SharedReason(node)
+		t.Fatalf("*Node shared: %s", why)
+	}
 	if errs := p.ownerErrors(); len(errs) > 0 {
 		t.Errorf("errors: %v", errs)
 	}
-	kid := types.NewPointer(p.pkg.Types.Scope().Lookup("Kid").Type())
-	if _, why, ok := p.SharedReason(kid); !ok || why != "a copy of it is kept" {
-		t.Errorf("*Kid: %q, %v", why, ok)
+	bad := strings.Replace(src, "none == nil)", "none == nil, n.V, b == nil)\n\tvar d any = n.Kid\n\t_ = d", 1)
+	p, _ = ownedOf(t, bad)
+	var msgs []string
+	for _, e := range p.ownerErrors() {
+		msgs = append(msgs, e.msg)
+	}
+	got := strings.Join(msgs, "\n")
+	for _, want := range []string{"n is converted to an interface while it is still used", "n.Kid is converted to an interface, so its object has two owners"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("errors %q, want %q", got, want)
+		}
+	}
+	// none assigned is not known to be nil.
+	for _, change := range []string{"none = &Node{}"} {
+		changed := strings.Replace(src, "\tvar c any = none\n", "\t"+change+"\n\tvar c any = none\n", 1)
+		if p, _ := ownedOf(t, changed); len(p.ownerErrors()) == 0 {
+			t.Errorf("%s: no error for none converted while still used", change)
+		}
+	}
+}
+
+// TestAssertRefs checks that q, ok := x.(*T) borrows the pointer the
+// interface holds: a local borrow of x's variable (RFC 0017).
+func TestAssertRefs(t *testing.T) {
+	const src = `package main
+
+import "fmt"
+
+type Node struct{ V int }
+
+func (n *Node) Inc() { n.V++ }
+
+type Incer interface{ Inc() }
+
+func main() {
+	var x Incer = &Node{V: 1}
+	if q, ok := x.(*Node); ok {
+		q.Inc()
+		fmt.Println(q.V)
+	}
+	fmt.Println(x != nil)
+}
+`
+	p, _ := ownedOf(t, src)
+	var q *types.Var
+	for v := range p.refAsserts {
+		q = v
+	}
+	if q == nil || p.RefAssert(q) == nil || p.AssertRef(p.RefAssert(q)) != q || !p.LocalRef(q) {
+		t.Fatalf("q is not a borrow of x: %v", q)
+	}
+	if p.AssertRef(&ast.TypeAssertExpr{}) != nil {
+		t.Error("AssertRef of another assertion")
+	}
+}
+
+// TestAsRefs checks that var q *T; errors.As(err, &q) makes q a borrow
+// of the pointer in err's chain, and that a nil pointer converted to an
+// interface is marked (NilConv); &v given to another call is neither.
+func TestAsRefs(t *testing.T) {
+	const src = `package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+type Node struct{ V int }
+
+func (n *Node) Error() string { return "node" }
+
+func (n *Node) Inc() { n.V++ }
+
+func main() {
+	var err error = &Node{V: 1}
+	var q *Node
+	if errors.As(err, &q) {
+		fmt.Println(q.V)
+	}
+	var none *Node
+	var e2 error = none
+	n := &Node{}
+	n.Inc()
+	fmt.Println(e2 != nil, none == nil, n.V)
+}
+`
+	pkg, err := load.Source("/p", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := Ptrs(pkg)
+	byName := map[string]*types.Var{}
+	for id, obj := range pkg.Info.Defs {
+		if v, ok := obj.(*types.Var); ok {
+			byName[id.Name] = v
+		}
+	}
+	if q := byName["q"]; p.RefAs(q) == nil || !p.LocalRef(q) {
+		t.Errorf("q is not a borrow of err: %v, %v", p.RefAs(q), p.LocalRef(q))
+	}
+	nils := 0
+	for id := range pkg.Info.Uses {
+		if p.NilConv(id) {
+			nils++
+			if id.Name != "none" {
+				t.Errorf("NilConv(%s)", id.Name)
+			}
+		}
+	}
+	if nils != 1 {
+		t.Errorf("%d nil conversions, want 1", nils)
+	}
+	// &r given to a function of the program is not an errors.As target.
+	other := strings.Replace(src, "func (n *Node) Inc()", "func set(e error, p **Node) bool { return e == nil && p != nil }\n\nfunc (n *Node) Inc()", 1)
+	other = strings.Replace(other, "\tn := &Node{}\n", "\tvar r *Node\n\t_ = set(nil, &r)\n\tn := &Node{}\n", 1)
+	if pkg, err = load.Source("/q", "main.go", other, "go1.25"); err != nil {
+		t.Fatal(err)
+	}
+	p = Ptrs(pkg)
+	for id, obj := range pkg.Info.Defs {
+		if v, ok := obj.(*types.Var); ok && id.Name == "r" && p.RefAs(v) != nil {
+			t.Error("&r given to set is an errors.As target")
+		}
 	}
 }
 
@@ -403,5 +533,31 @@ func main() {
 	if !p.Owned(ints) {
 		_, why, _ := p.SharedReason(ints)
 		t.Errorf("*Ints shared: %s", why)
+	}
+}
+
+// TestPlansMadeOnce checks that the interface plan and the pointer plan are
+// made once per package, and that once the pointer plan is complete its
+// answers are kept: callers ask per use, and a 200-program difftest batch
+// spent most of an hour rebuilding them (RFC 0017).
+func TestPlansMadeOnce(t *testing.T) {
+	pkg, err := load.Source("/once", "main.go", tree, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if Ifaces(pkg) != Ifaces(pkg) {
+		t.Error("Ifaces rebuilt its plan")
+	}
+	p := Ptrs(pkg)
+	if p != Ptrs(pkg) || !p.complete {
+		t.Fatal("Ptrs rebuilt its plan, or left it incomplete")
+	}
+	node := types.NewPointer(pkg.Types.Scope().Lookup("Node").Type())
+	if !p.HeapType(node) || !p.Owned(node) {
+		t.Fatal("*Node not an owned heap pointer")
+	}
+	elem := node.Elem()
+	if !p.heapOf[elem] || !p.ownedOf[elem] {
+		t.Error("HeapType and Owned did not keep their answers")
 	}
 }

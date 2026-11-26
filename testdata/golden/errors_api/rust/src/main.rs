@@ -105,7 +105,7 @@ fn main() {
     let wrapped = go_wrap(format!("read f: {}", iface_w(&base)), base.clone());
     let twice = go_wrap(format!("open: {}", iface_w(&wrapped)), wrapped.clone());
     let none: Iface = None;
-    let nil_wrapped = go_wrap(format!("nil: {}", iface_w(&none)), none.clone());
+    let nil_wrapped = go_wrap(format!("nil: {}", iface_w(&none)), none);
     println!(
         "{} {} {}",
         iface_show(&wrapped),
@@ -138,7 +138,7 @@ fn main() {
         err: boxed(Dyn::Code(Code { n: 7 })),
     };
     let op_err: Iface = boxed(Dyn::Op(op.clone()));
-    let err: Iface = go_wrap(format!("outer: {}", iface_w(&op_err)), op_err.clone());
+    let err: Iface = go_wrap(format!("outer: {}", iface_w(&op_err)), op_err);
     println!(
         "{} {} {} {}",
         iface_show(&err),
@@ -179,10 +179,7 @@ fn main() {
     let mut pp: Vec<String> = Vec::new();
     println!(
         "{} {}",
-        iface_as_path(
-            &go_wrap(format!("y: {}", iface_w(&perr)), perr.clone()),
-            &mut pp,
-        ),
+        iface_as_path(&go_wrap(format!("y: {}", iface_w(&perr)), perr), &mut pp),
         pp.len() as i64,
     );
     let list: Iface = boxed(Dyn::UncomparableListOfStrings(vec![String::from("x")]));

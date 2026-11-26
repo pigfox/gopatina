@@ -1,22 +1,28 @@
-./main.go:33:9: copying a value of type []int out of a pointer that escapes (a copy would not share its elements) is not supported in patina mode yet
+./main.go:38:9: p.items cannot be handed to a return without a copy: p is borrowed, so its value cannot be moved out
+    in Go the copy would share p.items's memory, so a change through one is seen through the other;
+    patina mode does not copy such values on its own, because a copy would change what the program does
+    hand over a copy instead: slices.Clone(p.items)
+./main.go:46:23: p.items is still used after it was handed to s on line 45
+        s := p.items              // line 45: s now holds p.items
+        fmt.Println(s, items(p))  // line 46: p.items is used here, but s now owns it
+    patina mode does not copy p.items on its own: a copy would not share that memory, so the program could behave differently
+    if s should keep the original, hand it a copy: slices.Clone(p.items)
+    or finish using p.items before handing it over
+./main.go:48:12: p.items is still used after it was handed to keepIt on line 47
+        keepIt(p.items)      // line 47: keepIt keeps p.items
+        for range p.items {  // line 48: p.items is used here, but keepIt now owns it
+    patina mode does not copy p.items on its own: a copy would not share that memory, so the program could behave differently
+    if keepIt should keep the original, hand it a copy: slices.Clone(p.items)
+    or finish using p.items before handing it over
+./main.go:51:2: calling a method that changes its copy of a value held through a pointer that escapes is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
-./main.go:40:7: copying a value of type []int out of a pointer that escapes (a copy would not share its elements) is not supported in patina mode yet
+./main.go:53:5: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
-./main.go:42:9: handing a value of type []int held through a pointer that escapes to keepIt, which keeps it is not supported in patina mode yet
+./main.go:55:6: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
-./main.go:43:12: ranging over a slice held through a pointer in a program that changes the elements of a []int held through one is not supported in patina mode yet
+./main.go:57:9: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
-./main.go:45:12: copying a value of type []int out of a pointer that escapes (a copy would not share its elements) is not supported in patina mode yet
+./main.go:59:21: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
-./main.go:46:2: calling a method that changes its copy of a value held through a pointer that escapes is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:47:2: calling a method that changes its copy of a value held through a pointer that escapes is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:48:5: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:50:6: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:52:9: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:58:17: converting *main.T to an interface, where main.T holds a slice and has value methods (a copy would not share its elements) is not supported in patina mode yet
+./main.go:65:17: converting *main.T to an interface, where main.T holds a slice and has value methods (a copy would not share its elements) is not supported in patina mode yet
     see docs/compat.md for what patina mode supports

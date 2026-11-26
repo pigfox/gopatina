@@ -167,6 +167,33 @@ func TestRunDefects(t *testing.T) {
 	}
 }
 
+// TestBuildTimeout checks that a gopatina build past -build-timeout is
+// stopped, fails its batch (a defect for each of its programs), says so on
+// stderr with the batch's programs, and keeps the batch with the note.
+func TestBuildTimeout(t *testing.T) {
+	g := fakeTool(t, "go", false, "x", "true")
+	hang := filepath.Join(t.TempDir(), "gopatina")
+	if err := os.WriteFile(hang, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fail := t.TempDir()
+	start := time.Now()
+	code, out, errs := difftest("-programs", "2", "-per", "2", "-go", g, "-gopatina", hang,
+		"-build-timeout", "400ms", "-work", t.TempDir(), "-failures", fail)
+	if took := time.Since(start); took > 20*time.Second {
+		t.Errorf("the hanging build was not stopped: %v", took)
+	}
+	var r report
+	json.Unmarshal([]byte(out), &r)
+	if code != 3 || r.Defects == 0 || !strings.Contains(errs, "build timed out after 1.2s (400ms per program; programs 0-1") {
+		t.Errorf("code %d, report %s, stderr %s", code, out, errs)
+	}
+	kept, err := os.ReadFile(filepath.Join(fail, "seed1-b0", "patina-build.txt"))
+	if err != nil || !strings.Contains(string(kept), "ran past 1.2s (-build-timeout 400ms per program)") {
+		t.Errorf("kept %q, %v", kept, err)
+	}
+}
+
 func TestRunErrors(t *testing.T) {
 	ok := fakeTool(t, "go", false, "x", "true")
 	for _, tc := range []struct {

@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 )
 
 // Owned pointers (RFC 0016, step 1). A heap pointer type *T is owned when
@@ -28,12 +29,20 @@ func (p *PtrPlan) Owned(t types.Type) bool {
 		return false
 	}
 	p.ownedOnce()
+	if is, ok := p.ownedOf[pt.Elem()]; ok {
+		return is
+	}
+	is := false
 	for _, o := range p.owned {
 		if types.Identical(o, pt.Elem()) {
-			return true
+			is = true
+			break
 		}
 	}
-	return false
+	if p.complete {
+		p.ownedOf[pt.Elem()] = is
+	}
+	return is
 }
 
 // SharedReason returns why the heap pointer type t is not owned, and
@@ -65,7 +74,7 @@ func (p *PtrPlan) ownedOnce() {
 		return
 	}
 	p.ownedDone = true
-	o := &ownership{p: p, info: p.pkg.Info, why: map[types.Type]sharing{}, ifaced: map[types.Type]bool{}, boxed: Ifaces(p.pkg).Boxed, chained: map[types.Type]bool{}}
+	o := &ownership{p: p, info: p.pkg.Info, why: map[types.Type]sharing{}, boxed: Ifaces(p.pkg).Boxed, chained: map[types.Type]bool{}}
 	o.run()
 	for _, h := range p.heap {
 		if s, ok := o.whyOf(h); ok {
@@ -79,11 +88,8 @@ func (p *PtrPlan) ownedOnce() {
 			p.ownerErrs = append(p.ownerErrs, e)
 		}
 	}
-	ifaced := o.ifacedTypes()
 	for _, e := range o.aliases {
-		if !ifaced[e.t] {
-			p.ownerErrs = append(p.ownerErrs, e)
-		}
+		p.ownerErrs = append(p.ownerErrs, e)
 	}
 	for t := range o.chained {
 		p.chained = append(p.chained, t)
@@ -126,8 +132,11 @@ type ownership struct {
 	// (RFC 0017) unless an interface holds the type's pointers, which keep
 	// their cells until interface values are owned too.
 	aliases []ownerError
-	// ifaced are the element types an interface value holds a pointer to.
-	ifaced map[types.Type]bool
+	// ownerFields are the fields of the owner structs (ownerStructField),
+	// found once: a field asks for every type of the program.
+	ownerFields map[*types.Var]bool
+	// nilVars are the variables always nil (nilVar), found once.
+	nilVars map[*types.Var]bool
 	// kept are the parameters their function keeps: returns, stores or
 	// moves (RFC 0017, step 8). The caller moves its pointer in.
 	kept map[*types.Var]bool
@@ -162,41 +171,77 @@ func (o *ownership) refuse(t types.Type, e ast.Expr, msg string, notes ...string
 	o.errs = append(o.errs, ownerError{t: t, pos: e.Pos(), msg: msg, notes: notes})
 }
 
+// ifaceConvert checks a pointer converted to an interface (RFC 0012 with
+// RFC 0017): the interface value owns the object it is given, so the
+// conversion moves the pointer in. A new pointer, or a variable nothing
+// uses after, moves; a variable known to be nil has no object to own. A
+// variable still used, or a field or an element (which keeps its object),
+// would give the object two owners.
+func (o *ownership) ifaceConvert(el types.Type, e ast.Expr) {
+	switch x := ast.Unparen(e).(type) {
+	case *ast.Ident:
+		v, _ := o.info.Uses[x].(*types.Var)
+		if v != nil && o.nilVar(v) {
+			o.p.nilConv[x] = true // no object: the interface holds a nil *T
+			return
+		}
+		if v == nil || !o.usedAfter(v, x.End()) {
+			return // moved in
+		}
+		o.alias(el, x, "an interface value holds it",
+			fmt.Sprintf("%s is converted to an interface while it is still used, so its object has two owners", x.Name),
+			fmt.Sprintf("an interface value owns the object it is given (RFC 0017): converting %s moves it into the interface", x.Name),
+			fmt.Sprintf("use the object through the interface from here on, or convert a new object and keep %s", x.Name))
+	case *ast.SelectorExpr, *ast.IndexExpr:
+		o.alias(el, x, "an interface value holds it",
+			fmt.Sprintf("%s is converted to an interface, so its object has two owners", types.ExprString(x)),
+			"an interface value owns the object it is given, and the field or element still holds it (RFC 0017)",
+			fmt.Sprintf("take it out first (v := %[1]s; %[1]s = nil), or convert a new object", types.ExprString(x)))
+	}
+}
+
+// nilVar reports whether v, a pointer variable, is always nil: declared
+// with no value and never assigned.
+func (o *ownership) nilVar(v *types.Var) bool {
+	if o.nilVars == nil {
+		// Found once: every variable declared with no value, less those
+		// ever assigned.
+		o.nilVars = map[*types.Var]bool{}
+		changed := map[*types.Var]bool{}
+		for _, f := range o.p.pkg.Files {
+			ast.Inspect(f, func(n ast.Node) bool {
+				switch x := n.(type) {
+				case *ast.ValueSpec:
+					for _, name := range x.Names {
+						if w, ok := o.info.Defs[name].(*types.Var); ok && len(x.Values) == 0 {
+							o.nilVars[w] = true
+						}
+					}
+				case *ast.AssignStmt:
+					for _, l := range x.Lhs {
+						if id, ok := ast.Unparen(l).(*ast.Ident); ok {
+							if w, ok := o.info.Uses[id].(*types.Var); ok {
+								changed[w] = true
+							}
+						}
+					}
+				}
+				return true // &v of a pointer variable is not in the subset
+			})
+		}
+		for w := range changed {
+			delete(o.nilVars, w)
+		}
+	}
+	return o.nilVars[v]
+}
+
 // alias records that element type t is shared at e because a use gives
 // its object a second owner, which one owner per object refuses (RFC
 // 0017): why says so for SharedReason, msg and notes for the error.
 func (o *ownership) alias(t types.Type, e ast.Node, why, msg string, notes ...string) {
 	o.share(t, e.Pos(), why)
 	o.aliases = append(o.aliases, ownerError{t: t, pos: e.Pos(), msg: msg, notes: notes})
-}
-
-// ifacedTypes returns the element types whose pointers stay cells because
-// an interface holds them: those an interface value holds, and those a
-// field of one holds, through any number of fields.
-func (o *ownership) ifacedTypes() map[types.Type]bool {
-	set := map[types.Type]bool{}
-	for t := range o.ifaced {
-		set[t] = true
-	}
-	for changed := true; changed; {
-		changed = false
-		for _, h := range o.p.heap {
-			if !set[h] {
-				continue
-			}
-			st, ok := h.Underlying().(*types.Struct)
-			if !ok {
-				continue
-			}
-			for i := 0; i < st.NumFields(); i++ {
-				if el := o.elemOf(st.Field(i).Type()); el != nil && !set[el] {
-					set[el] = true
-					changed = true
-				}
-			}
-		}
-	}
-	return set
 }
 
 // share records that element type t is shared, at pos, because of why.
@@ -255,6 +300,8 @@ func (o *ownership) run() {
 				if o.ptrSlice(ft) {
 					continue // a slice of them, a Vec owning each (RFC 0017, step 7)
 				}
+			case *types.Interface:
+				continue // an interface value owns its object (RFC 0012 with RFC 0017)
 			}
 			if plainData(f.Type()) {
 				continue // data the box owns: a Vec<i64>, a struct of numbers (RFC 0017)
@@ -515,29 +562,30 @@ func (o *ownership) ownerStruct(t types.Type) bool {
 
 // ownerStructField reports whether field v belongs to an owner struct.
 func (o *ownership) ownerStructField(v *types.Var) bool {
-	for _, f := range o.p.pkg.Files {
-		for _, d := range f.Decls {
-			g, ok := d.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			for _, sp := range g.Specs {
-				ts, ok := sp.(*ast.TypeSpec)
+	if o.ownerFields == nil {
+		o.ownerFields = map[*types.Var]bool{}
+		for _, f := range o.p.pkg.Files {
+			for _, d := range f.Decls {
+				g, ok := d.(*ast.GenDecl)
 				if !ok {
 					continue
 				}
-				t := o.info.Defs[ts.Name].Type()
-				if st, ok := t.Underlying().(*types.Struct); ok && o.ownerStruct(t) {
-					for i := 0; i < st.NumFields(); i++ {
-						if st.Field(i) == v {
-							return true
+				for _, sp := range g.Specs {
+					ts, ok := sp.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					t := o.info.Defs[ts.Name].Type()
+					if st, ok := t.Underlying().(*types.Struct); ok && o.ownerStruct(t) {
+						for i := 0; i < st.NumFields(); i++ {
+							o.ownerFields[st.Field(i)] = true
 						}
 					}
 				}
 			}
 		}
 	}
-	return false
+	return o.ownerFields[v]
 }
 
 // ownerLit reports whether the composite literal on top of stack (or
@@ -800,8 +848,7 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 		return
 	}
 	if _, boxed := o.boxed[e]; boxed {
-		o.share(el, e.Pos(), "an interface value holds it")
-		o.ifaced[el] = true
+		o.ifaceConvert(el, e)
 		return
 	}
 	if c, ok := e.(*ast.CallExpr); ok && o.p.retBorrowCall(c) != nil {
@@ -819,6 +866,13 @@ func (o *ownership) expr(e ast.Expr, stack []ast.Node) {
 			}
 			o.placeUse(el, e, stack) // &x lent to a call (escapes.go)
 			return
+		}
+	}
+	if ta, ok := e.(*ast.TypeAssertExpr); ok {
+		for _, x := range o.p.refAsserts {
+			if x == ta {
+				return // q := x.(*T): a borrow of the interface's pointer (escapes.go)
+			}
 		}
 	}
 	switch e.(type) {
@@ -859,6 +913,8 @@ func (o *ownership) fresh(e ast.Expr) bool {
 			}
 		}
 		return o.programCallee(x) != nil
+	case *ast.CompositeLit:
+		return isPointer(o.info.TypeOf(x)) // {..} for &T{..}, the & elided in a []*T literal
 	}
 	return false
 }
@@ -988,6 +1044,11 @@ func (o *ownership) placeUse(el types.Type, e ast.Expr, stack []ast.Node) {
 	}
 	if o.lentToBorrow(par, child) {
 		return // a temporary borrow takes it for a while (RFC 0017, step 5)
+	}
+	if id, ok := ast.Unparen(e).(*ast.Ident); ok && asTarget(o.info, stack[:at+1]) != nil {
+		if v, ok := o.info.Uses[id].(*types.Var); ok && o.p.refAs[v] != nil {
+			return // errors.As(err, &v): v borrows the pointer in err's chain
+		}
 	}
 	if _, taken := o.p.Take(e); taken {
 		return // moved out of its field, which is refilled at once (step 6)
@@ -1225,6 +1286,9 @@ func (o *ownership) readOrLend(par, child ast.Node, stack []ast.Node) bool {
 		for _, a := range p.Args {
 			if a == child {
 				fn := o.programCallee(p)
+				if fn == nil && fmtPrint(o.info, p) && !o.deferred(stack) {
+					return true // printed: fmt reads the pointer and what it points to
+				}
 				if fn == nil || o.deferred(stack) {
 					return false
 				}
@@ -1241,6 +1305,17 @@ func (o *ownership) readOrLend(par, child ast.Node, stack []ast.Node) bool {
 		}
 	}
 	return false
+}
+
+// fmtPrint reports whether c calls one of fmt's print functions, which
+// only read their arguments.
+func fmtPrint(info *types.Info, c *ast.CallExpr) bool {
+	sel, ok := ast.Unparen(c.Fun).(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	fn, ok := info.Uses[sel.Sel].(*types.Func)
+	return ok && fn.Pkg() != nil && fn.Pkg().Path() == "fmt" && strings.HasPrefix(fn.Name(), "Print")
 }
 
 // written reports whether the field selected at the top of stack is

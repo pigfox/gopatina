@@ -290,6 +290,56 @@ func (g *gen) asHelper(t types.Type) string {
 	return g.root(name)
 }
 
+// asRefHelper names the helper of errors.As(err, &q) for q a borrow of
+// an owned pointer (RFC 0017): it lends q the pointer err's chain holds,
+// exclusively when mut.
+func (g *gen) asRefHelper(t *types.Pointer, mut bool) string {
+	name := "iface_as_ref_" + snake(variantName(t))
+	if mut {
+		name = "iface_as_mut_" + snake(variantName(t))
+	}
+	if g.ifc.asRefs == nil {
+		g.ifc.asRefs = map[string]*types.Pointer{}
+	}
+	if _, ok := g.ifc.asRefs[name]; !ok {
+		g.ifc.asRefs[name] = t
+		g.ifc.asRefKeys = append(g.ifc.asRefKeys, name)
+	}
+	return g.root(name)
+}
+
+// asRefFns writes the asRefHelper helpers: each follows err's chain
+// through %w's wrappers by reference, so the borrow lives as long as err's.
+func (g *gen) asRefFns() {
+	for _, name := range g.ifc.asRefKeys {
+		t := g.ifc.asRefs[name]
+		mut := strings.HasPrefix(name, "iface_as_mut_")
+		ref, view, inner := "&", g.view(), ".as_deref()"
+		if g.unboxed(t) {
+			inner = ".as_ref()"
+		}
+		if mut {
+			ref = "&mut "
+			view = map[string]string{"as_deref": "as_deref_mut", "as_ref": "as_mut"}[view]
+			inner = map[string]string{".as_deref()": ".as_deref_mut()", ".as_ref()": ".as_mut()"}[inner]
+		}
+		g.line("")
+		g.line("/// errors.As to a " + goTypeName(t) + ": lends target the first one in err's chain.")
+		g.line("pub fn " + name + "<'a>(err: &'a " + strings.TrimPrefix(ref, "&") + "Iface, target: &mut Option<&'a " + strings.TrimPrefix(ref, "&") + g.rustType(t.Elem()) + ">) -> bool {")
+		g.line("    match err." + view + "() {")
+		g.line("        Some(Dyn::" + g.variant(t) + "(v)) => {")
+		g.line("            *target = v" + inner + ";")
+		g.line("            true")
+		g.line("        }")
+		if g.ifc.wrap {
+			g.line("        Some(Dyn::FmtWrapError(w)) => " + name + "(" + ref + "w.err, target),")
+		}
+		g.line("        _ => false,")
+		g.line("    }")
+		g.line("}")
+	}
+}
+
 // methodsNamed returns the dynamic types with a value method named name
 // whose signature ok accepts, and the methods.
 func (g *gen) methodsNamed(name string, ok func(*types.Signature) bool) ([]int, []*types.Func) {
@@ -414,6 +464,7 @@ func (g *gen) errorsAPI() {
 		g.line("    }")
 		g.line("}")
 	}
+	g.asRefFns()
 	for _, name := range g.ifc.asKeys {
 		t := g.ifc.ases[name]
 		g.line("")

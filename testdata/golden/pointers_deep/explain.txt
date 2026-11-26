@@ -1,1 +1,1 @@
-./main.go:7:6: pointers of type *Node are never shared: each has one owner (RFC 0016)
+./main.go:8:6: pointers of type *Node are never shared: each has one owner (RFC 0016)

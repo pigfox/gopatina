@@ -34,7 +34,6 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 	g.lnames = newNamer()
 	g.lnames.outer = g.freeFuncNames()
 	g.recv = nil
-	g.cellName = ""
 	g.temps = map[ast.Expr]string{}
 	g.usedNames = map[string]int{}
 	g.countNames(fd)
@@ -57,7 +56,7 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		if p.Var.Name() != "_" && p.Var.Name() != "" {
 			name = g.varName(p.Var)
 		}
-		if p.Mut && (p.Mode == borrow.ByValue || p.Mode == borrow.Owned) && !g.cellVar(p.Var) {
+		if p.Mut && (p.Mode == borrow.ByValue || p.Mode == borrow.Owned) {
 			name = "mut " + name
 		}
 		if g.ownPtr(p.Var.Type()) && g.paramRep(p.Var) == repOptRefMut {
@@ -120,7 +119,11 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 			params[i] = name
 		}
 	}
-	sigLine := head + strings.Join(params, ", ") + ")" + ret + " {"
+	open := " {"
+	if body.Len() == 0 {
+		open = " {}" // an empty body, as rustfmt writes it
+	}
+	sigLine := head + strings.Join(params, ", ") + ")" + ret + open
 	if g.ind*indentWidth+len(sigLine) <= maxWidth {
 		g.line(sigLine)
 	} else {
@@ -130,10 +133,12 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 			g.line(p + ",")
 		}
 		g.ind--
-		g.line(")" + ret + " {")
+		g.line(")" + ret + open)
 	}
-	g.out.WriteString(reborrowedMut(body.String()))
-	g.line("}")
+	if body.Len() > 0 {
+		g.out.WriteString(reborrowedMut(body.String()))
+		g.line("}")
+	}
 	if g.inAPI(obj) {
 		g.apiTail(fd, obj, params, ret)
 	}
@@ -155,11 +160,6 @@ func (g *gen) funcBody(fd *ast.FuncDecl, obj *types.Func, sig *types.Signature, 
 					g.line(g.qual(f.Pkg(), g.funcs[f]) + "();")
 				}
 			}
-		}
-	}
-	for _, p := range ps {
-		if g.cellVar(p.Var) {
-			g.cellParamDecl(p)
 		}
 	}
 	res := sig.Results()
@@ -249,13 +249,15 @@ func (g *gen) resultType(fn *types.Func) string {
 
 // letZero declares v with its zero value.
 func (g *gen) letZero(v *types.Var) {
-	if g.cellVar(v) {
-		g.cellDecl(v, g.zero(v.Type()))
-		return
-	}
 	t := g.rustType(v.Type())
 	if g.isBorrow(v) {
 		t = "Option<&" + g.rustType(types.Unalias(v.Type()).(*types.Pointer).Elem()) + ">" // a temporary borrow, nil for now
+	}
+	if g.ptrs.RefAs(v) != nil && g.ptrs.LocalRef(v) {
+		// errors.As's target, a borrow of the pointer in err's chain.
+		ref := map[bool]string{true: "&mut ", false: "&"}[g.localRefRep(v) == repOptRefMut]
+		g.line("let mut " + g.varName(v) + ": Option<" + ref + g.rustType(types.Unalias(v.Type()).(*types.Pointer).Elem()) + "> = None;")
+		return
 	}
 	g.line("let " + g.mutPrefix(v) + g.varName(v) + ": " + t + " = " + g.zero(v.Type()).flat() + ";")
 }
@@ -267,7 +269,7 @@ func (g *gen) isBorrow(v *types.Var) bool {
 }
 
 func (g *gen) mutPrefix(v *types.Var) string {
-	if g.res.Mut[v] && !g.cellVar(v) {
+	if g.res.Mut[v] {
 		return "mut "
 	}
 	return ""
@@ -404,10 +406,7 @@ func (g *gen) zeroStruct(s ast.Stmt) *types.Var {
 	if len(vs.Names) != 1 || len(vs.Values) != 0 {
 		return nil
 	}
-	v := g.localVar(vs.Names[0])
-	if v == nil || g.cellVar(v) {
-		return nil
-	}
+	v := g.localVar(vs.Names[0]) // a local: the statement is in a function
 	if _, ok := v.Type().Underlying().(*types.Struct); !ok {
 		return nil
 	}
@@ -652,13 +651,8 @@ func (g *gen) stmt(s ast.Stmt) {
 			return
 		}
 	}
-	if !g.inCellWrite {
-		g.heapOrder(s)
-		if g.heapWrite(s) {
-			return
-		}
-		g.hoist(s)
-	}
+	g.heapOrder(s)
+	g.hoist(s)
 	switch s := s.(type) {
 	case *ast.ExprStmt:
 		g.exprStmt(s.X)
@@ -816,10 +810,6 @@ func (g *gen) let(v *types.Var, e ast.Expr, typed bool) {
 		g.letPointer(v, e)
 		return
 	}
-	if g.cellVar(v) {
-		g.cellDecl(v, g.owned(e))
-		return
-	}
 	if g.ptrs != nil && g.ptrs.LocalRef(v) {
 		// p := &x, a local borrow (RFC 0017): let p = &mut x, or &x; or p
 		// := f(x), held as f returns it.
@@ -933,12 +923,10 @@ func (g *gen) assign(s *ast.AssignStmt) {
 	if len(s.Rhs) == 1 {
 		// v1, v2 := f()
 		g.multiAssign(s.Lhs, s.Tok == token.DEFINE, g.value(s.Rhs[0]))
-		g.cellShadows(s)
 		return
 	}
 	if s.Tok == token.DEFINE {
 		g.multiLet(s.Lhs, s.Rhs)
-		g.cellShadows(s)
 		return
 	}
 	var ls []string
@@ -1534,13 +1522,6 @@ func (g *gen) countedLoop(s *ast.ForStmt) {
 
 // rangeStmt writes a range loop.
 func (g *gen) rangeStmt(s *ast.RangeStmt) {
-	if _, _, ok := g.heapRoot(s.X); ok {
-		// A slice in a cell: range over a copy of it (RFC 0013; the
-		// borrow checker allows it only where that is Go's range).
-		name := g.lnames.name("", func(string) string { return "items" })
-		g.stmtLine("let "+name+" = ", g.owned(s.X), ";")
-		g.temps[ast.Unparen(s.X)] = name
-	}
 	t := g.typeOf(s.X)
 	key := g.rangeVar(s.Key)
 	value := g.rangeVar(s.Value)
@@ -1663,6 +1644,8 @@ func (g *gen) sliceRange(s *ast.RangeStmt, key, value string) (string, node, []s
 		}
 	case copyElem:
 		iter = &call{recv: &call{recv: x, head: ".iter", open: "(", close: ")"}, head: ".copied", open: "(", close: ")"}
+	case g.res.RangeMut[s]:
+		iter = &call{recv: x, head: ".iter_mut", open: "(", close: ")"}
 	case key == "_" && !g.res.RangeCopy[s]:
 		iter = g.ref(s.X)
 	default:
@@ -1670,6 +1653,9 @@ func (g *gen) sliceRange(s *ast.RangeStmt, key, value string) (string, node, []s
 	}
 	var first []string
 	valPat := value
+	if g.res.RangeMut[s] {
+		valPat = valueName // a &mut borrow of the element, itself not rebound
+	}
 	if !copyElem && isPlace && g.res.RangeCopy[s] {
 		valPat = valueName
 		first = append(first, "let mut "+valueName+" = "+valueName+".clone();")
@@ -2134,9 +2120,6 @@ func (g *gen) hoistIndexes(lhs []ast.Expr, all bool) {
 			ix, ok := n.(*ast.IndexExpr)
 			if !ok || g.info.Types[ix.Index].Value != nil || !isSlice(g.typeOf(ix.X)) {
 				return true
-			}
-			if _, done := g.hoistedIdx[ix.Index]; done && g.inCellWrite {
-				return true // computed already, before this write through a pointer
 			}
 			root := g.rootVar(ix.X)
 			if !all && !g.mentions(ix.Index, root) {

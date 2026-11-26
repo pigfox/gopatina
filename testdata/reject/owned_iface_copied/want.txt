@@ -1,0 +1,3 @@
+./main.go:18:34: base is copied into fmt.Errorf's %w, and an interface value can hold a pointer, whose object would then have two owners
+    an interface value owns the object a pointer in it points to (RFC 0017), and Go's copy shares it; the copy cannot be a move, as base is used again on line 19
+    use the object through fmt.Errorf's %w only from here on, or give fmt.Errorf's %w a new object

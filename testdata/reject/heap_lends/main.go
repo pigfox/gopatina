@@ -1,5 +1,6 @@
-// A place held through a pointer that escapes is lent to a call inside
-// the cell's one borrow (RFC 0013), so the call must not reach a cell.
+// Places held through pointers that escape lent to calls (RFC 0013); a
+// value of the type itself held outside its box would be a second owner
+// (RFC 0017), which is not supported.
 package main
 
 import "fmt"
@@ -68,6 +69,6 @@ func main() {
 	(&p.in).Inc()
 	fill(&p.items)
 	e := *getE()
-	var held any = get() // an interface holds a *T: its pointers are cells (RFC 0013)
+	var held any = get() // an interface owns the *T it holds (RFC 0017)
 	fmt.Println(p.items, p.in.n, p.bag.Sum(), e.n, held != nil)
 }

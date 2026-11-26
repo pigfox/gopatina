@@ -29,6 +29,11 @@ func get(n int) *T { return &T{n: n, items: []int{1}} }
 
 func keepIt(s []int) []int { return s }
 
+func counter() *int {
+	n := 0
+	return &n
+}
+
 func items(p *T) []int {
 	return p.items
 }
@@ -51,10 +56,12 @@ func main() {
 	}
 	switch p.n + f() {
 	}
-	// Read inside the cell: no diagnostics.
+	if c := counter(); *c > f() {
+	}
+	// Read through the box: no diagnostics.
 	fmt.Println(p.items, len(p.items), (p.items)[0], p.name[0], slices.Clone(p.items), strings.Join(p.words, ","))
 	p.items = append(p.items, 2)
 	p.items[0]++          // so a range over a []int in a cell would not see Go's elements
-	var held any = get(2) // an interface holds a *T: its pointers are cells (RFC 0013)
+	var held any = get(2) // an interface owns the *T it holds (RFC 0017)
 	fmt.Println(held != nil)
 }

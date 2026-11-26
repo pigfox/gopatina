@@ -9,7 +9,9 @@
 - **Created:** 2026-11-23
 - **Discussion:** the pull request that adds this file
 - **Supersedes / superseded by:** extends RFC 0013 (its future possibilities
-  "`Box` ... where the analysis proves them exact" and "Reclaiming cycles")
+  "`Box` ... where the analysis proves them exact" and "Reclaiming cycles");
+  RFC 0017 makes every pointer owned, so cycle collection (step 2) is not
+  needed: no cycle can form
 
 ## Summary
 

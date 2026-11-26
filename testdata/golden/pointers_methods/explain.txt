@@ -1,5 +1,6 @@
-./main.go:10:7: receiver c is a shared borrow: Inc only reads it
+./main.go:10:7: receiver c is an exclusive borrow: Inc changes it, and the caller sees the change
 ./main.go:15:7: receiver n is a shared borrow: Up only reads it
-./main.go:17:6: pointers of type *Rect are shared: an interface value holds it (line 21) (RFC 0016)
-./main.go:21:7: receiver r is owned: Self keeps it
-./main.go:37:14: parameter n is a shared borrow: newName only reads it
+./main.go:17:6: pointers of type *Rect are never shared: each has one owner (RFC 0016)
+./main.go:22:7: receiver r is a shared borrow: Twice only reads it
+./main.go:38:14: parameter n is owned: newName keeps it
+./main.go:38:38: moved n into a new pointer: n is not used afterwards

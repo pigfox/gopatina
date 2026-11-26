@@ -22,9 +22,6 @@ type analyzer struct {
 	fixes    map[token.Pos]Fix
 	// Suffix calls encountered while walking evaluated expressions.
 	suffixes map[*ast.CallExpr]*Func
-	// heapWritten are the slice types whose elements the program changes
-	// through a heap pointer (heap.go).
-	heapWritten []types.Type
 	// final is set for the last pass, which records decisions.
 	final bool
 }
@@ -45,19 +42,21 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		suffixes: map[*ast.CallExpr]*Func{},
 	}
 	a.res = &Result{
-		Funcs:     a.funcs,
-		Actions:   map[ast.Expr]Action{},
-		Mut:       map[*types.Var]bool{},
-		Pointers:  a.pointers,
-		Ranges:    map[*ast.RangeStmt]RangeForm{},
-		RangeCopy: map[*ast.RangeStmt]bool{},
-		Hoist:     map[*ast.CallExpr]bool{},
-		Suffixes:  map[*ast.CallExpr]*ast.SliceExpr{},
-		Counted:   map[*ast.ForStmt]bool{},
-		CopyFirst: map[ast.Expr]bool{},
-		RefElems:  a.refs,
-		Lent:      map[*types.Var]bool{},
-		params:    a.params,
+		Funcs:        a.funcs,
+		Actions:      map[ast.Expr]Action{},
+		Mut:          map[*types.Var]bool{},
+		Pointers:     a.pointers,
+		Ranges:       map[*ast.RangeStmt]RangeForm{},
+		RangeCopy:    map[*ast.RangeStmt]bool{},
+		RangeMut:     map[*ast.RangeStmt]bool{},
+		RangeMutVars: map[*types.Var]bool{},
+		Hoist:        map[*ast.CallExpr]bool{},
+		Suffixes:     map[*ast.CallExpr]*ast.SliceExpr{},
+		Counted:      map[*ast.ForStmt]bool{},
+		CopyFirst:    map[ast.Expr]bool{},
+		RefElems:     a.refs,
+		Lent:         map[*types.Var]bool{},
+		params:       a.params,
 	}
 	var decls []*ast.FuncDecl
 	for _, f := range pkg.Files {

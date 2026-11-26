@@ -49,7 +49,7 @@ var inputLints = []string{
 func lintBatch(c config, worker int, dir string) (failed bool, out []byte, err error) {
 	crate := filepath.Join(dir, "crate")
 	goEnv := []string{"GOCACHE=" + c.gocache}
-	if out, err := build(dir, goEnv, c.gopatina, "build", "-emit-rust", "-o", crate, "."); err != nil {
+	if out, err := build(c.buildLimit(), dir, goEnv, c.gopatina, "build", "-emit-rust", "-o", crate, "."); err != nil {
 		return true, out, nil
 	}
 	target := "CARGO_TARGET_DIR=" + filepath.Join(c.work, "lint-target-"+strconv.Itoa(worker))
@@ -57,7 +57,7 @@ func lintBatch(c config, worker int, dir string) (failed bool, out []byte, err e
 	for _, l := range inputLints {
 		args = append(args, "-A", l)
 	}
-	out, err = build(crate, []string{target}, c.cargo, args...)
+	out, err = build(c.buildLimit(), crate, []string{target}, c.cargo, args...)
 	if _, ran := err.(*exec.ExitError); err != nil && !ran {
 		return false, nil, fmt.Errorf("%s could not run: %v", c.cargo, err)
 	}
@@ -99,18 +99,18 @@ func libraryCheck(c config, worker, first int) (failed bool, files map[string][]
 	}
 	goEnv := []string{"GOCACHE=" + c.gocache}
 	goBin := filepath.Join(dir, "check-go")
-	if out, err := build(dir, goEnv, c.goCmd, "build", "-o", goBin, "./check"); err != nil {
+	if out, err := build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-o", goBin, "./check"); err != nil {
 		return false, nil, fmt.Errorf("library %d: go build: %v\n%s", first, err, out)
 	}
 	want, _, code := execute(goBin, c.timeout)
 	if code != 0 {
 		return false, nil, fmt.Errorf("library %d: the Go check exited %d", first, code)
 	}
-	if out, err := build(dir, goEnv, c.gopatina, "build", "-emit-rust", "-o", filepath.Join(ws, progen.LibraryName), "./"+progen.LibraryName); err != nil {
+	if out, err := build(c.buildLimit(), dir, goEnv, c.gopatina, "build", "-emit-rust", "-o", filepath.Join(ws, progen.LibraryName), "./"+progen.LibraryName); err != nil {
 		return true, keepFiles(map[string][]byte{"emit.txt": out}), nil
 	}
 	target := "CARGO_TARGET_DIR=" + filepath.Join(c.work, "lib-target-"+strconv.Itoa(worker))
-	if out, err := build(ws, []string{target}, c.cargo, "build", "--quiet"); err != nil {
+	if out, err := build(c.buildLimit(), ws, []string{target}, c.cargo, "build", "--quiet"); err != nil {
 		if _, ran := err.(*exec.ExitError); !ran {
 			return false, nil, fmt.Errorf("%s could not run: %v", c.cargo, err)
 		}

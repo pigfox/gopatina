@@ -40,16 +40,16 @@ func find(k string) error {
 func newRect(w, h int) *Rect { return &Rect{W: w, H: h} }
 
 func main() {
-	r := newRect(2, 3)
-	shapes := []Shape{r, &Sq{S: 4}}
+	shapes := []Shape{newRect(2, 3), &Sq{S: 4}} // each object moved into its interface
 	for _, s := range shapes {
 		s.Grow(1)
 		fmt.Println(s.Area())
 	}
-	fmt.Println(r.W, shapes[0] == Shape(r), shapes[1] == shapes[0])
+	fmt.Println(shapes[0].Area(), shapes[0] == shapes[0], shapes[1] == shapes[0])
 	if q, ok := shapes[1].(*Sq); ok {
-		q.Grow(10)
-		fmt.Println(q.S, shapes[1].Area(), q)
+		q.Grow(10) // q borrows the *Sq shapes[1] owns: the change is the interface's
+		fmt.Println(q.S, q)
+		fmt.Println(shapes[1].Area())
 	}
 	switch v := shapes[0].(type) {
 	case *Sq:
@@ -60,13 +60,20 @@ func main() {
 	fmt.Printf("%T %T\n", shapes[0], shapes[1])
 	err := find("k")
 	fmt.Println(err)
+	fmt.Println(find("") == nil, err != nil)
 	var nf *NotFound
-	if errors.As(err, &nf) {
+	if errors.As(err, &nf) { // nf borrows the *NotFound err owns
 		fmt.Println("as", nf.Key)
 	}
-	fmt.Println(find("") == nil, err != nil)
+	wrapped := fmt.Errorf("lookup: %w", err) // err moves into the new error
+	var deep *NotFound
+	if errors.As(wrapped, &deep) {
+		fmt.Println("as", deep.Key, wrapped)
+	}
 	var sq *Sq
 	fmt.Println(sq)
+	var nilShape Shape = sq // sq is nil: no object to own, so it stays usable
+	fmt.Println(nilShape != nil, sq == nil)
 	sqs := []*Sq{{S: 1}, nil, {S: 3}}
 	fmt.Println(sqs)
 	var none Shape = sq

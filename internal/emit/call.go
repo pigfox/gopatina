@@ -19,9 +19,6 @@ const userPanicMarker = "gopatina-user-panic:"
 
 // call renders a call expression as a value.
 func (g *gen) call(e *ast.CallExpr) node {
-	if n, ok := g.cellCall(e); ok {
-		return n // lent a place inside a cell (RFC 0013)
-	}
 	fun := ast.Unparen(e.Fun)
 	if tv := g.info.Types[fun]; tv.IsType() {
 		return g.conversion(e, tv.Type)
@@ -114,14 +111,6 @@ func (g *gen) recvArg(x ast.Expr, p *borrow.Param) node {
 		}
 		return g.boxValue(x) // a copy: a value receiver's changes are its own
 	}
-	if g.heapPtr(g.typeOf(x)) && !isPointerType(p.Var.Type()) {
-		// A value receiver called through a heap pointer: a copy.
-		n := node(&call{recv: g.ptrValue(x), head: ".load", open: "(", close: ")"})
-		if p.Mode == borrow.Ref || p.Mode == borrow.RefMut {
-			n = &addrOf{"&", n}
-		}
-		return n
-	}
 	if u, ok := x.(*ast.UnaryExpr); ok && !isPointerType(p.Var.Type()) {
 		x = u.X // (&v).M() with a value receiver
 	}
@@ -190,13 +179,6 @@ func (g *gen) receiver(x ast.Expr, p *borrow.Param) node {
 		}
 		return g.ownedCopy(x)
 	}
-	if g.heapPtr(g.typeOf(x)) {
-		// A value receiver called through a heap pointer: a copy.
-		return &call{recv: g.ptrValue(x), head: ".load", open: "(", close: ")"}
-	}
-	if n, ok := g.heapValue(x); ok {
-		return n
-	}
 	if u, ok := x.(*ast.UnaryExpr); ok {
 		x = u.X // (&v).M()
 	}
@@ -245,6 +227,9 @@ func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
 	}
 	if c, ok := ast.Unparen(a).(*ast.CallExpr); ok && g.callTemps[c] != "" {
 		// A call computed into a local first (RFC 0010's order).
+		if p.Mode == borrow.Owned && g.ownPtr(p.Var.Type()) && g.paramRep(p.Var).optional() && g.ptrRep(c) == repBox {
+			return &call{head: "Some", open: "(", close: ")", args: []node{text(g.callTemps[c])}} // a Box where an Option<Box<T>> is moved in
+		}
 		switch p.Mode {
 		case borrow.Ref:
 			if borrow.KindOf(g.typeOf(a)) != borrow.Copy {
@@ -275,12 +260,6 @@ func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
 func (g *gen) builtin(e *ast.CallExpr, name string) node {
 	switch name {
 	case "len":
-		if root, ptr, ok := g.heapRoot(e.Args[0]); ok {
-			// Read inside the cell, not out of it (RFC 0013).
-			return g.inCell(root, ptr, "with", func() node {
-				return atom{(&call{recv: g.place(e.Args[0]), head: ".len", open: "(", close: ")"}).flat() + " as i64", precCast}
-			})
-		}
 		return atom{(&call{recv: g.strRef(e.Args[0]), head: ".len", open: "(", close: ")"}).flat() + " as i64", precCast}
 	case "min", "max":
 		// Go's min/max take two or more arguments; Rust's take two, so
@@ -440,6 +419,16 @@ func (g *gen) std(e *ast.CallExpr, name string) node {
 	case "errors.Unwrap":
 		return &call{recv: &call{head: g.helper("iface_unwrap"), open: "(", close: ")", args: []node{g.ref(a[0])}}, head: ".flatten", open: "(", close: ")"}
 	case "errors.As":
+		if id, ok := ast.Unparen(stripAddrExpr(a[1])).(*ast.Ident); ok {
+			if v := g.localVar(id); v != nil && g.ptrs.RefAs(v) != nil && g.ptrs.LocalRef(v) {
+				// A borrow of the pointer in err's chain (RFC 0017).
+				t := v.Type().(*types.Pointer)
+				if g.localRefRep(v) == repOptRefMut {
+					return &call{head: g.asRefHelper(t, true), open: "(", close: ")", args: []node{g.mutRef(a[0]), text("&mut " + g.varName(v))}}
+				}
+				return &call{head: g.asRefHelper(t, false), open: "(", close: ")", args: []node{g.ref(a[0]), text("&mut " + g.varName(v))}}
+			}
+		}
 		return &call{head: g.asHelper(g.typeOf(stripAddrExpr(a[1]))), open: "(", close: ")", args: []node{g.ref(a[0]), g.mutRef(a[1])}}
 	case "os.Exit":
 		code := text(g.index(a[0]))

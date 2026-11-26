@@ -100,7 +100,9 @@ type Fix struct {
 
 // Result is the outcome of the borrow checker for a package.
 type Result struct {
-	Funcs map[*types.Func]*Func
+	// implsOf caches impls: each interface method's implementations.
+	implsOf map[*types.Func][]impl
+	Funcs   map[*types.Func]*Func
 	// Actions holds the decision for every place (a variable, field or
 	// element of a non-Copy type) handed to a new owner.
 	Actions map[ast.Expr]Action
@@ -113,6 +115,12 @@ type Result struct {
 	// RangeCopy holds range loops whose value variable is changed in the
 	// body, so it is copied out of the element.
 	RangeCopy map[*ast.RangeStmt]bool
+	// RangeMut holds range loops over interface values whose body changes
+	// the objects they hold: each element lent mutably (iter_mut).
+	RangeMut map[*ast.RangeStmt]bool
+	// RangeMutVars holds the value variables of those loops: &mut borrows
+	// of the elements.
+	RangeMutVars map[*types.Var]bool
 	// Hoist holds calls whose arguments are evaluated into temporaries
 	// first, because the call also changes a variable that a later
 	// argument reads.
@@ -143,3 +151,57 @@ type Result struct {
 // Param returns the decision for parameter or receiver v, or nil if v is
 // not one.
 func (r *Result) Param(v *types.Var) *Param { return r.params[v] }
+
+// IfaceMut reports whether interface method m, called through an
+// interface value, may change the value's dynamic value: some dynamic type
+// of the program implements m with a receiver it changes through (a
+// pointer receiver lent exclusively). Such an interface value is lent
+// mutably to the call (RFC 0012 with RFC 0017).
+func (r *Result) IfaceMut(dyn []types.Type, m *types.Func) bool {
+	for _, impl := range r.impls(dyn, m) {
+		if fn := r.Funcs[impl.fn]; fn != nil && fn.Recv != nil && fn.Recv.Mode == RefMut {
+			return true
+		}
+	}
+	return false
+}
+
+// impl is a dynamic type's method implementing an interface method.
+type impl struct {
+	t  types.Type
+	fn *types.Func
+}
+
+// impls returns the methods of the dynamic types dyn that implement
+// interface method m, looked up once per method: the types and their
+// methods do not change while the receivers' modes are inferred.
+func (r *Result) impls(dyn []types.Type, m *types.Func) []impl {
+	if is, ok := r.implsOf[m]; ok {
+		return is
+	}
+	var is []impl
+	for _, t := range dyn {
+		obj, _, _ := types.LookupFieldOrMethod(t, false, m.Pkg(), m.Name())
+		if fn, ok := obj.(*types.Func); ok {
+			is = append(is, impl{t, fn})
+		}
+	}
+	if r.implsOf == nil {
+		r.implsOf = map[*types.Func][]impl{}
+	}
+	r.implsOf[m] = is
+	return is
+}
+
+// IfaceKeeps returns a dynamic type of the program that implements
+// interface method m with a pointer receiver the method keeps (returns or
+// stores), or nil. Called through an interface, which owns that object,
+// the method would give it a second owner (RFC 0017).
+func (r *Result) IfaceKeeps(dyn []types.Type, m *types.Func) types.Type {
+	for _, impl := range r.impls(dyn, m) {
+		if fn := r.Funcs[impl.fn]; fn != nil && fn.Recv != nil && fn.Recv.Mode == Owned && isPointerT(fn.Recv.Var.Type()) {
+			return impl.t
+		}
+	}
+	return nil
+}

@@ -61,6 +61,10 @@ type live struct {
 	// changed or handed on.
 	lends   map[*types.Var]lendCand
 	lendBad map[*types.Var]bool
+	// ifaceClones are the copies of interface values decided a clone in a
+	// program whose interfaces can hold a pointer.
+	ifaceClones []event
+	clones      map[ast.Expr]event
 	// Targets of break and continue, innermost last. A switch has no
 	// continue target (nil).
 	brk, cont []set
@@ -82,6 +86,7 @@ func (a *analyzer) liveness(fn *Func) {
 	}
 	l.stmts(fn.Decl.Body.List, set{})
 	l.decideLends()
+	l.refuseIfaceClones()
 	for _, p := range a.allParams(fn) {
 		a.paramFix(fn, p)
 	}
@@ -129,7 +134,7 @@ func (a *analyzer) rangeForm(fn *Func, r *ast.RangeStmt) {
 	if id, ok := r.Value.(*ast.Ident); ok {
 		valueVar = w.localVar(id)
 	}
-	valueChanged := false
+	valueChanged, valueAssigned := false, false
 	for _, ev := range w.evs {
 		if ev.replacesSlice && !replacement.IsValid() && root != nil {
 			target, targetPath := ev.v, ev.path
@@ -152,6 +157,7 @@ func (a *analyzer) rangeForm(fn *Func, r *ast.RangeStmt) {
 		}
 		if valueVar != nil && ev.v == valueVar && (ev.kind == evMut || ev.kind == evDef || ev.kind == evBorrow) {
 			valueChanged = true
+			valueAssigned = valueAssigned || ev.kind == evDef
 		}
 	}
 	t := info.Types[r.X].Type
@@ -186,6 +192,15 @@ func (a *analyzer) rangeForm(fn *Func, r *ast.RangeStmt) {
 	}
 	elem := t.Underlying().(*types.Slice).Elem()
 	k := KindOf(elem)
+	if valueChanged && !valueAssigned && subset.IsIface(elem) && a.ifaceHoldsPointers(elem) && a.res.Ranges[r] == RangeIter {
+		// An interface value changed through its pointer: Go's copy shares
+		// the object, so the loop lends each element mutably (iter_mut).
+		a.res.RangeMut[r] = true
+		a.res.RangeMutVars[valueVar] = true
+		a.res.Mut[root] = true
+		a.fix(r.Value.Pos(), fmt.Sprintf("lent each element of %s to %s to be changed: %s changes the object its interface value holds, as Go's copy shares it", path, valueVar.Name(), valueVar.Name()))
+		return
+	}
 	if valueChanged {
 		a.res.RangeCopy[r] = true
 	}
@@ -200,6 +215,13 @@ func (a *analyzer) rangeForm(fn *Func, r *ast.RangeStmt) {
 	default:
 		a.refs[valueVar] = true
 	}
+}
+
+// asTargetEv reports whether ev is errors.As setting local borrow v, its
+// target: v is lent the pointer, err is not changed.
+func asTargetEv(plan *subset.PtrPlan, v *types.Var, ev event) bool {
+	c := plan.RefAs(v)
+	return c != nil && ev.pos >= c.Args[1].Pos() && ev.pos < c.Args[1].End()
 }
 
 // overlaps reports whether one place path is a prefix of the other.
@@ -472,7 +494,7 @@ func (l *live) mutability(ev event) {
 		return
 	}
 	v := ev.v
-	if plan := subset.Ptrs(a.pkg); ev.kind == evMut && plan.LocalRef(v) {
+	if plan := subset.Ptrs(a.pkg); ev.kind == evMut && plan.LocalRef(v) && !asTargetEv(plan, v, ev) {
 		a.res.Mut[plan.RefSource(v)] = true // changed through p := &mut x
 	}
 	if p := a.params[v]; p != nil {
@@ -526,6 +548,9 @@ func (l *live) borrowConflicts(ev event, lv set) {
 			continue
 		}
 		local := plan.LocalRef(q) && plan.RefSource(q) == ev.v
+		if c := plan.RefAs(q); local && c != nil && ev.pos >= c.Pos() && ev.pos < c.End() {
+			continue // errors.As lending q the pointer err holds
+		}
 		if !local && (!plan.BorrowVar(q) || !plan.BorrowSources(q)[ev.v]) {
 			continue
 		}
@@ -766,6 +791,30 @@ func (l *live) lendConflict(ev event, lv set) {
 	}
 }
 
+// cloneAt indexes the interface clones by the expression copied.
+func (l *live) cloneAt() map[ast.Expr]event {
+	if l.clones == nil {
+		l.clones = map[ast.Expr]event{}
+		for _, ev := range l.ifaceClones {
+			l.clones[ev.e] = ev
+		}
+	}
+	return l.clones
+}
+
+// refuseIfaceClones reports each copy of an interface value still a clone
+// in a program whose interfaces can hold a pointer: the interface owns the
+// object a pointer in it points to, so a clone would copy the object where
+// Go's copy shares it (RFC 0017).
+func (l *live) refuseIfaceClones() {
+	a := l.a
+	for _, ev := range l.cloneAt() { // decideLends took out the lent ones
+		a.report(ev.pos, a.errorf(ev.pos, "%s is copied into %s, and an interface value can hold a pointer, whose object would then have two owners", exprString(ev.e), ev.into).With(
+			fmt.Sprintf("an interface value owns the object a pointer in it points to (RFC 0017), and Go's copy shares it; the copy cannot be a move, as %s", ev.cloneWhy),
+			fmt.Sprintf("use the object through %s only from here on, or give %s a new object", ev.into, ev.into)))
+	}
+}
+
 // decideLends makes each interface copy that would be cloned, and can be
 // lent, a borrow of its source.
 func (l *live) decideLends() {
@@ -776,6 +825,20 @@ func (l *live) decideLends() {
 		}
 		a.res.Actions[c.rhs] = Lend
 		a.res.Lent[b] = true
+		delete(l.cloneAt(), c.rhs)
 		a.fix(c.rhs.Pos(), fmt.Sprintf("lent %s to %s: %s only reads it, and %s does not change while %s is in use, so no copy is made", c.src.Name(), b.Name(), b.Name(), c.src.Name(), b.Name()))
 	}
+}
+
+// ifaceHoldsPointers reports whether a value of interface type it can
+// hold a pointer: a pointer type among the program's dynamic types
+// implements it.
+func (a *analyzer) ifaceHoldsPointers(it types.Type) bool {
+	iface := it.Underlying().(*types.Interface) // subset.IsIface(it)
+	for _, t := range subset.Ifaces(a.pkg).Dyn {
+		if _, ok := t.(*types.Pointer); ok && types.Implements(t, iface) {
+			return true
+		}
+	}
+	return false
 }
