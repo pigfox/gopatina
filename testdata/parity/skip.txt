@@ -1,0 +1,29 @@
+# Programs whose output varies from run to run, always skipped by
+# gopatina-parity (they count as skipped, never as passing). Each differed
+# within 20 Go runs (go1.27.1, 2026-11-25); three runs, the harness's own
+# check, can agree by chance. NAME: why
+gobyexample/epoch: the clock
+gobyexample/goroutines: goroutine scheduling order
+gobyexample/json: map iteration order
+gobyexample/logging: log timestamps
+gobyexample/pointers: pointer addresses
+gobyexample/random-numbers: random numbers
+gobyexample/range-over-built-in-types: map iteration order
+gobyexample/rate-limiting: the clock
+gobyexample/spawning-processes: the output of date
+gobyexample/stateful-goroutines: random numbers
+gobyexample/string-formatting: pointer addresses
+gobyexample/temporary-files-and-directories: temporary file names
+gobyexample/tickers: the clock
+gobyexample/time: the clock
+gobyexample/time-formatting-parsing: the clock
+gobyexample/waitgroups: goroutine scheduling order
+gobyexample/worker-pools: goroutine scheduling order
+gotour/basics/packages: random numbers
+gotour/concurrency/default-selection: the clock
+gotour/concurrency/goroutines: goroutine scheduling order
+gotour/methods/errors: the clock
+gotour/methods/exercise-stringer: map iteration order
+gotour/solutions/stringers: map iteration order
+gotour/solutions/webcrawler: goroutine scheduling order
+gotour/welcome/sandbox: the clock

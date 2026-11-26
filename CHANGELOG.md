@@ -8,6 +8,18 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- **Parity on real programs** (`cmd/gopatina-parity`, docs/QUALITY.md).
+  GoPatina measured on 190 programs written for people: Go by Example and
+  A Tour of Go, vendored in `testdata/parity` with their licences. Each is
+  taken through Go, `-emit-rust`, cargo and clippy, and its output compared
+  with Go's; programs that need the network, other programs, signals, or
+  whose output varies are skipped, never counted as passing. Failures are
+  clustered by fingerprint. Baseline: of 139 tested, 23.7% accepted, 23.0%
+  compiled, 21.6% matching Go. A weekly workflow fails when fewer programs
+  get through than in the baseline.
+
 ### Removed
 
 - **Shared cells** (`rt::Ptr`, RFC 0013). Every pointer has one owner
