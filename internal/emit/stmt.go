@@ -2203,6 +2203,9 @@ func (g *gen) foldTailLetReturn(s ast.Stmt, r *ast.ReturnStmt) (node, *ast.Retur
 	if t := g.typeOf(id); g.errs.Calls[as] != nil || isPointerType(t) && !g.heapPtr(t) {
 		return nil, nil, false // a borrow; a heap pointer is a value (RFC 0013)
 	}
+	if g.ptrs.RetBorrow(g.fn.Obj) != nil {
+		return g.ptrAs(as.Rhs[0], g.retRep(g.fn.Obj)), r, true // r := n.Next; return r: the borrow lent back
+	}
 	if g.ownPtr(g.typeOf(id)) && g.ptrs.NonNilResult(g.fn.Obj) {
 		g.boxSlot[ast.Unparen(as.Rhs[0])] = true // returned as the Box it is
 	}

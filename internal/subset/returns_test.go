@@ -387,9 +387,33 @@ func inner(n *Node) *Node {
 	return n
 }
 
+func second(n *Node) *Node {
+	r := (n).Next
+	return r
+}
+
+func third(n *Node) *Node {
+	var r *Node
+	r = n.Next.Next
+	return r
+}
+
+func changed(n *Node) (r *Node) {
+	r = n.Next
+	r.V = 9
+	return
+}
+
+func changedLocal(n *Node) *Node {
+	r := n.Next
+	r.V = 9
+	return r
+}
+
 func main() {
-	l := &Node{V: 1, Next: &Node{V: 2}}
+	l := &Node{V: 1, Next: &Node{V: 2, Next: &Node{V: 3}}}
 	fmt.Println(find(l, 1) != nil, next(l) != nil, held(l) == nil, inner(l) != nil)
+	fmt.Println(second(l) != nil, third(l) != nil, changed(l) != nil, changedLocal(l) != nil)
 }
 `
 	pkg, err := load.Source("/bare", "main.go", src, "go1.25")
@@ -401,7 +425,12 @@ func main() {
 	if p.RetBorrow(fn("find")) == nil {
 		t.Error("find: a bare return of a named result never assigned is nil; find lends n back")
 	}
-	for _, name := range []string{"next", "held", "inner"} {
+	for _, name := range []string{"next", "second", "third"} {
+		if p.RetBorrow(fn(name)) == nil {
+			t.Errorf("%s: a local or named result given a field of n and returned lends n back", name)
+		}
+	}
+	for _, name := range []string{"held", "inner", "changed", "changedLocal"} {
 		if p.RetBorrow(fn(name)) != nil {
 			t.Errorf("%s: lends its input back", name)
 		}
