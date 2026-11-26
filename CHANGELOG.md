@@ -33,6 +33,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- **Difftest disk use is bounded** (docs/QUALITY.md). Each batch's crate
+  cache and cargo targets go with the batch, the run's Go build cache is
+  cleared past `-gocache-max` (2048 MiB), a run stops before a batch when
+  less than `-min-free` (15%) of its disk is free, naming the batch to
+  resume from, a signal stops the builds running (each in a process group
+  of its own, so a timed-out or stopped build takes its compilers with it)
+  before the run removes its files, and a run removes the temporary
+  directory of an earlier run that was killed outright. A long run on the tools box had grown its
+  temporary directory to 48 GB, 40 GB of it Go build cache.
+
 - **Interfaces own the pointers they hold** (RFC 0012 with RFC 0017). A
   pointer converted to an interface moves into it (`Dyn::PtrT(Option<Box<T>>)`),
   so the types an interface holds have one owner instead of a shared cell
