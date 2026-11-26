@@ -1,45 +1,45 @@
 # GoPatina parity
 
-190 programs: 139 tested, 51 skipped.
+190 programs: 138 tested, 52 skipped.
 
-| of 139 tested | programs | rate |
+| of 138 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 33 | 23.7% |
-| compiled to Rust | 32 | 23.0% |
-| output matches Go | 30 | 21.6% |
-| clippy clean (of 32 linted) | 30 | 93.8% |
+| accepted by patina mode | 33 | 23.9% |
+| compiled to Rust | 33 | 23.9% |
+| output matches Go | 31 | 22.5% |
+| clippy clean (of 33 linted) | 31 | 93.9% |
 
 ## Failure clusters, largest first
 
 | programs | fingerprint | examples |
 |---|---|---|
 | 16 | uses the standard package math, which patina mode does not support yet | gobyexample/constants, gotour/basics/basic-types, gotour/basics/imports |
-| 13 | a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
 | 13 | uses the standard package unicode/utf8, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/defer |
+| 12 | a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
 | 11 | uses the standard package internal/stringslite, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/defer |
 | 10 | a function literal (closure) is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/closures, gobyexample/directories |
 | 10 | a function type is not supported in patina mode yet | gobyexample/closures, gobyexample/directories, gobyexample/mutexes |
-| 10 | the go statement (goroutines are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/channels, gobyexample/closing-channels |
 | 9 | a map type is not supported in patina mode yet | gobyexample/enums, gobyexample/maps, gobyexample/mutexes |
 | 9 | calling a function value is not supported in patina mode yet | gobyexample/closures, gobyexample/directories, gobyexample/recursion |
 | 9 | defer is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/exit |
 | 9 | panic with a value that is not a string is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/enums |
+| 9 | the go statement (goroutines are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/channels, gobyexample/closing-channels |
 | 9 | uses the standard package internal/strconv, which patina mode does not support yet | gobyexample/base64-encoding, gobyexample/command-line-flags, gobyexample/command-line-subcommands |
-| 8 | a channel send (planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
+| 7 | a channel send (planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
 | 7 | make of chan string is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
 | 7 | uses the standard package io/fs, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 7 | uses the standard package iter, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/maps |
 | 6 | printing a value of type main._ is not supported in patina mode yet | gobyexample/structs, gotour/methods/indirection, gotour/moretypes/maps |
-| 6 | the <- operator is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
 | 6 | uses the standard package internal/filepathlite, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 6 | uses the standard package strconv, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/number-parsing |
 | 5 | _ is copied and kept, so its object has two owners | gobyexample/defer, gobyexample/reading-files, gobyexample/text-templates |
-| 5 | make of chan int is not supported in patina mode yet | gobyexample/closing-channels, gotour/concurrency/buffered-channels, gotour/concurrency/channels |
+| 5 | the <- operator is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
 | 5 | the cap built-in is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/append, gotour/moretypes/making-slices |
 | 5 | uses the standard package unicode, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/regular-expressions |
 | 4 | a slice expression (s[i:j]) is not supported in patina mode yet | gobyexample/command-line-arguments, gobyexample/command-line-subcommands, gobyexample/reading-files |
 | 4 | an array type is not supported in patina mode yet | gobyexample/arrays, gotour/moretypes/array, gotour/moretypes/slices |
 | 4 | format string: "S": the verb %q is not supported in patina mode yet | gotour/basics/zero, gotour/concurrency/exercise-web-crawler, gotour/methods/reader |
+| 4 | make of chan int is not supported in patina mode yet | gobyexample/closing-channels, gotour/concurrency/buffered-channels, gotour/concurrency/range-and-close |
 | 4 | os.TempDir is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/reading-files |
 | 4 | select (planned, RFC N) is not supported in patina mode yet | gobyexample/non-blocking-channel-operations, gobyexample/select, gobyexample/timeouts |
 | 4 | type os.File is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/reading-files |
@@ -153,7 +153,6 @@
 | 1 | range over _ function (Go N.N) is not supported in patina mode yet | gobyexample/range-over-iterators |
 | 1 | range over a channel (chan int) is not supported in patina mode yet | gotour/concurrency/range-and-close |
 | 1 | range over a channel (chan string) is not supported in patina mode yet | gobyexample/range-over-channels |
-| 1 | rustc: error: literal out of range for `_` | gotour/basics/numeric-constants |
 | 1 | slices.Collect is not supported in patina mode yet | gobyexample/range-over-iterators |
 | 1 | slices.Equal is not supported in patina mode yet | gobyexample/slices |
 | 1 | slices.IsSorted is not supported in patina mode yet | gobyexample/sorting |
@@ -226,6 +225,7 @@
 | 6 | does not build with Go |
 | 1 | does not finish within 10s with Go |
 | 5 | goroutine scheduling order (skip.txt) |
+| 1 | goroutine scheduling order (two sums received as they finish) (skip.txt) |
 | 4 | imports golang.org/x/tour/pic, not in the standard library |
 | 2 | imports golang.org/x/tour/reader, not in the standard library |
 | 3 | imports golang.org/x/tour/tree, not in the standard library |

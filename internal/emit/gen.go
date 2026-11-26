@@ -8,8 +8,10 @@ package emit
 import (
 	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/token"
 	"go/types"
+	"math"
 	"sort"
 	"strings"
 
@@ -763,6 +765,13 @@ func (g *gen) constDecl(d *ast.GenDecl, s *ast.ValueSpec, top bool) {
 			g.docComment(doc)
 		}
 		t := types.Default(c.Type())
+		if !types.Identical(t, c.Type()) && !fitsDefault(c.Val(), t) {
+			// An untyped constant beyond its default type (Big = 1 << 100):
+			// no Rust type holds it, and Go folds each use into a literal of
+			// the type it is used as, as this crate does.
+			g.line(fmt.Sprintf("// %s = %s: an untyped constant too large for %s, folded into each use.", c.Name(), c.Val().String(), t))
+			continue
+		}
 		rt := g.rustType(t)
 		if isStringType(t) {
 			rt = "&str"
@@ -773,6 +782,23 @@ func (g *gen) constDecl(d *ast.GenDecl, s *ast.ValueSpec, top bool) {
 		}
 		g.line(fmt.Sprintf("%sconst %s: %s = %s;", vis, g.constName(c), rt, constLit(c.Val(), t)))
 	}
+}
+
+// fitsDefault reports whether untyped constant value v is representable in
+// t, its default type: an int in 64 bits, a rune in 32, a float finite.
+func fitsDefault(v constant.Value, t types.Type) bool {
+	switch t.Underlying().(*types.Basic).Kind() {
+	case types.Int:
+		_, exact := constant.Int64Val(constant.ToInt(v))
+		return exact
+	case types.Int32:
+		n, exact := constant.Int64Val(constant.ToInt(v))
+		return exact && n >= math.MinInt32 && n <= math.MaxInt32
+	case types.Float64:
+		f, _ := constant.Float64Val(constant.ToFloat(v))
+		return !math.IsInf(f, 0)
+	}
+	return true // a string or a boolean (complex numbers are not in the subset)
 }
 
 func (g *gen) constName(c *types.Const) string {
