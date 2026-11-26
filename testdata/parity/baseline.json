@@ -1,0 +1,2973 @@
+{
+  "programs": 190,
+  "skipped": 51,
+  "tested": 139,
+  "accepted": 33,
+  "compiled": 32,
+  "matched": 30,
+  "linted": 32,
+  "lint_clean": 30,
+  "rates": {
+    "accepted": 23.7,
+    "compiled": 23,
+    "lint_clean": 93.8,
+    "matched": 21.6
+  },
+  "skips": {
+    "does not build with Go": 6,
+    "does not finish within 10s with Go": 1,
+    "goroutine scheduling order (skip.txt)": 5,
+    "imports golang.org/x/tour/pic, not in the standard library": 4,
+    "imports golang.org/x/tour/reader, not in the standard library": 2,
+    "imports golang.org/x/tour/tree, not in the standard library": 3,
+    "imports golang.org/x/tour/wc, not in the standard library": 2,
+    "log timestamps (skip.txt)": 1,
+    "map iteration order (skip.txt)": 4,
+    "pointer addresses (skip.txt)": 2,
+    "random numbers (skip.txt)": 3,
+    "runs other programs (os/exec)": 1,
+    "temporary file names (skip.txt)": 1,
+    "the clock (skip.txt)": 8,
+    "the output of date (skip.txt)": 1,
+    "uses the network (net)": 2,
+    "uses the network (net/http)": 4,
+    "waits for signals (os/signal)": 1
+  },
+  "clusters": [
+    {
+      "fingerprint": "uses the standard package math, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/constants",
+        "gotour/basics/basic-types",
+        "gotour/basics/imports",
+        "gotour/basics/type-conversions",
+        "gotour/flowcontrol/if",
+        "gotour/flowcontrol/if-and-else",
+        "gotour/flowcontrol/if-with-a-short-statement",
+        "gotour/methods/indirection-values",
+        "gotour/methods/methods",
+        "gotour/methods/methods-funcs",
+        "gotour/methods/methods-pointers",
+        "gotour/methods/methods-pointers-explained",
+        "gotour/methods/methods-with-pointer-receivers",
+        "gotour/moretypes/function-values",
+        "gotour/solutions/errors",
+        "gotour/solutions/loops"
+      ]
+    },
+    {
+      "fingerprint": "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-buffering",
+        "gobyexample/channel-directions",
+        "gobyexample/channel-synchronization",
+        "gobyexample/channels",
+        "gobyexample/closing-channels",
+        "gobyexample/non-blocking-channel-operations",
+        "gobyexample/range-over-channels",
+        "gobyexample/select",
+        "gobyexample/timeouts",
+        "gotour/concurrency/buffered-channels",
+        "gotour/concurrency/channels",
+        "gotour/concurrency/range-and-close",
+        "gotour/concurrency/select"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package unicode/utf8, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/file-paths",
+        "gobyexample/number-parsing",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/strings-and-runes",
+        "gobyexample/writing-files",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-synchronization",
+        "gobyexample/channels",
+        "gobyexample/closing-channels",
+        "gobyexample/select",
+        "gobyexample/timeouts",
+        "gobyexample/timers",
+        "gotour/concurrency/channels",
+        "gotour/concurrency/mutex-counter",
+        "gotour/concurrency/range-and-close",
+        "gotour/concurrency/select"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package internal/stringslite, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/file-paths",
+        "gobyexample/number-parsing",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/writing-files",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "a function literal (closure) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/atomic-counters",
+        "gobyexample/closures",
+        "gobyexample/directories",
+        "gobyexample/mutexes",
+        "gobyexample/recursion",
+        "gobyexample/switch",
+        "gotour/moretypes/function-closures",
+        "gotour/moretypes/function-values",
+        "gotour/solutions/fib"
+      ]
+    },
+    {
+      "fingerprint": "a function type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/closures",
+        "gobyexample/directories",
+        "gobyexample/mutexes",
+        "gobyexample/recursion",
+        "gobyexample/string-functions",
+        "gobyexample/switch",
+        "gotour/moretypes/function-closures",
+        "gotour/moretypes/function-values",
+        "gotour/solutions/fib"
+      ]
+    },
+    {
+      "fingerprint": "defer is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/exit",
+        "gobyexample/mutexes",
+        "gobyexample/recover",
+        "gobyexample/writing-files",
+        "gotour/concurrency/mutex-counter",
+        "gotour/flowcontrol/defer",
+        "gotour/flowcontrol/defer-multi"
+      ]
+    },
+    {
+      "fingerprint": "a channel send (planned, RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-buffering",
+        "gobyexample/channel-directions",
+        "gobyexample/channel-synchronization",
+        "gobyexample/closing-channels",
+        "gobyexample/range-over-channels",
+        "gotour/concurrency/buffered-channels",
+        "gotour/concurrency/channels",
+        "gotour/concurrency/range-and-close"
+      ]
+    },
+    {
+      "fingerprint": "a map type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/enums",
+        "gobyexample/maps",
+        "gobyexample/mutexes",
+        "gotour/concurrency/mutex-counter",
+        "gotour/moretypes/map-literals",
+        "gotour/moretypes/map-literals-continued",
+        "gotour/moretypes/maps",
+        "gotour/moretypes/mutating-maps"
+      ]
+    },
+    {
+      "fingerprint": "calling a function value is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/closures",
+        "gobyexample/directories",
+        "gobyexample/recursion",
+        "gobyexample/string-functions",
+        "gobyexample/switch",
+        "gotour/moretypes/function-closures",
+        "gotour/moretypes/function-values",
+        "gotour/solutions/fib"
+      ]
+    },
+    {
+      "fingerprint": "panic with a value that is not a string is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/enums",
+        "gobyexample/file-paths",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/writing-files",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "make of chan string is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-buffering",
+        "gobyexample/channel-directions",
+        "gobyexample/channels",
+        "gobyexample/non-blocking-channel-operations",
+        "gobyexample/range-over-channels",
+        "gobyexample/select",
+        "gobyexample/timeouts"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package internal/strconv, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/base64-encoding",
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/number-parsing",
+        "gobyexample/sha256-hashes",
+        "gobyexample/xml",
+        "gotour/methods/images"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type main._ is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/structs",
+        "gotour/methods/indirection",
+        "gotour/moretypes/maps",
+        "gotour/moretypes/struct-literals",
+        "gotour/moretypes/struct-pointers",
+        "gotour/moretypes/structs"
+      ]
+    },
+    {
+      "fingerprint": "the \u003c- operator is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-buffering",
+        "gobyexample/channel-directions",
+        "gobyexample/channels",
+        "gobyexample/closing-channels",
+        "gotour/concurrency/buffered-channels",
+        "gotour/concurrency/channels"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package internal/filepathlite, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/file-paths",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package io/fs, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/file-paths",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "make of chan int is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/closing-channels",
+        "gotour/concurrency/buffered-channels",
+        "gotour/concurrency/channels",
+        "gotour/concurrency/range-and-close",
+        "gotour/concurrency/select"
+      ]
+    },
+    {
+      "fingerprint": "the cap built-in is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/slices",
+        "gotour/moretypes/append",
+        "gotour/moretypes/making-slices",
+        "gotour/moretypes/nil-slices",
+        "gotour/moretypes/slice-len-cap"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package iter, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/maps",
+        "gobyexample/range-over-iterators",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "_ is copied and kept, so its object has two owners",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/reading-files",
+        "gobyexample/timers",
+        "gotour/methods/reader"
+      ]
+    },
+    {
+      "fingerprint": "a slice expression (s[i:j]) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/command-line-arguments",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/reading-files",
+        "gotour/methods/reader"
+      ]
+    },
+    {
+      "fingerprint": "an array type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/arrays",
+        "gotour/moretypes/array",
+        "gotour/moretypes/slices",
+        "gotour/moretypes/slices-pointers"
+      ]
+    },
+    {
+      "fingerprint": "format string: \"S\": the verb %q is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/zero",
+        "gotour/concurrency/exercise-web-crawler",
+        "gotour/methods/reader",
+        "gotour/methods/type-switches"
+      ]
+    },
+    {
+      "fingerprint": "os.TempDir is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "select (planned, RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/non-blocking-channel-operations",
+        "gobyexample/select",
+        "gobyexample/timeouts",
+        "gotour/concurrency/select"
+      ]
+    },
+    {
+      "fingerprint": "type os.File is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package _, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/panic",
+        "gobyexample/reading-files"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package _/filepath, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/panic",
+        "gobyexample/reading-files"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package bufio, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/line-filters",
+        "gobyexample/reading-files",
+        "gobyexample/writing-files",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package strconv, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/number-parsing",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "a channel receive as a statement is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-synchronization",
+        "gobyexample/closing-channels",
+        "gobyexample/timers"
+      ]
+    },
+    {
+      "fingerprint": "a slice expression (_[i:j]) is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/slice-bounds",
+        "gotour/moretypes/slice-len-cap",
+        "gotour/moretypes/slices"
+      ]
+    },
+    {
+      "fingerprint": "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/base64-encoding",
+        "gobyexample/reading-files",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "format string: \"S\": the verb %g is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/imports",
+        "gotour/flowcontrol/if-and-else",
+        "gotour/solutions/errors"
+      ]
+    },
+    {
+      "fingerprint": "make of chan bool is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-synchronization",
+        "gobyexample/closing-channels",
+        "gobyexample/non-blocking-channel-operations"
+      ]
+    },
+    {
+      "fingerprint": "make of map[string]int is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/maps",
+        "gotour/concurrency/mutex-counter",
+        "gotour/moretypes/mutating-maps"
+      ]
+    },
+    {
+      "fingerprint": "os.Create is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/panic",
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "package sync is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/atomic-counters",
+        "gobyexample/mutexes",
+        "gotour/concurrency/mutex-counter"
+      ]
+    },
+    {
+      "fingerprint": "printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/structs",
+        "gotour/methods/indirection",
+        "gotour/moretypes/struct-literals"
+      ]
+    },
+    {
+      "fingerprint": "the address of _ kept where its object would have more than one owner is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/xml",
+        "gotour/moretypes/pointers"
+      ]
+    },
+    {
+      "fingerprint": "the close built-in is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/closing-channels",
+        "gobyexample/range-over-channels",
+        "gotour/concurrency/range-and-close"
+      ]
+    },
+    {
+      "fingerprint": "time.Now is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/switch",
+        "gotour/flowcontrol/switch-evaluation-order",
+        "gotour/flowcontrol/switch-with-no-condition"
+      ]
+    },
+    {
+      "fingerprint": "time.Sleep is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-synchronization",
+        "gobyexample/timers",
+        "gotour/concurrency/mutex-counter"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package internal/unsafeheader, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package reflect, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package unicode, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "_ function literal (closure) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-iterators",
+        "gobyexample/sorting-by-functions"
+      ]
+    },
+    {
+      "fingerprint": "_ is converted to an interface while it is still used, so its object has two owners",
+      "programs": [
+        "gobyexample/reading-files",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "_._ is copied and kept in _._, so its object has two owners",
+      "programs": [
+        "gobyexample/generics",
+        "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "_._._ is copied and kept in _._, so its object has two owners",
+      "programs": [
+        "gobyexample/generics",
+        "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "a generic function (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/generics",
+        "gotour/generics/index"
+      ]
+    },
+    {
+      "fingerprint": "a generic type (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/generics",
+        "gotour/generics/list"
+      ]
+    },
+    {
+      "fingerprint": "a type declared inside a function is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/struct-embedding",
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "a value returned together with a non-nil error must be the zero value",
+      "programs": [
+        "gobyexample/custom-errors",
+        "gobyexample/errors"
+      ]
+    },
+    {
+      "fingerprint": "an anonymous struct type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/structs",
+        "gotour/moretypes/slice-literals"
+      ]
+    },
+    {
+      "fingerprint": "an instantiated generic function (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/custom-errors",
+        "gobyexample/generics"
+      ]
+    },
+    {
+      "fingerprint": "comparing a slice with nil is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/slices",
+        "gotour/moretypes/nil-slices"
+      ]
+    },
+    {
+      "fingerprint": "converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/line-filters",
+        "gobyexample/reading-files"
+      ]
+    },
+    {
+      "fingerprint": "gopatina: panic: runtime error: index out of range [N] with length N",
+      "programs": [
+        "gobyexample/regular-expressions",
+        "gobyexample/text-templates"
+      ]
+    },
+    {
+      "fingerprint": "os.Args is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/command-line-arguments",
+        "gobyexample/command-line-subcommands"
+      ]
+    },
+    {
+      "fingerprint": "output: exit status differs",
+      "programs": [
+        "gotour/methods/interface-values",
+        "gotour/methods/interface-values-with-nil"
+      ]
+    },
+    {
+      "fingerprint": "printing _ value of type [N]int is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/arrays",
+        "gotour/moretypes/array"
+      ]
+    },
+    {
+      "fingerprint": "printing _ value of type [N]string is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/array",
+        "gotour/moretypes/slices-pointers"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type (float64, error) is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/exercise-errors",
+        "gotour/solutions/errors"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type map[string]int is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/maps",
+        "gobyexample/mutexes"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type map[string]main._ is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/map-literals",
+        "gotour/moretypes/map-literals-continued"
+      ]
+    },
+    {
+      "fingerprint": "strings.NewReader is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/reader",
+        "gotour/solutions/rot13"
+      ]
+    },
+    {
+      "fingerprint": "the delete built-in is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/maps",
+        "gotour/moretypes/mutating-maps"
+      ]
+    },
+    {
+      "fingerprint": "the results of _ used here other than as v..., err := _(...) or return _(...)",
+      "programs": [
+        "gotour/methods/exercise-errors",
+        "gotour/solutions/errors"
+      ]
+    },
+    {
+      "fingerprint": "type strings.Reader is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/reader",
+        "gotour/solutions/rot13"
+      ]
+    },
+    {
+      "fingerprint": "type sync.Mutex is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/mutexes",
+        "gotour/concurrency/mutex-counter"
+      ]
+    },
+    {
+      "fingerprint": "type sync.WaitGroup is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/atomic-counters",
+        "gobyexample/mutexes"
+      ]
+    },
+    {
+      "fingerprint": "type time.Time is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/switch",
+        "gotour/flowcontrol/switch-with-no-condition"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package flag, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/command-line-flags",
+        "gobyexample/command-line-subcommands"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package path, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/file-paths",
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package path/filepath, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/file-paths",
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "using the package-level variable Args this way (a copy of a slice shares its elements) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/command-line-arguments",
+        "gobyexample/command-line-subcommands"
+      ]
+    },
+    {
+      "fingerprint": "_ bare return in _ function that returns an error",
+      "programs": [
+        "gotour/solutions/rot13"
+      ]
+    },
+    {
+      "fingerprint": "_ function type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/sorting-by-functions"
+      ]
+    },
+    {
+      "fingerprint": "_ generic type (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "_ method on _ generic type (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "_ slice expression (_[i:j]) is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/making-slices"
+      ]
+    },
+    {
+      "fingerprint": "_ slice expression (s[i:j]) is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/slices-pointers"
+      ]
+    },
+    {
+      "fingerprint": "_ type declared inside _ function is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/sorting-by-functions"
+      ]
+    },
+    {
+      "fingerprint": "a *_ with more than one owner (a package-level variable holds it) is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/struct-literals"
+      ]
+    },
+    {
+      "fingerprint": "a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet",
+      "programs": [
+        "gotour/concurrency/exercise-web-crawler"
+      ]
+    },
+    {
+      "fingerprint": "a call with ... arguments is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/variadic-functions"
+      ]
+    },
+    {
+      "fingerprint": "a complex number is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "a method on a generic type (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/generics"
+      ]
+    },
+    {
+      "fingerprint": "a package-level variable of type map[string]main._ that the program changes is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/maps"
+      ]
+    },
+    {
+      "fingerprint": "a pointer here (RFC N supports pointers in variables, parameters, results and fields) is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/struct-literals"
+      ]
+    },
+    {
+      "fingerprint": "a promoted field is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/struct-embedding"
+      ]
+    },
+    {
+      "fingerprint": "a renamed or dot import is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/string-functions"
+      ]
+    },
+    {
+      "fingerprint": "a slice expression (_[_:_]) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/slices"
+      ]
+    },
+    {
+      "fingerprint": "a slice expression (_[_:j]) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/strings-and-runes"
+      ]
+    },
+    {
+      "fingerprint": "a variadic function is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/variadic-functions"
+      ]
+    },
+    {
+      "fingerprint": "an embedded field is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/struct-embedding"
+      ]
+    },
+    {
+      "fingerprint": "calling a pointer-receiver method on a package-level variable is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/base64-encoding"
+      ]
+    },
+    {
+      "fingerprint": "clippy: error: this loop never actually loops",
+      "programs": [
+        "gobyexample/for"
+      ]
+    },
+    {
+      "fingerprint": "clippy: error: unnecessary use of `_`",
+      "programs": [
+        "gotour/moretypes/range-continued"
+      ]
+    },
+    {
+      "fingerprint": "converting _ pointer to _ type other than _ named type of the program to an interface is not supported in patina mode yet",
+      "programs": [
+        "gotour/solutions/rot13"
+      ]
+    },
+    {
+      "fingerprint": "converting to an interface a value whose _ method may panic is not supported in patina mode yet",
+      "programs": [
+        "gotour/solutions/errors"
+      ]
+    },
+    {
+      "fingerprint": "format string: \"S\": the verb %#U is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/strings-and-runes"
+      ]
+    },
+    {
+      "fingerprint": "io.Copy is not supported in patina mode yet",
+      "programs": [
+        "gotour/solutions/rot13"
+      ]
+    },
+    {
+      "fingerprint": "io.EOF is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/reader"
+      ]
+    },
+    {
+      "fingerprint": "io.ReadAtLeast is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/reading-files"
+      ]
+    },
+    {
+      "fingerprint": "make of map[string]main._ is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/maps"
+      ]
+    },
+    {
+      "fingerprint": "os.Chdir is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/directories"
+      ]
+    },
+    {
+      "fingerprint": "os.Environ is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/environment-variables"
+      ]
+    },
+    {
+      "fingerprint": "os.Getenv is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/environment-variables"
+      ]
+    },
+    {
+      "fingerprint": "os.Mkdir is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/directories"
+      ]
+    },
+    {
+      "fingerprint": "os.MkdirAll is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/directories"
+      ]
+    },
+    {
+      "fingerprint": "os.Open is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/reading-files"
+      ]
+    },
+    {
+      "fingerprint": "os.ReadDir is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/directories"
+      ]
+    },
+    {
+      "fingerprint": "os.ReadFile is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/reading-files"
+      ]
+    },
+    {
+      "fingerprint": "os.Setenv is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/environment-variables"
+      ]
+    },
+    {
+      "fingerprint": "os.Stdin is converted to an interface, so its object has two owners",
+      "programs": [
+        "gobyexample/line-filters"
+      ]
+    },
+    {
+      "fingerprint": "os.Stdin is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/line-filters"
+      ]
+    },
+    {
+      "fingerprint": "os.WriteFile is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "package encoding/base64 is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/base64-encoding"
+      ]
+    },
+    {
+      "fingerprint": "package runtime is not supported in patina mode yet",
+      "programs": [
+        "gotour/flowcontrol/switch"
+      ]
+    },
+    {
+      "fingerprint": "package sync/atomic is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/atomic-counters"
+      ]
+    },
+    {
+      "fingerprint": "printing _ value of type [N][N]int is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/arrays"
+      ]
+    },
+    {
+      "fingerprint": "printing _ value of type []main._ is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/sorting-by-functions"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type (_ int, _ int) is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/named-results"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type (r uint32, g uint32, b uint32, a uint32) is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/images"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type [][]int is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/slices"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type []struct{_ int; _ bool} is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/slice-literals"
+      ]
+    },
+    {
+      "fingerprint": "printing a value of type struct{_ string; _ bool} is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/structs"
+      ]
+    },
+    {
+      "fingerprint": "printing a value whose String method may panic is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/images"
+      ]
+    },
+    {
+      "fingerprint": "printing a value whose _ method may panic is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/enums"
+      ]
+    },
+    {
+      "fingerprint": "printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/number-parsing"
+      ]
+    },
+    {
+      "fingerprint": "range over _ function (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "range over a channel (chan int) is not supported in patina mode yet",
+      "programs": [
+        "gotour/concurrency/range-and-close"
+      ]
+    },
+    {
+      "fingerprint": "range over a channel (chan string) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-channels"
+      ]
+    },
+    {
+      "fingerprint": "rustc: error: literal out of range for `_`",
+      "programs": [
+        "gotour/basics/numeric-constants"
+      ]
+    },
+    {
+      "fingerprint": "slices.Collect is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "slices.Equal is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/slices"
+      ]
+    },
+    {
+      "fingerprint": "slices.IsSorted is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/sorting"
+      ]
+    },
+    {
+      "fingerprint": "slices.Sort is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/sorting"
+      ]
+    },
+    {
+      "fingerprint": "slices.SortFunc is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/sorting-by-functions"
+      ]
+    },
+    {
+      "fingerprint": "strings.SplitN is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/environment-variables"
+      ]
+    },
+    {
+      "fingerprint": "strings.SplitSeq is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "the address of _ is kept while _ is still used by name, so the object has two owners",
+      "programs": [
+        "gotour/moretypes/pointers"
+      ]
+    },
+    {
+      "fingerprint": "the clear built-in (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/maps"
+      ]
+    },
+    {
+      "fingerprint": "the copy built-in is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/slices"
+      ]
+    },
+    {
+      "fingerprint": "the format %+_ with a value of type *main._ is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/methods-with-pointer-receivers"
+      ]
+    },
+    {
+      "fingerprint": "the format %T with a value of type bool is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "the format %T with a value of type complex128 is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "the format %T with a value of type int is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/type-inference"
+      ]
+    },
+    {
+      "fingerprint": "the format %T with a value of type uint64 is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "the format %v with a value of type complex128 is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "time.NewTimer is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/timers"
+      ]
+    },
+    {
+      "fingerprint": "type _: a map type is not supported in patina mode yet",
+      "programs": [
+        "gotour/concurrency/exercise-web-crawler"
+      ]
+    },
+    {
+      "fingerprint": "type _: an interface method with an error result is not supported in patina mode yet",
+      "programs": [
+        "gotour/concurrency/exercise-web-crawler"
+      ]
+    },
+    {
+      "fingerprint": "type complex128 is not supported in patina mode yet",
+      "programs": [
+        "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "type io.Reader is not supported in patina mode yet",
+      "programs": [
+        "gotour/solutions/rot13"
+      ]
+    },
+    {
+      "fingerprint": "type sync/atomic.Uint64 is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/atomic-counters"
+      ]
+    },
+    {
+      "fingerprint": "type time.Timer is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/timers"
+      ]
+    },
+    {
+      "fingerprint": "type time.Weekday is not supported in patina mode yet",
+      "programs": [
+        "gotour/flowcontrol/switch-evaluation-order"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package cmp, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sorting-by-functions"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/fips140, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/aes, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/aes/gcm, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/alias, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/check, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/drbg, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/hmac, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/sha256, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/sha3, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/sha512, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140/subtle, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140deps/cpu, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/fips140deps/godebug, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/internal/impl, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package crypto/sha256, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package encoding, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package encoding/base64, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/base64-encoding"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package encoding/xml, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package hash, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package image, which patina mode does not support yet",
+      "programs": [
+        "gotour/methods/images"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package image/color, which patina mode does not support yet",
+      "programs": [
+        "gotour/methods/images"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package internal/byteorder, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/sha256-hashes"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package maps, which patina mode does not support yet",
+      "programs": [
+        "gobyexample/maps"
+      ]
+    },
+    {
+      "fingerprint": "uses the standard package math/cmplx, which patina mode does not support yet",
+      "programs": [
+        "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "using fmt.Println as a value is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/string-functions"
+      ]
+    },
+    {
+      "fingerprint": "using function _ as a value is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/directories"
+      ]
+    },
+    {
+      "fingerprint": "using math.Pow as a value is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/function-values"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "name": "gobyexample/arrays",
+      "stage": "refused",
+      "fingerprints": [
+        "an array type is not supported in patina mode yet",
+        "printing _ value of type [N]int is not supported in patina mode yet",
+        "printing _ value of type [N][N]int is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/atomic-counters",
+      "stage": "refused",
+      "fingerprints": [
+        "package sync is not supported in patina mode yet",
+        "package sync/atomic is not supported in patina mode yet",
+        "type sync/atomic.Uint64 is not supported in patina mode yet",
+        "type sync.WaitGroup is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/base64-encoding",
+      "stage": "refused",
+      "fingerprints": [
+        "package encoding/base64 is not supported in patina mode yet",
+        "calling a pointer-receiver method on a package-level variable is not supported in patina mode yet",
+        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
+        "uses the standard package encoding/base64, which patina mode does not support yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/channel-buffering",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "make of chan string is not supported in patina mode yet",
+        "a channel send (planned, RFC N) is not supported in patina mode yet",
+        "the \u003c- operator is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/channel-directions",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "a channel send (planned, RFC N) is not supported in patina mode yet",
+        "the \u003c- operator is not supported in patina mode yet",
+        "make of chan string is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/channel-synchronization",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "time.Sleep is not supported in patina mode yet",
+        "a channel send (planned, RFC N) is not supported in patina mode yet",
+        "make of chan bool is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "a channel receive as a statement is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/channels",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "make of chan string is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "the \u003c- operator is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/closing-channels",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "make of chan int is not supported in patina mode yet",
+        "make of chan bool is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "a channel send (planned, RFC N) is not supported in patina mode yet",
+        "the close built-in is not supported in patina mode yet",
+        "a channel receive as a statement is not supported in patina mode yet",
+        "the \u003c- operator is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/closures",
+      "stage": "refused",
+      "fingerprints": [
+        "a function type is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "calling a function value is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/command-line-arguments",
+      "stage": "refused",
+      "fingerprints": [
+        "os.Args is not supported in patina mode yet",
+        "using the package-level variable Args this way (a copy of a slice shares its elements) is not supported in patina mode yet",
+        "a slice expression (s[i:j]) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/command-line-flags",
+      "stage": "refused",
+      "fingerprints": [
+        "the address of _ kept where its object would have more than one owner is not supported in patina mode yet",
+        "uses the standard package flag, which patina mode does not support yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package internal/unsafeheader, which patina mode does not support yet",
+        "uses the standard package iter, which patina mode does not support yet",
+        "uses the standard package reflect, which patina mode does not support yet",
+        "uses the standard package strconv, which patina mode does not support yet",
+        "uses the standard package unicode, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/command-line-subcommands",
+      "stage": "refused",
+      "fingerprints": [
+        "os.Args is not supported in patina mode yet",
+        "a slice expression (s[i:j]) is not supported in patina mode yet",
+        "using the package-level variable Args this way (a copy of a slice shares its elements) is not supported in patina mode yet",
+        "uses the standard package flag, which patina mode does not support yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package internal/unsafeheader, which patina mode does not support yet",
+        "uses the standard package iter, which patina mode does not support yet",
+        "uses the standard package reflect, which patina mode does not support yet",
+        "uses the standard package strconv, which patina mode does not support yet",
+        "uses the standard package unicode, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/constants",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/context",
+      "stage": "skipped",
+      "reason": "uses the network (net/http)"
+    },
+    {
+      "name": "gobyexample/custom-errors",
+      "stage": "refused",
+      "fingerprints": [
+        "a value returned together with a non-nil error must be the zero value",
+        "an instantiated generic function (Go N.N) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/defer",
+      "stage": "refused",
+      "fingerprints": [
+        "os.TempDir is not supported in patina mode yet",
+        "type os.File is not supported in patina mode yet",
+        "defer is not supported in patina mode yet",
+        "_ is copied and kept, so its object has two owners",
+        "os.Create is not supported in patina mode yet",
+        "panic with a value that is not a string is not supported in patina mode yet",
+        "uses the standard package internal/filepathlite, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package _/filepath, which patina mode does not support yet",
+        "uses the standard package _, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/directories",
+      "stage": "refused",
+      "fingerprints": [
+        "panic with a value that is not a string is not supported in patina mode yet",
+        "os.Mkdir is not supported in patina mode yet",
+        "defer is not supported in patina mode yet",
+        "a function type is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "calling a function value is not supported in patina mode yet",
+        "os.MkdirAll is not supported in patina mode yet",
+        "os.ReadDir is not supported in patina mode yet",
+        "os.Chdir is not supported in patina mode yet",
+        "using function _ as a value is not supported in patina mode yet",
+        "uses the standard package internal/filepathlite, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package _/filepath, which patina mode does not support yet",
+        "uses the standard package _, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/embed-directive",
+      "stage": "skipped",
+      "reason": "does not build with Go"
+    },
+    {
+      "name": "gobyexample/enums",
+      "stage": "refused",
+      "fingerprints": [
+        "a map type is not supported in patina mode yet",
+        "printing a value whose _ method may panic is not supported in patina mode yet",
+        "panic with a value that is not a string is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/environment-variables",
+      "stage": "refused",
+      "fingerprints": [
+        "os.Setenv is not supported in patina mode yet",
+        "os.Getenv is not supported in patina mode yet",
+        "os.Environ is not supported in patina mode yet",
+        "strings.SplitN is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/epoch",
+      "stage": "skipped",
+      "reason": "the clock (skip.txt)"
+    },
+    {
+      "name": "gobyexample/errors",
+      "stage": "refused",
+      "fingerprints": [
+        "a value returned together with a non-nil error must be the zero value"
+      ]
+    },
+    {
+      "name": "gobyexample/execing-processes",
+      "stage": "skipped",
+      "reason": "runs other programs (os/exec)"
+    },
+    {
+      "name": "gobyexample/exit",
+      "stage": "refused",
+      "fingerprints": [
+        "defer is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/file-paths",
+      "stage": "refused",
+      "fingerprints": [
+        "panic with a value that is not a string is not supported in patina mode yet",
+        "uses the standard package internal/filepathlite, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package path/filepath, which patina mode does not support yet",
+        "uses the standard package path, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/for",
+      "stage": "matched",
+      "fingerprints": [
+        "clippy: error: this loop never actually loops"
+      ],
+      "linted": true
+    },
+    {
+      "name": "gobyexample/functions",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gobyexample/generics",
+      "stage": "refused",
+      "fingerprints": [
+        "a generic function (Go N.N) is not supported in patina mode yet",
+        "a generic type (Go N.N) is not supported in patina mode yet",
+        "a method on a generic type (Go N.N) is not supported in patina mode yet",
+        "_._ is copied and kept in _._, so its object has two owners",
+        "_._._ is copied and kept in _._, so its object has two owners",
+        "an instantiated generic function (Go N.N) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/goroutines",
+      "stage": "skipped",
+      "reason": "goroutine scheduling order (skip.txt)"
+    },
+    {
+      "name": "gobyexample/hello-world",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gobyexample/http-client",
+      "stage": "skipped",
+      "reason": "uses the network (net/http)"
+    },
+    {
+      "name": "gobyexample/http-server",
+      "stage": "skipped",
+      "reason": "uses the network (net/http)"
+    },
+    {
+      "name": "gobyexample/if-else",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gobyexample/interfaces",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gobyexample/json",
+      "stage": "skipped",
+      "reason": "map iteration order (skip.txt)"
+    },
+    {
+      "name": "gobyexample/line-filters",
+      "stage": "refused",
+      "fingerprints": [
+        "converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet",
+        "os.Stdin is converted to an interface, so its object has two owners",
+        "os.Stdin is not supported in patina mode yet",
+        "uses the standard package bufio, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/logging",
+      "stage": "skipped",
+      "reason": "log timestamps (skip.txt)"
+    },
+    {
+      "name": "gobyexample/maps",
+      "stage": "refused",
+      "fingerprints": [
+        "a map type is not supported in patina mode yet",
+        "make of map[string]int is not supported in patina mode yet",
+        "printing a value of type map[string]int is not supported in patina mode yet",
+        "the delete built-in is not supported in patina mode yet",
+        "the clear built-in (Go N.N) is not supported in patina mode yet",
+        "uses the standard package iter, which patina mode does not support yet",
+        "uses the standard package maps, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/methods",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gobyexample/multiple-return-values",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gobyexample/mutexes",
+      "stage": "refused",
+      "fingerprints": [
+        "package sync is not supported in patina mode yet",
+        "type sync.Mutex is not supported in patina mode yet",
+        "a map type is not supported in patina mode yet",
+        "defer is not supported in patina mode yet",
+        "type sync.WaitGroup is not supported in patina mode yet",
+        "a function type is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "printing a value of type map[string]int is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/non-blocking-channel-operations",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "make of chan string is not supported in patina mode yet",
+        "make of chan bool is not supported in patina mode yet",
+        "select (planned, RFC N) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/number-parsing",
+      "stage": "refused",
+      "fingerprints": [
+        "printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package strconv, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/panic",
+      "stage": "refused",
+      "fingerprints": [
+        "os.TempDir is not supported in patina mode yet",
+        "type os.File is not supported in patina mode yet",
+        "os.Create is not supported in patina mode yet",
+        "panic with a value that is not a string is not supported in patina mode yet",
+        "uses the standard package internal/filepathlite, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package _/filepath, which patina mode does not support yet",
+        "uses the standard package _, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/pointers",
+      "stage": "skipped",
+      "reason": "pointer addresses (skip.txt)"
+    },
+    {
+      "name": "gobyexample/random-numbers",
+      "stage": "skipped",
+      "reason": "random numbers (skip.txt)"
+    },
+    {
+      "name": "gobyexample/range-over-built-in-types",
+      "stage": "skipped",
+      "reason": "map iteration order (skip.txt)"
+    },
+    {
+      "name": "gobyexample/range-over-channels",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "make of chan string is not supported in patina mode yet",
+        "a channel send (planned, RFC N) is not supported in patina mode yet",
+        "the close built-in is not supported in patina mode yet",
+        "range over a channel (chan string) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/range-over-iterators",
+      "stage": "refused",
+      "fingerprints": [
+        "_ generic type (Go N.N) is not supported in patina mode yet",
+        "_ method on _ generic type (Go N.N) is not supported in patina mode yet",
+        "_._ is copied and kept in _._, so its object has two owners",
+        "_._._ is copied and kept in _._, so its object has two owners",
+        "_ function literal (closure) is not supported in patina mode yet",
+        "range over _ function (Go N.N) is not supported in patina mode yet",
+        "slices.Collect is not supported in patina mode yet",
+        "strings.SplitSeq is not supported in patina mode yet",
+        "uses the standard package iter, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/rate-limiting",
+      "stage": "skipped",
+      "reason": "the clock (skip.txt)"
+    },
+    {
+      "name": "gobyexample/reading-files",
+      "stage": "refused",
+      "fingerprints": [
+        "panic with a value that is not a string is not supported in patina mode yet",
+        "os.TempDir is not supported in patina mode yet",
+        "os.ReadFile is not supported in patina mode yet",
+        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
+        "type os.File is not supported in patina mode yet",
+        "os.Open is not supported in patina mode yet",
+        "_ is copied and kept, so its object has two owners",
+        "a slice expression (s[i:j]) is not supported in patina mode yet",
+        "io.ReadAtLeast is not supported in patina mode yet",
+        "converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet",
+        "_ is converted to an interface while it is still used, so its object has two owners",
+        "uses the standard package bufio, which patina mode does not support yet",
+        "uses the standard package internal/filepathlite, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package _/filepath, which patina mode does not support yet",
+        "uses the standard package _, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/recover",
+      "stage": "refused",
+      "fingerprints": [
+        "defer is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/recursion",
+      "stage": "refused",
+      "fingerprints": [
+        "a function type is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "calling a function value is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/regular-expressions",
+      "stage": "crashed",
+      "fingerprints": [
+        "gopatina: panic: runtime error: index out of range [N] with length N"
+      ]
+    },
+    {
+      "name": "gobyexample/select",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "make of chan string is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "select (planned, RFC N) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/sha256-hashes",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package crypto, which patina mode does not support yet",
+        "uses the standard package crypto/fips140, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/aes, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/aes/gcm, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/alias, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/check, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/drbg, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/hmac, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/sha256, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/sha3, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/sha512, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140/subtle, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140deps/cpu, which patina mode does not support yet",
+        "uses the standard package crypto/internal/fips140deps/godebug, which patina mode does not support yet",
+        "uses the standard package crypto/internal/impl, which patina mode does not support yet",
+        "uses the standard package crypto/sha256, which patina mode does not support yet",
+        "uses the standard package hash, which patina mode does not support yet",
+        "uses the standard package internal/byteorder, which patina mode does not support yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/signals",
+      "stage": "skipped",
+      "reason": "waits for signals (os/signal)"
+    },
+    {
+      "name": "gobyexample/slices",
+      "stage": "refused",
+      "fingerprints": [
+        "comparing a slice with nil is not supported in patina mode yet",
+        "the cap built-in is not supported in patina mode yet",
+        "the copy built-in is not supported in patina mode yet",
+        "a slice expression (_[_:_]) is not supported in patina mode yet",
+        "slices.Equal is not supported in patina mode yet",
+        "printing a value of type [][]int is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/sorting",
+      "stage": "refused",
+      "fingerprints": [
+        "slices.Sort is not supported in patina mode yet",
+        "slices.IsSorted is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/sorting-by-functions",
+      "stage": "refused",
+      "fingerprints": [
+        "_ function type is not supported in patina mode yet",
+        "_ function literal (closure) is not supported in patina mode yet",
+        "slices.SortFunc is not supported in patina mode yet",
+        "_ type declared inside _ function is not supported in patina mode yet",
+        "printing _ value of type []main._ is not supported in patina mode yet",
+        "uses the standard package cmp, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/spawning-processes",
+      "stage": "skipped",
+      "reason": "the output of date (skip.txt)"
+    },
+    {
+      "name": "gobyexample/stateful-goroutines",
+      "stage": "skipped",
+      "reason": "random numbers (skip.txt)"
+    },
+    {
+      "name": "gobyexample/string-formatting",
+      "stage": "skipped",
+      "reason": "pointer addresses (skip.txt)"
+    },
+    {
+      "name": "gobyexample/string-functions",
+      "stage": "refused",
+      "fingerprints": [
+        "a renamed or dot import is not supported in patina mode yet",
+        "a function type is not supported in patina mode yet",
+        "using fmt.Println as a value is not supported in patina mode yet",
+        "calling a function value is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/strings-and-runes",
+      "stage": "refused",
+      "fingerprints": [
+        "format string: \"S\": the verb %#U is not supported in patina mode yet",
+        "a slice expression (_[_:j]) is not supported in patina mode yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/struct-embedding",
+      "stage": "refused",
+      "fingerprints": [
+        "an embedded field is not supported in patina mode yet",
+        "a promoted field is not supported in patina mode yet",
+        "a type declared inside a function is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/structs",
+      "stage": "refused",
+      "fingerprints": [
+        "printing a value of type main._ is not supported in patina mode yet",
+        "printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet",
+        "an anonymous struct type is not supported in patina mode yet",
+        "printing a value of type struct{_ string; _ bool} is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/switch",
+      "stage": "refused",
+      "fingerprints": [
+        "time.Now is not supported in patina mode yet",
+        "type time.Time is not supported in patina mode yet",
+        "a function type is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "calling a function value is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/tcp-server",
+      "stage": "skipped",
+      "reason": "uses the network (net)"
+    },
+    {
+      "name": "gobyexample/temporary-files-and-directories",
+      "stage": "skipped",
+      "reason": "temporary file names (skip.txt)"
+    },
+    {
+      "name": "gobyexample/text-templates",
+      "stage": "crashed",
+      "fingerprints": [
+        "gopatina: panic: runtime error: index out of range [N] with length N"
+      ]
+    },
+    {
+      "name": "gobyexample/tickers",
+      "stage": "skipped",
+      "reason": "the clock (skip.txt)"
+    },
+    {
+      "name": "gobyexample/time",
+      "stage": "skipped",
+      "reason": "the clock (skip.txt)"
+    },
+    {
+      "name": "gobyexample/time-formatting-parsing",
+      "stage": "skipped",
+      "reason": "the clock (skip.txt)"
+    },
+    {
+      "name": "gobyexample/timeouts",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "make of chan string is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "select (planned, RFC N) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/timers",
+      "stage": "refused",
+      "fingerprints": [
+        "type time.Timer is not supported in patina mode yet",
+        "time.NewTimer is not supported in patina mode yet",
+        "a channel receive as a statement is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "_ is copied and kept, so its object has two owners",
+        "time.Sleep is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/url-parsing",
+      "stage": "skipped",
+      "reason": "uses the network (net)"
+    },
+    {
+      "name": "gobyexample/values",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gobyexample/variables",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gobyexample/variadic-functions",
+      "stage": "refused",
+      "fingerprints": [
+        "a variadic function is not supported in patina mode yet",
+        "a call with ... arguments is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gobyexample/waitgroups",
+      "stage": "skipped",
+      "reason": "goroutine scheduling order (skip.txt)"
+    },
+    {
+      "name": "gobyexample/worker-pools",
+      "stage": "skipped",
+      "reason": "goroutine scheduling order (skip.txt)"
+    },
+    {
+      "name": "gobyexample/writing-files",
+      "stage": "refused",
+      "fingerprints": [
+        "panic with a value that is not a string is not supported in patina mode yet",
+        "os.TempDir is not supported in patina mode yet",
+        "os.WriteFile is not supported in patina mode yet",
+        "type os.File is not supported in patina mode yet",
+        "os.Create is not supported in patina mode yet",
+        "defer is not supported in patina mode yet",
+        "uses the standard package bufio, which patina mode does not support yet",
+        "uses the standard package internal/filepathlite, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package path/filepath, which patina mode does not support yet",
+        "uses the standard package path, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gobyexample/xml",
+      "stage": "refused",
+      "fingerprints": [
+        "_ is converted to an interface while it is still used, so its object has two owners",
+        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
+        "the address of _ kept where its object would have more than one owner is not supported in patina mode yet",
+        "panic with a value that is not a string is not supported in patina mode yet",
+        "a type declared inside a function is not supported in patina mode yet",
+        "uses the standard package bufio, which patina mode does not support yet",
+        "uses the standard package encoding, which patina mode does not support yet",
+        "uses the standard package encoding/xml, which patina mode does not support yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet",
+        "uses the standard package internal/stringslite, which patina mode does not support yet",
+        "uses the standard package internal/unsafeheader, which patina mode does not support yet",
+        "uses the standard package iter, which patina mode does not support yet",
+        "uses the standard package reflect, which patina mode does not support yet",
+        "uses the standard package strconv, which patina mode does not support yet",
+        "uses the standard package unicode, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/basics/basic-types",
+      "stage": "refused",
+      "fingerprints": [
+        "type complex128 is not supported in patina mode yet",
+        "a complex number is not supported in patina mode yet",
+        "the format %T with a value of type bool is not supported in patina mode yet",
+        "the format %T with a value of type uint64 is not supported in patina mode yet",
+        "the format %T with a value of type complex128 is not supported in patina mode yet",
+        "the format %v with a value of type complex128 is not supported in patina mode yet",
+        "uses the standard package math/cmplx, which patina mode does not support yet",
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/basics/constants",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/basics/exported-names",
+      "stage": "skipped",
+      "reason": "does not build with Go"
+    },
+    {
+      "name": "gotour/basics/functions",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/basics/functions-continued",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/basics/imports",
+      "stage": "refused",
+      "fingerprints": [
+        "format string: \"S\": the verb %g is not supported in patina mode yet",
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/basics/multiple-results",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/basics/named-results",
+      "stage": "refused",
+      "fingerprints": [
+        "printing a value of type (_ int, _ int) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/basics/numeric-constants",
+      "stage": "not compiled",
+      "fingerprints": [
+        "rustc: error: literal out of range for `_`"
+      ]
+    },
+    {
+      "name": "gotour/basics/packages",
+      "stage": "skipped",
+      "reason": "random numbers (skip.txt)"
+    },
+    {
+      "name": "gotour/basics/short-variable-declarations",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/basics/type-conversions",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/basics/type-inference",
+      "stage": "refused",
+      "fingerprints": [
+        "the format %T with a value of type int is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/basics/variables",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/basics/variables-with-initializers",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/basics/zero",
+      "stage": "refused",
+      "fingerprints": [
+        "format string: \"S\": the verb %q is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/concurrency/buffered-channels",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "make of chan int is not supported in patina mode yet",
+        "a channel send (planned, RFC N) is not supported in patina mode yet",
+        "the \u003c- operator is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/concurrency/channels",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "a channel send (planned, RFC N) is not supported in patina mode yet",
+        "make of chan int is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "the \u003c- operator is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/concurrency/default-selection",
+      "stage": "skipped",
+      "reason": "the clock (skip.txt)"
+    },
+    {
+      "name": "gotour/concurrency/exercise-equivalent-binary-trees",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/tree, not in the standard library"
+    },
+    {
+      "name": "gotour/concurrency/exercise-web-crawler",
+      "stage": "refused",
+      "fingerprints": [
+        "type _: an interface method with an error result is not supported in patina mode yet",
+        "format string: \"S\": the verb %q is not supported in patina mode yet",
+        "type _: a map type is not supported in patina mode yet",
+        "a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/concurrency/goroutines",
+      "stage": "skipped",
+      "reason": "goroutine scheduling order (skip.txt)"
+    },
+    {
+      "name": "gotour/concurrency/mutex-counter",
+      "stage": "refused",
+      "fingerprints": [
+        "package sync is not supported in patina mode yet",
+        "type sync.Mutex is not supported in patina mode yet",
+        "a map type is not supported in patina mode yet",
+        "defer is not supported in patina mode yet",
+        "make of map[string]int is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "time.Sleep is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/concurrency/range-and-close",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "a channel send (planned, RFC N) is not supported in patina mode yet",
+        "the close built-in is not supported in patina mode yet",
+        "make of chan int is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
+        "range over a channel (chan int) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/concurrency/select",
+      "stage": "refused",
+      "fingerprints": [
+        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
+        "select (planned, RFC N) is not supported in patina mode yet",
+        "make of chan int is not supported in patina mode yet",
+        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/flowcontrol/defer",
+      "stage": "refused",
+      "fingerprints": [
+        "defer is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/flowcontrol/defer-multi",
+      "stage": "refused",
+      "fingerprints": [
+        "defer is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/flowcontrol/exercise-loops-and-functions",
+      "stage": "skipped",
+      "reason": "does not build with Go"
+    },
+    {
+      "name": "gotour/flowcontrol/for",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/flowcontrol/for-continued",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/flowcontrol/for-is-gos-while",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/flowcontrol/forever",
+      "stage": "skipped",
+      "reason": "does not finish within 10s with Go"
+    },
+    {
+      "name": "gotour/flowcontrol/if",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/flowcontrol/if-and-else",
+      "stage": "refused",
+      "fingerprints": [
+        "format string: \"S\": the verb %g is not supported in patina mode yet",
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/flowcontrol/if-with-a-short-statement",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/flowcontrol/switch",
+      "stage": "refused",
+      "fingerprints": [
+        "package runtime is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/flowcontrol/switch-evaluation-order",
+      "stage": "refused",
+      "fingerprints": [
+        "type time.Weekday is not supported in patina mode yet",
+        "time.Now is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/flowcontrol/switch-with-no-condition",
+      "stage": "refused",
+      "fingerprints": [
+        "type time.Time is not supported in patina mode yet",
+        "time.Now is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/generics/index",
+      "stage": "refused",
+      "fingerprints": [
+        "a generic function (Go N.N) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/generics/list",
+      "stage": "refused",
+      "fingerprints": [
+        "a generic type (Go N.N) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/empty-interface",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/methods/errors",
+      "stage": "skipped",
+      "reason": "the clock (skip.txt)"
+    },
+    {
+      "name": "gotour/methods/exercise-errors",
+      "stage": "refused",
+      "fingerprints": [
+        "printing a value of type (float64, error) is not supported in patina mode yet",
+        "the results of _ used here other than as v..., err := _(...) or return _(...)"
+      ]
+    },
+    {
+      "name": "gotour/methods/exercise-images",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/pic, not in the standard library"
+    },
+    {
+      "name": "gotour/methods/exercise-reader",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/reader, not in the standard library"
+    },
+    {
+      "name": "gotour/methods/exercise-rot-reader",
+      "stage": "skipped",
+      "reason": "does not build with Go"
+    },
+    {
+      "name": "gotour/methods/exercise-stringer",
+      "stage": "skipped",
+      "reason": "map iteration order (skip.txt)"
+    },
+    {
+      "name": "gotour/methods/images",
+      "stage": "refused",
+      "fingerprints": [
+        "printing a value whose String method may panic is not supported in patina mode yet",
+        "printing a value of type (r uint32, g uint32, b uint32, a uint32) is not supported in patina mode yet",
+        "uses the standard package image/color, which patina mode does not support yet",
+        "uses the standard package image, which patina mode does not support yet",
+        "uses the standard package internal/strconv, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/indirection",
+      "stage": "refused",
+      "fingerprints": [
+        "printing a value of type main._ is not supported in patina mode yet",
+        "printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/indirection-values",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/interface-values",
+      "stage": "mismatched",
+      "fingerprints": [
+        "output: exit status differs"
+      ],
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/methods/interface-values-with-nil",
+      "stage": "mismatched",
+      "fingerprints": [
+        "output: exit status differs"
+      ],
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/methods/interfaces",
+      "stage": "skipped",
+      "reason": "does not build with Go"
+    },
+    {
+      "name": "gotour/methods/interfaces-are-satisfied-implicitly",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/methods/methods",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/methods-continued",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/methods/methods-funcs",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/methods-pointers",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/methods-pointers-explained",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/methods-with-pointer-receivers",
+      "stage": "refused",
+      "fingerprints": [
+        "the format %+_ with a value of type *main._ is not supported in patina mode yet",
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/nil-interface-values",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/methods/reader",
+      "stage": "refused",
+      "fingerprints": [
+        "type strings.Reader is not supported in patina mode yet",
+        "strings.NewReader is not supported in patina mode yet",
+        "_ is copied and kept, so its object has two owners",
+        "format string: \"S\": the verb %q is not supported in patina mode yet",
+        "a slice expression (s[i:j]) is not supported in patina mode yet",
+        "io.EOF is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/methods/stringer",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/methods/type-assertions",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/methods/type-switches",
+      "stage": "refused",
+      "fingerprints": [
+        "format string: \"S\": the verb %q is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/append",
+      "stage": "refused",
+      "fingerprints": [
+        "the cap built-in is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/array",
+      "stage": "refused",
+      "fingerprints": [
+        "an array type is not supported in patina mode yet",
+        "printing _ value of type [N]string is not supported in patina mode yet",
+        "printing _ value of type [N]int is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/exercise-fibonacci-closure",
+      "stage": "skipped",
+      "reason": "does not build with Go"
+    },
+    {
+      "name": "gotour/moretypes/exercise-maps",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/wc, not in the standard library"
+    },
+    {
+      "name": "gotour/moretypes/exercise-slices",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/pic, not in the standard library"
+    },
+    {
+      "name": "gotour/moretypes/function-closures",
+      "stage": "refused",
+      "fingerprints": [
+        "a function type is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "calling a function value is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/function-values",
+      "stage": "refused",
+      "fingerprints": [
+        "a function type is not supported in patina mode yet",
+        "calling a function value is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "using math.Pow as a value is not supported in patina mode yet",
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/making-slices",
+      "stage": "refused",
+      "fingerprints": [
+        "_ slice expression (_[i:j]) is not supported in patina mode yet",
+        "the cap built-in is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/map-literals",
+      "stage": "refused",
+      "fingerprints": [
+        "a map type is not supported in patina mode yet",
+        "printing a value of type map[string]main._ is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/map-literals-continued",
+      "stage": "refused",
+      "fingerprints": [
+        "a map type is not supported in patina mode yet",
+        "printing a value of type map[string]main._ is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/maps",
+      "stage": "refused",
+      "fingerprints": [
+        "a map type is not supported in patina mode yet",
+        "a package-level variable of type map[string]main._ that the program changes is not supported in patina mode yet",
+        "make of map[string]main._ is not supported in patina mode yet",
+        "printing a value of type main._ is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/mutating-maps",
+      "stage": "refused",
+      "fingerprints": [
+        "a map type is not supported in patina mode yet",
+        "make of map[string]int is not supported in patina mode yet",
+        "the delete built-in is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/nil-slices",
+      "stage": "refused",
+      "fingerprints": [
+        "the cap built-in is not supported in patina mode yet",
+        "comparing a slice with nil is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/pointers",
+      "stage": "refused",
+      "fingerprints": [
+        "the address of _ kept where its object would have more than one owner is not supported in patina mode yet",
+        "the address of _ is kept while _ is still used by name, so the object has two owners"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/range",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/moretypes/range-continued",
+      "stage": "matched",
+      "fingerprints": [
+        "clippy: error: unnecessary use of `_`"
+      ],
+      "linted": true
+    },
+    {
+      "name": "gotour/moretypes/slice-bounds",
+      "stage": "refused",
+      "fingerprints": [
+        "a slice expression (_[i:j]) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/slice-len-cap",
+      "stage": "refused",
+      "fingerprints": [
+        "a slice expression (_[i:j]) is not supported in patina mode yet",
+        "the cap built-in is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/slice-literals",
+      "stage": "refused",
+      "fingerprints": [
+        "an anonymous struct type is not supported in patina mode yet",
+        "printing a value of type []struct{_ int; _ bool} is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/slices",
+      "stage": "refused",
+      "fingerprints": [
+        "an array type is not supported in patina mode yet",
+        "a slice expression (_[i:j]) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/slices-of-slice",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/moretypes/slices-pointers",
+      "stage": "refused",
+      "fingerprints": [
+        "an array type is not supported in patina mode yet",
+        "printing _ value of type [N]string is not supported in patina mode yet",
+        "_ slice expression (s[i:j]) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/struct-fields",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/moretypes/struct-literals",
+      "stage": "refused",
+      "fingerprints": [
+        "a *_ with more than one owner (a package-level variable holds it) is not supported in patina mode yet",
+        "a pointer here (RFC N supports pointers in variables, parameters, results and fields) is not supported in patina mode yet",
+        "printing a value of type main._ is not supported in patina mode yet",
+        "printing a pointer of type *main._, which has no String or Error method (fmt prints its address) is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/struct-pointers",
+      "stage": "refused",
+      "fingerprints": [
+        "printing a value of type main._ is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/moretypes/structs",
+      "stage": "refused",
+      "fingerprints": [
+        "printing a value of type main._ is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/solutions/binarytrees",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/tree, not in the standard library"
+    },
+    {
+      "name": "gotour/solutions/binarytrees_quit",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/tree, not in the standard library"
+    },
+    {
+      "name": "gotour/solutions/errors",
+      "stage": "refused",
+      "fingerprints": [
+        "format string: \"S\": the verb %g is not supported in patina mode yet",
+        "converting to an interface a value whose _ method may panic is not supported in patina mode yet",
+        "printing a value of type (float64, error) is not supported in patina mode yet",
+        "the results of _ used here other than as v..., err := _(...) or return _(...)",
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/solutions/fib",
+      "stage": "refused",
+      "fingerprints": [
+        "a function type is not supported in patina mode yet",
+        "a function literal (closure) is not supported in patina mode yet",
+        "calling a function value is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/solutions/http",
+      "stage": "skipped",
+      "reason": "uses the network (net/http)"
+    },
+    {
+      "name": "gotour/solutions/image",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/pic, not in the standard library"
+    },
+    {
+      "name": "gotour/solutions/loops",
+      "stage": "refused",
+      "fingerprints": [
+        "uses the standard package math, which patina mode does not support yet"
+      ]
+    },
+    {
+      "name": "gotour/solutions/maps",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/wc, not in the standard library"
+    },
+    {
+      "name": "gotour/solutions/readers",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/reader, not in the standard library"
+    },
+    {
+      "name": "gotour/solutions/rot13",
+      "stage": "refused",
+      "fingerprints": [
+        "type io.Reader is not supported in patina mode yet",
+        "_ bare return in _ function that returns an error",
+        "type strings.Reader is not supported in patina mode yet",
+        "strings.NewReader is not supported in patina mode yet",
+        "converting _ pointer to _ type other than _ named type of the program to an interface is not supported in patina mode yet",
+        "io.Copy is not supported in patina mode yet"
+      ]
+    },
+    {
+      "name": "gotour/solutions/slices",
+      "stage": "skipped",
+      "reason": "imports golang.org/x/tour/pic, not in the standard library"
+    },
+    {
+      "name": "gotour/solutions/stringers",
+      "stage": "skipped",
+      "reason": "map iteration order (skip.txt)"
+    },
+    {
+      "name": "gotour/solutions/webcrawler",
+      "stage": "skipped",
+      "reason": "goroutine scheduling order (skip.txt)"
+    },
+    {
+      "name": "gotour/welcome/hello",
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
+    },
+    {
+      "name": "gotour/welcome/sandbox",
+      "stage": "skipped",
+      "reason": "the clock (skip.txt)"
+    }
+  ]
+}

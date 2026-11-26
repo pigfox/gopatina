@@ -1,0 +1,59 @@
+name: parity
+
+# Measures GoPatina on real Go programs (testdata/parity: Go by Example and
+# A Tour of Go) once a week: the rates accepted, compiled and matching Go,
+# and the failure clusters (cmd/gopatina-parity, docs/QUALITY.md). Not run
+# on pull requests: it is slow, and the corpora change only on purpose. A
+# rate below testdata/parity/baseline.json fails the run. The repository is
+# public, so the standard runner costs nothing.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    name: parity on real programs
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+
+      - name: Install the crates' pinned Rust, with clippy
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' testdata/golden/hello/rust/rust-toolchain.toml)
+          rustup toolchain install "$channel" --profile minimal --component clippy
+          rustc +"$channel" --version | tee rust-version.txt
+
+      - name: Build the tools
+        run: |
+          go build -o "$RUNNER_TEMP/bin/gopatina" ./cmd/gopatina
+          go build -o "$RUNNER_TEMP/bin/gopatina-parity" ./cmd/gopatina-parity
+
+      - name: Measure
+        run: |
+          "$RUNNER_TEMP/bin/gopatina-parity" -gopatina "$RUNNER_TEMP/bin/gopatina" \
+            -json parity.json -md parity.md -baseline testdata/parity/baseline.json 2> parity-progress.txt
+
+      - name: Summary
+        if: always()
+        run: cat parity.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: parity-report
+          path: |
+            parity.json
+            parity.md
+            parity-progress.txt
+            rust-version.txt

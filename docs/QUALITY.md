@@ -210,6 +210,59 @@ Two more checks run beside the comparison:
 - Both need `cargo` (`-cargo`). A machine without clippy stops the run
   rather than passing it.
 
+### Parity on real programs
+
+Generated programs overstate parity: the generator writes what the subset
+accepts. `gopatina-parity` measures GoPatina on programs written for
+people, the corpora in `testdata/parity`: Go by Example (CC BY 3.0) and A
+Tour of Go (BSD-3), vendored unchanged with each one's licence and
+attribution, 190 programs.
+
+```
+go run ./cmd/gopatina-parity -gopatina $(which gopatina) -md parity.md
+```
+
+Each program is copied into a module of its own and taken through: Go
+(built, then run three times), `gopatina build -emit-rust`, `cargo build
+--release`, `cargo clippy -D warnings`, and the Rust binary's run, whose
+standard output, exit status and (for a nonzero status) first line of
+standard error must equal Go's. A program is **skipped**, never counted as
+passing, when it imports a package outside the standard library, uses the
+network, runs other programs or waits for signals; when Go does not build
+it or it does not finish; when its output varies between Go runs; or when
+`testdata/parity/skip.txt` lists it (output that varies, but not always
+within three runs: the clock, map iteration order, goroutine scheduling).
+Failures are grouped into clusters by a fingerprint, the message with the
+program's own names and numbers replaced; a diagnostic inside a standard
+package's source counts once, as "uses the standard package P".
+
+The report gives three rates of the programs tested: accepted by patina
+mode, compiled to Rust, and matching Go's output. The baseline
+(`testdata/parity/baseline.json` and `.md`, GoPatina b343cd0, go1.27.1,
+2026-11-25):
+
+| of 139 tested (51 skipped) | programs | rate |
+| --- | --- | --- |
+| accepted by patina mode | 33 | 23.7% |
+| compiled to Rust | 32 | 23.0% |
+| output matches Go | 30 | 21.6% |
+| clippy clean (of 32 compiled) | 30 | 93.8% |
+
+The largest clusters: the standard package `math` (16 programs), channel
+types (13), `unicode/utf8` (11), the go statement (10) and
+`internal/stringslite` (10, through `strings`). The run's Rust-side
+failures are GoPatina defects to fix: two crashes (an index out of range
+in gopatina, regular-expressions and text-templates), a literal out of
+range for its Rust type (numeric-constants), and an interface holding a
+pointer without a String method printed through `unreachable!` where Go
+prints `&{Hello}` (interface-values, interface-values-with-nil).
+
+The parity workflow runs it every Monday and on demand, not on pull
+requests; it fails when fewer programs are accepted, compiled or matched
+than in the baseline (counts, not rates: a program may move between
+skipped and tested). A change that raises the numbers updates the
+baseline in the same pull request.
+
 | Phase | Required test layers (in addition to 100% unit coverage) |
 | --- | --- |
 | 0: pass-through CLI | CLI tests that run a stand-in `go` command and check arguments, streams and exit status are passed through unchanged |
