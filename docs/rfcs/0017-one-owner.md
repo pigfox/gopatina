@@ -291,7 +291,31 @@ pointer (Rust's `move ||`), and the outer name is dead afterwards.
 ### 10. Interfaces and comparison
 
 Converting a pointer to an interface (`var s fmt.Stringer = n`) moves it
-into the interface value.
+into the interface value, which owns the object from then on: the
+dynamic value is `Dyn::PtrT(Option<Box<T>>)`. A new pointer, or a variable
+nothing uses afterwards, moves in. A variable still used, or a field or
+an element (which keeps its object), would be a second owner and is an
+error; a variable that is always nil has no object, so it may be
+converted and still used.
+
+The interface's object is reached through borrows:
+
+- `q := x.(*T)` and `q, ok := x.(*T)` borrow the pointer `x` holds:
+  `Option<&T>`, or `Option<&mut T>` when the program changes through `q`.
+  `x` cannot change while `q` is in use.
+- `var q *T; errors.As(err, &q)` borrows the `*T` in `err`'s chain the
+  same way, following `%w`'s wrappers by reference. A program with its
+  own `Unwrap` method is not supported yet here, since its result is a
+  new value that cannot lend.
+- A type switch's `case *T:` binding borrows the pointer.
+- `for _, s := range shapes { s.Grow(1) }` lends each element mutably
+  (`shapes.iter_mut()`): Go's copy of the interface value shares the
+  object.
+- `fmt.Errorf("...%w", err)` moves `err` into the new error; a copy where
+  `err` is used again would be a second owner, an error.
+
+A method that keeps its pointer receiver, called through an interface,
+would move the object out of the interface that still owns it: an error.
 
 `p == nil` is fine. `p == q` for two pointer variables is an error: under
 one owner they can never point at the same object, so the comparison says

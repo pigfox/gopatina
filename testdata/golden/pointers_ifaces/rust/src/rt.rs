@@ -1,11 +1,9 @@
 //! Runtime support for this crate, written by GoPatina: the few pieces
 //! of Go behaviour that have no direct Rust spelling.
 
-use std::any::Any;
-use std::cell::Cell;
-use std::cell::RefCell;
 use std::fmt;
-use std::rc::Rc;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 /// Ends the program on a panic the way Go does: the message on standard
 /// error, then exit status 2. (Rust's default status is 101.)
@@ -98,116 +96,46 @@ fn slice_fmt(f: &mut fmt::Formatter<'_>, elems: impl Iterator<Item = String>) ->
     f.write_str(&s)
 }
 
-/// A Go pointer that escapes (RFC 0013): nil, or a cell shared by every
-/// copy of the pointer. Each access borrows the cell for that access only,
-/// so no borrow is held while other code runs.
-pub struct Ptr<T: 'static>(Option<Shared<T>>);
+/// A Go error value made by errors.New or fmt.Errorf. Functions that
+/// return (T, error) in Go return Result<T, Error> here. Each one is a new
+/// pointer in Go, equal only to itself and its copies; id stands for that
+/// identity. Errors compare by that identity (id), never by message.
+#[derive(Clone, Debug)]
+pub struct Error {
+    message: String,
+    id: u64,
+}
 
-/// The one place the sharing is chosen: Rc now; Arc and a lock once
-/// goroutines come (RFC 0002).
-type Shared<T> = Rc<RefCell<T>>;
-
-impl<T> Ptr<T> {
-    /// A new cell holding v: Go's &T{...}, or a variable whose address
-    /// escapes.
-    pub fn new(v: T) -> Self {
-        Ptr(Some(Rc::new(RefCell::new(v))))
-    }
-
-    pub fn nil() -> Self {
-        Ptr(None)
-    }
-
-    pub fn is_nil(&self) -> bool {
-        self.0.is_none()
-    }
-
-    fn cell(&self) -> &RefCell<T> {
-        match &self.0 {
-            Some(c) => c,
-            None => panic!(
-                "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
-            ),
+impl Error {
+    pub fn new(message: impl Into<String>) -> Error {
+        Error {
+            message: message.into(),
+            id: error_id(),
         }
     }
 
-    /// Reads through the pointer.
-    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        f(&self.cell().borrow())
-    }
-
-    /// Writes through the pointer.
-    pub fn with_mut<R>(&self, f: impl FnOnce(&mut T) -> R) -> R {
-        f(&mut self.cell().borrow_mut())
+    pub fn id(&self) -> u64 {
+        self.id
     }
 }
 
-impl<T: Clone> Ptr<T> {
-    /// A copy of the value pointed at: Go's *p.
-    pub fn load(&self) -> T {
-        self.cell().borrow().clone()
+/// A new error identity.
+pub fn error_id() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad(&self.message)
     }
 }
 
-impl<T> Clone for Ptr<T> {
-    fn clone(&self) -> Self {
-        Ptr(self.0.clone())
-    }
-}
-
-impl<T> Default for Ptr<T> {
-    fn default() -> Self {
-        Ptr(None)
-    }
-}
-
-/// Go compares pointers by the variable they point at.
-impl<T> PartialEq for Ptr<T> {
-    fn eq(&self, other: &Self) -> bool {
-        match (&self.0, &other.0) {
-            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
-            (None, None) => true,
-            _ => false,
-        }
-    }
-}
-
-/// The last pointer to a cell frees it through release, so freeing a long
-/// list frees one cell at a time, as Go's collector does, instead of one
-/// call deeper per cell (which would overflow the stack).
-impl<T> Drop for Ptr<T> {
-    fn drop(&mut self) {
-        let Some(c) = self.0.take() else {
-            return;
-        };
-        if Rc::strong_count(&c) == 1 {
-            release(c);
-        }
-    }
-}
-
-thread_local! {
-    static PENDING: RefCell<Vec<Rc<dyn Any>>> = const { RefCell::new(Vec::new()) };
-    static RELEASING: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Frees cell c, and the cells freeing it frees, in a loop.
-fn release(c: Rc<dyn Any>) {
-    PENDING.with_borrow_mut(|p| p.push(c));
-    if RELEASING.get() {
-        return; // the loop below, further up, frees it
-    }
-    RELEASING.set(true);
-    while let Some(c) = PENDING.with_borrow_mut(|p| p.pop()) {
-        drop(c);
-    }
-    RELEASING.set(false);
-}
-
-/// %v of a pointer through its String or Error method. As Go's fmt does,
-/// a method that panics for a nil pointer prints <nil>.
-pub fn show_ptr<T>(p: &Ptr<T>, show: impl FnOnce(&Ptr<T>) -> String) -> String {
-    if !p.is_nil() {
+/// %v of an owned pointer, or a borrow of one, through its String or
+/// Error method. As Go's fmt does, a method that panics for a nil pointer
+/// prints <nil>.
+pub fn show_opt<P>(p: &Option<P>, show: impl FnOnce(&Option<P>) -> String) -> String {
+    if p.is_some() {
         return show(p);
     }
     let hook = std::panic::take_hook();

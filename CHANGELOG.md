@@ -10,6 +10,23 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- **Interfaces own the pointers they hold** (RFC 0012 with RFC 0017). A
+  pointer converted to an interface moves into it (`Dyn::PtrT(Option<Box<T>>)`),
+  so the types an interface holds have one owner instead of a shared cell
+  (`rt::Ptr`). `x.(*T)`, `errors.As(err, &q)` and a type switch's pointer
+  binding borrow the pointer the interface owns; a range over interface
+  values that changes them iterates mutably (`iter_mut`); `%w` moves the
+  error it wraps. New errors, each with its hint: a pointer converted
+  while still used, a field's pointer converted, an interface value
+  holding a pointer copied while still used, and a method keeping its
+  receiver called through an interface. A nil pointer variable may be
+  converted and still used. pointers_cells, pointers_ifaces and
+  pointers_methods hold no cell now (4 crates to 1 in
+  testdata/shared-cells.txt). New golden pointers_iface_borrows; reject
+  goldens owned_iface_converted_used, owned_iface_field_converted,
+  owned_iface_copied, owned_iface_assert_interleaved and
+  owned_iface_kept_receiver.
+
 - **Interface values hold their value, with no reference count**
   (RFC 0012 with RFC 0017). An interface value is `Option<Dyn>`, or
   `Option<Box<Dyn>>` where a dynamic value can hold an interface value,

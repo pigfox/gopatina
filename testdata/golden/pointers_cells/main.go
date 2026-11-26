@@ -139,27 +139,26 @@ func both(s string) (Tag, Tag) { return Tag(s), Tag(s + "!") }
 
 func main() {
 	kv, ke := twice("a")
-	var anyK any = &kv // an interface holds a *Tag: its pointers are cells
+	var anyK any = newTag("k") // an interface owns a new *Tag
 	kv, ke = twice("b")
 	fmt.Println(kv, ke, anyK != nil)
 	kv, kf := twice("c") // kv an existing cell, kf new
 	kv, kw := both("d")  // kw new, and a cell too
-	var anyW any = &kw
+	var anyW any = newTag("w")
 	fmt.Println(kv, kf, kw, anyW != nil)
 	var shelf Shelf
-	var anyS any = &shelf
-	sp := &shelf
+	var anyS any = &Shelf{}
 	(&shelf).Bump()
 	kept := (&shelf).Keep()
 	kept.Bump()
-	fmt.Println(sp.Count(), show(&shelf), anyS != nil)
+	fmt.Println(shelf.Count(), show(&shelf), anyS != nil)
 	// An int and a slice whose addresses an interface holds live in cells.
 	ni, nj := Cnt(5), 0
-	var anyN any = &ni
+	var anyN any = newCnt(0)
 	ni++
 	ni, nj = twoCnt()
 	ws := Words{"x", "y"}
-	var anyWs any = &ws
+	var anyWs any = &Words{}
 	all := ""
 	for _, w := range ws { // a copy of the cell's slice is ranged over
 		all += w
@@ -167,15 +166,15 @@ func main() {
 	fmt.Println(ni, nj, all, anyN != nil, anyWs != nil)
 	ni, nj = Cnt(nj+1), int(ni) // several values into a cell
 	cp := newCnt(3)
-	var anyC any = cp
+	var anyC any = newCnt(1)
 	*cp += ni // written through a pointer to a cell
 	fmt.Println(ni, nj, *cp, anyC != nil)
 	wz := Names{"p", "q"}
-	var anyWz any = &wz
+	var anyWz any = &Names{}
 	setWord(wz) // the cell's slice lent to a call
 	fmt.Println(wz, anyWz != nil)
 	rack := &Rack{}
-	var anyR any = rack
+	var anyR any = &Rack{}
 	rack.Up = &Rack{N: 1}
 	rack.Up.N = 3 // written through a pointer read through the cell
 	rack.Up.Note(4)
@@ -189,7 +188,7 @@ func main() {
 	set(rack.Seen, rack.N)
 	fmt.Println(rack.in.Get(), rack.bag.Sum(), rack.name == rack.Up.name, rack.N, rack.Seen)
 	rack2 := &Rack{N: 9}
-	var anyR2 any = rack2
+	var anyR2 any = &Rack{N: 2}
 	inc(&rack.N)                        // a field of a cell lent by address
 	rack.Seen = append(rack.Seen, 7, 8) // two pushes inside the cell
 	rack.Up.name = rack.name + rack.Up.name + "a name long enough that its write wraps over lines"

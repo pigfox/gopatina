@@ -18,7 +18,8 @@ type Rect struct{ W, H int }
 
 func (r Rect) Area() int { return r.W * r.H }
 
-func (r *Rect) Self() Shape { return r }
+// Twice returns a new Rect, twice as wide: an object of its own.
+func (r *Rect) Twice() Shape { return &Rect{W: r.W * 2, H: r.H} }
 
 type Counter interface {
 	Inc()
@@ -29,7 +30,7 @@ type Upper interface{ Up() string }
 
 type Shape interface {
 	Area() int
-	Self() Shape
+	Twice() Shape
 }
 
 func newCount(c Count) *Count { return &c }
@@ -44,6 +45,6 @@ func main() {
 	var u Upper = newName("go")
 	fmt.Println(u.Up())
 	var s Shape = &Rect{W: 2, H: 5}
-	t := s.Self()
-	fmt.Println(s.Area(), t.Area(), s == t)
+	t := s.Twice()
+	fmt.Println(s.Area(), t.Area(), s == t, t.Twice().Area())
 }

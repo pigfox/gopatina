@@ -245,6 +245,9 @@ func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
 	}
 	if c, ok := ast.Unparen(a).(*ast.CallExpr); ok && g.callTemps[c] != "" {
 		// A call computed into a local first (RFC 0010's order).
+		if p.Mode == borrow.Owned && g.ownPtr(p.Var.Type()) && g.paramRep(p.Var).optional() && g.ptrRep(c) == repBox {
+			return &call{head: "Some", open: "(", close: ")", args: []node{text(g.callTemps[c])}} // a Box where an Option<Box<T>> is moved in
+		}
 		switch p.Mode {
 		case borrow.Ref:
 			if borrow.KindOf(g.typeOf(a)) != borrow.Copy {
@@ -440,6 +443,16 @@ func (g *gen) std(e *ast.CallExpr, name string) node {
 	case "errors.Unwrap":
 		return &call{recv: &call{head: g.helper("iface_unwrap"), open: "(", close: ")", args: []node{g.ref(a[0])}}, head: ".flatten", open: "(", close: ")"}
 	case "errors.As":
+		if id, ok := ast.Unparen(stripAddrExpr(a[1])).(*ast.Ident); ok {
+			if v := g.localVar(id); v != nil && g.ptrs.RefAs(v) != nil && g.ptrs.LocalRef(v) {
+				// A borrow of the pointer in err's chain (RFC 0017).
+				t := v.Type().(*types.Pointer)
+				if g.localRefRep(v) == repOptRefMut {
+					return &call{head: g.asRefHelper(t, true), open: "(", close: ")", args: []node{g.mutRef(a[0]), text("&mut " + g.varName(v))}}
+				}
+				return &call{head: g.asRefHelper(t, false), open: "(", close: ")", args: []node{g.ref(a[0]), text("&mut " + g.varName(v))}}
+			}
+		}
 		return &call{head: g.asHelper(g.typeOf(stripAddrExpr(a[1]))), open: "(", close: ")", args: []node{g.ref(a[0]), g.mutRef(a[1])}}
 	case "os.Exit":
 		code := text(g.index(a[0]))

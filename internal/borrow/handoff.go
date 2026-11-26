@@ -3,6 +3,7 @@ package borrow
 import (
 	"fmt"
 	"github.com/pigfox/gopatina/internal/subset"
+	"go/ast"
 	"go/scanner"
 	"go/token"
 	"go/types"
@@ -16,6 +17,10 @@ func (l *live) handOff(ev event, lv set) {
 	a := l.a
 	t := a.pkg.Info.Types[ev.e].Type
 	k := KindOf(t)
+	if id, ok := ev.e.(*ast.Ident); ok && subset.Ptrs(a.pkg).NilConv(id) {
+		a.res.Actions[ev.e] = Move // a nil pointer: nothing moves (RFC 0017)
+		return
+	}
 	if k == Error || k == Writer || k == PointerKind {
 		return
 	}
@@ -68,6 +73,10 @@ func (l *live) handOff(ev event, lv set) {
 		return
 	}
 	a.res.Actions[ev.e] = Clone
+	if subset.IsIface(t) && a.ifaceHoldsPointers(t) {
+		ev.cloneWhy = why
+		l.ifaceClones = append(l.ifaceClones, ev) // refused unless lent (decideLends)
+	}
 	reason := copyReason(t)
 	if k == Shared {
 		reason = fmt.Sprintf("%s neither keeps it nor changes what it shares, so a copy behaves like Go's", ev.into)

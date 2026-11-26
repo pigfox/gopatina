@@ -34,8 +34,8 @@ mod rt;
 
 pub type Count = i64;
 
-pub fn count_inc(c: &rt::Ptr<i64>) {
-    c.with_mut(|v| *v += 1);
+pub fn count_inc(c: &mut i64) {
+    *c += 1;
 }
 
 pub fn count_get(c: i64) -> i64 {
@@ -59,8 +59,12 @@ impl Rect {
         self.w * self.h
     }
 
-    pub fn self_(r: rt::Ptr<Rect>) -> Iface {
-        boxed(Dyn::PtrRect(r))
+    /// Twice returns a new Rect, twice as wide: an object of its own.
+    pub fn twice(&self) -> Iface {
+        boxed(Dyn::PtrRect(Some(Box::new(Rect {
+            w: self.w * 2,
+            h: self.h,
+        }))))
     }
 }
 
@@ -70,35 +74,39 @@ pub type Upper = Iface;
 
 pub type Shape = Iface;
 
-fn new_count(c: i64) -> rt::Ptr<i64> {
-    let c = rt::Ptr::new(c);
-    c.clone()
+fn new_count(c: i64) -> i64 {
+    c
 }
 
-fn new_name(n: &str) -> rt::Ptr<String> {
-    let n = rt::Ptr::new(n.to_string());
-    n.clone()
+fn new_name(n: String) -> String {
+    n
 }
 
 fn main() {
     rt::exit_on_panic();
-    let c: Iface = boxed(Dyn::PtrCount(new_count(4)));
-    dyn_inc(&c);
-    dyn_inc(&c);
+    let mut c: Iface = boxed(Dyn::PtrCount(Some(new_count(4))));
+    dyn_inc(&mut c);
+    dyn_inc(&mut c);
     println!("{}", dyn_get(&c));
-    let u: Iface = boxed(Dyn::PtrName(new_name("go")));
+    let u: Iface = boxed(Dyn::PtrName(Some(new_name(String::from("go")))));
     println!("{}", dyn_up(&u));
-    let s: Iface = boxed(Dyn::PtrRect(rt::Ptr::new(Rect { w: 2, h: 5 })));
-    let t = dyn_self(&s);
-    println!("{} {} {}", dyn_area(&s), dyn_area(&t), s == t);
+    let s: Iface = boxed(Dyn::PtrRect(Some(Box::new(Rect { w: 2, h: 5 }))));
+    let t = dyn_twice(&s);
+    println!(
+        "{} {} {} {}",
+        dyn_area(&s),
+        dyn_area(&t),
+        s == t,
+        dyn_area(&dyn_twice(&t)),
+    );
 }
 
 /// The dynamic types of the program's interface values (RFC 0012).
 #[derive(Clone)]
 pub enum Dyn {
-    PtrRect(rt::Ptr<Rect>),
-    PtrCount(rt::Ptr<i64>),
-    PtrName(rt::Ptr<String>),
+    PtrRect(Option<Box<Rect>>),
+    PtrCount(Option<i64>),
+    PtrName(Option<String>),
 }
 
 /// An interface value: its dynamic value, or None for a nil interface. The
@@ -116,9 +124,15 @@ pub fn boxed(d: Dyn) -> Iface {
 impl PartialEq for Dyn {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Dyn::PtrRect(a), Dyn::PtrRect(b)) => a == b,
-            (Dyn::PtrCount(a), Dyn::PtrCount(b)) => a == b,
-            (Dyn::PtrName(a), Dyn::PtrName(b)) => a == b,
+            (Dyn::PtrRect(a), Dyn::PtrRect(b)) => {
+                a.as_deref().map(std::ptr::from_ref) == b.as_deref().map(std::ptr::from_ref)
+            }
+            (Dyn::PtrCount(a), Dyn::PtrCount(b)) => {
+                a.as_ref().map(std::ptr::from_ref) == b.as_ref().map(std::ptr::from_ref)
+            }
+            (Dyn::PtrName(a), Dyn::PtrName(b)) => {
+                a.as_ref().map(std::ptr::from_ref) == b.as_ref().map(std::ptr::from_ref)
+            }
             _ => false,
         }
     }
@@ -185,9 +199,9 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
 }
 
 /// Calls Inc on an interface value's dynamic value.
-pub fn dyn_inc(x: &Iface) {
-    match x.as_ref() {
-        Some(Dyn::PtrCount(v)) => count_inc(v),
+pub fn dyn_inc(x: &mut Iface) {
+    match x.as_mut() {
+        Some(Dyn::PtrCount(v)) => count_inc(v.as_mut().unwrap()),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),
@@ -198,7 +212,7 @@ pub fn dyn_inc(x: &Iface) {
 /// Calls Get on an interface value's dynamic value.
 pub fn dyn_get(x: &Iface) -> i64 {
     match x.as_ref() {
-        Some(Dyn::PtrCount(v)) => count_get(v.load()),
+        Some(Dyn::PtrCount(v)) => count_get(*v.as_ref().unwrap()),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),
@@ -209,7 +223,7 @@ pub fn dyn_get(x: &Iface) -> i64 {
 /// Calls Up on an interface value's dynamic value.
 pub fn dyn_up(x: &Iface) -> String {
     match x.as_ref() {
-        Some(Dyn::PtrName(v)) => name_up(&v.load()),
+        Some(Dyn::PtrName(v)) => name_up(v.as_ref().unwrap()),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),
@@ -217,10 +231,10 @@ pub fn dyn_up(x: &Iface) -> String {
     }
 }
 
-/// Calls Self on an interface value's dynamic value.
-pub fn dyn_self(x: &Iface) -> Iface {
+/// Calls Twice on an interface value's dynamic value.
+pub fn dyn_twice(x: &Iface) -> Iface {
     match x.as_ref() {
-        Some(Dyn::PtrRect(v)) => Rect::self_(v.clone()),
+        Some(Dyn::PtrRect(v)) => v.as_deref().unwrap().twice(),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),
@@ -231,7 +245,7 @@ pub fn dyn_self(x: &Iface) -> Iface {
 /// Calls Area on an interface value's dynamic value.
 pub fn dyn_area(x: &Iface) -> i64 {
     match x.as_ref() {
-        Some(Dyn::PtrRect(v)) => v.load().area(),
+        Some(Dyn::PtrRect(v)) => Rect::area(*v.as_deref().unwrap()),
         None => panic!(
             "gopatina-user-panic:runtime error: invalid memory address or nil pointer dereference"
         ),

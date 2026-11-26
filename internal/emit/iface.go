@@ -35,7 +35,10 @@ type ifaceState struct {
 	wrap     bool                  // fmt.Errorf with %w is used
 	ases     map[string]types.Type // errors.As helpers by name
 	asKeys   []string
-	helpers  map[string]bool // error helpers used (errvals.go)
+	// asRefs are errors.As helpers lending an owned pointer, by name.
+	asRefs    map[string]*types.Pointer
+	asRefKeys []string
+	helpers   map[string]bool // error helpers used (errvals.go)
 	// boxDyn is set when a dynamic value can hold an interface value (a
 	// %w error, a struct with an interface field): Dyn is then recursive,
 	// and an interface value holds it in a Box. Otherwise it is held by
@@ -82,6 +85,12 @@ func holdsIface(t types.Type) bool {
 		}
 	}
 	return false
+}
+
+// ownedPtrType reports whether t is an owned pointer type (RFC 0017).
+func (g *gen) ownedPtrType(t types.Type) bool {
+	p, ok := t.(*types.Pointer)
+	return ok && g.ownPtr(p)
 }
 
 // view is the method that borrows an interface value's dynamic value,
@@ -220,7 +229,11 @@ func (g *gen) ifaceCall(f *ast.SelectorExpr, m *types.Func, e *ast.CallExpr) nod
 		g.ifc.calls[key] = d
 		g.ifc.callKeys = append(g.ifc.callKeys, key)
 	}
-	args := []node{g.ref(f.X)}
+	recv := g.ref(f.X)
+	if g.res.IfaceMut(g.ifc.plan.Dyn, m) {
+		recv = g.mutRef(f.X) // the method changes the dynamic value
+	}
+	args := []node{recv}
 	for _, a := range e.Args {
 		args = append(args, g.owned(a))
 	}
@@ -269,10 +282,20 @@ func (g *gen) typeAssert(e *ast.TypeAssertExpr) node {
 		}
 		return &call{head: g.root("iface_assert"), open: "(", close: ")", args: []node{g.owned(e.X), miss, text(strLit(goTypeName(t)))}}
 	}
-	if commaOk {
-		return &call{head: g.getter("try", t), open: "(", close: ")", args: []node{g.ref(e.X)}}
+	x := g.ref(e.X)
+	kind := map[bool]string{true: "try", false: "get"}[commaOk]
+	if p, ok := t.(*types.Pointer); ok && g.ownPtr(p) {
+		// A borrow of the pointer the interface owns (RFC 0017), changed
+		// through when the variable it is bound to is.
+		if q := g.ptrs.AssertRef(e); q != nil && g.localRefRep(q) == repOptRefMut {
+			x = g.mutRef(e.X)
+			kind += "_mut"
+		}
 	}
-	return &call{head: g.getter("get", t), open: "(", close: ")", args: []node{g.ref(e.X), text(strLit(goTypeName(g.typeOf(e.X))))}}
+	if commaOk {
+		return &call{head: g.getter(kind, t), open: "(", close: ")", args: []node{x}}
+	}
+	return &call{head: g.getter(kind, t), open: "(", close: ")", args: []node{x, text(strLit(goTypeName(g.typeOf(e.X))))}}
 }
 
 // typeSwitch writes switch [v :=] x.(type) as a match on the dynamic value.
@@ -323,6 +346,10 @@ func (g *gen) typeSwitch(s *ast.TypeSwitchStmt) {
 		if obj, ok := g.info.Implicits[cc].(*types.Var); ok {
 			name := g.varName(obj)
 			switch {
+			case single && guard == "" && len(pats) == 1 && pats[0] != "None" && g.ownedPtrType(obj.Type()):
+				// A borrow of the pointer the interface owns (RFC 0017).
+				view := map[bool]string{true: ".as_ref()", false: ".as_deref()"}[g.unboxed(obj.Type())]
+				bind = "let " + name + " = v" + view + ";"
 			case single && guard == "" && len(pats) == 1 && pats[0] != "None":
 				bind = "let " + g.mutPrefix(obj) + name + " = " + copyOut(obj.Type(), "v") + ";"
 			default:
@@ -493,7 +520,16 @@ func (g *gen) ifaceItems() {
 	} else {
 		g.line("        match (self, other) {")
 		for i, t := range dyn {
-			if types.Comparable(t) {
+			if p, ok := t.(*types.Pointer); ok && g.ownPtr(p) {
+				// Go compares the pointers: the same object, or both nil.
+				view := "as_deref"
+				if g.unboxed(p) {
+					view = "as_ref"
+				}
+				g.line("            (Dyn::" + vs[i] + "(a), Dyn::" + vs[i] + "(b)) => {")
+				g.line("                a." + view + "().map(std::ptr::from_ref) == b." + view + "().map(std::ptr::from_ref)")
+				g.line("            }")
+			} else if types.Comparable(t) {
 				g.line("            (Dyn::" + vs[i] + "(a), Dyn::" + vs[i] + "(b)) => a == b,")
 			} else {
 				g.line("            (Dyn::" + vs[i] + "(_), Dyn::" + vs[i] + "(_)) => {")
@@ -653,11 +689,55 @@ func (g *gen) missingFn(name string, t types.Type) {
 	g.line("}")
 }
 
+// borrowGetterFn writes the helper of x.(*T), or q, ok := x.(*T), for an
+// owned pointer type: a borrow of the pointer the interface owns,
+// Option<&T> (Option<&mut T> for a _mut helper), None for a nil pointer.
+func (g *gen) borrowGetterFn(name string, p *types.Pointer, v string) {
+	mut := strings.Contains(name, "_mut_")
+	ref, view, inner := "&", g.view(), ".as_deref()"
+	if g.unboxed(p) {
+		inner = ".as_ref()"
+	}
+	if mut {
+		ref = "&mut "
+		view = map[string]string{"as_deref": "as_deref_mut", "as_ref": "as_mut"}[view]
+		inner = map[string]string{".as_deref()": ".as_deref_mut()", ".as_ref()": ".as_mut()"}[inner]
+	}
+	ty := "Option<" + ref + g.rustType(p.Elem()) + ">"
+	g.line("")
+	if strings.HasPrefix(name, "iface_try_") {
+		g.line("/// q, ok := x.(" + goTypeName(p) + "): a borrow of the pointer x holds.")
+		g.line("pub fn " + name + "(x: " + ref + "Iface) -> (" + ty + ", bool) {")
+		g.line("    match x." + view + "() {")
+		g.line("        Some(Dyn::" + v + "(v)) => (v" + inner + ", true),")
+		g.line("        _ => (None, false),")
+		g.line("    }")
+		g.line("}")
+		return
+	}
+	want := strLit(goTypeName(p))
+	g.line("/// x.(" + goTypeName(p) + "): a borrow of the pointer x holds, or Go's panic.")
+	mutWord, fail := "", "d"
+	if mut {
+		mutWord, fail = "mut ", "d.map(|d| &*d)"
+	}
+	g.line("pub fn " + name + "<'a>(x: &'a " + mutWord + "Iface, iface: &str) -> Option<&'a " + mutWord + g.rustType(p.Elem()) + "> {")
+	g.line("    match x." + view + "() {")
+	g.line("        Some(Dyn::" + v + "(v)) => v" + inner + ",")
+	g.line("        d => iface_assert_fail(" + fail + ", iface, " + want + "),")
+	g.line("    }")
+	g.line("}")
+}
+
 // getterFn writes the helper of x.(T) (iface_get_t) or v, ok := x.(T)
 // (iface_try_t) to the concrete type t.
 func (g *gen) getterFn(name string, t types.Type) {
 	v := g.variant(t)
 	ty := g.rustType(t)
+	if p, ok := t.(*types.Pointer); ok && g.ownPtr(p) {
+		g.borrowGetterFn(name, p, v)
+		return
+	}
 	g.line("")
 	if strings.HasPrefix(name, "iface_try_") {
 		g.line("/// v, ok := x.(" + goTypeName(t) + ").")
@@ -692,6 +772,14 @@ func (g *gen) getterFn(name string, t types.Type) {
 func (g *gen) dispatcher(d dispatch) {
 	sig := d.m.Signature()
 	params := []string{"x: &Iface"}
+	view := g.view()
+	if g.res.IfaceMut(g.ifc.plan.Dyn, d.m) {
+		params[0] = "x: &mut Iface" // the method changes the dynamic value
+		view += "_mut"
+		if view == "as_ref_mut" {
+			view = "as_mut"
+		}
+	}
 	var args []string
 	for i := 0; i < sig.Params().Len(); i++ {
 		n := fmt.Sprintf("a%d", i)
@@ -705,7 +793,7 @@ func (g *gen) dispatcher(d dispatch) {
 	g.line("")
 	g.line("/// Calls " + d.m.Name() + " on an interface value's dynamic value.")
 	g.line("pub fn " + d.name + "(" + strings.Join(params, ", ") + ")" + ret + " {")
-	g.line("    match x." + g.view() + "() {")
+	g.line("    match x." + view + "() {")
 	all := true
 	for i, t := range g.ifc.plan.Dyn {
 		obj, _, _ := types.LookupFieldOrMethod(t, false, d.m.Pkg(), d.m.Name())

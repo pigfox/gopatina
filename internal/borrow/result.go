@@ -113,6 +113,12 @@ type Result struct {
 	// RangeCopy holds range loops whose value variable is changed in the
 	// body, so it is copied out of the element.
 	RangeCopy map[*ast.RangeStmt]bool
+	// RangeMut holds range loops over interface values whose body changes
+	// the objects they hold: each element lent mutably (iter_mut).
+	RangeMut map[*ast.RangeStmt]bool
+	// RangeMutVars holds the value variables of those loops: &mut borrows
+	// of the elements.
+	RangeMutVars map[*types.Var]bool
 	// Hoist holds calls whose arguments are evaluated into temporaries
 	// first, because the call also changes a variable that a later
 	// argument reads.
@@ -143,3 +149,40 @@ type Result struct {
 // Param returns the decision for parameter or receiver v, or nil if v is
 // not one.
 func (r *Result) Param(v *types.Var) *Param { return r.params[v] }
+
+// IfaceMut reports whether interface method m, called through an
+// interface value, may change the value's dynamic value: some dynamic type
+// of the program implements m with a receiver it changes through (a
+// pointer receiver lent exclusively). Such an interface value is lent
+// mutably to the call (RFC 0012 with RFC 0017).
+func (r *Result) IfaceMut(dyn []types.Type, m *types.Func) bool {
+	for _, t := range dyn {
+		obj, _, _ := types.LookupFieldOrMethod(t, false, m.Pkg(), m.Name())
+		impl, ok := obj.(*types.Func)
+		if !ok {
+			continue
+		}
+		if fn := r.Funcs[impl]; fn != nil && fn.Recv != nil && fn.Recv.Mode == RefMut {
+			return true
+		}
+	}
+	return false
+}
+
+// IfaceKeeps returns a dynamic type of the program that implements
+// interface method m with a pointer receiver the method keeps (returns or
+// stores), or nil. Called through an interface, which owns that object,
+// the method would give it a second owner (RFC 0017).
+func (r *Result) IfaceKeeps(dyn []types.Type, m *types.Func) types.Type {
+	for _, t := range dyn {
+		obj, _, _ := types.LookupFieldOrMethod(t, false, m.Pkg(), m.Name())
+		impl, ok := obj.(*types.Func)
+		if !ok {
+			continue
+		}
+		if fn := r.Funcs[impl]; fn != nil && fn.Recv != nil && fn.Recv.Mode == Owned && isPointerT(fn.Recv.Var.Type()) {
+			return t
+		}
+	}
+	return nil
+}

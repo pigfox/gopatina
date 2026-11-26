@@ -49,6 +49,9 @@ func (g *gen) bindingOf(v *types.Var) binding {
 	if g.res.Lent[v] {
 		return bRef // b := a of an interface value, lent (RFC 0012)
 	}
+	if g.res.RangeMutVars[v] {
+		return bRefMut // an interface element lent mutably by its loop
+	}
 	return bOwned
 }
 
@@ -327,6 +330,9 @@ func (g *gen) stdValue(sel *ast.SelectorExpr) node {
 func (g *gen) owned(e ast.Expr) node {
 	if g.boxedExpr(e) {
 		return g.box(e)
+	}
+	if id, ok := ast.Unparen(e).(*ast.Ident); ok && g.ptrs.NilConv(id) {
+		return text("None") // a pointer always nil, converted (RFC 0017)
 	}
 	if g.res.Actions[e] == borrow.Lend {
 		return g.ref(e) // an interface copy only read: a borrow of its source
@@ -863,7 +869,11 @@ func (g *gen) composite(e *ast.CompositeLit) node {
 	t := g.typeOf(e)
 	if p, ok := t.(*types.Pointer); ok {
 		// {...} for &T{...}, in a literal of pointers (RFC 0013).
-		return g.ptrNew(t, g.compositeOf(e, p.Elem()))
+		n := g.ptrNew(t, g.compositeOf(e, p.Elem()))
+		if g.ownPtr(p) {
+			return &call{head: "Some", open: "(", close: ")", args: []node{n}} // an element of a Vec<Option<Box<T>>>
+		}
+		return n
 	}
 	return g.compositeOf(e, t)
 }

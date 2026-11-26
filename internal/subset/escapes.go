@@ -247,9 +247,24 @@ func (p *PtrPlan) localRefs() {
 	p.refs = map[*types.Var][]*types.Var{}
 	p.refSources = map[*types.Var]*types.Var{}
 	p.refCalls = map[*types.Var]*ast.CallExpr{}
+	p.refAsserts = map[*types.Var]*ast.TypeAssertExpr{}
+	p.refAs = map[*types.Var]*ast.CallExpr{}
 	info := p.pkg.Info
 	cand := map[*types.Var]bool{}
 	bad := map[*types.Var]bool{}
+	zero := map[*types.Var]bool{} // var v *T, declared with no value
+	for _, f := range p.pkg.Files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			if vs, ok := n.(*ast.ValueSpec); ok && len(vs.Values) == 0 {
+				for _, name := range vs.Names {
+					if v, ok := info.Defs[name].(*types.Var); ok {
+						zero[v] = true
+					}
+				}
+			}
+			return true
+		})
+	}
 	for _, f := range p.pkg.Files {
 		var stack []ast.Node
 		ast.Inspect(f, func(n ast.Node) bool {
@@ -263,6 +278,18 @@ func (p *PtrPlan) localRefs() {
 				return true
 			}
 			if v, ok := info.Defs[id].(*types.Var); ok && isPointer(v.Type()) && !v.IsField() {
+				if as, ok := stack[len(stack)-2].(*ast.AssignStmt); ok && as.Tok == token.DEFINE && len(as.Rhs) == 1 && as.Lhs[0] == id {
+					if ta, ok := ast.Unparen(as.Rhs[0]).(*ast.TypeAssertExpr); ok && len(as.Lhs) <= 2 {
+						// q := x.(*T) or q, ok := x.(*T): a borrow of the
+						// pointer the interface owns (RFC 0012 with RFC 0017).
+						if xv := placeRoot(info, ta.X); xv != nil && !xv.IsField() && xv.Parent() != xv.Pkg().Scope() {
+							cand[v] = true
+							p.refSources[v] = xv
+							p.refAsserts[v] = ta
+							return true
+						}
+					}
+				}
 				if as, ok := stack[len(stack)-2].(*ast.AssignStmt); ok && as.Tok == token.DEFINE && len(as.Lhs) == 1 && len(as.Rhs) == 1 {
 					if c, ok := ast.Unparen(as.Rhs[0]).(*ast.CallExpr); ok && p.retBorrowCall(c) != nil {
 						// p := f(x), f lending x back: a borrow of x's root.
@@ -318,6 +345,16 @@ func (p *PtrPlan) localRefs() {
 					return true
 				}
 			}
+			if c := asTarget(info, stack[:i+1]); c != nil && zero[v] && !cand[v] {
+				// var v *T; errors.As(err, &v): v borrows the pointer in
+				// err's chain (RFC 0012 with RFC 0017).
+				if xv := placeRoot(info, c.Args[0]); xv != nil && !xv.IsField() && xv.Parent() != xv.Pkg().Scope() {
+					cand[v] = true
+					p.refSources[v] = xv
+					p.refAs[v] = c
+					return true
+				}
+			}
 			if par := p.lentTo(stack); par != nil {
 				if _, isAssign := stack[i].(*ast.AssignStmt); !isAssign {
 					p.refs[v] = append(p.refs[v], par)
@@ -326,6 +363,9 @@ func (p *PtrPlan) localRefs() {
 			}
 			if b, ok := stack[i].(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
 				return true // compared, with nil or by address (std::ptr::eq): a read
+			}
+			if c, ok := stack[i].(*ast.CallExpr); ok && fmtPrint(info, c) {
+				return true // printed: a read
 			}
 			bad[v] = true // assigned, compared, returned, stored or copied
 			return true
@@ -356,8 +396,8 @@ func (p *PtrPlan) LocalRef(v *types.Var) bool {
 	if !ok || !p.Owned(v.Type()) {
 		return false
 	}
-	if p.lentOK[src] {
-		return true // p := &x
+	if p.lentOK[src] || p.refAsserts[v] != nil || p.refAs[v] != nil {
+		return true // p := &x, q := x.(*T) or errors.As(err, &q): a borrow of the interface's pointer
 	}
 	// p := f(x), x an owned pointer: a borrow of it, unless only read,
 	// where a shared returned borrow is a temporary borrow (step 5).
@@ -367,6 +407,53 @@ func (p *PtrPlan) LocalRef(v *types.Var) bool {
 // RefCall returns the call that local borrow v is declared from, p :=
 // f(x) with f lending x back (returns.go), or nil for p := &x.
 func (p *PtrPlan) RefCall(v *types.Var) *ast.CallExpr { return p.refCalls[v] }
+
+// RefAssert returns the type assertion x.(*T) local borrow v takes the
+// pointer of, or nil: q := x.(*T), q, ok := x.(*T).
+func (p *PtrPlan) RefAssert(v *types.Var) *ast.TypeAssertExpr { return p.refAsserts[v] }
+
+// NilConv reports whether id, converted to an interface, names a pointer
+// variable that is always nil: the interface holds a nil *T, and id stays
+// usable (RFC 0017).
+func (p *PtrPlan) NilConv(id *ast.Ident) bool { return p.nilConv[id] }
+
+// RefAs returns the errors.As call local borrow v is the target of, or
+// nil: var v *T; errors.As(err, &v).
+func (p *PtrPlan) RefAs(v *types.Var) *ast.CallExpr { return p.refAs[v] }
+
+// asTarget returns the errors.As call whose target is &v, the expression
+// stack ends with v's &, or nil.
+func asTarget(info *types.Info, stack []ast.Node) *ast.CallExpr {
+	u, ok := stack[len(stack)-1].(*ast.UnaryExpr)
+	if !ok || u.Op != token.AND {
+		return nil
+	}
+	c, ok := stack[len(stack)-2].(*ast.CallExpr)
+	if !ok || len(c.Args) != 2 || c.Args[1] != u || !isErrorsAs(info, c) {
+		return nil
+	}
+	return c
+}
+
+// isErrorsAs reports whether c calls errors.As.
+func isErrorsAs(info *types.Info, c *ast.CallExpr) bool {
+	sel, ok := ast.Unparen(c.Fun).(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	fn, ok := info.Uses[sel.Sel].(*types.Func)
+	return ok && fn.Pkg() != nil && fn.Pkg().Path() == "errors" && fn.Name() == "As"
+}
+
+// AssertRef returns the local borrow that type assertion e gives, or nil.
+func (p *PtrPlan) AssertRef(e *ast.TypeAssertExpr) *types.Var {
+	for v, ta := range p.refAsserts {
+		if ta == e && p.LocalRef(v) {
+			return v
+		}
+	}
+	return nil
+}
 
 // RefSource returns the local that local borrow v borrows.
 func (p *PtrPlan) RefSource(v *types.Var) *types.Var { return p.refSources[v] }

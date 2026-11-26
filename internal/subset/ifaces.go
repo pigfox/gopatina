@@ -446,4 +446,14 @@ func (c *checker) errorsAs(e *ast.CallExpr) {
 			return
 		}
 	}
+	if _, ok := t.(*types.Pointer); ok {
+		for _, d := range c.ifacePlan.Dyn {
+			if obj, _, _ := types.LookupFieldOrMethod(d, false, nil, "Unwrap"); obj != nil {
+				// The target borrows the pointer in err's chain, which an
+				// Unwrap method's result, a new value, cannot lend.
+				c.unsupported(e, "errors.As to a pointer in a program with an error type that has an Unwrap method")
+				return
+			}
+		}
+	}
 }

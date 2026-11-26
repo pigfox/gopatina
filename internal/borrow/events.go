@@ -4,6 +4,7 @@ import (
 	"github.com/pigfox/gopatina/internal/load"
 	"github.com/pigfox/gopatina/internal/subset"
 	"go/ast"
+	"go/constant"
 	"go/printer"
 	"go/token"
 	"go/types"
@@ -23,10 +24,11 @@ const (
 
 // An event is one use of a local variable, in evaluation order.
 type event struct {
-	kind evKind
-	v    *types.Var // the root variable of the place
-	e    ast.Expr   // the place expression (nil for evDef)
-	path string     // the place as a path, such as "m.Body[]"
+	cloneWhy string // for a refused interface clone: why it cannot move
+	kind     evKind
+	v        *types.Var // the root variable of the place
+	e        ast.Expr   // the place expression (nil for evDef)
+	path     string     // the place as a path, such as "m.Body[]"
 	// indirect: the place goes through a slice element or a pointer, so
 	// a change is seen by every Go copy that shares the memory.
 	indirect bool
@@ -237,6 +239,24 @@ func (w *walker) subExprs(e ast.Expr) {
 	}
 }
 
+// wrappedArg returns the argument of fmt.Errorf call e that its %w
+// wraps, or nil.
+func wrappedArg(info *types.Info, e *ast.CallExpr) ast.Expr {
+	// The subset takes a constant format only.
+	verbs, _ := subset.ParseFormat(constant.StringVal(info.Types[e.Args[0]].Value))
+	n := 1
+	for _, v := range verbs {
+		if v.Verb == 0 {
+			continue
+		}
+		if v.Verb == 'w' && n < len(e.Args) {
+			return e.Args[n]
+		}
+		n++
+	}
+	return nil
+}
+
 // consume records that e is handed to a new owner, described by into.
 func (w *walker) consume(e ast.Expr, into string, p *Param) {
 	before := len(w.evs)
@@ -310,6 +330,12 @@ func (w *walker) call(e *ast.CallExpr) {
 						ops.add(target, false, false, false, func() { w.expr(target, evMut) })
 						continue
 					}
+					if name == "fmt.Errorf" && a == wrappedArg(info, e) {
+						// %w: the new error holds the one it wraps, which
+						// moves in (RFC 0012); its message reads it first.
+						ops.add(a, false, false, false, func() { w.consume(a, "fmt.Errorf's %w", nil) })
+						continue
+					}
 					ops.add(a, true, false, false, func() { w.read(a) })
 				}
 				ops.check(nil, name, e.Pos(), false)
@@ -320,6 +346,21 @@ func (w *walker) call(e *ast.CallExpr) {
 		callee := w.a.funcs[method]
 		name := exprString(f.X) + "." + f.Sel.Name
 		if callee == nil { // err.Error(), or a provided method (RFC 0011)
+			if t := w.a.res.IfaceKeeps(subset.Ifaces(w.a.pkg).Dyn, method); t != nil && subset.IsIface(info.TypeOf(f.X)) {
+				w.a.report(e.Pos(), w.a.errorf(e.Pos(), "%s would move the %s out of the interface %s, which still owns it: %s keeps its receiver",
+					name, types.TypeString(t, types.RelativeTo(w.a.pkg.Types)), exprString(f.X), f.Sel.Name).With(
+					"an interface value owns its object (RFC 0017), so a method keeping its pointer receiver, called through one, would give the object a second owner",
+					"call "+f.Sel.Name+" on the object before converting it to an interface, or have "+f.Sel.Name+" return a new object"))
+			}
+			if subset.IsIface(info.TypeOf(f.X)) && w.a.res.IfaceMut(subset.Ifaces(w.a.pkg).Dyn, method) {
+				// Through an interface whose dynamic value the method changes:
+				// the interface value is lent mutably (RFC 0012 with RFC 0017).
+				w.expr(f.X, evMut)
+				for _, a := range e.Args {
+					w.read(a)
+				}
+				return
+			}
 			w.read(f.X)
 			for _, a := range e.Args {
 				w.read(a)

@@ -257,6 +257,12 @@ func (g *gen) letZero(v *types.Var) {
 	if g.isBorrow(v) {
 		t = "Option<&" + g.rustType(types.Unalias(v.Type()).(*types.Pointer).Elem()) + ">" // a temporary borrow, nil for now
 	}
+	if g.ptrs.RefAs(v) != nil && g.ptrs.LocalRef(v) {
+		// errors.As's target, a borrow of the pointer in err's chain.
+		ref := map[bool]string{true: "&mut ", false: "&"}[g.localRefRep(v) == repOptRefMut]
+		g.line("let mut " + g.varName(v) + ": Option<" + ref + g.rustType(types.Unalias(v.Type()).(*types.Pointer).Elem()) + "> = None;")
+		return
+	}
 	g.line("let " + g.mutPrefix(v) + g.varName(v) + ": " + t + " = " + g.zero(v.Type()).flat() + ";")
 }
 
@@ -1663,6 +1669,8 @@ func (g *gen) sliceRange(s *ast.RangeStmt, key, value string) (string, node, []s
 		}
 	case copyElem:
 		iter = &call{recv: &call{recv: x, head: ".iter", open: "(", close: ")"}, head: ".copied", open: "(", close: ")"}
+	case g.res.RangeMut[s]:
+		iter = &call{recv: x, head: ".iter_mut", open: "(", close: ")"}
 	case key == "_" && !g.res.RangeCopy[s]:
 		iter = g.ref(s.X)
 	default:
@@ -1670,6 +1678,9 @@ func (g *gen) sliceRange(s *ast.RangeStmt, key, value string) (string, node, []s
 	}
 	var first []string
 	valPat := value
+	if g.res.RangeMut[s] {
+		valPat = valueName // a &mut borrow of the element, itself not rebound
+	}
 	if !copyElem && isPlace && g.res.RangeCopy[s] {
 		valPat = valueName
 		first = append(first, "let mut "+valueName+" = "+valueName+".clone();")

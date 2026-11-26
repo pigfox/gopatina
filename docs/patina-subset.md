@@ -254,6 +254,15 @@ through an interface is a `match` on it. A copy of an interface value only
 read while its source does not change is a borrow of the source
 (`let b = &a;`); any other copy is a clone, as Go copies it.
 
+A pointer converted to an interface moves into it: the interface owns
+the object ([RFC 0017](rfcs/0017-one-owner.md)), and `x.(*T)`,
+`errors.As(err, &q)` and a type switch's `case *T:` binding borrow it
+(`Option<&T>`, or `Option<&mut T>` where the program changes through it).
+A pointer converted while it is still used, a field's pointer converted,
+and a copy of an interface value holding a pointer while the original is
+still used would give the object two owners, and are errors. A nil
+pointer variable may be converted and still used.
+
 Supported: interface types (named, literal, embedded, `any`) whose methods
 take and return supported types; converting values of the program's own
 types, the basic types and slices to them, explicitly or implicitly;
@@ -276,6 +285,8 @@ Not supported yet, each with its own error:
   type switch with an init statement;
 - package-level variables holding an interface value that the program
   changes, or inside a struct or slice;
+- `errors.As` to a pointer type in a program with its own `Unwrap`
+  method;
 - interfaces with type sets (generic constraints), and method values.
 
 ## Libraries

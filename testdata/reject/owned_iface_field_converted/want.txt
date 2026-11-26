@@ -1,0 +1,3 @@
+./main.go:17:17: n.Kid is converted to an interface, so its object has two owners
+    an interface value owns the object it is given, and the field or element still holds it (RFC 0017)
+    take it out first (v := n.Kid; n.Kid = nil), or convert a new object

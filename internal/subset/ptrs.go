@@ -67,6 +67,9 @@ type PtrPlan struct {
 	refs       map[*types.Var][]*types.Var
 	refSources map[*types.Var]*types.Var
 	refCalls   map[*types.Var]*ast.CallExpr
+	refAsserts map[*types.Var]*ast.TypeAssertExpr
+	refAs      map[*types.Var]*ast.CallExpr
+	nilConv    map[*ast.Ident]bool
 	// retBorrow holds, by function, the input whose borrow it returns
 	// (returns.go).
 	retBorrow map[*types.Func]*types.Var
@@ -107,7 +110,7 @@ func Ptrs(pkg *load.Package) *PtrPlan {
 	if p, ok := ptrPlans[pkg]; ok {
 		return p
 	}
-	p := &PtrPlan{pkg: pkg, Cells: map[*types.Var]bool{}}
+	p := &PtrPlan{pkg: pkg, Cells: map[*types.Var]bool{}, nilConv: map[*ast.Ident]bool{}}
 	p.build()
 	p.retBorrows()
 	p.localRefs()

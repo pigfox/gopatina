@@ -4,6 +4,3 @@
 # TestNoSharedCells fails if a crate not listed here has one, and if a
 # listed crate no longer does. Each line is a crate's directory and why.
 testdata/golden/package_vars	package variable in a RefCell
-testdata/golden/pointers_cells	pointer cells (RFC 0013)
-testdata/golden/pointers_ifaces	pointer cells (RFC 0013); interface values
-testdata/golden/pointers_methods	pointer cells (RFC 0013); interface values

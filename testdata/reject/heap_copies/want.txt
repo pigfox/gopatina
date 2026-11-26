@@ -1,16 +1,20 @@
-./main.go:33:9: copying a value of type []int out of a pointer that escapes (a copy would not share its elements) is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:40:7: copying a value of type []int out of a pointer that escapes (a copy would not share its elements) is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:42:9: handing a value of type []int held through a pointer that escapes to keepIt, which keeps it is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:43:12: ranging over a slice held through a pointer in a program that changes the elements of a []int held through one is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:45:12: copying a value of type []int out of a pointer that escapes (a copy would not share its elements) is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
+./main.go:33:9: p.items cannot be handed to a return without a copy: p is borrowed, so its value cannot be moved out
+    in Go the copy would share p.items's memory, so a change through one is seen through the other;
+    patina mode does not copy such values on its own, because a copy would change what the program does
+    hand over a copy instead: slices.Clone(p.items)
+./main.go:41:23: p.items is still used after it was handed to s on line 40
+        s := p.items              // line 40: s now holds p.items
+        fmt.Println(s, items(p))  // line 41: p.items is used here, but s now owns it
+    patina mode does not copy p.items on its own: a copy would not share that memory, so the program could behave differently
+    if s should keep the original, hand it a copy: slices.Clone(p.items)
+    or finish using p.items before handing it over
+./main.go:43:12: p.items is still used after it was handed to keepIt on line 42
+        keepIt(p.items)      // line 42: keepIt keeps p.items
+        for range p.items {  // line 43: p.items is used here, but keepIt now owns it
+    patina mode does not copy p.items on its own: a copy would not share that memory, so the program could behave differently
+    if keepIt should keep the original, hand it a copy: slices.Clone(p.items)
+    or finish using p.items before handing it over
 ./main.go:46:2: calling a method that changes its copy of a value held through a pointer that escapes is not supported in patina mode yet
-    see docs/compat.md for what patina mode supports
-./main.go:47:2: calling a method that changes its copy of a value held through a pointer that escapes is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
 ./main.go:48:5: a condition that reads through a pointer that escapes and calls a function of the program is not supported in patina mode yet
     see docs/compat.md for what patina mode supports

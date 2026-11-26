@@ -128,6 +128,14 @@ func (g *gen) localRefRep(v *types.Var) ptrRep {
 	if c := g.ptrs.RefCall(v); c != nil {
 		return g.ptrRep(c) // p := f(x): held as f returns it
 	}
+	if g.ptrs.RefAssert(v) != nil || g.ptrs.RefAs(v) != nil {
+		// q := x.(*T), or errors.As(err, &q): the pointer the interface
+		// owns, which may be nil.
+		if g.changesThrough(g.fn.Decl.Body, &ast.Ident{Name: v.Name()}) {
+			return repOptRefMut
+		}
+		return repOptRef
+	}
 	if g.changesThrough(g.fn.Decl.Body, &ast.Ident{Name: v.Name()}) {
 		return repRefMut
 	}
@@ -292,6 +300,9 @@ func (g *gen) rawPtr(e ast.Expr) node {
 func (g *gen) ptrAs(e ast.Expr, want ptrRep) node {
 	if g.info.Types[e].IsNil() {
 		return text("None") // nil lent to a parameter that may be nil
+	}
+	if ta, ok := ast.Unparen(e).(*ast.TypeAssertExpr); ok && g.ptrs.AssertRef(ta) != nil {
+		return g.value(e) // x.(*T): already the borrow its helper lends
 	}
 	if g.ptrs.LentAddr(e) {
 		// &x of a plain local lent to the call (subset.PtrPlan.LentAddr).
@@ -1124,6 +1135,11 @@ func (g *gen) printCall(e ast.Expr, t types.Type, m *types.Func) node {
 // through its print method m: rt::show_ptr prints <nil> where Go's fmt
 // does, for a method that panics on a nil pointer.
 func (g *gen) ptrShow(p node, t types.Type, m *types.Func) node {
+	if pt, ok := t.(*types.Pointer); ok && g.ownPtr(pt) {
+		// An owned pointer, or a borrow of one (RFC 0017), in its Option.
+		g.rt["show_opt"] = true
+		return &call{head: "rt::show_opt", open: "(", close: ")", args: []node{p, atom{"|x| " + g.methodOnOwned(m, pt, "x", nil), precAtom}}}
+	}
 	g.rt["show_ptr"] = true
 	show := g.methodOn(m, t, "x", nil)
 	var f node = atom{"|x| " + show, precAtom}
@@ -1133,6 +1149,42 @@ func (g *gen) ptrShow(p node, t types.Type, m *types.Func) node {
 	return &call{head: "rt::show_ptr", open: "(", close: ")", args: []node{p, f}}
 }
 
+// methodOnOwned renders method m called on v, a reference to an owned
+// pointer of type p held in an interface's dynamic value (RFC 0017): the
+// value in its box lent to the method, or a copy of it for a value
+// receiver that keeps or changes its own copy.
+func (g *gen) methodOnOwned(m *types.Func, p *types.Pointer, v string, as []string) string {
+	fn := g.res.Funcs[m]
+	mut := fn.Recv.Mode == borrow.RefMut
+	view := ".as_deref"
+	if g.unboxed(p) {
+		view = ".as_ref"
+	}
+	if mut {
+		view = map[string]string{".as_deref": ".as_deref_mut", ".as_ref": ".as_mut"}[view]
+	}
+	lent := v + view + "()"
+	var recv string
+	switch {
+	case !isPointerType(fn.Recv.Var.Type()) && fn.Recv.Mode == borrow.Owned:
+		recv = lent + ".unwrap().clone()" // a value receiver's own copy
+	case !isPointerType(fn.Recv.Var.Type()) && borrow.KindOf(p.Elem()) == borrow.Copy:
+		recv = "*" + lent + ".unwrap()"
+	case isPointerType(fn.Recv.Var.Type()) && g.paramRep(fn.Recv.Var).optional():
+		recv = lent // the method takes the pointer, which may be nil
+	default:
+		recv = lent + ".unwrap()" // &self or &mut self; a nil pointer panics, as Go's does
+	}
+	if g.freeMethods(g.recvTypeName(m)) {
+		return g.qual(m.Pkg(), g.funcs[m]) + "(" + strings.Join(append([]string{recv}, as...), ", ") + ")"
+	}
+	if strings.HasPrefix(recv, "*") || !g.ownSelf(m) && isPointerType(fn.Recv.Var.Type()) {
+		head := g.qual(m.Pkg(), g.types[g.recvTypeName(m)]) + "::" + g.funcs[m]
+		return head + "(" + strings.Join(append([]string{recv}, as...), ", ") + ")"
+	}
+	return recv + "." + g.funcs[m] + "(" + strings.Join(as, ", ") + ")"
+}
+
 // methodOnPtr renders method m called on v, a reference to a heap pointer
 // of type p, with the rendered arguments: the pointer itself for a
 // pointer-receiver method, a copy of the value for a value-receiver one
@@ -1140,6 +1192,9 @@ func (g *gen) ptrShow(p node, t types.Type, m *types.Func) node {
 func (g *gen) methodOnPtr(m *types.Func, p *types.Pointer, v string, as []string) string {
 	fn := g.res.Funcs[m]
 	free := g.freeMethods(g.recvTypeName(m))
+	if g.ownPtr(p) {
+		return g.methodOnOwned(m, p, v, as)
+	}
 	if g.heapRecv(m) {
 		recv := v
 		if fn.Recv.Mode != borrow.Ref {
