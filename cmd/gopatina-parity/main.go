@@ -465,18 +465,56 @@ var diagRE = regexp.MustCompile(`(?m)^(\S+):\d+:\d+: (.+)$`)
 
 // diagnostics returns the messages of the diagnostics in out. One in a
 // standard package's source, which patina mode compiles where it does not
-// provide the package, stands for its package: the program uses that
-// package, and the package's own constructs are not the program's.
+// provide the package, stands for the program's own call that reaches it,
+// the first function of its "reached from main through:" chain outside
+// package main: what to provide is filepath.Join, not the internal
+// package five calls below it. Without a chain it stands for its package.
+// Either way the package's own constructs are not the program's.
 func diagnostics(out []byte) []string {
 	var msgs []string
-	for _, m := range diagRE.FindAllSubmatch(out, -1) {
-		file, msg := string(m[1]), string(m[2])
+	lines := strings.Split(string(out), "\n")
+	for i, line := range lines {
+		m := diagRE.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		file, msg := m[1], m[2]
 		if _, rest, ok := strings.Cut(filepath.ToSlash(file), "/src/"); ok && filepath.IsAbs(file) {
 			msg = "uses the standard package " + path.Dir(rest) + ", which patina mode does not support yet"
+			if call := stdCall(lines[i+1:]); call != "" {
+				msg = "calls " + call + ", whose standard-library code patina mode does not support yet"
+			}
 		}
 		msgs = append(msgs, msg)
 	}
 	return msgs
+}
+
+// stdCall returns the program's call into the standard library from the
+// "reached from main through:" line among a diagnostic's indented lines:
+// the first function in the chain outside package main, or "" when there
+// is none, or the chain starts in a package's initialization (aes.init,
+// unicode.Properties), which no call of the program names.
+func stdCall(follow []string) string {
+	for _, line := range follow {
+		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+			break // the next diagnostic
+		}
+		_, chain, ok := strings.Cut(line, "reached from main through: ")
+		if !ok {
+			continue
+		}
+		fns := strings.Split(strings.TrimSpace(chain), " -> ")
+		if !strings.HasPrefix(fns[0], "main.") {
+			return ""
+		}
+		for _, fn := range fns {
+			if !strings.HasPrefix(fn, "main.") {
+				return fn
+			}
+		}
+	}
+	return ""
 }
 
 // declared returns the names the program itself declares: its functions,
@@ -542,6 +580,17 @@ func fingerprints(msgs []string, names map[string]bool) []string {
 		m = backtickRE.ReplaceAllString(m, "`_`")
 		m = quoteRE.ReplaceAllString(m, `"S"`)
 		m = numberRE.ReplaceAllString(m, "N")
+		if strings.HasPrefix(m, "calls ") || strings.HasPrefix(m, "uses the standard package ") {
+			// A standard-library call or package (diagnostics): none of
+			// its names is the program's, though the program may declare
+			// the same (a variable named like the package os/signal's
+			// last element).
+			if !seen[m] {
+				seen[m] = true
+				fps = append(fps, m)
+			}
+			continue
+		}
 		m = wordRE.ReplaceAllStringFunc(m, func(w string) string {
 			if names[w] {
 				return "_"

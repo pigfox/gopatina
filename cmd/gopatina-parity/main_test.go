@@ -35,7 +35,7 @@ const fakeGopatina = `#!/bin/sh
 while [ $# -gt 0 ]; do if [ "$1" = -o ]; then out="$2"; fi; shift; done
 grep -q FAKE_REFUSE main.go && { echo './main.go:3:5: Node is copied at line 12 into "s" with ` + "`x`" + `'; echo '    a note'; echo './main.go:4:1: Node is copied at line 13 into "t" with ` + "`y`" + `'; exit 1; }
 grep -q FAKE_CRASH main.go && { echo 'panic: Node out of range [3]'; exit 2; }
-grep -q FAKE_STDREFUSE main.go && { echo '/usr/local/go/src/math/sin.go:3:4: converting unsafe.Pointer'; echo '/usr/local/go/src/math/unsafe.go:5:6: an array type'; exit 1; }
+grep -q FAKE_STDREFUSE main.go && { echo '/usr/local/go/src/math/sin.go:3:4: converting unsafe.Pointer'; echo '/usr/local/go/src/math/unsafe.go:5:6: an array type'; echo '/usr/local/go/src/internal/x/x.go:7:8: a slice expression'; echo '    see docs/compat.md'; echo '    reached from main through: main.main -> main.helper -> filepath.Join -> x.y'; echo '/usr/local/go/src/internal/x/x.go:9:1: a map type'; echo '    reached from main through: main.main'; echo '/usr/local/go/src/internal/x/x.go:9:3: a map type'; echo '    reached from main through: x.init -> x.y'; echo '/usr/local/go/src/internal/x/x.go:9:5: a map type'; echo '    reached from main through: main.main -> os.Stdout'; echo './main.go:1:1: the next one'; echo '    reached from main through: main.main -> strings.Fields'; exit 1; }
 mkdir -p "$out/.cargo"
 cp main.go "$out/main.go"
 if grep -q FAKE_NONAME main.go; then echo '[package]' > "$out/Cargo.toml"; else printf '[package]\nname = "app"\n' > "$out/Cargo.toml"; fi
@@ -187,14 +187,18 @@ func TestStages(t *testing.T) {
 		prints[cl.Fingerprint] = len(cl.Programs)
 	}
 	for fp, n := range map[string]int{
-		"_ is copied at line N into \"S\" with `_`":                              1,
-		"gopatina: panic: Node out of range [N]":                                 1,
-		"uses the standard package math, which patina mode does not support yet": 1,
-		"rustc: error[E0308]: mismatched types `_`":                              1,
-		"clippy: error: this borrows `_`":                                        1,
-		"output: standard output differs":                                        1,
-		"output: exit status differs":                                            1,
-		"output: first line of standard error differs":                           1,
+		"_ is copied at line N into \"S\" with `_`":                                         1,
+		"gopatina: panic: Node out of range [N]":                                            1,
+		"uses the standard package math, which patina mode does not support yet":            1,
+		"calls filepath.Join, whose standard-library code patina mode does not support yet": 1,
+		"calls os.Stdout, whose standard-library code patina mode does not support yet":     1,
+		"uses the standard package internal/x, which patina mode does not support yet":      1,
+		"the next one": 1,
+		"rustc: error[E0308]: mismatched types `_`":    1,
+		"clippy: error: this borrows `_`":              1,
+		"output: standard output differs":              1,
+		"output: exit status differs":                  1,
+		"output: first line of standard error differs": 1,
 	} {
 		if prints[fp] != n {
 			t.Errorf("cluster %q: %d programs, want %d (%v)", fp, prints[fp], n, prints)
@@ -345,5 +349,16 @@ func TestMainExit(t *testing.T) {
 	main()
 	if got != 2 {
 		t.Errorf("exit %d", got)
+	}
+}
+
+// TestFingerprintKeepsStdCalls checks that a standard-library call keeps
+// its names, though the program declares the same, and is listed once.
+func TestFingerprintKeepsStdCalls(t *testing.T) {
+	call := "calls fs.WalkDir, whose standard-library code patina mode does not support yet"
+	pkg := "uses the standard package path, which patina mode does not support yet"
+	got := fingerprints([]string{call, call, pkg, "WalkDir is not supported"}, map[string]bool{"WalkDir": true, "path": true})
+	if len(got) != 3 || got[0] != call || got[1] != pkg || got[2] != "_ is not supported" {
+		t.Errorf("fingerprints = %q", got)
 	}
 }
