@@ -29,6 +29,10 @@ func (g *gen) mathCall(e *ast.CallExpr, name string) node {
 		return method("sqrt")
 	case "math.Abs":
 		return method("abs")
+	case "math.Exp":
+		g.rt["exp"] = true
+		g.rt[g.fmaUsable()] = true
+		return &call{head: "rt::exp", open: "(", close: ")", args: []node{g.value(a[0])}}
 	case "math.Floor", "math.Ceil", "math.Trunc":
 		// Rust's floor leaves a signaling NaN signaling on amd64; Go's
 		// result is quiet (rt::floor).
@@ -125,4 +129,13 @@ func (g *gen) f32Suffix(e ast.Expr) string {
 		return "_f32"
 	}
 	return ""
+}
+
+// fmaUsable names the runtime item that says whether Go's math uses FMA
+// on amd64: GODEBUG may turn it off below GOAMD64=v3, not from v3 on.
+func (g *gen) fmaUsable() string {
+	if (fma.Target{GOARCH: "amd64", GOAMD64: g.pkg.Target.GOAMD64}).Fuses() {
+		return "fma_usable_v3"
+	}
+	return "fma_usable"
 }

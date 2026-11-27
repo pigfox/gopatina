@@ -10,6 +10,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **math.Exp**, bit for bit with Go on every chip. Go writes it in
+  assembly for each target, and GoPatina ports each: amd64's
+  (`exp_amd64.s`), fused when the processor has AVX and FMA and GODEBUG
+  does not turn them off (`cpu.fma=off`, below `GOAMD64=v3`), as Go decides
+  at start-up, and arm64's (`exp_arm64.s`). `testdata/golden/math_exp`
+  checks 400,000 random arguments and the edge values on amd64 with FMA,
+  without it (a CI job running both programs with `GODEBUG=cpu.fma=off`),
+  and on arm64.
 - **NaN payloads match gc** (go-rust-disconnects.md, entry 36). Rust
   leaves a NaN result's payload unspecified, and rustc folded what it
   could see to its own NaN, where gc computes on the hardware: `Inf-Inf`

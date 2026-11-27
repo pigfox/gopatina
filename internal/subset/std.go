@@ -54,8 +54,11 @@ var StdFuncs = map[string]bool{
 	"math.NaN":             true,
 	"math.Float64bits":     true,
 	"math.Float64frombits": true,
-	"slices.Clone":         true,
-	"bytes.Clone":          true,
+	// math.Exp: Go's own algorithm for the target (exp_amd64.s, with or
+	// without FMA as the processor has it; exp_arm64.s), bit for bit.
+	"math.Exp":     true,
+	"slices.Clone": true,
+	"bytes.Clone":  true,
 }
 
 // StdVars lists the standard-library variables patina mode supports.

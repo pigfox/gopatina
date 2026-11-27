@@ -832,6 +832,195 @@ pub fn to_f64(x: f32) -> f64 {
 `,
 	},
 	{
+		name: "fma_usable",
+		code: `/// Whether Go's math uses FMA, as internal/cpu decides at start-up: the
+/// processor has AVX and FMA, and GODEBUG does not turn either off
+/// (cpu.avx=off, cpu.fma=off, cpu.all=off; the last setting wins, and on
+/// enables only what the processor has).
+#[cfg(not(target_arch = "aarch64"))]
+fn fma_usable() -> bool {
+    static USABLE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *USABLE.get_or_init(|| {
+        let (mut avx, mut fma) = (true, true);
+        for field in std::env::var("GODEBUG").unwrap_or_default().split(',') {
+            let setting = field.strip_prefix("cpu.").and_then(|f| f.split_once('='));
+            let Some((key, value)) = setting else {
+                continue;
+            };
+            let on = match value {
+                "on" => true,
+                "off" => false,
+                _ => continue,
+            };
+            match key {
+                "all" => (avx, fma) = (on, on),
+                "avx" => avx = on,
+                "fma" => fma = on,
+                _ => {}
+            }
+        }
+        avx && fma && std::is_x86_feature_detected!("avx") && std::is_x86_feature_detected!("fma")
+    })
+}
+`,
+	},
+	{
+		name: "fma_usable_v3",
+		code: `/// Whether Go's math uses FMA in a program built with GOAMD64=v3 or above,
+/// which requires AVX and FMA: GODEBUG cannot turn them off there.
+#[cfg(not(target_arch = "aarch64"))]
+fn fma_usable() -> bool {
+    std::is_x86_feature_detected!("avx") && std::is_x86_feature_detected!("fma")
+}
+`,
+	},
+	{
+		name: "exp",
+		code: `/// Go's math.Exp, bit for bit: on amd64 its assembly (exp_amd64.s,
+/// Shibata's method), with fused multiply-adds where Go uses them
+/// (fma_usable); on arm64 its assembly (exp_arm64.s), which always fuses.
+pub fn exp(x: f64) -> f64 {
+    #[cfg(target_arch = "aarch64")]
+    return exp_arm64(x);
+    #[cfg(not(target_arch = "aarch64"))]
+    return exp_amd64(x);
+}
+
+#[cfg(not(target_arch = "aarch64"))]
+fn exp_amd64(x: f64) -> f64 {
+    // exp_amd64.s's constants, bit for bit.
+    const LOG2E: f64 = f64::from_bits(0x3ff7_1547_652b_82fe);
+    const LN2U: f64 = f64::from_bits(0x3fe6_2e42_fefa_3000);
+    const LN2L: f64 = f64::from_bits(0x3d53_de6a_f278_ece6);
+    const OVERFLOW: f64 = f64::from_bits(0x4086_2e42_fefa_39ef);
+    const C: [f64; 7] = [
+        f64::from_bits(0x3efa_01a0_1a01_a01a),
+        f64::from_bits(0x3f2a_01a0_1a01_a01a),
+        f64::from_bits(0x3f56_c16c_16c1_6c17),
+        f64::from_bits(0x3f81_1111_1111_1111),
+        f64::from_bits(0x3fa5_5555_5555_5555),
+        f64::from_bits(0x3fc5_5555_5555_5555),
+        0.5,
+    ];
+    let b = x.to_bits();
+    if b & !(1 << 63) >= 0x7ff0_0000_0000_0000 {
+        // NaN, returned as it is, and the infinities.
+        return if b == 0xfff0_0000_0000_0000 { 0.0 } else { x };
+    }
+    if x > OVERFLOW {
+        return f64::INFINITY;
+    }
+    // CVTSD2SL rounds to nearest even; out of range it is i32::MIN.
+    let k = (LOG2E * x).round_ties_even() as i32;
+    let kf = f64::from(k);
+    let fma = fma_usable();
+    let mut r;
+    let mut p;
+    if fma {
+        r = (-kf).mul_add(LN2U, x);
+        r = (-kf).mul_add(LN2L, r);
+        r *= 0.0625;
+        p = C[0];
+        for c in &C[1..] {
+            p = p.mul_add(r, *c);
+        }
+        p = p.mul_add(r, 1.0);
+        r *= p;
+        for _ in 0..3 {
+            let t = r + 2.0;
+            r *= t;
+        }
+        let t = r + 2.0;
+        r = r.mul_add(t, 1.0);
+    } else {
+        r = x - LN2U * kf;
+        r -= LN2L * kf;
+        r *= 0.0625;
+        p = C[0];
+        for c in &C[1..] {
+            p = p * r + *c;
+        }
+        p = p * r + 1.0;
+        r *= p;
+        for _ in 0..4 {
+            let t = 2.0 + r;
+            r *= t;
+        }
+        r += 1.0;
+    }
+    // r * 2**k, through the subnormal range as Go does.
+    let mut e = i64::from(k) + 0x3ff;
+    if e <= 0 {
+        if e < -52 {
+            return 0.0;
+        }
+        e += 0x3fe;
+        r *= f64::from_bits((e as u64) << 52);
+        e = 1;
+    } else if e >= 0x7ff {
+        return f64::INFINITY;
+    }
+    r * f64::from_bits((e as u64) << 52)
+}
+
+#[cfg(target_arch = "aarch64")]
+fn exp_arm64(x: f64) -> f64 {
+    // exp_arm64.s's constants, bit for bit.
+    const LN2HI: f64 = f64::from_bits(0x3fe6_2e42_fee0_0000);
+    const LN2LO: f64 = f64::from_bits(0x3dea_39ef_3579_3c76);
+    const LOG2E: f64 = f64::from_bits(0x3ff7_1547_652b_82fe);
+    const OVERFLOW: f64 = f64::from_bits(0x4086_2e42_fefa_39ef);
+    const UNDERFLOW: f64 = f64::from_bits(0xc087_4910_d52d_3051);
+    const P: [f64; 5] = [
+        f64::from_bits(0x3e66_3769_72be_a4d0),
+        f64::from_bits(0xbebb_bd41_c5d2_6bf1),
+        f64::from_bits(0x3f11_566a_af25_de2c),
+        f64::from_bits(0xbf66_c16c_16be_bd93),
+        f64::from_bits(0x3fc5_5555_5555_5555),
+    ];
+    if x.is_nan() {
+        return x;
+    }
+    if x > OVERFLOW {
+        return f64::INFINITY;
+    }
+    if x < UNDERFLOW {
+        return 0.0;
+    }
+    if x.abs() < f64::from_bits(0x3e30_0000_0000_0000) {
+        return x + 1.0;
+    }
+    // k = Log2e*x -+ 0.5, truncated (FCVTZSD).
+    let k = if x < 0.0 {
+        LOG2E.mul_add(x, -0.5)
+    } else {
+        LOG2E.mul_add(x, 0.5)
+    };
+    let ki = k as i64;
+    let kf = ki as f64;
+    let hi = (-kf).mul_add(LN2HI, x);
+    let lo = kf * LN2LO;
+    let r = hi - lo;
+    let t = r * r;
+    let mut c = t.mul_add(P[0], P[1]);
+    for p in &P[2..] {
+        c = t.mul_add(c, *p);
+    }
+    let c = (-t).mul_add(c, r);
+    let y = 1.0 - ((lo - (r * c) / (2.0 - c)) - hi);
+    // Ldexp(y, k), inline as Go writes it.
+    let b = y.to_bits();
+    let mut e = (b >> 52) as i64 + ki;
+    let mut m = 1.0;
+    if e < 1 {
+        e += 52;
+        m = f64::from_bits(0x3cb0_0000_0000_0000);
+    }
+    f64::from_bits(((e as u64) << 52) | (b & 0x000f_ffff_ffff_ffff)) * m
+}
+`,
+	},
+	{
 		name: "inf",
 		code: `/// Go's math.Inf: positive infinity if sign >= 0, negative infinity
 /// otherwise.
