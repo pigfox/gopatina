@@ -1,0 +1,3 @@
+./main.go:68:7: receiver h is an exclusive borrow: add4 changes it, and the caller sees the change
+./main.go:82:7: receiver h is a shared borrow: print only reads it
+./main.go:82:24: parameter what is a shared borrow: print only reads it

@@ -1,0 +1,7 @@
+# fmaprobe
+./main.go:8:49 [bisect-match 0xcbfef9775d5a670d]
+fmahash triggered ./main.go:8:49 010110100110011100001101
+./main.go:11:43; ./main.go:8:49 [bisect-match 0xcbb1df4565277b5f]
+fmahash triggered ./main.go:11:43; ./main.go:8:49 001001110111101101011111
+./main.go:11:59; ./main.go:8:49 [bisect-match 0xabf8a29fa86e924c]
+fmahash triggered ./main.go:11:59; ./main.go:8:49 011011101001001001001100

@@ -1,0 +1,22 @@
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func madd(a, b, c float64) float64 { return a*b + c }
+
+//go:noinline
+func g(a, b float64) float64 { return madd(a, b, 1) + madd(b, a, 2) }
+
+//go:noinline
+func h(a, b, c float64) float64 {
+	t := a * b
+	if c > 0 {
+		t = c
+	}
+	return t + c
+}
+
+func main() { fmt.Println(g(float64(len(os.Args)), 0.1), madd(0.1, 0.2, 0.3), h(1, 2, 3)) }

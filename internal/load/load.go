@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/pigfox/gopatina/internal/diag"
+	"github.com/pigfox/gopatina/internal/fma"
 )
 
 // BuildTag is the build tag both patina flags set, so a package can carry a
@@ -55,6 +56,14 @@ type Package struct {
 	// the program reaches, the declaration that first reached it (an init
 	// function and main's declarations reach without one).
 	Via map[ast.Node]ast.Node
+
+	// Fused are the float operations gc fuses into a multiply-add for the
+	// target (package fma), or nil when the target never fuses; FusedErr
+	// says why they are unknown on a target that does. Fusions, set by the
+	// subset checker, says how each of the program's is written.
+	Fused    *fma.Sites
+	FusedErr error
+	Fusions  map[*ast.BinaryExpr]fma.Fusion
 }
 
 // stdImporter imports standard-library packages from export data. It is

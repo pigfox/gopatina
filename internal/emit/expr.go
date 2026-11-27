@@ -589,6 +589,9 @@ var binOps = map[token.Token]struct {
 }
 
 func (g *gen) binary(e *ast.BinaryExpr) node {
+	if f, ok := g.pkg.Fusions[e]; ok {
+		return g.fused(f)
+	}
 	xt := g.typeOf(e.X)
 	switch {
 	case e.Op == token.ADD && isStringType(xt):

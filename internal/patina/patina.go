@@ -19,6 +19,7 @@ import (
 	"github.com/pigfox/gopatina/internal/borrow"
 	"github.com/pigfox/gopatina/internal/diag"
 	"github.com/pigfox/gopatina/internal/emit"
+	"github.com/pigfox/gopatina/internal/fma"
 	"github.com/pigfox/gopatina/internal/load"
 	"github.com/pigfox/gopatina/internal/subset"
 )
@@ -59,6 +60,7 @@ func (s *Session) Check(dir string) (*load.Package, *borrow.Result, error) {
 		}
 		return nil, nil, err
 	}
+	s.findFused(pkg)
 	if ds := subset.Check(pkg); len(ds) > 0 {
 		s.printDiags(ds)
 		return nil, nil, ErrFailed
@@ -75,6 +77,59 @@ func (s *Session) Check(dir string) (*load.Package, *borrow.Result, error) {
 	}
 	return pkg, res, nil
 }
+
+// findFused asks gc where it fuses float multiply-adds in pkg for the
+// target (package fma), when the target fuses at all: pkg.Fused, or
+// pkg.FusedErr when gc cannot say, and the subset checker then refuses
+// what gc may fuse.
+func (s *Session) findFused(pkg *load.Package) {
+	t, err := s.FMATarget()
+	if err != nil {
+		pkg.FusedErr = err
+		return
+	}
+	if !t.Fuses() {
+		return
+	}
+	pkg.Fused, pkg.FusedErr = findFused(goCommand, os.Environ(), pkg.Dir, t)
+}
+
+// findFused is fma.Find; tests replace it.
+var findFused = fma.Find
+
+// goCommand is the go command gopatina runs.
+const goCommand = "go"
+
+// FMATarget returns what gc's float multiply-add fusion depends on for the
+// build: the Go version, GOOS and GOARCH (as Target), and, on amd64,
+// GOAMD64 from the environment or, when unset, the go command's default.
+func (s *Session) FMATarget() (fma.Target, error) {
+	goos, goarch := s.Getenv("GOOS"), s.Getenv("GOARCH")
+	if goos == "" {
+		goos = runtime.GOOS
+	}
+	if goarch == "" {
+		goarch = runtime.GOARCH
+	}
+	cmd := exec.Command(goCommand, "env", "GOVERSION", "GOAMD64")
+	cmd.Env = append(os.Environ(), "GOOS="+goos, "GOARCH="+goarch)
+	out, err := goEnv(cmd)
+	if err != nil {
+		return fma.Target{}, fmt.Errorf("go env: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	t := fma.Target{GoVersion: lines[0], GOOS: goos, GOARCH: goarch}
+	if goarch == "amd64" {
+		t.GOAMD64 = s.Getenv("GOAMD64")
+		if t.GOAMD64 == "" && len(lines) > 1 {
+			t.GOAMD64 = strings.TrimSpace(lines[1])
+		}
+	}
+	return t, nil
+}
+
+// goEnv runs go env; tests replace it.
+var goEnv = (*exec.Cmd).Output
 
 func (s *Session) printDiags(ds []diag.Diagnostic) {
 	fmt.Fprintln(s.Stderr, (&diag.Error{Dir: s.Cwd, Diags: ds}).Error())
