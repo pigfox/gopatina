@@ -28,6 +28,11 @@ Until 1.0.0, minor versions may contain breaking changes.
   random inputs on amd64 and, in a CI job of its own, arm64. `Max` and
   `Min` are left out: Go returns a different NaN for them on amd64 and on
   arm64.
+- **The verb `%g` of a float** (`fmt.Printf("%g", x)`, with a width and
+  the `-` flag). For a float it is Go's `%v`: the shortest digits that read
+  back as the number, with an exponent below 1e-4 and from 1e+06 up.
+  `%g` with a precision, which counts significant digits, and `%+g`, which
+  prints a sign where `%+v` does not, are not supported yet.
 
 ### Removed
 

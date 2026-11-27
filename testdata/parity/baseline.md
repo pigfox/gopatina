@@ -4,10 +4,10 @@
 
 | of 138 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 39 | 28.3% |
-| compiled to Rust | 39 | 28.3% |
-| output matches Go | 39 | 28.3% |
-| clippy clean (of 39 linted) | 37 | 94.9% |
+| accepted by patina mode | 40 | 29.0% |
+| compiled to Rust | 40 | 29.0% |
+| output matches Go | 40 | 29.0% |
+| clippy clean (of 40 linted) | 38 | 95.0% |
 
 ## Failure clusters, largest first
 
@@ -51,7 +51,6 @@
 | 3 | a slice expression (_[i:j]) is not supported in patina mode yet | gotour/moretypes/slice-bounds, gotour/moretypes/slice-len-cap, gotour/moretypes/slices |
 | 3 | an anonymous struct type is not supported in patina mode yet | gobyexample/structs, gobyexample/text-templates, gotour/moretypes/slice-literals |
 | 3 | converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet | gobyexample/base64-encoding, gobyexample/reading-files, gobyexample/xml |
-| 3 | format string: "S": the verb %g is not supported in patina mode yet | gotour/basics/imports, gotour/flowcontrol/if-and-else, gotour/solutions/errors |
 | 3 | make of chan bool is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/closing-channels, gobyexample/non-blocking-channel-operations |
 | 3 | make of map[string]int is not supported in patina mode yet | gobyexample/maps, gotour/concurrency/mutex-counter, gotour/moretypes/mutating-maps |
 | 3 | math.Pow is not supported in patina mode yet | gotour/flowcontrol/if-and-else, gotour/flowcontrol/if-with-a-short-statement, gotour/moretypes/function-values |
