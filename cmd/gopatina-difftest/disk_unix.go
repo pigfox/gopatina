@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
 )
 
 // freePercent returns the percent of the disk holding dir that is free to
@@ -27,8 +28,16 @@ func alive(pid int) bool {
 }
 
 // ownGroup starts cmd in a process group of its own, all of it killed
-// when cmd is stopped.
+// when cmd is stopped. A process the group was forking as it was killed
+// can escape the kill on macOS, keeping the build's output open and
+// writing on; the group is killed again shortly after to catch it.
 func ownGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	cmd.Cancel = func() error {
+		pgid := -cmd.Process.Pid
+		for _, d := range []time.Duration{20 * time.Millisecond, 200 * time.Millisecond} {
+			time.AfterFunc(d, func() { syscall.Kill(pgid, syscall.SIGKILL) })
+		}
+		return syscall.Kill(pgid, syscall.SIGKILL)
+	}
 }

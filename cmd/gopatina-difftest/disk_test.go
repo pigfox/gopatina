@@ -140,7 +140,9 @@ func TestSignalStopsBuilds(t *testing.T) {
 	t.Setenv("TMPDIR", tmp)
 	started := filepath.Join(t.TempDir(), "started")
 	slow := filepath.Join(t.TempDir(), "slow")
-	script := "#!/bin/sh\nmkdir -p \"$GOCACHE\"\ntouch '" + started + "'\n(sleep 2; mkdir -p \"$GOCACHE/late\") &\nwait\n"
+	// The marker comes once the late writer is forked, so the signal finds
+	// it in the group.
+	script := "#!/bin/sh\nmkdir -p \"$GOCACHE\"\n(sleep 2; mkdir -p \"$GOCACHE/late\") &\ntouch '" + started + "'\nwait\n"
 	if err := os.WriteFile(slow, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
