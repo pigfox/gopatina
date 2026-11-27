@@ -88,6 +88,7 @@ func (s *Session) findFused(pkg *load.Package) {
 		pkg.FusedErr = err
 		return
 	}
+	pkg.Target = t
 	if !t.Fuses() {
 		return
 	}

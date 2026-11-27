@@ -101,6 +101,35 @@ jobs:
           GOAMD64: v3
         run: go test ./internal/patina -run 'TestDifferential' -timeout 50m -v
 
+  float-amd64-no-fma:
+    # math.Exp on amd64 takes another path without FMA (exp_amd64.s), which
+    # Go chooses at start-up from the processor and GODEBUG (cpu.fma=off),
+    # and GoPatina the same way: both programs run with FMA and with it
+    # turned off. (Under qemu as a Nehalem, the dynamically linked Rust
+    # binary dies of an illegal instruction before its first line.)
+    name: float bit for bit (ubuntu-latest, amd64 with and without FMA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: math_exp, built by Go and by GoPatina, with FMA and without
+        run: |
+          grep -qw fma /proc/cpuinfo
+          go build -o "$RUNNER_TEMP/gopatina" ./cmd/gopatina
+          cd testdata/golden/math_exp
+          go build -o "$RUNNER_TEMP/go-bin" .
+          "$RUNNER_TEMP/gopatina" build -patina -o "$RUNNER_TEMP/patina-bin" .
+          for g in "" cpu.fma=off cpu.avx=off cpu.all=off; do
+            GODEBUG=$g "$RUNNER_TEMP/go-bin" > "$RUNNER_TEMP/go-$g.txt"
+            GODEBUG=$g "$RUNNER_TEMP/patina-bin" > "$RUNNER_TEMP/patina-$g.txt"
+            diff "$RUNNER_TEMP/go-$g.txt" "$RUNNER_TEMP/patina-$g.txt"
+          done
+          # The two paths ran: their results differ.
+          ! cmp -s "$RUNNER_TEMP/go-.txt" "$RUNNER_TEMP/go-cpu.fma=off.txt"
+
   site-layout:
     name: site never scrolls sideways on a phone
     runs-on: ubuntu-latest

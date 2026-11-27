@@ -127,3 +127,29 @@ func TestNaNExact(t *testing.T) {
 		}
 	}
 }
+
+// TestExpFMAChoice checks which rule math.Exp's FMA choice follows on
+// amd64: GODEBUG may turn FMA off below GOAMD64=v3, not from v3 on.
+func TestExpFMAChoice(t *testing.T) {
+	src := "package main\n\nimport (\n\t\"fmt\"\n\t\"math\"\n)\n\nfunc main() { fmt.Println(math.Exp(1)) }\n"
+	for level, want := range map[string]string{"v1": "GODEBUG", "v3": "cannot turn them off"} {
+		pkg, err := load.Source("/r", "main.go", src, "go1.25")
+		if err != nil {
+			t.Fatal(err)
+		}
+		pkg.Target = fma.Target{GOOS: "linux", GOARCH: "amd64", GOAMD64: level}
+		if ds := subset.Check(pkg); len(ds) > 0 {
+			t.Fatal(ds)
+		}
+		res, _ := borrow.Check(pkg)
+		var rt string
+		for _, f := range Emit(pkg, res, Options{Target: goldenTarget, Version: "devel"}).Files {
+			if f.Path == "src/rt.rs" {
+				rt = string(f.Data)
+			}
+		}
+		if !strings.Contains(rt, want) || !strings.Contains(rt, "fn fma_usable() -> bool") {
+			t.Errorf("%s: rt.rs lacks %q", level, want)
+		}
+	}
+}

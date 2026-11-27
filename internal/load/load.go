@@ -71,6 +71,9 @@ type Package struct {
 	// (subset.NaNObservers), which the emitter writes with the target's
 	// NaN rules.
 	NaNExact map[ast.Node]bool
+	// Target is what the build is for (package fma), which runtime items
+	// such as math.Exp's FMA choice depend on; zero when unknown.
+	Target fma.Target
 }
 
 // stdImporter imports standard-library packages from export data. It is
