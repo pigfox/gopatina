@@ -146,9 +146,12 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 
 // funcBody writes the body of function fd, already indented.
 func (g *gen) funcBody(fd *ast.FuncDecl, obj *types.Func, sig *types.Signature, ps []*borrow.Param) {
-	if obj.Name() == "main" && g.fn.Recv == nil {
+	main := obj.Name() == "main" && g.fn.Recv == nil
+	if main && !g.defers() {
 		g.rt["exit_on_panic"] = true
 		g.line("rt::exit_on_panic();")
+	}
+	if main {
 		// Each package: its variables, then its init functions (Go's
 		// order, RFC 0009 and RFC 0010).
 		for _, p := range g.pkg.Pkgs {
@@ -177,7 +180,55 @@ func (g *gen) funcBody(fd *ast.FuncDecl, obj *types.Func, sig *types.Signature, 
 	}
 	g.fnStart = fd.Body.Lbrace
 	g.fnBody = fd.Body
+	g.deferred = ""
+	if main && g.defers() {
+		// A panic unwinds, running the deferred calls, before Go's
+		// message and exit status (rt::run_main).
+		g.rt["run_main"] = true
+		g.line("rt::run_main(|| {")
+		g.ind++
+		defer func() { g.ind--; g.line("});") }()
+	}
+	if hasDefer(fd.Body) {
+		g.rt["Defers"] = true
+		g.deferred = g.lnames.name("", func(string) string { return "deferred" })
+		g.line("let mut " + g.deferred + " = rt::Defers::default();")
+	}
 	g.bodyTo(fd.Body.List, true, fd.Body.Rbrace)
+}
+
+// hasDefer reports whether body defers a call.
+func hasDefer(body *ast.BlockStmt) bool {
+	found := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		_, ok := n.(*ast.DeferStmt)
+		found = found || ok
+		return !found
+	})
+	return found
+}
+
+// defers reports whether a function of the program defers a call: then a
+// panic must unwind, so the deferred calls run.
+func (g *gen) defers() bool {
+	for _, f := range g.pkg.Files {
+		for _, d := range f.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok && fd.Body != nil && hasDefer(fd.Body) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// deferStmt writes defer fmt.Print(...), Println or Printf (subset
+// checks it): Go evaluates the arguments now, values whose text cannot
+// change by the time the call runs, so the text is made now and printed
+// then (rt::Defers).
+func (g *gen) deferStmt(s *ast.DeferStmt) {
+	sel := s.Call.Fun.(*ast.SelectorExpr)
+	text := g.fmtCall(s.Call, "fmt.Sp"+strings.TrimPrefix(sel.Sel.Name, "P")) // Println: Sprintln
+	g.stmtLine(g.deferred+".print(", text, ");")
 }
 
 // apiTail writes, for a function of a library's API (RFC 0014), its pub
@@ -663,6 +714,8 @@ func (g *gen) stmt(s ast.Stmt) {
 	switch s := s.(type) {
 	case *ast.ExprStmt:
 		g.exprStmt(s.X)
+	case *ast.DeferStmt:
+		g.deferStmt(s)
 	case *ast.AssignStmt:
 		g.assign(s)
 	case *ast.IncDecStmt:

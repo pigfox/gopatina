@@ -515,7 +515,15 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   stack in the future's state, so it survives suspension; a guard holding
   only owned handles is `Send`. The first planned step is the restricted
   form `defer wg.Done()`, `defer mu.Unlock()` and similar at function
-  level; general `defer` and `recover` follow.
+  level; general `defer` and `recover` follow. **Done for deferred prints**:
+  `defer fmt.Print`, `Println` and `Printf` of numbers, strings and
+  booleans keep their text, made at the `defer` statement, in an
+  `rt::Defers` whose `Drop` prints them last first, on return and while a
+  panic unwinds; a program that defers runs `main` in `rt::run_main`,
+  which lets the panic unwind and then prints Go's message and exits with
+  status 2 (`testdata/golden/defer_prints`, `defer_panic`). Other deferred
+  calls wait for closures and for calls that cannot panic during an
+  unwind, which would abort.
 - **Blocks 100%?** No.
 
 ## 27. embed

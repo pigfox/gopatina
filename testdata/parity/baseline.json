@@ -1,22 +1,23 @@
 {
   "programs": 190,
-  "skipped": 52,
-  "tested": 138,
-  "accepted": 40,
-  "compiled": 40,
-  "matched": 40,
-  "linted": 40,
-  "lint_clean": 38,
+  "skipped": 53,
+  "tested": 137,
+  "accepted": 43,
+  "compiled": 43,
+  "matched": 43,
+  "linted": 43,
+  "lint_clean": 41,
   "rates": {
-    "accepted": 29,
-    "compiled": 29,
-    "lint_clean": 95,
-    "matched": 29
+    "accepted": 31.4,
+    "compiled": 31.4,
+    "lint_clean": 95.3,
+    "matched": 31.4
   },
   "skips": {
     "does not build with Go": 6,
     "does not finish within 10s with Go": 1,
     "goroutine scheduling order (skip.txt)": 5,
+    "goroutine scheduling order (the worker's and main's prints interleave) (skip.txt)": 1,
     "goroutine scheduling order (two sums received as they finish) (skip.txt)": 1,
     "imports golang.org/x/tour/pic, not in the standard library": 4,
     "imports golang.org/x/tour/reader, not in the standard library": 2,
@@ -42,7 +43,6 @@
         "gobyexample/channel-directions",
         "gobyexample/channel-synchronization",
         "gobyexample/channels",
-        "gobyexample/closing-channels",
         "gobyexample/non-blocking-channel-operations",
         "gobyexample/range-over-channels",
         "gobyexample/select",
@@ -111,20 +111,6 @@
       ]
     },
     {
-      "fingerprint": "defer is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/defer",
-        "gobyexample/directories",
-        "gobyexample/exit",
-        "gobyexample/mutexes",
-        "gobyexample/recover",
-        "gobyexample/writing-files",
-        "gotour/concurrency/mutex-counter",
-        "gotour/flowcontrol/defer",
-        "gotour/flowcontrol/defer-multi"
-      ]
-    },
-    {
       "fingerprint": "panic with a value that is not a string is not supported in patina mode yet",
       "programs": [
         "gobyexample/defer",
@@ -143,25 +129,12 @@
       "programs": [
         "gobyexample/channel-synchronization",
         "gobyexample/channels",
-        "gobyexample/closing-channels",
         "gobyexample/select",
         "gobyexample/timeouts",
         "gobyexample/timers",
         "gotour/concurrency/mutex-counter",
         "gotour/concurrency/range-and-close",
         "gotour/concurrency/select"
-      ]
-    },
-    {
-      "fingerprint": "a channel send (planned, RFC N) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/channel-buffering",
-        "gobyexample/channel-directions",
-        "gobyexample/channel-synchronization",
-        "gobyexample/closing-channels",
-        "gobyexample/range-over-channels",
-        "gotour/concurrency/buffered-channels",
-        "gotour/concurrency/range-and-close"
       ]
     },
     {
@@ -225,6 +198,28 @@
       ]
     },
     {
+      "fingerprint": "a channel send (planned, RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-buffering",
+        "gobyexample/channel-directions",
+        "gobyexample/channel-synchronization",
+        "gobyexample/range-over-channels",
+        "gotour/concurrency/buffered-channels",
+        "gotour/concurrency/range-and-close"
+      ]
+    },
+    {
+      "fingerprint": "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/mutexes",
+        "gobyexample/recover",
+        "gobyexample/writing-files",
+        "gotour/concurrency/mutex-counter"
+      ]
+    },
+    {
       "fingerprint": "printing a value of type main._ is not supported in patina mode yet",
       "programs": [
         "gobyexample/structs",
@@ -253,16 +248,6 @@
         "gobyexample/panic",
         "gobyexample/reading-files",
         "gobyexample/writing-files"
-      ]
-    },
-    {
-      "fingerprint": "the \u003c- operator is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/channel-buffering",
-        "gobyexample/channel-directions",
-        "gobyexample/channels",
-        "gobyexample/closing-channels",
-        "gotour/concurrency/buffered-channels"
       ]
     },
     {
@@ -313,15 +298,6 @@
       ]
     },
     {
-      "fingerprint": "make of chan int is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/closing-channels",
-        "gotour/concurrency/buffered-channels",
-        "gotour/concurrency/range-and-close",
-        "gotour/concurrency/select"
-      ]
-    },
-    {
       "fingerprint": "os.TempDir is not supported in patina mode yet",
       "programs": [
         "gobyexample/defer",
@@ -337,6 +313,15 @@
         "gobyexample/select",
         "gobyexample/timeouts",
         "gotour/concurrency/select"
+      ]
+    },
+    {
+      "fingerprint": "the \u003c- operator is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-buffering",
+        "gobyexample/channel-directions",
+        "gobyexample/channels",
+        "gotour/concurrency/buffered-channels"
       ]
     },
     {
@@ -367,14 +352,6 @@
       ]
     },
     {
-      "fingerprint": "a channel receive as a statement is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/channel-synchronization",
-        "gobyexample/closing-channels",
-        "gobyexample/timers"
-      ]
-    },
-    {
       "fingerprint": "a slice expression (_[i:j]) is not supported in patina mode yet",
       "programs": [
         "gotour/moretypes/slice-bounds",
@@ -399,11 +376,11 @@
       ]
     },
     {
-      "fingerprint": "make of chan bool is not supported in patina mode yet",
+      "fingerprint": "make of chan int is not supported in patina mode yet",
       "programs": [
-        "gobyexample/channel-synchronization",
-        "gobyexample/closing-channels",
-        "gobyexample/non-blocking-channel-operations"
+        "gotour/concurrency/buffered-channels",
+        "gotour/concurrency/range-and-close",
+        "gotour/concurrency/select"
       ]
     },
     {
@@ -455,14 +432,6 @@
       ]
     },
     {
-      "fingerprint": "the close built-in is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/closing-channels",
-        "gobyexample/range-over-channels",
-        "gotour/concurrency/range-and-close"
-      ]
-    },
-    {
       "fingerprint": "time.Now is not supported in patina mode yet",
       "programs": [
         "gobyexample/switch",
@@ -504,6 +473,13 @@
       "programs": [
         "gobyexample/generics",
         "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "a channel receive as a statement is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-synchronization",
+        "gobyexample/timers"
       ]
     },
     {
@@ -553,6 +529,13 @@
       "programs": [
         "gobyexample/line-filters",
         "gobyexample/reading-files"
+      ]
+    },
+    {
+      "fingerprint": "make of chan bool is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/channel-synchronization",
+        "gobyexample/non-blocking-channel-operations"
       ]
     },
     {
@@ -609,6 +592,13 @@
       "programs": [
         "gotour/methods/reader",
         "gotour/solutions/rot13"
+      ]
+    },
+    {
+      "fingerprint": "the close built-in is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-channels",
+        "gotour/concurrency/range-and-close"
       ]
     },
     {
@@ -1785,17 +1775,8 @@
     },
     {
       "name": "gobyexample/closing-channels",
-      "stage": "refused",
-      "fingerprints": [
-        "a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet",
-        "make of chan int is not supported in patina mode yet",
-        "make of chan bool is not supported in patina mode yet",
-        "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
-        "a channel send (planned, RFC N) is not supported in patina mode yet",
-        "the close built-in is not supported in patina mode yet",
-        "a channel receive as a statement is not supported in patina mode yet",
-        "the \u003c- operator is not supported in patina mode yet"
-      ]
+      "stage": "skipped",
+      "reason": "goroutine scheduling order (the worker's and main's prints interleave) (skip.txt)"
     },
     {
       "name": "gobyexample/closures",
@@ -1876,7 +1857,7 @@
       "fingerprints": [
         "os.TempDir is not supported in patina mode yet",
         "type os.File is not supported in patina mode yet",
-        "defer is not supported in patina mode yet",
+        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "_ is copied and kept, so its object has two owners",
         "os.Create is not supported in patina mode yet",
         "panic with a value that is not a string is not supported in patina mode yet",
@@ -1892,7 +1873,7 @@
       "fingerprints": [
         "panic with a value that is not a string is not supported in patina mode yet",
         "os.Mkdir is not supported in patina mode yet",
-        "defer is not supported in patina mode yet",
+        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "a function type is not supported in patina mode yet",
         "a function literal (closure) is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet",
@@ -1950,10 +1931,9 @@
     },
     {
       "name": "gobyexample/exit",
-      "stage": "refused",
-      "fingerprints": [
-        "defer is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gobyexample/file-paths",
@@ -2085,7 +2065,7 @@
         "package sync is not supported in patina mode yet",
         "type sync.Mutex is not supported in patina mode yet",
         "a map type is not supported in patina mode yet",
-        "defer is not supported in patina mode yet",
+        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "type sync.WaitGroup is not supported in patina mode yet",
         "a function type is not supported in patina mode yet",
         "a function literal (closure) is not supported in patina mode yet",
@@ -2201,7 +2181,7 @@
       "name": "gobyexample/recover",
       "stage": "refused",
       "fingerprints": [
-        "defer is not supported in patina mode yet"
+        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet"
       ]
     },
     {
@@ -2491,7 +2471,7 @@
         "os.WriteFile is not supported in patina mode yet",
         "type os.File is not supported in patina mode yet",
         "os.Create is not supported in patina mode yet",
-        "defer is not supported in patina mode yet",
+        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "calls bufio.Writer.Flush, whose standard-library code patina mode does not support yet",
         "calls bufio.Writer.WriteString, whose standard-library code patina mode does not support yet",
         "calls filepath.Join, whose standard-library code patina mode does not support yet",
@@ -2671,7 +2651,7 @@
         "package sync is not supported in patina mode yet",
         "type sync.Mutex is not supported in patina mode yet",
         "a map type is not supported in patina mode yet",
-        "defer is not supported in patina mode yet",
+        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "make of map[string]int is not supported in patina mode yet",
         "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
         "time.Sleep is not supported in patina mode yet"
@@ -2701,17 +2681,15 @@
     },
     {
       "name": "gotour/flowcontrol/defer",
-      "stage": "refused",
-      "fingerprints": [
-        "defer is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/flowcontrol/defer-multi",
-      "stage": "refused",
-      "fingerprints": [
-        "defer is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/flowcontrol/exercise-loops-and-functions",

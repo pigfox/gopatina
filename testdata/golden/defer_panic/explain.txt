@@ -1,0 +1,1 @@
+./main.go:8:12: parameter xs is a shared borrow: check only reads it

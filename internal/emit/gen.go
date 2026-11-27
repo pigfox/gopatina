@@ -54,7 +54,9 @@ type gen struct {
 	callTemps    map[*ast.CallExpr]string
 	// hoisting is the statement whose calls are being computed first
 	// (hoistCalls), or nil.
-	hoisting     ast.Stmt
+	hoisting ast.Stmt
+	// deferred names the function's rt::Defers, when it defers a call.
+	deferred     string
 	inGlobalStmt bool
 	modules      []Module    // the other packages' Rust modules, once written
 	ifc          *ifaceState // interface values (RFC 0012, iface.go)

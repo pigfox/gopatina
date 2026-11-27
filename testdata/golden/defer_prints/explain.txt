@@ -1,0 +1,1 @@
+./main.go:8:10: parameter xs is a shared borrow: sum only reads it
