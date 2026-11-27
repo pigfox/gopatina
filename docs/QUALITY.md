@@ -169,6 +169,12 @@ are the tests. With no defect among N tests, the upper bound on the defect
 rate at confidence 1 − α is below −ln(α) / N: 881,098 defect-free tests bound
 it at 3.4 per million with 95% confidence (the milestone), and 6,099,050 with
 6σ confidence (the bar, [above](#correctness-the-six-sigma-bar-at-most-34-defects-per-million)).
+The runs above are on amd64. The `difftest-arm64` workflow, started by
+hand, runs the same seed on an arm64 runner. There gc fuses a float
+multiply and add into one rounding (`FMADDD`, also with `-N -l`), as the
+specification allows, and Rust does not, so its defects measure how often
+that changes a program's output; it changes nothing.
+
 A long run belongs on the test server, not a workstation. With 150 programs
 to a batch, each part of 98,000 programs is 98,654 tests (one panic case per
 batch); parts 0 to 8 (887,886 tests) reach the milestone, and parts 0 to 61
