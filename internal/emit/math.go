@@ -3,6 +3,8 @@ package emit
 import (
 	"go/ast"
 	"go/constant"
+
+	"github.com/pigfox/gopatina/internal/fma"
 )
 
 // mathCall renders a call of a provided math function (subset.StdFuncs).
@@ -71,4 +73,30 @@ func (g *gen) constSign(e ast.Expr) (int, bool) {
 		return 0, false
 	}
 	return constant.Sign(tv.Value), true
+}
+
+// fused renders a float + or - that gc fuses with its multiply operand
+// for the target (subset.checkFusion), as gc's instruction computes it
+// (rt::fma_arm64, rt::fma_amd64): one rounding, and its NaN rules.
+// FMSUB and FNMSUB negate an operand first, which is exact.
+func (g *gen) fused(f fma.Fusion) node {
+	x, y, a := g.value(f.Mul.X), g.value(f.Mul.Y), g.value(f.Addend)
+	neg := func(n node) node { return atom{"-" + paren(n, precUnary), precUnary} }
+	if g.pkg.Fused.Target.GOARCH != "arm64" {
+		// VFMADD231SD z, x, y: additions only.
+		g.rt["fma_amd64"] = true
+		return &call{head: "rt::fma_amd64", open: "(", close: ")", args: []node{x, y, a}}
+	}
+	// gc writes FMADD (FMULD x y) as Ra = a, Rm = x, Rn = y
+	// (cmd/compile/internal/arm64/ssa.go), and Arm computes Ra + Rn*Rm,
+	// FMSUB negating Rn and FNMSUB Ra: the NaN rules see the operands in
+	// that order and sign.
+	switch f.Form {
+	case fma.SubMul: // a - x*y = a + (-y)*x
+		y = neg(y)
+	case fma.MulSub: // x*y - a = (-a) + y*x
+		a = neg(a)
+	}
+	g.rt["fma_arm64"] = true
+	return &call{head: "rt::fma_arm64", open: "(", close: ")", args: []node{y, x, a}}
 }

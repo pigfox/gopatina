@@ -642,6 +642,35 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   every code point.
 - **Blocks 100%?** No.
 
+## 35. Fused multiply-add
+
+- **Go**: the specification lets an implementation fuse `x*y + z` into one
+  rounding, across statements too; an explicit conversion
+  (`float64(x*y)`) rounds and prevents it. gc fuses on arm64 always
+  (`FMADD`, `FMSUB`, `FNMSUB`, `ARM64.rules`) and on amd64 from
+  `GOAMD64=v3` (`VFMADD231SD`, additions only, `AMD64.rules`), also with
+  `-N -l`. Where it fuses depends on its optimizations: inlining, generic
+  rewrites (`x*2` is `x+x`, `x/4` is `x*0.25`), phis and memory, and on the
+  Go version.
+- **Rust**: never fuses on its own; `mul_add` is the fused operation, and
+  the payload of a NaN it returns is not specified.
+- **Recommendation (Peter, 2026-11-26: "I need to have a match on every
+  chip.")**: match the default `go build` for the same target. gc is the
+  oracle: `go build -gcflags=all=-d=fmahash=vy` for the target's GOOS,
+  GOARCH and GOAMD64 (from `go env` when unset) reports every site it
+  fuses, and GoPatina fuses there and nowhere else, through
+  `rt::fma_arm64` and `rt::fma_amd64`, which give the instruction's NaN
+  rules (`internal/fma`, `internal/subset/fma.go`). The hook is a debug
+  interface, so each use first checks it on a probe of known fusion; when
+  it cannot be trusted, every float `+` and `-` is refused on a target that
+  fuses. A site GoPatina cannot match exactly (inside an inlined body, a
+  multiply that is not an operand, float32) is refused, never written
+  unfused. **Done for the operations whose multiply is an operand**:
+  `testdata/golden/fma_shapes` and every golden run on arm64 and at
+  `GOAMD64=v3` in CI, and `fma-sites.txt` records gc's sites with its
+  version.
+- **Blocks 100%?** No; the refused shapes come next.
+
 ## Keeping this list honest
 
 - A new disconnect found while implementing goes here first, with its

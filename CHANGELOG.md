@@ -10,6 +10,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Float results match gc on every chip** (go-rust-disconnects.md, entry
+  35). gc fuses a float multiply and add into one rounding on arm64 and on
+  amd64 from `GOAMD64=v3`, and Rust never does, so on those targets a
+  program could print other bits than its `go build`. GoPatina now asks gc,
+  for the same target and Go version (`-gcflags=all=-d=fmahash=vy`, checked
+  first on a probe), where it fuses, and fuses exactly there with gc's NaN
+  rules (`rt::fma_arm64`, `rt::fma_amd64`); the crate's header names the gc
+  it matches. What it cannot match yet is refused, never written unfused.
+  CI runs every golden program on arm64 and at `GOAMD64=v3`.
 - **Parity on real programs** (`cmd/gopatina-parity`, docs/QUALITY.md).
   GoPatina measured on 190 programs written for people: Go by Example and
   A Tour of Go, vendored in `testdata/parity` with their licences. Each is
