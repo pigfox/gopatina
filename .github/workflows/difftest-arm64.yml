@@ -36,8 +36,9 @@ jobs:
           go build -o "$RUNNER_TEMP/gopatina-difftest" ./cmd/gopatina-difftest
       - name: install the crates' pinned Rust toolchain once
         # Parallel builds each installing it race in rustup ("could not
-        # rename 'downloaded' file"). Every emitted crate pins the same one.
-        run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' examples/hello/rust/rust-toolchain.toml)" --profile minimal
+        # rename 'downloaded' file"). Every emitted crate pins the same one;
+        # the lint check needs its clippy.
+        run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' examples/hello/rust/rust-toolchain.toml)" --profile minimal --component clippy
       - name: run (seed 1, from program 0)
         env:
           PROGRAMS: ${{ inputs.programs }}
