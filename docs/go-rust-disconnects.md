@@ -672,11 +672,14 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   interface, so each use first checks it on a probe of known fusion; when
   it cannot be trusted, every float `+` and `-` is refused on a target that
   fuses. A site GoPatina cannot match exactly (inside an inlined body, a
-  multiply that is not an operand, float32) is refused, never written
-  unfused. **Done for the operations whose multiply is an operand**:
-  `testdata/golden/fma_shapes` and every golden run on arm64 and at
-  `GOAMD64=v3` in CI, and `fma-sites.txt` records gc's sites with its
-  version.
+  multiply gc derives, such as `x/4`) is refused, never written unfused.
+  **Done for the operations whose multiply is an operand, or is held in a
+  local set to it once** (gc carries the product's SSA value across
+  statements: the factors are read into locals at the multiply, so a
+  later change to them does not reach the fused add), float32 included:
+  `testdata/golden/fma_shapes` and `fma_locals`, and every golden run on
+  arm64 and at `GOAMD64=v3` in CI, and `fma-sites.txt` records gc's sites
+  with its version.
 - **Blocks 100%?** No; the refused shapes come next.
 
 ## Keeping this list honest

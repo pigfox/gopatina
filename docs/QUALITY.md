@@ -45,7 +45,11 @@ about ±0.5%.
 A test is one generated program, or one panic case, built with Go's
 reference build (`go build -gcflags=all=-N -l`: optimization and inlining
 off, the closest the gc compiler comes to the language specification) and
-with `gopatina build -patina`. It is a defect when the patina binary's
+with `gopatina build -patina`. Where gc fuses float multiply-adds (arm64,
+amd64 from `GOAMD64=v3`), the reference is the default `go build`, which
+GoPatina matches there (go-rust-disconnects.md, entry 35), and `-N -l`,
+which keeps locals in memory and so fuses less, is the other build; the
+golden programs of gc's miscompiles (`testdata/golden/gc_*`) keep `-N -l`. It is a defect when the patina binary's
 standard output, first line of standard error or exit status differs from
 the reference build's, or when patina mode fails to build it. Each batch is
 also built with plain `go build`; a program whose optimized Go build prints

@@ -24,6 +24,12 @@ Until 1.0.0, minor versions may contain breaking changes.
   rules (`rt::fma_arm64`, `rt::fma_amd64`); the crate's header names the gc
   it matches. What it cannot match yet is refused, never written unfused.
   CI runs every golden program on arm64 and at `GOAMD64=v3`.
+- **Fused multiply-adds through a local, and float32**: a product held in
+  a local set once to it (`p := a * b`, then `p + c`), which gc fuses
+  across statements, is fused too, with its factors as they were at the
+  multiply; float32 multiply-adds have their own helpers. On arm64 this
+  was 51 of 1,608 generated programs printing other float32 bits than
+  `go build`.
 - **Parity on real programs** (`cmd/gopatina-parity`, docs/QUALITY.md).
   GoPatina measured on 190 programs written for people: Go by Example and
   A Tour of Go, vendored in `testdata/parity` with their licences. Each is

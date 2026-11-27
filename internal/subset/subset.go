@@ -25,6 +25,9 @@ const seeCompat = "see docs/compat.md for what patina mode supports"
 type checker struct {
 	pkg   *load.Package
 	diags []diag.Diagnostic
+	// fusing is the function of the fused operation being matched
+	// (checkFusion).
+	fusing *ast.FuncDecl
 	// inSwitch counts the switch statements enclosing the current node,
 	// reset inside each for loop, so a break that leaves a switch can be
 	// told from one that leaves a loop.

@@ -59,6 +59,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pigfox/gopatina/internal/fma"
 	"github.com/pigfox/gopatina/internal/progen"
 )
 
@@ -86,6 +87,7 @@ type config struct {
 	gocacheMax                    int64         // MiB the run's Go build cache may take (disk.go)
 	minFree                       float64       // percent of the disk that must stay free
 	cmds                          *commands     // the builds and programs running
+	fuses                         bool          // gc fuses float multiply-adds for the target
 }
 
 // outcome is one batch's result.
@@ -166,6 +168,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	c.cmds = newCommands()
+	c.fuses = targetFuses(c.goCmd)
 	begin := now()
 	// Everything a run makes goes under its working directory and is
 	// removed when it ends, also by a signal: the batches (each removed once
@@ -353,10 +356,18 @@ func batch(c config, first, n int) (outcome, error) {
 	}
 	goBin, refBin, pBin := filepath.Join(dir, "go.bin"), filepath.Join(dir, "goref.bin"), filepath.Join(dir, "patina.bin")
 	goEnv := []string{"GOCACHE=" + c.gocache}
-	if out, err := c.build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-gcflags=all=-N -l", "-o", refBin, "."); err != nil {
+	// The reference is gc with optimization and inlining off; the other
+	// build is the default one. Where gc fuses float multiply-adds, the
+	// default build is GoPatina's reference (internal/fma), so the two
+	// swap.
+	refFlags, goFlags := []string{"build", "-gcflags=all=-N -l", "-o", refBin, "."}, []string{"build", "-o", goBin, "."}
+	if c.fuses {
+		refFlags, goFlags = []string{"build", "-o", refBin, "."}, []string{"build", "-gcflags=all=-N -l", "-o", goBin, "."}
+	}
+	if out, err := c.build(c.buildLimit(), dir, goEnv, c.goCmd, refFlags...); err != nil {
 		return o, fmt.Errorf("batch %d: go build (reference): %v\n%s", first, err, out)
 	}
-	if out, err := c.build(c.buildLimit(), dir, goEnv, c.goCmd, "build", "-o", goBin, "."); err != nil {
+	if out, err := c.build(c.buildLimit(), dir, goEnv, c.goCmd, goFlags...); err != nil {
 		return o, fmt.Errorf("batch %d: go build: %v\n%s", first, err, out)
 	}
 	cache := "GOPATINA_CACHE=" + filepath.Join(dir, "cache") // removed with the batch
@@ -531,4 +542,16 @@ func keep(c config, first, n int, src string, files map[string][]byte) {
 	for name, data := range files {
 		os.WriteFile(filepath.Join(dir, name), data, 0o644)
 	}
+}
+
+// targetFuses reports whether gc fuses float multiply-adds for the target
+// goCmd builds for (go env GOARCH GOAMD64); false when it cannot tell, and
+// the run compares with gc's -N -l build, as before.
+func targetFuses(goCmd string) bool {
+	out, err := exec.Command(goCmd, "env", "GOARCH", "GOAMD64").Output()
+	lines := strings.Split(string(out), "\n") // GOAMD64 is an empty line off amd64
+	if err != nil || len(lines) < 2 {
+		return false
+	}
+	return fma.Target{GOARCH: strings.TrimSpace(lines[0]), GOAMD64: strings.TrimSpace(lines[1])}.Fuses()
 }
