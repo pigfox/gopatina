@@ -64,6 +64,9 @@ type Package struct {
 	Fused    *fma.Sites
 	FusedErr error
 	Fusions  map[*ast.BinaryExpr]fma.Fusion
+	// Kept are the multiplies a local holds that a fusion uses (v := x*y,
+	// then v + z): their operands are kept as they were, for the + .
+	Kept map[*ast.BinaryExpr]bool
 }
 
 // stdImporter imports standard-library packages from export data. It is

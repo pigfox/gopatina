@@ -594,6 +594,59 @@ pub fn fma_arm64(n: f64, m: f64, a: f64) -> f64 {
 `,
 	},
 	{
+		name: "fma_amd64_f32",
+		code: `/// fma_amd64 for float32 (VFMADD231SS): x*y + z
+/// rounded once. A NaN operand gives the first NaN of x, y and z, quiet;
+/// an invalid operation (Inf*0, Inf-Inf), the default NaN. mul_add alone
+/// leaves both to the library or the instruction LLVM picks.
+pub fn fma_amd64_f32(x: f32, y: f32, z: f32) -> f32 {
+    for v in [x, y, z] {
+        if v.is_nan() {
+            return f32::from_bits(v.to_bits() | 0x0040_0000);
+        }
+    }
+    let r = x.mul_add(y, z);
+    if r.is_nan() {
+        f32::from_bits(0xffc0_0000)
+    } else {
+        r
+    }
+}
+`,
+	},
+	{
+		name: "fma_arm64_f32",
+		code: `/// fma_arm64 for float32 (FMADDS; FMSUBS and FNMSUBS negate an
+/// operand first): a + n*m rounded once, with Arm's FPMulAdd NaN rules:
+/// the first signaling NaN of a, n and m, then the first quiet one, each
+/// quiet; the default NaN for a quiet NaN a with Inf*0, and for an invalid
+/// operation.
+pub fn fma_arm64_f32(n: f32, m: f32, a: f32) -> f32 {
+    let signaling = |v: f32| v.is_nan() && v.to_bits() & 0x0040_0000 == 0;
+    for v in [a, n, m] {
+        if signaling(v) {
+            return f32::from_bits(v.to_bits() | 0x0040_0000);
+        }
+    }
+    let inf_zero = (n.is_infinite() && m == 0.0) || (n == 0.0 && m.is_infinite());
+    if a.is_nan() && inf_zero {
+        return f32::from_bits(0x7fc0_0000);
+    }
+    for v in [a, n, m] {
+        if v.is_nan() {
+            return v;
+        }
+    }
+    let r = n.mul_add(m, a);
+    if r.is_nan() {
+        f32::from_bits(0x7fc0_0000)
+    } else {
+        r
+    }
+}
+`,
+	},
+	{
 		name: "inf",
 		code: `/// Go's math.Inf: positive infinity if sign >= 0, negative infinity
 /// otherwise.

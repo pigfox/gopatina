@@ -68,3 +68,36 @@ func main() {
 		}
 	}
 }
+
+// TestFusedLocal checks a product held in a local and fused later: its
+// factors read into locals first, the local the rounded product, and the
+// float32 helpers.
+func TestFusedLocal(t *testing.T) {
+	src := program("func f(fs []float64, c float32) (float32, float32) {\n\tq := float32(fs[1]) * -7.5\n\tfs[1] = 9\n\treturn q, q + c\n}\n\nfunc main() {\n\tq, r := f([]float64{1, 2}, 3)\n\tfmt.Println(q, r)\n}")
+	site := []fma.Site{{Pos: fma.Pos{File: "/r/main.go", Line: 8, Col: 14}}}
+	for target, want := range map[fma.Target][]string{
+		{GoVersion: "go1.27.1", GOOS: "linux", GOARCH: "arm64"}:                {"let factor = fs[1] as f32;\n    let q = factor * -7.5;", "rt::fma_arm64_f32(-7.5, factor, c)"},
+		{GoVersion: "go1.27.1", GOOS: "linux", GOARCH: "amd64", GOAMD64: "v3"}: {"rt::fma_amd64_f32(factor, -7.5, c)"},
+	} {
+		pkg, err := load.Source("/r", "main.go", src, "go1.25")
+		if err != nil {
+			t.Fatal(err)
+		}
+		pkg.Fused = &fma.Sites{Target: target, List: site}
+		if ds := subset.Check(pkg); len(ds) > 0 {
+			t.Fatalf("%v: %v", target, ds)
+		}
+		res, _ := borrow.Check(pkg)
+		var main string
+		for _, f := range Emit(pkg, res, Options{Target: goldenTarget, Version: "devel"}).Files {
+			if f.Path == "src/main.rs" {
+				main = string(f.Data)
+			}
+		}
+		for _, w := range want {
+			if !strings.Contains(main, w) {
+				t.Errorf("%v: main.rs lacks %q:\n%s", target, w, main)
+			}
+		}
+	}
+}

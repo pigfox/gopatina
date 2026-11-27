@@ -82,10 +82,14 @@ func (g *gen) constSign(e ast.Expr) (int, bool) {
 func (g *gen) fused(f fma.Fusion) node {
 	x, y, a := g.value(f.Mul.X), g.value(f.Mul.Y), g.value(f.Addend)
 	neg := func(n node) node { return atom{"-" + paren(n, precUnary), precUnary} }
+	suffix := ""
+	if g.rustType(g.typeOf(f.Mul)) == "f32" {
+		suffix = "_f32"
+	}
 	if g.pkg.Fused.Target.GOARCH != "arm64" {
 		// VFMADD231SD z, x, y: additions only.
-		g.rt["fma_amd64"] = true
-		return &call{head: "rt::fma_amd64", open: "(", close: ")", args: []node{x, y, a}}
+		g.rt["fma_amd64"+suffix] = true
+		return &call{head: "rt::fma_amd64" + suffix, open: "(", close: ")", args: []node{x, y, a}}
 	}
 	// gc writes FMADD (FMULD x y) as Ra = a, Rm = x, Rn = y
 	// (cmd/compile/internal/arm64/ssa.go), and Arm computes Ra + Rn*Rm,
@@ -97,6 +101,6 @@ func (g *gen) fused(f fma.Fusion) node {
 	case fma.MulSub: // x*y - a = (-a) + y*x
 		a = neg(a)
 	}
-	g.rt["fma_arm64"] = true
-	return &call{head: "rt::fma_arm64", open: "(", close: ")", args: []node{y, x, a}}
+	g.rt["fma_arm64"+suffix] = true
+	return &call{head: "rt::fma_arm64" + suffix, open: "(", close: ")", args: []node{y, x, a}}
 }

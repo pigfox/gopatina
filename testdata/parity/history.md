@@ -18,3 +18,4 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-26 | float multiply-adds fused exactly where gc fuses them on arm64 and GOAMD64=v3 (no corpus change on amd64 v1, where gc never fuses) | 138 | 52 | 40 (29.0%) | 40 (29.0%) | 40 (29.0%) | 0 |
 | 2026-11-26 | a standard-library refusal clusters by the program's own call (calls filepath.Join, ...), not the internal package below it; counts unchanged | 138 | 52 | 40 (29.0%) | 40 (29.0%) | 40 (29.0%) | 0 |
 | 2026-11-26 | defer of a print (gotour defer and defer-multi, gobyexample/exit now match); gobyexample/closing-channels skipped, its goroutines' prints interleave differently between Go runs | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |
+| 2026-11-26 | a fused multiply-add through a local, and float32, on arm64 and GOAMD64=v3 (no corpus change at amd64 v1) | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |

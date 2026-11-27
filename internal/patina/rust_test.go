@@ -94,14 +94,25 @@ func runBinary(t *testing.T, bin string) result {
 func TestDifferential(t *testing.T) {
 	needRust(t)
 	s := realSession(t)
+	target, err := s.FMATarget()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, dir := range goldenDirs(t) {
 		t.Run(filepath.Base(dir), func(t *testing.T) {
 			tmp := t.TempDir()
 			goBin := filepath.Join(tmp, "go-bin")
 			// Go's reference build: optimization and inlining off, the
 			// closest gc comes to the specification. Optimized gc builds have
-			// printed wrong results (testdata/golden/gc_inline_carry_*).
-			build := exec.Command("go", "build", "-gcflags=all=-N -l", "-o", goBin, ".")
+			// printed wrong results (testdata/golden/gc_*). Where gc fuses
+			// float multiply-adds, GoPatina matches the default build, which
+			// fuses across statements and -N -l does not (internal/fma); the
+			// gc_ programs keep -N -l, the right result.
+			flags := []string{"build", "-gcflags=all=-N -l", "-o", goBin, "."}
+			if target.Fuses() && !strings.HasPrefix(filepath.Base(dir), "gc_") {
+				flags = []string{"build", "-o", goBin, "."}
+			}
+			build := exec.Command("go", flags...)
 			build.Dir = dir
 			if out, err := build.CombinedOutput(); err != nil {
 				t.Fatalf("go build: %v\n%s", err, out)

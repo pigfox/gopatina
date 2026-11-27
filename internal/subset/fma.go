@@ -32,7 +32,21 @@ func (c *checker) checkFusion() {
 	}
 	ops := map[fma.Pos]*ast.BinaryExpr{}
 	c.eachFloatAddSub(func(e *ast.BinaryExpr) { ops[c.fmaPos(e.OpPos)] = e })
+	funcOf := map[*ast.BinaryExpr]*ast.FuncDecl{}
+	for _, file := range pkg.Files {
+		for _, d := range file.Decls {
+			if fd, ok := d.(*ast.FuncDecl); ok {
+				ast.Inspect(fd, func(n ast.Node) bool {
+					if b, ok := n.(*ast.BinaryExpr); ok {
+						funcOf[b] = fd
+					}
+					return true
+				})
+			}
+		}
+	}
 	pkg.Fusions = map[*ast.BinaryExpr]fma.Fusion{}
+	pkg.Kept = map[*ast.BinaryExpr]bool{}
 	for _, s := range pkg.Fused.List {
 		if !c.emitted(s.Pos) {
 			continue // in a package GoPatina provides, or code the program does not reach
@@ -44,9 +58,8 @@ func (c *checker) checkFusion() {
 			c.unsupportedAt(s.Pos, fmt.Sprintf("an operation gc fuses into a float multiply-add here for %s, which is not a float + or -,", where))
 		case len(s.Inlined) > 0:
 			c.unsupported(e, fmt.Sprintf("a float multiply-add gc fuses for %s where it inlines this function (at %s)", where, s.Inlined[0]))
-		case c.pkg.Info.Types[e].Type.Underlying().(*types.Basic).Kind() == types.Float32:
-			c.unsupported(e, fmt.Sprintf("a float32 multiply-add gc fuses for %s", where))
 		default:
+			c.fusing = funcOf[e]
 			f, ok := c.fusionOf(e)
 			if !ok {
 				c.unsupported(e, fmt.Sprintf("a float %s that gc fuses with a multiply for %s, whose multiply is not one of its operands,", e.Op, where))
@@ -67,11 +80,11 @@ func (c *checker) fusionOf(e *ast.BinaryExpr) (fma.Fusion, bool) {
 	var tries []fma.Fusion
 	switch {
 	case e.Op == token.ADD && arm:
-		tries = []fma.Fusion{{Mul: c.mulOf(e.Y), Addend: e.X, Form: fma.Add}, {Mul: c.mulOf(e.X), Addend: e.Y, Form: fma.Add}}
+		tries = []fma.Fusion{{Mul: c.operandMul(e.Y), Addend: e.X, Form: fma.Add}, {Mul: c.operandMul(e.X), Addend: e.Y, Form: fma.Add}}
 	case e.Op == token.ADD:
-		tries = []fma.Fusion{{Mul: c.mulOf(e.X), Addend: e.Y, Form: fma.Add}, {Mul: c.mulOf(e.Y), Addend: e.X, Form: fma.Add}}
+		tries = []fma.Fusion{{Mul: c.operandMul(e.X), Addend: e.Y, Form: fma.Add}, {Mul: c.operandMul(e.Y), Addend: e.X, Form: fma.Add}}
 	case arm: // token.SUB
-		tries = []fma.Fusion{{Mul: c.mulOf(e.Y), Addend: e.X, Form: fma.SubMul}, {Mul: c.mulOf(e.X), Addend: e.Y, Form: fma.MulSub}}
+		tries = []fma.Fusion{{Mul: c.operandMul(e.Y), Addend: e.X, Form: fma.SubMul}, {Mul: c.operandMul(e.X), Addend: e.Y, Form: fma.MulSub}}
 	}
 	for _, f := range tries {
 		if f.Mul != nil {
@@ -79,6 +92,111 @@ func (c *checker) fusionOf(e *ast.BinaryExpr) (fma.Fusion, bool) {
 		}
 	}
 	return fma.Fusion{}, false
+}
+
+// operandMul returns the multiply gc fuses for operand e of a + or -: e
+// itself, or the multiply a local holds, assigned it once (v := x*y),
+// whose value gc's SSA carries to the + across statements. Its operands
+// are then kept as they were (load.Package.Kept), since the program may
+// change them before the + runs.
+func (c *checker) operandMul(e ast.Expr) *ast.BinaryExpr {
+	if m := c.mulOf(e); m != nil {
+		return m
+	}
+	id, ok := ast.Unparen(e).(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	v, ok := c.pkg.Info.Uses[id].(*types.Var)
+	if !ok || v.Parent() == nil || v.Parent() == v.Pkg().Scope() || c.fusing == nil {
+		return nil
+	}
+	m := c.onlyMul(c.fusing, v)
+	if m != nil {
+		c.pkg.Kept[m] = true
+	}
+	return m
+}
+
+// onlyMul returns the multiply local v is set to, when the function fd
+// sets it exactly once, by v := x*y or var v = x*y, and never takes its
+// address or changes it otherwise.
+func (c *checker) onlyMul(fd *ast.FuncDecl, v *types.Var) *ast.BinaryExpr {
+	info := c.pkg.Info
+	is := func(e ast.Expr) bool {
+		id, ok := ast.Unparen(e).(*ast.Ident)
+		return ok && (info.Defs[id] == v || info.Uses[id] == v)
+	}
+	var def ast.Expr
+	var defStmt ast.Node
+	sets := 0
+	inBlock := map[ast.Node]bool{} // statements of a block, not an if's or a for's own
+	ast.Inspect(fd, func(n ast.Node) bool {
+		switch b := n.(type) {
+		case *ast.BlockStmt:
+			for _, s := range b.List {
+				inBlock[s] = true
+			}
+		case *ast.CaseClause:
+			for _, s := range b.Body {
+				inBlock[s] = true
+			}
+		}
+		return true
+	})
+	ast.Inspect(fd, func(n ast.Node) bool {
+		switch s := n.(type) {
+		case *ast.DeclStmt:
+			if gd, ok := s.Decl.(*ast.GenDecl); ok {
+				for _, spec := range gd.Specs {
+					if vs, ok := spec.(*ast.ValueSpec); ok {
+						for _, name := range vs.Names {
+							if is(name) {
+								defStmt = s
+							}
+						}
+					}
+				}
+			}
+		case *ast.AssignStmt:
+			for i, l := range s.Lhs {
+				if is(l) {
+					sets++
+					if s.Tok == token.DEFINE && len(s.Lhs) == len(s.Rhs) {
+						def, defStmt = s.Rhs[i], s
+					}
+				}
+			}
+		case *ast.ValueSpec:
+			for i, name := range s.Names {
+				if is(name) {
+					sets++
+					if len(s.Values) == len(s.Names) {
+						def = s.Values[i]
+					}
+				}
+			}
+		case *ast.IncDecStmt:
+			if is(s.X) {
+				sets++
+			}
+		case *ast.RangeStmt:
+			if (s.Key != nil && is(s.Key)) || (s.Value != nil && is(s.Value)) {
+				sets++
+			}
+		case *ast.UnaryExpr:
+			if s.Op == token.AND && is(s.X) {
+				sets += 2 // its address: it may change through it
+			}
+		case *ast.FuncLit:
+			sets += 2 // a closure may change what it captures
+		}
+		return true
+	})
+	if sets != 1 || def == nil || !inBlock[defStmt] {
+		return nil
+	}
+	return c.mulOf(def)
 }
 
 // mulOf returns e, through parentheses, when it is a float multiply that

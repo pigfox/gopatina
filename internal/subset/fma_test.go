@@ -142,8 +142,8 @@ func TestFusionRefused(t *testing.T) {
 		t.Errorf("outside: %s", errs)
 	}
 	src32 := "package main\n\nimport \"fmt\"\n\nfunc f(a, b, c float32) float32 { return a*b + c } // f32\n\nfunc main() { fmt.Println(f(1, 2, 3)) }\n"
-	if _, errs := fused(t, src32, arm64, fma.Site{Pos: at(t, src32, "// f32", "+", 0)}); !strings.Contains(errs, "a float32 multiply-add gc fuses for go1.27.1 linux/arm64 is not supported") {
-		t.Errorf("float32: %s", errs)
+	if pkg, errs := fused(t, src32, arm64, fma.Site{Pos: at(t, src32, "// f32", "+", 0)}); errs != "" || len(pkg.Fusions) != 1 {
+		t.Errorf("float32: %s", errs) // fused as float64 is
 	}
 }
 
@@ -173,4 +173,46 @@ func TestFusionUnknown(t *testing.T) {
 		t.Errorf("no fusion: %v %v", ds, pkg.Fusions)
 	}
 	_ = types.Float64
+}
+
+// TestFusionLocal checks a product held in a local assigned it once,
+// which gc fuses with a later add: accepted, its multiply kept; and every
+// other way of setting the local refused, since gc's value at the add
+// may then not be that multiply.
+func TestFusionLocal(t *testing.T) {
+	const ok = "package main\n\nimport \"fmt\"\n\nfunc f(a, b, c float64) float64 {\n\tp := a * b\n\treturn p + c // site\n}\n\nfunc main() { fmt.Println(f(1, 2, 3)) }\n"
+	pkg, errs := fused(t, ok, arm64, fma.Site{Pos: at(t, ok, "// site", "+", 0)})
+	if errs != "" || len(pkg.Kept) != 1 || len(pkg.Fusions) != 1 {
+		t.Errorf("accepted: %s %v %v", errs, pkg.Kept, pkg.Fusions)
+	}
+	for name, body := range map[string]string{
+		"set twice": "p := a * b\n\tp = c\n\treturn p + c // site",
+		"address":   "p := a * b\n\tq := &p\n\t_ = q\n\treturn p + c // site",
+		"if init":   "if p := a * b; c > 0 {\n\t\treturn p + c // site\n\t}\n\treturn 0",
+		"not a mul": "p := a + b\n\treturn p + c // site",
+		"inc":       "p := a * b\n\tp++\n\treturn p + c // site",
+		"var":       "var p float64\n\tp = a * b\n\treturn p + c // site",
+		"range":     "p := a * b\n\tfor _, p = range []float64{} {\n\t}\n\treturn p + c // site",
+		"closure":   "p := a * b\n\tg := func() { _ = p }\n\t_ = g\n\treturn p + c // site",
+	} {
+		src := "package main\n\nimport \"fmt\"\n\nfunc f(a, b, c float64) float64 {\n\t" + body + "\n}\n\nfunc main() { fmt.Println(f(1, 2, 3)) }\n"
+		if _, errs := fused(t, src, arm64, fma.Site{Pos: at(t, src, "// site", "+", 0)}); !strings.Contains(errs, "whose multiply is not one of its operands") {
+			t.Errorf("%s: %s", name, errs)
+		}
+	}
+	// In a case of a switch: accepted.
+	src0 := "package main\n\nimport \"fmt\"\n\nfunc f(a, b, c float64) float64 {\n\tswitch {\n\tcase c > 0:\n\t\tp := a * b\n\t\treturn p + c // site\n\t}\n\treturn 0\n}\n\nfunc main() { fmt.Println(f(1, 2, 3)) }\n"
+	if _, errs := fused(t, src0, arm64, fma.Site{Pos: at(t, src0, "// site", "+", 0)}); errs != "" {
+		t.Errorf("case: %s", errs)
+	}
+	// var p = a * b, once: accepted.
+	src := "package main\n\nimport \"fmt\"\n\nfunc f(a, b, c float64) float64 {\n\tvar p = a * b\n\treturn c - p // site\n}\n\nfunc main() { fmt.Println(f(1, 2, 3)) }\n"
+	if _, errs := fused(t, src, arm64, fma.Site{Pos: at(t, src, "// site", "-", 0)}); errs != "" {
+		t.Errorf("var: %s", errs)
+	}
+	// A package-level variable is not a local.
+	src = "package main\n\nimport \"fmt\"\n\nvar g = 2.0 * 3.0\n\nfunc f(c float64) float64 {\n\treturn g + c // site\n}\n\nfunc main() { fmt.Println(f(1)) }\n"
+	if _, errs := fused(t, src, arm64, fma.Site{Pos: at(t, src, "// site", "+", 0)}); !strings.Contains(errs, "whose multiply is not one of its operands") {
+		t.Errorf("global: %s", errs)
+	}
 }

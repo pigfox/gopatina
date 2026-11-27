@@ -626,6 +626,28 @@ func (g *gen) copyFirst(s ast.Stmt) {
 	})
 }
 
+// keepFactors reads into locals, before statement s, the factors of a
+// multiply s gives a local that a later + fuses (load.Package.Kept): let
+// x = ...; let v = x * y; and later v + z fuses x * y + z, with x and y as
+// they were, as gc's SSA has them.
+func (g *gen) keepFactors(s ast.Stmt) {
+	ast.Inspect(s, func(n ast.Node) bool {
+		m, ok := n.(*ast.BinaryExpr)
+		if !ok || !g.pkg.Kept[m] {
+			return true
+		}
+		for _, x := range []ast.Expr{m.X, m.Y} {
+			if g.info.Types[x].Value != nil {
+				continue // a constant is the same later
+			}
+			name := g.lnames.name("", func(string) string { return "factor" })
+			g.stmtLine("let "+name+" = ", g.value(x), ";")
+			g.temps[ast.Unparen(x)] = name
+		}
+		return false
+	})
+}
+
 func isReturn(s ast.Stmt) bool {
 	_, ok := s.(*ast.ReturnStmt)
 	return ok
@@ -692,6 +714,10 @@ func (g *gen) stmt(s ast.Stmt) {
 	switch s.(type) {
 	case *ast.ExprStmt, *ast.ReturnStmt, *ast.DeclStmt, *ast.AssignStmt:
 		g.copyFirst(s)
+	}
+	switch s.(type) {
+	case *ast.DeclStmt, *ast.AssignStmt:
+		g.keepFactors(s)
 	}
 	// A simple statement that reads or changes a changed package-level
 	// variable is written in gc's order (RFC 0010).

@@ -67,9 +67,10 @@ target, also where gc fuses a multiply and an add into one rounding (arm64,
 and amd64 from `GOAMD64=v3`; go-rust-disconnects.md, entry 35): GoPatina
 asks gc where it fuses and fuses there. Not supported yet on those targets,
 each with its own error: a multiply-add gc fuses inside a function body it
-inlines, one whose multiply is not an operand of the `+` or `-` (a local
-holding the product, `x/4`, a call), and a float32 one; and every float `+`
-and `-` when gc's report is not available.
+inlines, and one whose multiply is neither an operand of the `+` or `-` nor
+held in a local set once to it (`p := a * b`, then `p + c`; another
+assignment, `&p` or a closure using `p` is refused) but, say, `x/4` or a
+call; and every float `+` and `-` when gc's report is not available.
 
 ## How Go values become Rust values
 

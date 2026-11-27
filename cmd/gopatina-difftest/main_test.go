@@ -375,3 +375,42 @@ func TestSignalCleans(t *testing.T) {
 	close(done)
 	onSignal(make(chan os.Signal), done, func() { t.Error("cleaned at the end of a run") }, &errb)
 }
+
+// TestTargetFuses checks which targets make gc's default build the
+// reference: those where gc fuses float multiply-adds.
+func TestTargetFuses(t *testing.T) {
+	answer := func(out string, code int) string {
+		path := filepath.Join(t.TempDir(), "go")
+		os.WriteFile(path, []byte("#!/bin/sh\nprintf '"+out+"'\nexit "+string(rune('0'+code))+"\n"), 0o755)
+		return path
+	}
+	for out, want := range map[string]bool{
+		"arm64\\n\\n": true, "amd64\\nv3\\n": true, "amd64\\nv1\\n": false, "arm64": false, "": false,
+	} {
+		if got := targetFuses(answer(out, 0)); got != want {
+			t.Errorf("%q: %v", out, got)
+		}
+	}
+	if targetFuses(answer("arm64\\n\\n", 1)) {
+		t.Error("a failing go env")
+	}
+}
+
+// TestFusingReference checks that, where gc fuses, the reference build
+// is the default one and the other is -N -l.
+func TestFusingReference(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "builds")
+	path := filepath.Join(t.TempDir(), "go")
+	real := fakeTool(t, "go", false, "x", "true")
+	script := "#!/bin/sh\nif [ \"$1\" = env ]; then printf 'arm64\\n\\n'; exit 0; fi\necho \"$@\" >> '" + log + "'\nexec '" + real + "' \"$@\"\n"
+	os.WriteFile(path, []byte(script), 0o755)
+	p := fakeTool(t, "gopatina", false, "x", "true")
+	if code, _, errs := difftest("-programs", "1", "-go", path, "-gopatina", p); code != 0 {
+		t.Fatalf("code %d: %s", code, errs)
+	}
+	data, _ := os.ReadFile(log)
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) < 2 || strings.Contains(lines[0], "-N -l") || !strings.Contains(lines[1], "-N -l") || !strings.Contains(lines[0], "goref.bin") {
+		t.Errorf("builds:\n%s", data)
+	}
+}
