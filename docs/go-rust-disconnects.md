@@ -682,6 +682,32 @@ No garbage collector and Tokio instead of Go's scheduler. Each function:
   with its version.
 - **Blocks 100%?** No; the refused shapes come next.
 
+## 36. NaN payloads
+
+- **Go**: gc computes a float operation on the hardware and never folds
+  one whose result is NaN (its folding rules require `c+d == c+d`), so a
+  NaN has the instruction's bits: one NaN operand's payload, quiet (x86
+  takes the first NaN operand, Arm a signaling one first), or for an
+  invalid operation the default NaN, `0xfff8…` on x86 and `0x7ff8…` on
+  Arm. gc may swap a commutative operation's operands
+  (`cmd/compile/internal/ssa/cse.go:105-110`, `regalloc.go:1731-1749`), so
+  for `+` and `*` of two NaNs the one kept depends on its code generation.
+- **Rust**: a NaN result's payload is not specified (RFC 3514); rustc folds
+  what it can see to its own NaN, `0x7ff8…`.
+- **Recommendation (the coordinator's decision under Peter's rule,
+  2026-11-26)**: only a bit-level read sees a payload (`math.Float64bits`;
+  fmt prints every NaN as `NaN`), so the float operations whose values
+  reach one (`subset.NaNObservers`, followed through locals, parameters and
+  returns, and every operation of the program when a value goes where the
+  analysis cannot follow) are written through `rt::add_nan` and the like:
+  the plain IEEE operation, and for a NaN result the target's rule
+  (`cfg(target_arch)`). A `+` or `*` of two values that may both be NaN,
+  whose bits are read, is refused. **Done**: `testdata/golden/nan_payloads`
+  on amd64 (v1 and v3) and arm64, and the generated programs print
+  `Float64bits` of NaN results.
+- **Blocks 100%?** No; the two-NaN `+` and `*` need gc's operand order per
+  site (its `-S` output) if a program needs them.
+
 ## Keeping this list honest
 
 - A new disconnect found while implementing goes here first, with its

@@ -80,13 +80,14 @@ fn phi(a: f64, b: f64, c: f64, d: f64) -> f64 {
     t + d // t is a phi of a*b and c: not fused
 }
 
-/// mix folds the bits of f into h (FNV-1a over the eight bytes).
+/// mix folds f into h (FNV-1a over its text, the shortest digits that
+/// read back as f: every value but NaN keeps its bits, -0 is "-0", and
+/// every NaN is "NaN", whose payload the nan_payloads golden checks).
 fn mix(mut h: u64, f: f64) -> u64 {
-    let mut b = f.to_bits();
-    for _ in 0_i64..8 {
-        h ^= b & 255;
+    let s = format!("{}", rt::Float(f));
+    for i in 0..s.len() as i64 {
+        h ^= s.as_bytes()[i as usize] as u64;
         h *= 1099511628211;
-        b >>= 8;
     }
     h
 }
@@ -185,5 +186,9 @@ fn main() {
         rt::Float(add_mul(0.1, 0.2, -0.02)),
         rt::Float(sub_mul(0.1, 0.2, 0.02)),
         rt::Float(mul_sub(0.1, 0.2, 0.02)),
+    );
+    println!(
+        "-0 and 0 hash apart: {}",
+        mix(1, 0.0_f64.copysign(-1.0)) != mix(1, 0.0),
     );
 }

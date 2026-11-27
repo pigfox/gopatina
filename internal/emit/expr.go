@@ -592,6 +592,9 @@ func (g *gen) binary(e *ast.BinaryExpr) node {
 	if f, ok := g.pkg.Fusions[e]; ok {
 		return g.fused(f)
 	}
+	if g.pkg.NaNExact[e] {
+		return g.nanOp(e.Op, e.X, e.Y)
+	}
 	xt := g.typeOf(e.X)
 	switch {
 	case e.Op == token.ADD && isStringType(xt):

@@ -1,1 +1,1 @@
-./main.go:25:13: parameter fs is an exclusive borrow: narrow changes it, and the caller sees the change
+./main.go:26:13: parameter fs is an exclusive borrow: narrow changes it, and the caller sees the change

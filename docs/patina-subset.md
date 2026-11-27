@@ -72,6 +72,11 @@ held in a local set once to it (`p := a * b`, then `p + c`; another
 assignment, `&p` or a closure using `p` is refused) but, say, `x/4` or a
 call; and every float `+` and `-` when gc's report is not available.
 
+A NaN whose bits `math.Float64bits` reads has gc's bits on the target, also
+where rustc would fold it (go-rust-disconnects.md, entry 36). Not supported
+yet: a float `+` or `*` (or `+=`, `*=`) of two values that may both be NaN
+whose bits are read, since gc may swap such operands.
+
 ## How Go values become Rust values
 
 | Go | Rust |

@@ -10,6 +10,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **NaN payloads match gc** (go-rust-disconnects.md, entry 36). Rust
+  leaves a NaN result's payload unspecified, and rustc folded what it
+  could see to its own NaN, where gc computes on the hardware: `Inf-Inf`
+  printed `0x7ff8…` through `math.Float64bits` instead of x86's `0xfff8…`.
+  The float operations whose values a bit-level read sees now give the
+  target's NaN (`rt::add_nan` and the like, plain IEEE otherwise); a `+`
+  or `*` of two values that may both be NaN, whose bits are read, is
+  refused, since gc may swap their operands. The generated programs
+  print the bits of NaN results, and testdata/golden/nan_payloads checks
+  them on amd64 and arm64.
 - **defer of a print** (`defer fmt.Println("done")`, `Print`, `Printf`) of
   numbers, strings and booleans: arguments evaluated at the `defer`, run
   last first on return and while a panic unwinds, before Go's panic

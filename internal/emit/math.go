@@ -3,6 +3,7 @@ package emit
 import (
 	"go/ast"
 	"go/constant"
+	"go/token"
 
 	"github.com/pigfox/gopatina/internal/fma"
 )
@@ -20,6 +21,11 @@ func (g *gen) mathCall(e *ast.CallExpr, name string) node {
 	}
 	switch name {
 	case "math.Sqrt":
+		if g.pkg.NaNExact[e] {
+			helper := "sqrt_nan" + g.f32Suffix(e)
+			g.rt[helper] = true
+			return &call{head: "rt::" + helper, open: "(", close: ")", args: []node{g.value(a[0])}}
+		}
 		return method("sqrt")
 	case "math.Abs":
 		return method("abs")
@@ -103,4 +109,20 @@ func (g *gen) fused(f fma.Fusion) node {
 	}
 	g.rt["fma_arm64"+suffix] = true
 	return &call{head: "rt::fma_arm64" + suffix, open: "(", close: ")", args: []node{y, x, a}}
+}
+
+// nanOp renders x op y, a float + - * / whose NaN a bit-level read may see
+// (subset.checkNaNBits), with gc's NaN on the target (rt::add_nan, ...).
+func (g *gen) nanOp(op token.Token, x, y ast.Expr) node {
+	helper := map[token.Token]string{token.ADD: "add_nan", token.SUB: "sub_nan", token.MUL: "mul_nan", token.QUO: "div_nan"}[op] + g.f32Suffix(x)
+	g.rt[helper] = true
+	return &call{head: "rt::" + helper, open: "(", close: ")", args: []node{g.receiverValue(x), g.receiverValue(y)}}
+}
+
+// f32Suffix is "_f32" when e is a float32, the suffix of its helpers.
+func (g *gen) f32Suffix(e ast.Expr) string {
+	if g.rustType(g.typeOf(e)) == "f32" {
+		return "_f32"
+	}
+	return ""
 }

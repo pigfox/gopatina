@@ -1207,6 +1207,10 @@ func (g *gen) opAssign(s *ast.AssignStmt) {
 	case isStringType(lt):
 		g.stmtLine(target+" += ", g.strArg(r), ";")
 		return
+	case g.pkg.NaNExact[s]:
+		op := map[token.Token]token.Token{token.ADD_ASSIGN: token.ADD, token.SUB_ASSIGN: token.SUB, token.MUL_ASSIGN: token.MUL, token.QUO_ASSIGN: token.QUO}[s.Tok]
+		g.stmtLine(target+" = ", g.nanOp(op, l, r), ";")
+		return
 	case s.Tok == token.AND_NOT_ASSIGN:
 		g.stmtLine(target+" &= ", atom{"!" + paren(g.value(r), precUnary), precUnary}, ";")
 		return

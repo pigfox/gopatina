@@ -68,7 +68,7 @@ struct Hashes {
 
 impl Hashes {
     fn add(&mut self, x: f64, y: f64) {
-        self.sqrt = mix(self.sqrt, x.sqrt());
+        self.sqrt = mix(self.sqrt, rt::sqrt_nan(x));
         self.abs = mix(self.abs, x.abs());
         self.floor = mix(self.floor, rt::floor(x));
         self.ceil = mix(self.ceil, rt::ceil(x));
@@ -156,7 +156,7 @@ fn main() {
         println!(
             "edge {} {} {} {} {} {}",
             i,
-            x.sqrt().to_bits(),
+            rt::sqrt_nan(x).to_bits(),
             rt::floor(x).to_bits(),
             rt::ceil(x).to_bits(),
             rt::trunc(x).to_bits(),
@@ -200,7 +200,10 @@ fn main() {
         x ^= x << 13;
         x ^= x >> 7;
         x ^= x << 17;
-        let f = ((x as i64) >> 11) as f64 / rt::shl(1_u64, (x % 60) as i128) as f64;
+        let f = rt::div_nan(
+            ((x as i64) >> 11) as f64,
+            rt::shl(1_u64, (x % 60) as i128) as f64,
+        );
         h.add(f, -f);
     }
     h.print("fractions");

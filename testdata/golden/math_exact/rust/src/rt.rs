@@ -133,6 +133,46 @@ fn quiet(x: f64) -> f64 {
     f64::from_bits(x.to_bits() | 0x0008_0000_0000_0000)
 }
 
+/// The result of gc's float operation (ADDSD, SUBSD, MULSD, DIVSD, SQRTSD
+/// on amd64; FADD, FSUB, FMUL, FDIV, FSQRT on arm64) when r, its IEEE
+/// result, may be NaN and a bit-level read may see it. rustc may fold a
+/// NaN to its own (RFC 3514); this gives the hardware's. A result that is
+/// not NaN is r.
+fn nan(r: f64, ops: &[f64]) -> f64 {
+    if !r.is_nan() {
+        return r;
+    }
+    // Arm's FPProcessNaNs: the first signaling NaN of Rn and Rm, then the
+    // first quiet one; x86: the first NaN operand. Both make it quiet.
+    #[cfg(target_arch = "aarch64")]
+    for &v in ops {
+        if v.is_nan() && v.to_bits() & 0x0008_0000_0000_0000 == 0 {
+            return f64::from_bits(v.to_bits() | 0x0008_0000_0000_0000);
+        }
+    }
+    for &v in ops {
+        if v.is_nan() {
+            return f64::from_bits(v.to_bits() | 0x0008_0000_0000_0000);
+        }
+    }
+    // An invalid operation: the default NaN.
+    if cfg!(target_arch = "aarch64") {
+        f64::from_bits(0x7ff8_0000_0000_0000)
+    } else {
+        f64::from_bits(0xfff8_0000_0000_0000)
+    }
+}
+
+/// a / b as gc computes it, NaN included (nan).
+pub fn div_nan(a: f64, b: f64) -> f64 {
+    nan(a / b, &[a, b])
+}
+
+/// math.Sqrt as gc computes it, NaN included (nan).
+pub fn sqrt_nan(x: f64) -> f64 {
+    nan(x.sqrt(), &[x])
+}
+
 /// Go's math.Inf: positive infinity if sign >= 0, negative infinity
 /// otherwise.
 pub fn inf(sign: i64) -> f64 {

@@ -67,6 +67,10 @@ type Package struct {
 	// Kept are the multiplies a local holds that a fusion uses (v := x*y,
 	// then v + z): their operands are kept as they were, for the + .
 	Kept map[*ast.BinaryExpr]bool
+	// NaNExact are the float operations whose NaN a bit-level read may see
+	// (subset.NaNObservers), which the emitter writes with the target's
+	// NaN rules.
+	NaNExact map[ast.Node]bool
 }
 
 // stdImporter imports standard-library packages from export data. It is

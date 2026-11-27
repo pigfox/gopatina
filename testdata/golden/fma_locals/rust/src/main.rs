@@ -32,13 +32,14 @@
 
 mod rt;
 
-/// mix folds the bits of f into h (FNV-1a over the eight bytes).
+/// mix folds f into h (FNV-1a over its text, the shortest digits that
+/// read back as f: every value but NaN keeps its bits, -0 is "-0", and
+/// every NaN is "NaN", whose payload the nan_payloads golden checks).
 fn mix(mut h: u64, f: f64) -> u64 {
-    let mut b = f.to_bits();
-    for _ in 0_i64..8 {
-        h ^= b & 255;
+    let s = format!("{}", rt::Float(f));
+    for i in 0..s.len() as i64 {
+        h ^= s.as_bytes()[i as usize] as u64;
         h *= 1099511628211;
-        b >>= 8;
     }
     h
 }
