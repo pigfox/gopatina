@@ -326,6 +326,12 @@ func (g *gen) conversion(e *ast.CallExpr, to types.Type) node {
 		}
 		return &call{recv: &call{recv: g.strRef(x), head: ".as_bytes", open: "(", close: ")"}, head: ".to_vec", open: "(", close: ")"}
 	}
+	if g.pkg.NaNExact[e] && g.rustType(to) != g.rustType(from) {
+		// Between float64 and float32, a NaN keeps gc's bits (rt::to_f32).
+		helper := map[string]string{"f32": "to_f32", "f64": "to_f64"}[g.rustType(to)]
+		g.rt[helper] = true
+		return &call{head: "rt::" + helper, open: "(", close: ")", args: []node{g.value(x)}}
+	}
 	if g.rustType(to) == g.rustType(from) {
 		return g.value(x)
 	}

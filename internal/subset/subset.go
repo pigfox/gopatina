@@ -66,6 +66,7 @@ func Check(pkg *load.Package) []diag.Diagnostic {
 	c.checkIfaces()
 	c.checkPtrs()
 	c.checkFusion()
+	c.checkNaNBits()
 	if Library(pkg) {
 		c.checkLibrary() // RFC 0014
 	}

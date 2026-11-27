@@ -50,13 +50,14 @@ func phi(a, b, c, d float64) float64 {
 	return t + d // t is a phi of a*b and c: not fused
 }
 
-// mix folds the bits of f into h (FNV-1a over the eight bytes).
+// mix folds f into h (FNV-1a over its text, the shortest digits that
+// read back as f: every value but NaN keeps its bits, -0 is "-0", and
+// every NaN is "NaN", whose payload the nan_payloads golden checks).
 func mix(h uint64, f float64) uint64 {
-	b := math.Float64bits(f)
-	for i := 0; i < 8; i++ {
-		h ^= b & 0xff
+	s := fmt.Sprint(f)
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
 		h *= 1099511628211
-		b >>= 8
 	}
 	return h
 }
@@ -119,4 +120,5 @@ func main() {
 	}
 	h.print("cancel")
 	fmt.Println(addMul(0.1, 0.2, -0.02), subMul(0.1, 0.2, 0.02), mulSub(0.1, 0.2, 0.02))
+	fmt.Println("-0 and 0 hash apart:", mix(1, math.Copysign(0, -1)) != mix(1, 0))
 }

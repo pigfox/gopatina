@@ -101,3 +101,29 @@ func TestFusedLocal(t *testing.T) {
 		}
 	}
 }
+
+// TestNaNExact checks the Rust of float operations whose NaN a bit-level
+// read may see: the target's NaN rules (rt::*_nan), float32 too, and an
+// assignment operator.
+func TestNaNExact(t *testing.T) {
+	src := "package main\n\nimport (\n\t\"fmt\"\n\t\"math\"\n)\n\nfunc main() {\n\ta := math.NaN()\n\ta -= 1\n\tb := float32(a) / 3\n\tfmt.Println(math.Float64bits(float64(b)))\n}\n"
+	pkg, err := load.Source("/r", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ds := subset.Check(pkg); len(ds) > 0 {
+		t.Fatal(ds)
+	}
+	res, _ := borrow.Check(pkg)
+	var main string
+	for _, f := range Emit(pkg, res, Options{Target: goldenTarget, Version: "devel"}).Files {
+		if f.Path == "src/main.rs" {
+			main = string(f.Data)
+		}
+	}
+	for _, w := range []string{"a = rt::sub_nan(a, 1.0_f64);", "rt::div_nan_f32(rt::to_f32(a), 3.0_f32)", "rt::to_f64(b)"} {
+		if !strings.Contains(main, w) {
+			t.Errorf("main.rs lacks %q:\n%s", w, main)
+		}
+	}
+}
