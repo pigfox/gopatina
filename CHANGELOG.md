@@ -10,6 +10,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **math.Log**, bit for bit with Go on every chip: amd64's assembly
+  (`log_amd64.s`, whose own Frexp leaves a subnormal argument as it is,
+  whose reduction takes `f1 <= Sqrt2/2` where `log.go` takes `<`, and which
+  returns Go's NaN for a negative NaN), and on arm64 `log.go` as gc compiles
+  it there, ten of its multiply-adds fused (the sites gc reports with
+  `-d=fmahash`). `testdata/golden/math_log` runs on amd64, arm64 and a
+  Nehalem (qemu, with `math_exp`, both built static).
 - **math.Exp**, bit for bit with Go on every chip. Go writes it in
   assembly for each target, and GoPatina ports each: amd64's
   (`exp_amd64.s`), fused when the processor has AVX and FMA and GODEBUG

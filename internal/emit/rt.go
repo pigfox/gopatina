@@ -1021,6 +1021,108 @@ fn exp_arm64(x: f64) -> f64 {
 `,
 	},
 	{
+		name: "log",
+		code: `/// Go's math.Log, bit for bit: on amd64 its assembly (log_amd64.s), on
+/// arm64 its Go (log.go) as gc compiles it there, fusing ten of its
+/// multiply-adds.
+pub fn log(x: f64) -> f64 {
+    #[cfg(target_arch = "aarch64")]
+    return log_arm64(x);
+    #[cfg(not(target_arch = "aarch64"))]
+    return log_amd64(x);
+}
+
+/// log.go's and log_amd64.s's constants, bit for bit.
+const LOG_LN2HI: f64 = f64::from_bits(0x3fe6_2e42_fee0_0000);
+const LOG_LN2LO: f64 = f64::from_bits(0x3dea_39ef_3579_3c76);
+const LOG_HSQRT2: f64 = f64::from_bits(0x3fe6_a09e_667f_3bcd);
+const LOG_L: [f64; 7] = [
+    f64::from_bits(0x3fe5_5555_5555_5593),
+    f64::from_bits(0x3fd9_9999_9997_fa04),
+    f64::from_bits(0x3fd2_4924_9422_9359),
+    f64::from_bits(0x3fcc_71c5_1d8e_78af),
+    f64::from_bits(0x3fc7_4664_96cb_03de),
+    f64::from_bits(0x3fc3_9a09_d078_c69f),
+    f64::from_bits(0x3fc2_f112_df3e_5244),
+];
+
+#[cfg(not(target_arch = "aarch64"))]
+fn log_amd64(x: f64) -> f64 {
+    let [l1, l2, l3, l4, l5, l6, l7] = LOG_L;
+    let b = x.to_bits();
+    if b & !(1 << 63) == 0 {
+        return f64::NEG_INFINITY;
+    }
+    if (b as i64) < 0 {
+        return f64::from_bits(0x7ff8_0000_0000_0001); // also for a negative NaN
+    }
+    if b >= 0x7ff0_0000_0000_0000 {
+        return x; // +Inf, or NaN as it is
+    }
+    // The assembly's Frexp, which leaves a subnormal x as it is.
+    let mut f1 = f64::from_bits((b & 0x000f_ffff_ffff_ffff) | 0x3fe0_0000_0000_0000);
+    let mut k = f64::from(((b >> 52) & 0x7ff) as i32 - 0x3fe);
+    if f1 <= LOG_HSQRT2 {
+        // CMPSD's not-less-than: <=, where log.go has <.
+        k -= 1.0;
+        f1 *= 2.0;
+    }
+    let f = f1 - 1.0;
+    let s = f / (2.0 + f);
+    let s2 = s * s;
+    let s4 = s2 * s2;
+    let t1 = s2 * (((l7 * s4 + l5) * s4 + l3) * s4 + l1);
+    let t2 = s4 * ((l6 * s4 + l4) * s4 + l2);
+    let r = t1 + t2;
+    let hfsq = 0.5 * f * f;
+    k * LOG_LN2HI - ((hfsq - (s * (r + hfsq) + LOG_LN2LO * k)) - f)
+}
+
+#[cfg(target_arch = "aarch64")]
+fn log_arm64(x: f64) -> f64 {
+    let [l1, l2, l3, l4, l5, l6, l7] = LOG_L;
+    if x.is_nan() || x == f64::INFINITY {
+        return x;
+    }
+    if x < 0.0 {
+        return f64::from_bits(0x7ff8_0000_0000_0001);
+    }
+    if x == 0.0 {
+        return f64::NEG_INFINITY;
+    }
+    // Frexp (frexp.go), a subnormal x made normal first.
+    let (mut b, mut e) = (x.to_bits(), 0);
+    if x.abs() < f64::MIN_POSITIVE {
+        b = (x * (1u64 << 52) as f64).to_bits();
+        e = -52;
+    }
+    e += ((b >> 52) & 0x7ff) as i64 - 1022;
+    let mut f1 = f64::from_bits((b & !(0x7ff << 52)) | (1022 << 52));
+    if f1 < LOG_HSQRT2 {
+        f1 *= 2.0;
+        e -= 1;
+    }
+    let f = f1 - 1.0;
+    let k = e as f64;
+    let s = f / (2.0 + f);
+    let s2 = s * s;
+    let s4 = s2 * s2;
+    // gc's fused sites in log.go (fma-sites from -d=fmahash): 124:17, :25,
+    // :32; 125:17, :25; 126:10; 128:17, :26, :36, :40.
+    let p1 = s4.mul_add(s4.mul_add(s4.mul_add(l7, l5), l3), l1);
+    let t1 = s2 * p1;
+    let q = s4.mul_add(s4.mul_add(l6, l4), l2);
+    let r = s4.mul_add(q, t1); // t1 + t2: t2's multiply fused
+    let half = 0.5 * f;
+    let a = half.mul_add(f, r); // hfsq+R: hfsq's multiply fused
+    let c = k.mul_add(LOG_LN2LO, s * a); // s*(hfsq+R) + k*Ln2Lo
+    let d = half.mul_add(f, -c); // hfsq - (...): FNMSUB
+    let e = d - f;
+    k.mul_add(LOG_LN2HI, -e) // k*Ln2Hi - (...): FNMSUB
+}
+`,
+	},
+	{
 		name: "inf",
 		code: `/// Go's math.Inf: positive infinity if sign >= 0, negative infinity
 /// otherwise.

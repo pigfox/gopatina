@@ -105,9 +105,9 @@ jobs:
     # math.Exp on amd64 takes another path without FMA (exp_amd64.s), which
     # Go chooses at start-up from the processor and GODEBUG (cpu.fma=off),
     # and GoPatina the same way: both programs run with FMA and with it
-    # turned off. (Under qemu as a Nehalem, the dynamically linked Rust
-    # binary dies of an illegal instruction before its first line.)
-    name: float bit for bit (ubuntu-latest, amd64 with and without FMA)
+    # turned off, and, built static, under qemu as a Nehalem, which has
+    # neither AVX nor FMA.
+    name: float bit for bit (ubuntu-latest, amd64 with and without FMA, and on a Nehalem)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -129,6 +129,26 @@ jobs:
           done
           # The two paths ran: their results differ.
           ! cmp -s "$RUNNER_TEMP/go-.txt" "$RUNNER_TEMP/go-cpu.fma=off.txt"
+      - name: install qemu and the musl target
+        run: |
+          sudo apt-get update && sudo apt-get install -y qemu-user
+          tc=$(sed -n 's/^channel = "\(.*\)"/\1/p' examples/hello/rust/rust-toolchain.toml)
+          rustup toolchain install "$tc" --profile minimal --target x86_64-unknown-linux-musl
+      - name: on a processor without AVX or FMA (qemu as a Nehalem), static builds
+        # The runner's glibc uses AVX itself, so a dynamically linked binary
+        # dies there before its first line; Go's binaries are static, and
+        # the crates are built for musl to be static too.
+        run: |
+          for g in math_exp math_log; do
+            cd "$GITHUB_WORKSPACE/testdata/golden/$g"
+            go build -o "$RUNNER_TEMP/$g-go" .
+            "$RUNNER_TEMP/gopatina" build -emit-rust -o "$RUNNER_TEMP/$g-crate" .
+            (cd "$RUNNER_TEMP/$g-crate" && cargo build --release --locked --target x86_64-unknown-linux-musl --quiet)
+            qemu-x86_64 -cpu Nehalem "$RUNNER_TEMP/$g-go" > "$RUNNER_TEMP/$g-go.txt"
+            qemu-x86_64 -cpu Nehalem "$RUNNER_TEMP/$g-crate/target/x86_64-unknown-linux-musl/release/$g" > "$RUNNER_TEMP/$g-patina.txt"
+            diff "$RUNNER_TEMP/$g-go.txt" "$RUNNER_TEMP/$g-patina.txt"
+            echo "$g: same on a Nehalem"
+          done
 
   site-layout:
     name: site never scrolls sideways on a phone
