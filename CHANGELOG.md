@@ -10,6 +10,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **defer of a print** (`defer fmt.Println("done")`, `Print`, `Printf`) of
+  numbers, strings and booleans: arguments evaluated at the `defer`, run
+  last first on return and while a panic unwinds, before Go's panic
+  message and exit status 2; `os.Exit` skips them. `recover` and other
+  deferred calls are not supported yet.
 - **Float results match gc on every chip** (go-rust-disconnects.md, entry
   35). gc fuses a float multiply and add into one rounding on arm64 and on
   amd64 from `GOAMD64=v3`, and Rust never does, so on those targets a

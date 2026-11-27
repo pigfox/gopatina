@@ -616,6 +616,60 @@ pub fn is_inf(f: f64, sign: i64) -> bool {
 `,
 	},
 	{
+		name: "Defers",
+		code: `/// The calls a function defers, run last first when it returns or as a
+/// panic unwinds through it, as Go runs them.
+#[derive(Default)]
+pub struct Defers(Vec<String>);
+
+impl Defers {
+    /// Defers printing text, made when the defer statement runs, as Go
+    /// evaluates a deferred call's arguments.
+    pub fn print(&mut self, text: String) {
+        self.0.push(text);
+    }
+}
+
+impl Drop for Defers {
+    fn drop(&mut self) {
+        while let Some(text) = self.0.pop() {
+            print!("{text}");
+        }
+    }
+}
+`,
+	},
+	{
+		name: "run_main",
+		deps: []string{"exit_on_panic"},
+		code: `/// Runs main as Go does when the program defers calls: a panic unwinds,
+/// running them, and then its message goes to standard error and the
+/// program exits with status 2.
+pub fn run_main(main: impl FnOnce()) {
+    static MESSAGE: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+    std::panic::set_hook(Box::new(|info| {
+        let payload = info.payload();
+        let raw = if let Some(s) = payload.downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            String::from("unknown panic")
+        };
+        if let Ok(mut m) = MESSAGE.lock() {
+            *m = go_panic_message(&raw);
+        }
+    }));
+    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(main)).is_err() {
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        let msg = MESSAGE.lock().map(|m| m.clone()).unwrap_or_default();
+        eprintln!("panic: {msg}");
+        std::process::exit(2);
+    }
+}
+`,
+	},
+	{
 		name: "trim_space",
 		code: `/// Go's strings.TrimSpace: removes leading and trailing white space, as
 /// Go's unicode.IsSpace defines it.

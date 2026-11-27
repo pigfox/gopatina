@@ -450,7 +450,7 @@ func (c *checker) stmt(s ast.Stmt) {
 	case *ast.GoStmt:
 		c.unsupported(s, "the go statement (goroutines are planned, RFC 0002)")
 	case *ast.DeferStmt:
-		c.unsupported(s, "defer")
+		c.deferStmt(s)
 	case *ast.SelectStmt:
 		c.unsupported(s, "select (planned, RFC 0002)")
 	case *ast.SendStmt:
@@ -1342,4 +1342,40 @@ func (c *checker) localPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// deferStmt checks a defer statement. Patina mode defers fmt.Print,
+// Println and Printf of values whose text cannot change by the time the
+// call runs (numbers, strings and booleans, without a String method): Go
+// evaluates a deferred call's arguments at the defer statement, so their
+// text is made then, and those calls cannot panic, which would be a
+// second panic while one unwinds.
+func (c *checker) deferStmt(s *ast.DeferStmt) {
+	sel, ok := s.Call.Fun.(*ast.SelectorExpr)
+	name := ""
+	if ok {
+		if id, ok := sel.X.(*ast.Ident); ok {
+			if pn, ok := c.pkg.Info.Uses[id].(*types.PkgName); ok {
+				name = pn.Imported().Path() + "." + sel.Sel.Name
+			}
+		}
+	}
+	switch name {
+	case "fmt.Print", "fmt.Println", "fmt.Printf":
+	default:
+		c.unsupported(s, "defer of a call other than fmt.Print, Println and Printf")
+		return
+	}
+	args := s.Call.Args
+	if name == "fmt.Printf" && len(args) > 0 {
+		args = args[1:]
+	}
+	for _, a := range args {
+		t := c.pkg.Info.Types[a].Type
+		if b, ok := t.Underlying().(*types.Basic); !ok || b.Info()&(types.IsNumeric|types.IsString|types.IsBoolean) == 0 || PrintMethod(t) != nil || b.Info()&types.IsComplex != 0 {
+			c.unsupported(a, fmt.Sprintf("deferring the print of a value of type %s, whose text is made when the call runs,", t))
+			return
+		}
+	}
+	c.expr(s.Call)
 }

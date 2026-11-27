@@ -48,13 +48,19 @@ the exact error committed beside it.
 
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values, the interface
-cases listed under [Interfaces](#interfaces), generics, `defer`, labels and `goto`,
+cases listed under [Interfaces](#interfaces), generics, `defer` other than of a print (below), labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,
 general slicing (`s[i:j]`), arrays, package-level variables of slice type
 that the program changes (and the other cases RFC 0010 lists), embedded fields,
 variadic functions, the other built-ins
 (`cap`, `copy`, `new`, `clear`, ...), `min`/`max` with float arguments, functions without
 a body (assembly), and complex numbers.
+
+`defer fmt.Print(...)`, `Println` and `Printf` of numbers, strings and
+booleans run as in Go: their arguments are evaluated at the `defer`
+statement, and the prints run last first when the function returns, also
+when a panic unwinds through it, before Go's panic message; `os.Exit` skips
+them. `recover`, and deferring any other call, are not supported yet.
 
 Float arithmetic gives the bits of the default `go build` for the same
 target, also where gc fuses a multiply and an add into one rounding (arm64,

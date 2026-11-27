@@ -2,6 +2,7 @@
 # gopatina-parity (they count as skipped, never as passing). Each differed
 # within 20 Go runs (go1.27.1, 2026-11-25), or, rarer, in a later run;
 # three runs, the harness's own check, can agree by chance. NAME: why
+gobyexample/closing-channels: goroutine scheduling order (the worker's and main's prints interleave)
 gobyexample/epoch: the clock
 gobyexample/goroutines: goroutine scheduling order
 gobyexample/json: map iteration order
@@ -15,8 +16,8 @@ gobyexample/stateful-goroutines: random numbers
 gobyexample/string-formatting: pointer addresses
 gobyexample/temporary-files-and-directories: temporary file names
 gobyexample/tickers: the clock
-gobyexample/time: the clock
 gobyexample/time-formatting-parsing: the clock
+gobyexample/time: the clock
 gobyexample/waitgroups: goroutine scheduling order
 gobyexample/worker-pools: goroutine scheduling order
 gotour/basics/packages: random numbers
