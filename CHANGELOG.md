@@ -56,6 +56,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Changed
 
+- **Parity clusters a standard-library refusal by the program's own call**
+  (`cmd/gopatina-parity`). A refusal met inside standard-library code the
+  program reaches is now "calls filepath.Join, whose standard-library code
+  patina mode does not support yet", the first call of its "reached from
+  main through:" chain outside package main, instead of the internal
+  package five calls below it; code reached through a package's
+  initialization keeps the package's name. Names in these fingerprints are
+  no longer taken for the program's own (`fs._`, `the standard package _`).
 - **Difftest disk use is bounded** (docs/QUALITY.md). Each batch's crate
   cache and cargo targets go with the batch, the run's Go build cache is
   cleared past `-gocache-max` (2048 MiB), a run stops before a batch when

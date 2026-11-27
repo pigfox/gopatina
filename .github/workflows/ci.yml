@@ -79,7 +79,7 @@ jobs:
       - name: Go and the generated Rust print the same output, every golden program
         env:
           GOPATINA_RUST_TESTS: "1"
-        run: go test ./internal/patina -run 'TestDifferential|TestFusedArm64|TestFMASites' -timeout 50m
+        run: go test ./internal/patina -run 'TestDifferential|TestFusedArm64|TestFMASites' -timeout 50m -v
 
   float-amd64-v3:
     # The same on amd64 at GOAMD64=v3, where gc fuses a*b + c too
@@ -99,7 +99,7 @@ jobs:
         env:
           GOPATINA_RUST_TESTS: "1"
           GOAMD64: v3
-        run: go test ./internal/patina -run 'TestDifferential' -timeout 50m
+        run: go test ./internal/patina -run 'TestDifferential' -timeout 50m -v
 
   site-layout:
     name: site never scrolls sideways on a phone

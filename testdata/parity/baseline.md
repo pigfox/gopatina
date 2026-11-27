@@ -13,9 +13,7 @@
 
 | programs | fingerprint | examples |
 |---|---|---|
-| 13 | uses the standard package unicode/utf8, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/defer |
 | 12 | a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
-| 11 | uses the standard package internal/stringslite, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/defer |
 | 10 | a function literal (closure) is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/closures, gobyexample/directories |
 | 10 | a function type is not supported in patina mode yet | gobyexample/closures, gobyexample/directories, gobyexample/mutexes |
 | 9 | a map type is not supported in patina mode yet | gobyexample/enums, gobyexample/maps, gobyexample/mutexes |
@@ -23,15 +21,15 @@
 | 9 | defer is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/exit |
 | 9 | panic with a value that is not a string is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/enums |
 | 9 | the go statement (goroutines are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/channels, gobyexample/closing-channels |
-| 9 | uses the standard package internal/strconv, which patina mode does not support yet | gobyexample/base64-encoding, gobyexample/command-line-flags, gobyexample/command-line-subcommands |
 | 7 | a channel send (planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
 | 7 | make of chan string is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
 | 7 | uses the standard package io/fs, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 7 | uses the standard package iter, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/maps |
+| 7 | uses the standard package path, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
+| 7 | uses the standard package unicode/utf8, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 6 | printing a value of type main._ is not supported in patina mode yet | gobyexample/structs, gotour/methods/indirection, gotour/moretypes/maps |
-| 6 | uses the standard package internal/filepathlite, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
-| 6 | uses the standard package strconv, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/number-parsing |
 | 5 | _ is copied and kept, so its object has two owners | gobyexample/defer, gobyexample/reading-files, gobyexample/text-templates |
+| 5 | calls filepath.Join, whose standard-library code patina mode does not support yet | gobyexample/defer, gobyexample/file-paths, gobyexample/panic |
 | 5 | the <- operator is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
 | 5 | the cap built-in is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/append, gotour/moretypes/making-slices |
 | 5 | uses the standard package unicode, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/regular-expressions |
@@ -42,10 +40,7 @@
 | 4 | os.TempDir is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/reading-files |
 | 4 | select (planned, RFC N) is not supported in patina mode yet | gobyexample/non-blocking-channel-operations, gobyexample/select, gobyexample/timeouts |
 | 4 | type os.File is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/reading-files |
-| 4 | uses the standard package _, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/panic |
-| 4 | uses the standard package _/filepath, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/panic |
-| 4 | uses the standard package bufio, which patina mode does not support yet | gobyexample/line-filters, gobyexample/reading-files, gobyexample/writing-files |
-| 4 | uses the standard package internal/unsafeheader, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/text-templates |
+| 4 | uses the standard package internal/strconv, which patina mode does not support yet | gobyexample/sha256-hashes, gobyexample/text-templates, gobyexample/xml |
 | 4 | uses the standard package reflect, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/text-templates |
 | 3 | a channel receive as a statement is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/closing-channels, gobyexample/timers |
 | 3 | a slice expression (_[i:j]) is not supported in patina mode yet | gotour/moretypes/slice-bounds, gotour/moretypes/slice-len-cap, gotour/moretypes/slices |
@@ -61,7 +56,6 @@
 | 3 | the close built-in is not supported in patina mode yet | gobyexample/closing-channels, gobyexample/range-over-channels, gotour/concurrency/range-and-close |
 | 3 | time.Now is not supported in patina mode yet | gobyexample/switch, gotour/flowcontrol/switch-evaluation-order, gotour/flowcontrol/switch-with-no-condition |
 | 3 | time.Sleep is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/timers, gotour/concurrency/mutex-counter |
-| 3 | uses the standard package path, which patina mode does not support yet | gobyexample/file-paths, gobyexample/text-templates, gobyexample/writing-files |
 | 2 | _ function literal (closure) is not supported in patina mode yet | gobyexample/range-over-iterators, gobyexample/sorting-by-functions |
 | 2 | _ is converted to an interface while it is still used, so its object has two owners | gobyexample/reading-files, gobyexample/xml |
 | 2 | _._ is copied and kept in _._, so its object has two owners | gobyexample/generics, gobyexample/range-over-iterators |
@@ -87,9 +81,7 @@
 | 2 | type sync.Mutex is not supported in patina mode yet | gobyexample/mutexes, gotour/concurrency/mutex-counter |
 | 2 | type sync.WaitGroup is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/mutexes |
 | 2 | type time.Time is not supported in patina mode yet | gobyexample/switch, gotour/flowcontrol/switch-with-no-condition |
-| 2 | uses the standard package cmp, which patina mode does not support yet | gobyexample/sorting-by-functions, gobyexample/text-templates |
 | 2 | uses the standard package flag, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands |
-| 2 | uses the standard package path/filepath, which patina mode does not support yet | gobyexample/file-paths, gobyexample/writing-files |
 | 2 | using the package-level variable Args this way (a copy of a slice shares its elements) is not supported in patina mode yet | gobyexample/command-line-arguments, gobyexample/command-line-subcommands |
 | 1 | _ bare return in _ function that returns an error | gotour/solutions/rot13 |
 | 1 | _ function type is not supported in patina mode yet | gobyexample/sorting-by-functions |
@@ -113,6 +105,61 @@
 | 1 | an embedded field is not supported in patina mode yet | gobyexample/struct-embedding |
 | 1 | bytes.ToUpper is not supported _ patina mode yet | gobyexample/regular-expressions |
 | 1 | calling a pointer-receiver method on a package-level variable is not supported in patina mode yet | gobyexample/base64-encoding |
+| 1 | calls base64.Encoding.DecodeString, whose standard-library code patina mode does not support yet | gobyexample/base64-encoding |
+| 1 | calls base64.Encoding.EncodeToString, whose standard-library code patina mode does not support yet | gobyexample/base64-encoding |
+| 1 | calls base64.StdEncoding, whose standard-library code patina mode does not support yet | gobyexample/base64-encoding |
+| 1 | calls base64.URLEncoding, whose standard-library code patina mode does not support yet | gobyexample/base64-encoding |
+| 1 | calls bufio.NewReader, whose standard-library code patina mode does not support yet | gobyexample/reading-files |
+| 1 | calls bufio.NewScanner, whose standard-library code patina mode does not support yet | gobyexample/line-filters |
+| 1 | calls bufio.Reader.Peek, whose standard-library code patina mode does not support yet | gobyexample/reading-files |
+| 1 | calls bufio.Scanner.Err, whose standard-library code patina mode does not support yet | gobyexample/line-filters |
+| 1 | calls bufio.Scanner.Scan, whose standard-library code patina mode does not support yet | gobyexample/line-filters |
+| 1 | calls bufio.Scanner.Text, whose standard-library code patina mode does not support yet | gobyexample/line-filters |
+| 1 | calls bufio.Writer.Flush, whose standard-library code patina mode does not support yet | gobyexample/writing-files |
+| 1 | calls bufio.Writer.WriteString, whose standard-library code patina mode does not support yet | gobyexample/writing-files |
+| 1 | calls cmp.Compare, whose standard-library code patina mode does not support yet | gobyexample/sorting-by-functions |
+| 1 | calls filepath.Base, whose standard-library code patina mode does not support yet | gobyexample/file-paths |
+| 1 | calls filepath.Dir, whose standard-library code patina mode does not support yet | gobyexample/file-paths |
+| 1 | calls filepath.Ext, whose standard-library code patina mode does not support yet | gobyexample/file-paths |
+| 1 | calls filepath.IsAbs, whose standard-library code patina mode does not support yet | gobyexample/file-paths |
+| 1 | calls filepath.Rel, whose standard-library code patina mode does not support yet | gobyexample/file-paths |
+| 1 | calls filepath.WalkDir, whose standard-library code patina mode does not support yet | gobyexample/directories |
+| 1 | calls flag.Args, whose standard-library code patina mode does not support yet | gobyexample/command-line-flags |
+| 1 | calls flag.Bool, whose standard-library code patina mode does not support yet | gobyexample/command-line-flags |
+| 1 | calls flag.FlagSet.Args, whose standard-library code patina mode does not support yet | gobyexample/command-line-subcommands |
+| 1 | calls flag.FlagSet.Bool, whose standard-library code patina mode does not support yet | gobyexample/command-line-subcommands |
+| 1 | calls flag.FlagSet.Int, whose standard-library code patina mode does not support yet | gobyexample/command-line-subcommands |
+| 1 | calls flag.FlagSet.Parse, whose standard-library code patina mode does not support yet | gobyexample/command-line-subcommands |
+| 1 | calls flag.Int, whose standard-library code patina mode does not support yet | gobyexample/command-line-flags |
+| 1 | calls flag.NewFlagSet, whose standard-library code patina mode does not support yet | gobyexample/command-line-subcommands |
+| 1 | calls flag.Parse, whose standard-library code patina mode does not support yet | gobyexample/command-line-flags |
+| 1 | calls flag.String, whose standard-library code patina mode does not support yet | gobyexample/command-line-flags |
+| 1 | calls flag.StringVar, whose standard-library code patina mode does not support yet | gobyexample/command-line-flags |
+| 1 | calls fs.DirEntry, whose standard-library code patina mode does not support yet | gobyexample/directories |
+| 1 | calls iter.Seq, whose standard-library code patina mode does not support yet | gobyexample/range-over-iterators |
+| 1 | calls maps.Equal, whose standard-library code patina mode does not support yet | gobyexample/maps |
+| 1 | calls regexp.Compile, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.MustCompile, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.Regexp.FindAllString, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.Regexp.FindAllStringSubmatchIndex, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.Regexp.FindString, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.Regexp.FindStringIndex, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.Regexp.FindStringSubmatch, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.Regexp.Match, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.Regexp.ReplaceAllFunc, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls regexp.Regexp.ReplaceAllString, whose standard-library code patina mode does not support yet | gobyexample/regular-expressions |
+| 1 | calls sha256.New, whose standard-library code patina mode does not support yet | gobyexample/sha256-hashes |
+| 1 | calls strconv.Atoi, whose standard-library code patina mode does not support yet | gobyexample/number-parsing |
+| 1 | calls strconv.ParseFloat, whose standard-library code patina mode does not support yet | gobyexample/number-parsing |
+| 1 | calls strconv.ParseInt, whose standard-library code patina mode does not support yet | gobyexample/number-parsing |
+| 1 | calls strconv.ParseUint, whose standard-library code patina mode does not support yet | gobyexample/number-parsing |
+| 1 | calls template.Must, whose standard-library code patina mode does not support yet | gobyexample/text-templates |
+| 1 | calls template.Template, whose standard-library code patina mode does not support yet | gobyexample/text-templates |
+| 1 | calls template.Template.Execute, whose standard-library code patina mode does not support yet | gobyexample/text-templates |
+| 1 | calls template.Template.Parse, whose standard-library code patina mode does not support yet | gobyexample/text-templates |
+| 1 | calls utf8.DecodeRuneInString, whose standard-library code patina mode does not support yet | gobyexample/strings-and-runes |
+| 1 | calls xml.MarshalIndent, whose standard-library code patina mode does not support yet | gobyexample/xml |
+| 1 | calls xml.Unmarshal, whose standard-library code patina mode does not support yet | gobyexample/xml |
 | 1 | clippy: error: this loop never actually loops | gobyexample/for |
 | 1 | clippy: error: unnecessary use of `_` | gotour/moretypes/range-continued |
 | 1 | converting _ pointer to _ type other than _ named type of the program to an interface is not supported in patina mode yet | gotour/solutions/rot13 |
@@ -197,22 +244,15 @@
 | 1 | uses the standard package crypto/internal/fips140deps/godebug, which patina mode does not support yet | gobyexample/sha256-hashes |
 | 1 | uses the standard package crypto/internal/impl, which patina mode does not support yet | gobyexample/sha256-hashes |
 | 1 | uses the standard package crypto/sha256, which patina mode does not support yet | gobyexample/sha256-hashes |
-| 1 | uses the standard package encoding, which patina mode does not support yet | gobyexample/xml |
 | 1 | uses the standard package encoding/base64, which patina mode does not support yet | gobyexample/base64-encoding |
-| 1 | uses the standard package encoding/xml, which patina mode does not support yet | gobyexample/xml |
-| 1 | uses the standard package hash, which patina mode does not support yet | gobyexample/sha256-hashes |
 | 1 | uses the standard package image, which patina mode does not support yet | gotour/methods/images |
 | 1 | uses the standard package image/color, which patina mode does not support yet | gotour/methods/images |
-| 1 | uses the standard package internal/byteorder, which patina mode does not support yet | gobyexample/sha256-hashes |
-| 1 | uses the standard package internal/fmtsort, which patina mode does not support yet | gobyexample/text-templates |
-| 1 | uses the standard package maps, which patina mode does not support yet | gobyexample/maps |
+| 1 | uses the standard package internal/unsafeheader, which patina mode does not support yet | gobyexample/xml |
 | 1 | uses the standard package math/cmplx, which patina mode does not support yet | gotour/basics/basic-types |
 | 1 | uses the standard package net/netip, which patina mode does not support yet | gobyexample/text-templates |
 | 1 | uses the standard package net/url, which patina mode does not support yet | gobyexample/text-templates |
 | 1 | uses the standard package regexp, which patina mode does not support yet | gobyexample/regular-expressions |
-| 1 | uses the standard package regexp/syntax, which patina mode does not support yet | gobyexample/regular-expressions |
-| 1 | uses the standard package text/template, which patina mode does not support yet | gobyexample/text-templates |
-| 1 | uses the standard package text/template/parse, which patina mode does not support yet | gobyexample/text-templates |
+| 1 | uses the standard package strconv, which patina mode does not support yet | gobyexample/xml |
 | 1 | uses the standard package unique, which patina mode does not support yet | gobyexample/text-templates |
 | 1 | using fmt.Println as a value is not supported in patina mode yet | gobyexample/string-functions |
 | 1 | using function _ as a value is not supported in patina mode yet | gobyexample/directories |
