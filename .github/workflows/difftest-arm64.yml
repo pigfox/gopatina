@@ -1,0 +1,59 @@
+name: difftest-arm64
+
+# Measures the generated differential tests on arm64, by hand only (not on
+# every pull request). gc fuses a float multiply and add into one rounding
+# on arm64 (FMADDD), also with -N -l, as the Go specification allows, and
+# Rust does not. The defects this run reports are the programs whose
+# output differs from gc's on arm64, which the amd64 runs cannot show. It
+# measures; it changes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      programs:
+        description: number of generated programs
+        default: "2000"
+      per:
+        description: programs per batch
+        default: "200"
+
+permissions:
+  contents: read
+
+jobs:
+  difftest:
+    name: difftest (macos-latest, arm64)
+    runs-on: macos-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: build gopatina and gopatina-difftest
+        run: |
+          go build -o "$RUNNER_TEMP/gopatina" ./cmd/gopatina
+          go build -o "$RUNNER_TEMP/gopatina-difftest" ./cmd/gopatina-difftest
+      - name: run (seed 1, from program 0)
+        env:
+          PROGRAMS: ${{ inputs.programs }}
+          PER: ${{ inputs.per }}
+        run: |
+          code=0
+          "$RUNNER_TEMP/gopatina-difftest" -seed 1 -start 0 -programs "$PROGRAMS" -per "$PER" -jobs 3 \
+            -gopatina "$RUNNER_TEMP/gopatina" -failures difftest-failures \
+            > difftest-arm64.json 2> difftest-arm64.log || code=$?
+          tail -40 difftest-arm64.log
+          cat difftest-arm64.json
+          echo "difftest exit $code (3: defects found)"
+          if [ "$code" != 0 ] && [ "$code" != 3 ]; then exit "$code"; fi
+      - name: keep the report and the differing batches
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: difftest-arm64
+          path: |
+            difftest-arm64.json
+            difftest-arm64.log
+            difftest-failures
+          if-no-files-found: ignore
