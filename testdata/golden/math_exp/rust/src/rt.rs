@@ -256,14 +256,14 @@ fn exp_amd64(x: f64) -> f64 {
     // CVTSD2SL rounds to nearest even; out of range it is i32::MIN.
     let k = (LOG2E * x).round_ties_even() as i32;
     let kf = f64::from(k);
-    let fma = fma_usable();
-    let mut r;
-    let mut p;
-    if fma {
-        r = (-kf).mul_add(LN2U, x);
+    // exp_amd64.s's fused path, compiled for AVX and FMA so each mul_add
+    // is one VFMADD in line, not a call to the library's fma.
+    #[target_feature(enable = "avx,fma")]
+    unsafe fn fused(x: f64, kf: f64) -> f64 {
+        let mut r = (-kf).mul_add(LN2U, x);
         r = (-kf).mul_add(LN2L, r);
         r *= 0.0625;
-        p = C[0];
+        let mut p = C[0];
         for c in &C[1..] {
             p = p.mul_add(r, *c);
         }
@@ -274,7 +274,13 @@ fn exp_amd64(x: f64) -> f64 {
             r *= t;
         }
         let t = r + 2.0;
-        r = r.mul_add(t, 1.0);
+        r.mul_add(t, 1.0)
+    }
+    let mut r;
+    let mut p;
+    if fma_usable() {
+        // SAFETY: fma_usable found AVX and FMA on this processor.
+        r = unsafe { fused(x, kf) };
     } else {
         r = x - LN2U * kf;
         r -= LN2L * kf;

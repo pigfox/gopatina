@@ -541,6 +541,55 @@ fn quiet(x: f64) -> f64 {
 `,
 	},
 	{
+		name: "fma_hw",
+		code: `/// x*y + z rounded once: by the processor's VFMADD when it has FMA
+/// (std::arch's detection, then code compiled for the feature), by
+/// mul_add (the library's fma, maybe in software) when it does not. The
+/// value is the same either way; only the speed differs.
+#[cfg(target_arch = "x86_64")]
+fn fma_hw(x: f64, y: f64, z: f64) -> f64 {
+    #[target_feature(enable = "fma")]
+    unsafe fn vfmadd(x: f64, y: f64, z: f64) -> f64 {
+        x.mul_add(y, z)
+    }
+    if std::is_x86_feature_detected!("fma") {
+        // SAFETY: the processor has FMA.
+        unsafe { vfmadd(x, y, z) }
+    } else {
+        x.mul_add(y, z)
+    }
+}
+
+#[cfg(not(target_arch = "x86_64"))]
+fn fma_hw(x: f64, y: f64, z: f64) -> f64 {
+    x.mul_add(y, z)
+}
+`,
+	},
+	{
+		name: "fma_hw_f32",
+		code: `/// fma_hw for float32: VFMADD...SS when the processor has FMA.
+#[cfg(target_arch = "x86_64")]
+fn fma_hw_f32(x: f32, y: f32, z: f32) -> f32 {
+    #[target_feature(enable = "fma")]
+    unsafe fn vfmadd(x: f32, y: f32, z: f32) -> f32 {
+        x.mul_add(y, z)
+    }
+    if std::is_x86_feature_detected!("fma") {
+        // SAFETY: the processor has FMA.
+        unsafe { vfmadd(x, y, z) }
+    } else {
+        x.mul_add(y, z)
+    }
+}
+
+#[cfg(not(target_arch = "x86_64"))]
+fn fma_hw_f32(x: f32, y: f32, z: f32) -> f32 {
+    x.mul_add(y, z)
+}
+`,
+	},
+	{
 		name: "fma_amd64",
 		code: `/// gc's fused multiply-add on amd64 (VFMADD231SD, GOAMD64=v3): x*y + z
 /// rounded once. A NaN operand gives the first NaN of x, y and z, quiet;
@@ -552,7 +601,7 @@ pub fn fma_amd64(x: f64, y: f64, z: f64) -> f64 {
             return f64::from_bits(v.to_bits() | 0x0008_0000_0000_0000);
         }
     }
-    let r = x.mul_add(y, z);
+    let r = fma_hw(x, y, z);
     if r.is_nan() {
         f64::from_bits(0xfff8_0000_0000_0000)
     } else {
@@ -560,6 +609,7 @@ pub fn fma_amd64(x: f64, y: f64, z: f64) -> f64 {
     }
 }
 `,
+		deps: []string{"fma_hw"},
 	},
 	{
 		name: "fma_arm64",
@@ -605,7 +655,7 @@ pub fn fma_amd64_f32(x: f32, y: f32, z: f32) -> f32 {
             return f32::from_bits(v.to_bits() | 0x0040_0000);
         }
     }
-    let r = x.mul_add(y, z);
+    let r = fma_hw_f32(x, y, z);
     if r.is_nan() {
         f32::from_bits(0xffc0_0000)
     } else {
@@ -613,6 +663,7 @@ pub fn fma_amd64_f32(x: f32, y: f32, z: f32) -> f32 {
     }
 }
 `,
+		deps: []string{"fma_hw_f32"},
 	},
 	{
 		name: "fma_arm64_f32",
@@ -913,14 +964,14 @@ fn exp_amd64(x: f64) -> f64 {
     // CVTSD2SL rounds to nearest even; out of range it is i32::MIN.
     let k = (LOG2E * x).round_ties_even() as i32;
     let kf = f64::from(k);
-    let fma = fma_usable();
-    let mut r;
-    let mut p;
-    if fma {
-        r = (-kf).mul_add(LN2U, x);
+    // exp_amd64.s's fused path, compiled for AVX and FMA so each mul_add
+    // is one VFMADD in line, not a call to the library's fma.
+    #[target_feature(enable = "avx,fma")]
+    unsafe fn fused(x: f64, kf: f64) -> f64 {
+        let mut r = (-kf).mul_add(LN2U, x);
         r = (-kf).mul_add(LN2L, r);
         r *= 0.0625;
-        p = C[0];
+        let mut p = C[0];
         for c in &C[1..] {
             p = p.mul_add(r, *c);
         }
@@ -931,7 +982,13 @@ fn exp_amd64(x: f64) -> f64 {
             r *= t;
         }
         let t = r + 2.0;
-        r = r.mul_add(t, 1.0);
+        r.mul_add(t, 1.0)
+    }
+    let mut r;
+    let mut p;
+    if fma_usable() {
+        // SAFETY: fma_usable found AVX and FMA on this processor.
+        r = unsafe { fused(x, kf) };
     } else {
         r = x - LN2U * kf;
         r -= LN2L * kf;
