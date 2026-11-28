@@ -159,10 +159,10 @@ jobs:
           for g in math_exp math_log; do
             cd "$GITHUB_WORKSPACE/testdata/golden/$g"
             go build -o "$RUNNER_TEMP/$g-go" .
-            "$RUNNER_TEMP/gopatina" build -emit-rust -o "$RUNNER_TEMP/$g-crate" .
-            (cd "$RUNNER_TEMP/$g-crate" && cargo build --release --locked --target x86_64-unknown-linux-musl --quiet)
+            "$RUNNER_TEMP/gopatina" build -patina -static -o "$RUNNER_TEMP/$g-patina" .
+            file "$RUNNER_TEMP/$g-patina" | grep -q 'static'
             qemu-x86_64 -cpu Nehalem "$RUNNER_TEMP/$g-go" > "$RUNNER_TEMP/$g-go.txt"
-            qemu-x86_64 -cpu Nehalem "$RUNNER_TEMP/$g-crate/target/x86_64-unknown-linux-musl/release/$g" > "$RUNNER_TEMP/$g-patina.txt"
+            qemu-x86_64 -cpu Nehalem "$RUNNER_TEMP/$g-patina" > "$RUNNER_TEMP/$g-patina.txt"
             diff "$RUNNER_TEMP/$g-go.txt" "$RUNNER_TEMP/$g-patina.txt"
             echo "$g: same on a Nehalem"
           done

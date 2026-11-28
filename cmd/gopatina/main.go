@@ -95,6 +95,9 @@ in docs/patina-subset.md:
 	                (the binary has Go's garbage collector; no Rust needed)
 	-explain        also report every decision the borrow checker made on its
 	                own: each move, copy and borrow
+	-static         on linux/amd64 and linux/arm64, a fully static binary:
+	                Rust's musl target, linked by Rust's own rust-lld and
+	                musl runtime, with no C toolchain on the machine
 	-o path         the output file (or crate directory with -emit-rust)
 	-crate-name n   the crate's name (default: for a library, the last element
 	                of its import path, with - as _; RFC 0014)
@@ -166,6 +169,7 @@ type invocation struct {
 	cmd     string // "build" or "run"
 	mode    mode
 	explain bool
+	static  bool // -static: Rust's musl target (RFC 0001)
 	out     string
 	pkg     string
 	args    []string // the program's arguments (run)
@@ -195,6 +199,8 @@ loop:
 			modes = append(modes, m)
 		case a == "-explain" || a == "--explain":
 			inv.explain = true
+		case a == "-static" || a == "--static":
+			inv.static = true
 		case (a == "-o" || a == "--o") && i+1 < len(args):
 			inv.out = args[i+1]
 			i++
@@ -285,6 +291,7 @@ func newSession(stdout, stderr io.Writer, explain bool) *patina.Session {
 func (inv invocation) exec(stdin io.Reader, stdout, stderr io.Writer) int {
 	s := newSession(stdout, stderr, inv.explain)
 	s.CrateName, s.CrateVersion, s.APICheck = inv.crateName, inv.crateVersion, inv.apiCheck
+	s.Static = inv.static
 	switch {
 	case inv.mode == emitRustMode:
 		out := inv.out

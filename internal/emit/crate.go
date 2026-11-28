@@ -219,10 +219,20 @@ targets = [%q]
 }
 
 func cargoConfig(target string) string {
-	return fmt.Sprintf(`# An explicit target, so the build does not depend on the host's default.
+	s := fmt.Sprintf(`# An explicit target, so the build does not depend on the host's default.
 [build]
 target = %q
 `, target)
+	if strings.HasSuffix(target, "-musl") {
+		// A static binary linked by Rust's own lld and musl runtime objects,
+		// so the host's C toolchain is not involved (RFC 0001).
+		s += fmt.Sprintf(`
+[target.%s]
+linker = "rust-lld"
+rustflags = ["-C", "link-self-contained=yes"]
+`, target)
+	}
+	return s
 }
 
 // Manifest returns gopatina-manifest.sha256 for the crate's files.

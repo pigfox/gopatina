@@ -329,6 +329,30 @@ specialized for `n <= 3037000500`, where `i*i` cannot wrap, and its hot loop
 is the same instructions as the hand-written Rust. This compares code, not
 speed; the equivalence run on the test server is pending.
 
+## Allocators for static musl binaries, 2026-11-27 (not official)
+
+GoPatina's crates for the three cases that allocate in their hot loop,
+built with glibc's malloc (today's default), with musl's own allocator
+(static), with mimalloc, and with the pure-Rust dlmalloc (static). The
+median of 7 interleaved runs on a laptop in use, so these are directions.
+Method and peak memory:
+[2026-11-27-allocators.md](bench/results/2026-11-27-allocators.md).
+
+| Case | glibc | musl | mimalloc* | dlmalloc |
+| --- | --- | --- | --- | --- |
+| `binary-trees` | 3.71 s | 4.64 s | 1.03 s | 5.04 s |
+| `iface-keep` | 0.21 s | 0.49 s | 0.10 s | 0.52 s |
+| `cycles` | 0.02 s | 0.11 s | 0.02 s | 0.02 s |
+
+\* Built for gnu: mimalloc is C, and building it for musl needs a musl C
+compiler.
+
+musl's allocator is 1.25 to 2.3 times slower than glibc's on these cases,
+and dlmalloc does not help. mimalloc is fastest, but it brings a C toolchain
+into static builds. So `-static` (Rust's musl target, no C toolchain) is
+opt-in, and gnu stays the default until a fast allocator for static builds
+is settled.
+
 ## Earlier local verification runs (not official)
 
 Two runs on 2026-11-18, GoPatina commit `71630d17ab9bf38de6e7602e24807c859a206c70`,
