@@ -1,6 +1,6 @@
-./a/a.go:7:2: a map type is not supported in patina mode yet
+./a/a.go:7:2: a map with keys of type float64 (step 1 of RFC 0019 takes strings, integers and bools) is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
     reached from main through: main.main -> a.Count -> a.tally
-./a/a.go:7:10: a map type is not supported in patina mode yet
+./a/a.go:7:10: a map with keys of type float64 (step 1 of RFC 0019 takes strings, integers and bools) is not supported in patina mode yet
     see docs/compat.md for what patina mode supports
     reached from main through: main.main -> a.Count -> a.tally

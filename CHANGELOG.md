@@ -10,6 +10,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Maps, step 1 of RFC 0019.** A local `map[K]V` of string, integer or bool
+  keys and number, bool or string values is an `rt::Map`, a `HashMap` with a
+  fixed hasher: `make`, literals, reads with the zero value for a missing
+  key, comma-ok, assignment, `+=`, `++`, `delete`, `len`, and printing with
+  the keys sorted, as `fmt` prints a map. `testdata/golden/maps_local`
+  covers it, and Go Tour's mutating-maps.
 - **Deferred closures, step 5 of RFC 0018.** `defer func() {...}()` is
   moved into the function's `rt::Defers` and runs, in Go's order, when the
   function returns or a panic unwinds. What it uses must not change after

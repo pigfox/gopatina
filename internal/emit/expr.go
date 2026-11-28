@@ -256,6 +256,12 @@ func (g *gen) value(e ast.Expr) node {
 	if name, ok := g.temps[e]; ok {
 		return text(name)
 	}
+	if ix, ok := g.mapIndex(e); ok {
+		return g.mapGet(ix) // RFC 0019
+	}
+	if lit, ok := e.(*ast.CompositeLit); ok && isMapType(t) {
+		return g.mapLit(lit)
+	}
 	if v := g.globalOf(e); v != nil {
 		return g.globalValue(v)
 	}

@@ -289,7 +289,14 @@ func (g *gen) builtin(e *ast.CallExpr, name string) node {
 		}
 		return out
 	case "make":
+		if isMapType(g.typeOf(e)) {
+			g.rt["Map"] = true
+			return text("rt::Map::default()") // the size is only a hint
+		}
 		return g.makeSlice(e)
+	case "delete":
+		m := g.rootVar(e.Args[0])
+		return &call{recv: text(g.varName(m)), head: ".remove", open: "(", close: ")", args: []node{g.mapKey(e.Args[1])}}
 	}
 	// panic(v). The marker lets the runtime hook tell a Go panic apart from
 	// Rust's own runtime messages, which it translates to Go's text.
@@ -820,6 +827,9 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 	case isInt(t):
 		flags(true)
 		arg = g.value(e)
+	case isMapType(t):
+		flags(false)
+		arg = g.mapShow(t.Underlying().(*types.Map), g.ref(e))
 	case isStruct(t):
 		// {f1 f2 ...}, each field by its %v (the checker allows plain %v
 		// only), through the struct's show_ function.

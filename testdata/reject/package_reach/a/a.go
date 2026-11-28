@@ -4,9 +4,9 @@ package a
 func Count(s string) int { return tally(s) }
 
 func tally(s string) int {
-	seen := map[string]int{}
-	seen[s]++
-	return seen[s]
+	seen := map[float64]int{}
+	seen[float64(len(s))]++
+	return seen[1]
 }
 
 // Fine is reached too and is inside the subset.

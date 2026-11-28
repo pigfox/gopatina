@@ -31,3 +31,4 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-28 | returned closures and function values, step 3 of RFC 0018: gobyexample/closures, gotour/moretypes/function-closures and gotour/solutions/fib now match | 137 | 53 | 53 (38.7%) | 53 (38.7%) | 53 (38.7%) | 0 |
 | 2026-11-28 | recursive closures as nested fns, step 4 of RFC 0018: gobyexample/recursion now matches | 137 | 53 | 54 (39.4%) | 54 (39.4%) | 54 (39.4%) | 0 |
 | 2026-11-28 | deferred closures, step 5 of RFC 0018: no program matches yet; the corpus programs that defer a closure also need sync (mutexes, mutex-counter) | 137 | 53 | 54 (39.4%) | 54 (39.4%) | 54 (39.4%) | 0 |
+| 2026-11-28 | local maps, step 1 of RFC 0019: gotour/moretypes/mutating-maps now matches | 137 | 53 | 55 (40.1%) | 55 (40.1%) | 55 (40.1%) | 0 |

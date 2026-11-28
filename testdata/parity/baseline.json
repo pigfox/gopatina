@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 53,
   "tested": 137,
-  "accepted": 54,
-  "compiled": 54,
-  "matched": 54,
-  "linted": 54,
-  "lint_clean": 52,
+  "accepted": 55,
+  "compiled": 55,
+  "matched": 55,
+  "linted": 55,
+  "lint_clean": 53,
   "rates": {
-    "accepted": 39.4,
-    "compiled": 39.4,
-    "lint_clean": 96.3,
-    "matched": 39.4
+    "accepted": 40.1,
+    "compiled": 40.1,
+    "lint_clean": 96.4,
+    "matched": 40.1
   },
   "skips": {
     "does not build with Go": 6,
@@ -50,20 +50,6 @@
         "gotour/concurrency/buffered-channels",
         "gotour/concurrency/range-and-close",
         "gotour/concurrency/select"
-      ]
-    },
-    {
-      "fingerprint": "a map type is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/enums",
-        "gobyexample/maps",
-        "gobyexample/mutexes",
-        "gobyexample/text-templates",
-        "gotour/concurrency/mutex-counter",
-        "gotour/moretypes/map-literals",
-        "gotour/moretypes/map-literals-continued",
-        "gotour/moretypes/maps",
-        "gotour/moretypes/mutating-maps"
       ]
     },
     {
@@ -163,6 +149,17 @@
       ]
     },
     {
+      "fingerprint": "a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/mutexes",
+        "gobyexample/text-templates",
+        "gotour/concurrency/mutex-counter",
+        "gotour/moretypes/map-literals",
+        "gotour/moretypes/map-literals-continued",
+        "gotour/moretypes/maps"
+      ]
+    },
+    {
       "fingerprint": "_ is copied and kept, so its object has two owners",
       "programs": [
         "gobyexample/defer",
@@ -210,6 +207,15 @@
         "gobyexample/regular-expressions",
         "gobyexample/text-templates",
         "gobyexample/xml"
+      ]
+    },
+    {
+      "fingerprint": "a map literal or make of a map other than the value of a local map variable where it is declared (step N of RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/enums",
+        "gobyexample/mutexes",
+        "gobyexample/text-templates",
+        "gotour/concurrency/mutex-counter"
       ]
     },
     {
@@ -293,6 +299,14 @@
       ]
     },
     {
+      "fingerprint": "a map with values of type main._ (step N of RFC N takes numbers, bools and strings) is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/map-literals",
+        "gotour/moretypes/map-literals-continued",
+        "gotour/moretypes/maps"
+      ]
+    },
+    {
       "fingerprint": "a slice expression (_[i:j]) is not supported in patina mode yet",
       "programs": [
         "gotour/moretypes/slice-bounds",
@@ -322,14 +336,6 @@
         "gotour/concurrency/buffered-channels",
         "gotour/concurrency/range-and-close",
         "gotour/concurrency/select"
-      ]
-    },
-    {
-      "fingerprint": "make of map[string]int is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/maps",
-        "gotour/concurrency/mutex-counter",
-        "gotour/moretypes/mutating-maps"
       ]
     },
     {
@@ -493,13 +499,6 @@
       ]
     },
     {
-      "fingerprint": "printing a value of type map[string]int is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/maps",
-        "gobyexample/mutexes"
-      ]
-    },
-    {
       "fingerprint": "printing a value of type map[string]main._ is not supported in patina mode yet",
       "programs": [
         "gotour/moretypes/map-literals",
@@ -525,13 +524,6 @@
       "programs": [
         "gobyexample/range-over-channels",
         "gotour/concurrency/range-and-close"
-      ]
-    },
-    {
-      "fingerprint": "the delete built-in is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/maps",
-        "gotour/moretypes/mutating-maps"
       ]
     },
     {
@@ -701,6 +693,18 @@
       "fingerprint": "a function type is not supported in patina mode yet",
       "programs": [
         "gobyexample/string-functions"
+      ]
+    },
+    {
+      "fingerprint": "a map type other than a local variable'_ (step N of RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/enums"
+      ]
+    },
+    {
+      "fingerprint": "a map with values of type *main._ (step N of RFC N takes numbers, bools and strings) is not supported in patina mode yet",
+      "programs": [
+        "gotour/concurrency/exercise-web-crawler"
       ]
     },
     {
@@ -1154,12 +1158,6 @@
       ]
     },
     {
-      "fingerprint": "make of map[string]main._ is not supported in patina mode yet",
-      "programs": [
-        "gotour/moretypes/maps"
-      ]
-    },
-    {
       "fingerprint": "os.Chdir is not supported in patina mode yet",
       "programs": [
         "gobyexample/directories"
@@ -1460,7 +1458,7 @@
       ]
     },
     {
-      "fingerprint": "type _: a map type is not supported in patina mode yet",
+      "fingerprint": "type _: a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
       "programs": [
         "gotour/concurrency/exercise-web-crawler"
       ]
@@ -1662,6 +1660,12 @@
       "programs": [
         "gobyexample/string-functions"
       ]
+    },
+    {
+      "fingerprint": "using the map _ other than by indexing it, passing it to delete or len, or printing it (it would be copied; step N of RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/maps"
+      ]
     }
   ],
   "results": [
@@ -1858,7 +1862,8 @@
       "name": "gobyexample/enums",
       "stage": "refused",
       "fingerprints": [
-        "a map type is not supported in patina mode yet",
+        "a map type other than a local variable'_ (step N of RFC N) is not supported in patina mode yet",
+        "a map literal or make of a map other than the value of a local map variable where it is declared (step N of RFC N) is not supported in patina mode yet",
         "printing a value whose _ method may panic is not supported in patina mode yet"
       ]
     },
@@ -1997,10 +2002,7 @@
       "name": "gobyexample/maps",
       "stage": "refused",
       "fingerprints": [
-        "a map type is not supported in patina mode yet",
-        "make of map[string]int is not supported in patina mode yet",
-        "printing a value of type map[string]int is not supported in patina mode yet",
-        "the delete built-in is not supported in patina mode yet",
+        "using the map _ other than by indexing it, passing it to delete or len, or printing it (it would be copied; step N of RFC N) is not supported in patina mode yet",
         "the clear built-in (Go N.N) is not supported in patina mode yet",
         "uses the standard package iter, which patina mode does not support yet",
         "calls maps.Equal, whose standard-library code patina mode does not support yet"
@@ -2024,12 +2026,12 @@
       "fingerprints": [
         "package sync is not supported in patina mode yet",
         "type sync.Mutex is not supported in patina mode yet",
-        "a map type is not supported in patina mode yet",
+        "a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
         "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
+        "a map literal or make of a map other than the value of a local map variable where it is declared (step N of RFC N) is not supported in patina mode yet",
         "type sync.WaitGroup is not supported in patina mode yet",
         "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
-        "a function literal that uses _, of type func(_ string, _ int), from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
-        "printing a value of type map[string]int is not supported in patina mode yet"
+        "a function literal that uses _, of type func(_ string, _ int), from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet"
       ]
     },
     {
@@ -2324,7 +2326,8 @@
         "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "template.Must(template.New(_).Parse(_)) lends back a pointer its caller owns, and it is kept, so the object has two owners",
         "an anonymous struct type is not supported in patina mode yet",
-        "a map type is not supported in patina mode yet",
+        "a map literal or make of a map other than the value of a local map variable where it is declared (step N of RFC N) is not supported in patina mode yet",
+        "a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
         "calls template.Template.Execute, whose standard-library code patina mode does not support yet",
         "calls template.Template.Parse, whose standard-library code patina mode does not support yet",
         "uses the standard package internal/strconv, which patina mode does not support yet",
@@ -2583,8 +2586,9 @@
       "stage": "refused",
       "fingerprints": [
         "type _: an interface method with an error result is not supported in patina mode yet",
-        "type _: a map type is not supported in patina mode yet",
-        "a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet"
+        "type _: a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
+        "a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet",
+        "a map with values of type *main._ (step N of RFC N takes numbers, bools and strings) is not supported in patina mode yet"
       ]
     },
     {
@@ -2598,9 +2602,9 @@
       "fingerprints": [
         "package sync is not supported in patina mode yet",
         "type sync.Mutex is not supported in patina mode yet",
-        "a map type is not supported in patina mode yet",
+        "a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
         "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
-        "make of map[string]int is not supported in patina mode yet",
+        "a map literal or make of a map other than the value of a local map variable where it is declared (step N of RFC N) is not supported in patina mode yet",
         "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
         "time.Sleep is not supported in patina mode yet"
       ]
@@ -2939,7 +2943,8 @@
       "name": "gotour/moretypes/map-literals",
       "stage": "refused",
       "fingerprints": [
-        "a map type is not supported in patina mode yet",
+        "a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
+        "a map with values of type main._ (step N of RFC N takes numbers, bools and strings) is not supported in patina mode yet",
         "printing a value of type map[string]main._ is not supported in patina mode yet"
       ]
     },
@@ -2947,7 +2952,8 @@
       "name": "gotour/moretypes/map-literals-continued",
       "stage": "refused",
       "fingerprints": [
-        "a map type is not supported in patina mode yet",
+        "a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
+        "a map with values of type main._ (step N of RFC N takes numbers, bools and strings) is not supported in patina mode yet",
         "printing a value of type map[string]main._ is not supported in patina mode yet"
       ]
     },
@@ -2955,19 +2961,16 @@
       "name": "gotour/moretypes/maps",
       "stage": "refused",
       "fingerprints": [
-        "a map type is not supported in patina mode yet",
+        "a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet",
         "a package-level variable of type map[string]main._ that the program changes is not supported in patina mode yet",
-        "make of map[string]main._ is not supported in patina mode yet"
+        "a map with values of type main._ (step N of RFC N takes numbers, bools and strings) is not supported in patina mode yet"
       ]
     },
     {
       "name": "gotour/moretypes/mutating-maps",
-      "stage": "refused",
-      "fingerprints": [
-        "a map type is not supported in patina mode yet",
-        "make of map[string]int is not supported in patina mode yet",
-        "the delete built-in is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/moretypes/nil-slices",

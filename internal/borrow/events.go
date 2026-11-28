@@ -154,7 +154,7 @@ func (w *walker) place(e ast.Expr) (ev event, ok bool) {
 			parts = append(parts, "."+x.Sel.Name)
 			e = x.X
 		case *ast.IndexExpr:
-			if !isSliceType(w.info().Types[x.X].Type) {
+			if t := w.info().Types[x.X].Type; !isSliceType(t) && !isMapType(t) {
 				return ev, false // a byte of a string is a value
 			}
 			ev.whole = false
@@ -175,6 +175,13 @@ func (w *walker) place(e ast.Expr) (ev event, ok bool) {
 
 func isSliceType(t types.Type) bool {
 	_, ok := t.Underlying().(*types.Slice)
+	return ok
+}
+
+// isMapType reports whether t is a map type (RFC 0019): setting or
+// deleting an entry changes the map.
+func isMapType(t types.Type) bool {
+	_, ok := t.Underlying().(*types.Map)
 	return ok
 }
 
@@ -514,6 +521,11 @@ func (w *walker) builtin(e *ast.CallExpr, name string) {
 			}
 			w.consume(a, "append", nil)
 		}
+	case "delete":
+		// delete(m, k) changes m (RFC 0019); the checker keeps m a variable.
+		m := ast.Unparen(e.Args[0]).(*ast.Ident)
+		w.add(event{kind: evMut, v: w.info().Uses[m].(*types.Var), e: m, whole: true, pos: e.Pos()})
+		w.read(e.Args[1])
 	default:
 		for _, a := range e.Args {
 			if tv := w.info().Types[a]; tv.IsType() {

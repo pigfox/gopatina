@@ -94,8 +94,21 @@ and no calls but `fmt.Print`, `Println`, `Printf`, the `Sprint` family,
 `math` and conversions between numbers. Deferring a literal with parameters
 or arguments is refused.
 
+**Maps (RFC 0019, step 1).** A local variable of type `map[K]V`, with `K` a
+string, an integer or a bool and `V` a number, a bool or a string, made where
+it is declared by `make` (with a constant size, or none) or a map literal, is
+an `rt::Map`: a `HashMap` with a fixed hasher. Reading `m[k]` gives the zero
+value for a missing key, `v, ok := m[k]` says whether it is there, and
+`m[k] = v`, `+=`, `-=`, `*=`, `++`, `--`, `delete` and `len` work as in Go.
+Printing a map sorts its keys, as `fmt` does, so the output never depends on
+the order of the hash table. The variable has one owner: it is only indexed,
+passed to `delete` or `len`, or printed. Copying it, passing it to a
+function, a nil map (`var m map[K]V`), maps in fields, parameters, results,
+package-level variables and closures, float keys, and `range` over a map are
+refused for now.
+
 Not supported yet, each with its own error: goroutines, channels and
-`select` (RFC 0002), maps, closures and function values beyond step 1 of
+`select` (RFC 0002), maps beyond step 1 of RFC 0019 (below), closures and function values beyond step 1 of
 RFC 0018 (below), the interface
 cases listed under [Interfaces](#interfaces), generics, `defer` other than of a print or a function literal (below), labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,

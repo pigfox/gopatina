@@ -1,0 +1,1 @@
+./main.go:44:14: moved n into names[8]: n is not used afterwards

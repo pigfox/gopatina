@@ -175,9 +175,9 @@ func TestMeasure(t *testing.T) {
 		features string
 	}{
 		"ok":             {true, ""},
-		"usesMap":        {false, "maps"},
+		"usesMap":        {true, ""}, // RFC 0019
 		"usesBadType":    {false, "maps"},
-		"callsBad":       {false, "maps"},
+		"callsBad":       {true, ""},
 		"usesVar":        {true, ""}, // RFC 0010
 		"plain.Get":      {true, ""},
 		"withMap.Size":   {false, "maps"},

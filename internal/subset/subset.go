@@ -29,6 +29,8 @@ type checker struct {
 	// function literal whose body is (RFC 0018), or nil.
 	body      *ast.BlockStmt
 	inClosure *ast.FuncLit
+	mapMade   map[*types.Var]bool // local maps made where declared (RFC 0019)
+	mapInits  map[ast.Expr]bool   // what they are made by
 	// fusing is the function of the fused operation being matched
 	// (checkFusion).
 	fusing *ast.FuncDecl
@@ -278,6 +280,7 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	c.signature(d, sig)
 	c.loops = nil
 	c.body = d.Body
+	c.mapMade, c.mapInits = mapMakes(c.pkg.Info, d.Body)
 	c.funcParamUses(d)
 	c.funcVarUses(d)
 	if returnsFunc(sig) {
@@ -389,7 +392,7 @@ func unsupportedType(t types.Type, constOK bool) string {
 	case *types.Pointer:
 		return "a pointer here (RFC 0013 supports pointers in variables, parameters, results and fields)"
 	case *types.Map:
-		return "a map type"
+		return "a map type other than a local variable's (step 1 of RFC 0019)"
 	case *types.Chan:
 		return "a channel type (goroutines and channels are planned, RFC 0002)"
 	case *types.Interface:
@@ -512,6 +515,12 @@ func pointee(t types.Type) types.Type {
 // localType checks the type of a local variable. It reports the type
 // itself here; pointers are checked where they are created.
 func (c *checker) localType(n ast.Node, t types.Type) {
+	if m, ok := t.Underlying().(*types.Map); ok && c.body != nil && c.inClosure == nil {
+		if id, ok := n.(*ast.Ident); ok {
+			c.localMap(n, c.pkg.Info.Defs[id].(*types.Var), m) // RFC 0019, step 1
+			return
+		}
+	}
 	switch {
 	case isError(t):
 	case isWriter(t):
@@ -616,6 +625,12 @@ func (c *checker) assign(s *ast.AssignStmt) {
 	} else {
 		for _, l := range s.Lhs {
 			c.lvalue(l)
+		}
+		if s.Tok != token.ASSIGN && len(s.Lhs) == 1 {
+			if what := mapUpdateProblem(c.pkg.Info, s.Lhs[0], s.Tok); what != "" {
+				c.unsupported(s, what)
+				return
+			}
 		}
 	}
 	if len(s.Lhs) == 1 && len(s.Rhs) == 1 && s.Tok == token.ASSIGN {
@@ -792,6 +807,14 @@ func (c *checker) compositeLit(e *ast.CompositeLit) {
 			c.unsupported(e, "an anonymous struct type")
 			return
 		}
+	case *types.Map:
+		if what := mapTypeProblem(t.Underlying().(*types.Map)); what != "" {
+			c.unsupported(e, what)
+			return
+		}
+		if !c.mapInit(e) {
+			return
+		}
 	case *types.Slice:
 		c.typ(e, t, false)
 		for _, el := range e.Elts {
@@ -966,6 +989,18 @@ func (c *checker) builtin(e *ast.CallExpr, name string) {
 		}
 		c.exprs(e.Args)
 	case "make":
+		if m, ok := info.Types[e.Args[0]].Type.Underlying().(*types.Map); ok {
+			if len(e.Args) > 1 && info.Types[e.Args[1]].Value == nil {
+				c.unsupported(e, "make of a map with a size that is not a constant (Go panics on a negative one)")
+				return
+			}
+			if what := mapTypeProblem(m); what != "" {
+				c.unsupported(e, what)
+				return
+			}
+			c.mapInit(e)
+			return
+		}
 		if _, ok := info.Types[e.Args[0]].Type.Underlying().(*types.Slice); !ok {
 			c.unsupported(e, "make of "+info.Types[e.Args[0]].Type.String())
 			return
@@ -1006,6 +1041,8 @@ func (c *checker) builtin(e *ast.CallExpr, name string) {
 			}
 		}
 		c.exprs(e.Args)
+	case "delete":
+		c.exprs(e.Args) // of a map (RFC 0019)
 	case "clear":
 		c.unsupported(e, fmt.Sprintf("the %s built-in (Go 1.21)", name))
 	default:
@@ -1100,6 +1137,9 @@ func (c *checker) printProblem(t types.Type) string {
 	}
 	if _, ok := t.Underlying().(*types.Struct); ok {
 		return structPrintProblem(t)
+	}
+	if m, ok := t.Underlying().(*types.Map); ok && isPrintableBasic(m.Key()) && isPrintableBasic(m.Elem()) {
+		return "" // keys sorted, as fmt prints them (RFC 0019)
 	}
 	return fmt.Sprintf("printing a value of type %s", t)
 }

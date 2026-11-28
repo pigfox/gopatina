@@ -861,6 +861,8 @@ func (g *gen) rustType(t types.Type) string {
 		return "String"
 	case *types.Slice:
 		return "Vec<" + g.rustType(t.Elem()) + ">"
+	case *types.Map:
+		return g.mapType(t) // RFC 0019
 	case *types.Pointer:
 		return g.ptrType(t) // a heap pointer; a borrow is a parameter's type
 	case *types.Signature:
