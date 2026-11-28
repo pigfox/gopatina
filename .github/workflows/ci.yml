@@ -156,7 +156,7 @@ jobs:
         # dies there before its first line; Go's binaries are static, and
         # the crates are built for musl to be static too.
         run: |
-          for g in math_exp math_log math_trig; do
+          for g in math_exp math_log math_trig math_pow; do
             cd "$GITHUB_WORKSPACE/testdata/golden/$g"
             go build -o "$RUNNER_TEMP/$g-go" .
             "$RUNNER_TEMP/gopatina" build -patina -static -o "$RUNNER_TEMP/$g-patina" .

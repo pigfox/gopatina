@@ -10,6 +10,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **math.Pow**, bit for bit with Go on every chip. Go writes it in Go
+  (`pow.go`) on every target: Exp and Log for the fraction of y, then
+  squarings for its integer part, with Frexp and Ldexp through the
+  subnormals. GoPatina ports it with each target's Exp and Log. gc fuses
+  one multiply-add on arm64 and from `GOAMD64=v3`, a square then its
+  doubling, which always rounds to the same value, so one port serves
+  every target. `testdata/golden/math_pow` checks the special cases and
+  400,000 random pairs.
 - **Go's pin and a watcher.** CI's Go is pinned to go1.27.4
   (toolchain.json, `.go-version`), with the `fma-sites.txt` records
   rewritten from it, so TestFMASites compares them exactly instead of
