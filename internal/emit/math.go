@@ -6,6 +6,7 @@ import (
 	"go/token"
 
 	"github.com/pigfox/gopatina/internal/fma"
+	"github.com/pigfox/gopatina/internal/subset"
 )
 
 // mathCall renders a call of a provided math function (subset.StdFuncs).
@@ -163,4 +164,20 @@ func (g *gen) fmaUsable() string {
 		return "fma_usable_v3"
 	}
 	return "fma_usable"
+}
+
+// mathFuncValue renders math function name passed as a function value
+// (subset.MathFuncValues): the runtime function its calls use, with what
+// that needs.
+func (g *gen) mathFuncValue(name string) node {
+	helper := subset.MathFuncValues[name]
+	g.rt[helper] = true
+	switch name {
+	case "math.Pow", "math.Exp":
+		g.rt[g.fmaUsable()] = true
+	case "math.Sin", "math.Cos":
+		g.rt["trig"] = true
+		g.rt[g.v3Item("trig_fuse")] = true
+	}
+	return text("rt::" + helper)
 }

@@ -4,10 +4,10 @@
 
 | of 137 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 57 | 41.6% |
-| compiled to Rust | 57 | 41.6% |
-| output matches Go | 57 | 41.6% |
-| clippy clean (of 57 linted) | 55 | 96.5% |
+| accepted by patina mode | 58 | 42.3% |
+| compiled to Rust | 58 | 42.3% |
+| output matches Go | 58 | 42.3% |
+| clippy clean (of 58 linted) | 56 | 96.6% |
 
 ## Failure clusters, largest first
 
@@ -88,8 +88,7 @@
 | 1 | a call other than fmt.Print, Println, Printf or a math function in a deferred function literal (it may panic while a panic unwinds) is not supported in patina mode yet | gobyexample/recover |
 | 1 | a call with ... arguments is not supported in patina mode yet | gobyexample/variadic-functions |
 | 1 | a complex number is not supported in patina mode yet | gotour/basics/basic-types |
-| 1 | a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported _ patina mode yet | gobyexample/regular-expressions |
-| 1 | a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported in patina mode yet | gotour/moretypes/function-values |
+| 1 | a function argument other than a function of the program, a closure, a function literal or a math function (RFC N) is not supported _ patina mode yet | gobyexample/regular-expressions |
 | 1 | a function literal that uses _, of type func(_ string, _ int), from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/mutexes |
 | 1 | a function literal that uses _, of type sync/atomic.Uint64, from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/atomic-counters |
 | 1 | a function literal with a parameter of type any (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/switch |

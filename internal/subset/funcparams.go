@@ -241,8 +241,12 @@ func (c *checker) programArgs(e *ast.CallExpr) {
 		case *ast.FuncLit:
 			c.inlineClosure(e, a)
 			continue
+		case *ast.SelectorExpr:
+			if MathFuncValue(info, a) != "" {
+				continue // a math function, a Rust function giving Go's result
+			}
 		}
-		c.unsupported(a, "a function argument other than a function of the program, a closure or a function literal (step 2 of RFC 0018)")
+		c.unsupported(a, "a function argument other than a function of the program, a closure, a function literal or a math function (RFC 0018)")
 	}
 }
 
@@ -341,4 +345,26 @@ func inlineUseProblem(info *types.Info, cl *Closure, stmt ast.Stmt) string {
 		return problem == ""
 	})
 	return problem
+}
+
+// MathFuncValues are the math functions patina mode passes as function
+// values, each with the runtime function (rt::) that gives Go's result bit
+// for bit, as a call of it does.
+var MathFuncValues = map[string]string{
+	"math.Pow": "pow", "math.Log": "log", "math.Exp": "exp",
+	"math.Sin": "sin", "math.Cos": "cos", "math.Sqrt": "sqrt_nan",
+	"math.Floor": "floor", "math.Ceil": "ceil", "math.Trunc": "trunc",
+}
+
+// MathFuncValue returns the name, such as "math.Pow", of the math function
+// e names when it is one of MathFuncValues, or "".
+func MathFuncValue(info *types.Info, e *ast.SelectorExpr) string {
+	fn, ok := info.Uses[e.Sel].(*types.Func)
+	if !ok || fn.Pkg() == nil || fn.Pkg().Path() != "math" {
+		return ""
+	}
+	if name := "math." + fn.Name(); MathFuncValues[name] != "" {
+		return name
+	}
+	return ""
 }
