@@ -56,6 +56,8 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		CopyFirst:    map[ast.Expr]bool{},
 		RefElems:     a.refs,
 		Closures:     map[*types.Var]*Func{},
+		Lits:         map[*ast.FuncLit]*Func{},
+		FuncParams:   map[*types.Var]*Func{},
 		Lent:         map[*types.Var]bool{},
 		params:       a.params,
 	}
@@ -73,14 +75,27 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 	// returns its own; its calls take its parameters by value.
 	for _, cl := range sortedClosures(pkg) {
 		sig := pkg.Info.Types[cl.Lit].Type.(*types.Signature)
-		obj := types.NewFunc(cl.Lit.Pos(), pkg.Types, "closure_"+cl.Var.Name(), sig)
+		obj := types.NewFunc(cl.Lit.Pos(), pkg.Types, "closure", sig)
 		fd := &ast.FuncDecl{Name: &ast.Ident{Name: obj.Name(), NamePos: cl.Lit.Pos()}, Type: cl.Lit.Type, Body: cl.Lit.Body}
 		fn := a.declare(fd, obj)
-		a.res.Closures[cl.Var] = fn
+		a.res.Lits[cl.Lit] = fn
+		if cl.Var != nil {
+			a.res.Closures[cl.Var] = fn
+		}
 		fns = append(fns, fn)
 		for v := range cl.Writes {
 			a.res.Mut[v] = true // it changes v, so v is let mut
 		}
+	}
+	// A parameter of function type (RFC 0018, step 2) is called with its
+	// arguments by value.
+	for v := range subset.FuncParams(pkg) {
+		sig := v.Type().Underlying().(*types.Signature)
+		fn := &Func{Obj: types.NewFunc(v.Pos(), pkg.Types, v.Name(), sig)}
+		for i := 0; i < sig.Params().Len(); i++ {
+			fn.Params = append(fn.Params, a.newParam(sig.Params().At(i)))
+		}
+		a.res.FuncParams[v] = fn
 	}
 	// Infer parameter modes and pointer kinds until nothing changes. Every
 	// fact only ever turns on, so this ends.
@@ -141,10 +156,14 @@ func (a *analyzer) declare(fd *ast.FuncDecl, obj *types.Func) *Func {
 	return f
 }
 
-// sortedClosures returns pkg's closures in source order.
+// sortedClosures returns pkg's closures, bound and passed, in source
+// order.
 func sortedClosures(pkg *load.Package) []*subset.Closure {
 	var out []*subset.Closure
 	for _, cl := range subset.Closures(pkg) {
+		out = append(out, cl)
+	}
+	for _, cl := range subset.Inline(pkg) {
 		out = append(out, cl)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Lit.Pos() < out[j].Lit.Pos() })

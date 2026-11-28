@@ -59,10 +59,16 @@ func (g *gen) funcDecl(fd *ast.FuncDecl) {
 		if p.Mut && (p.Mode == borrow.ByValue || p.Mode == borrow.Owned) {
 			name = "mut " + name
 		}
+		if fp := subset.FuncParams(g.pkg)[p.Var]; fp != nil && fp.Mut {
+			name = "mut " + name // impl FnMut (RFC 0018, step 2)
+		}
 		if g.ownPtr(p.Var.Type()) && g.paramRep(p.Var) == repOptRefMut {
 			name = "\x00" + name // mut if the body reborrows it (below)
 		}
 		t := g.paramType(p.Var.Type(), p.Mode)
+		if fp := subset.FuncParams(g.pkg)[p.Var]; fp != nil && fp.Mut {
+			t = g.fnTrait(p.Var.Type().Underlying().(*types.Signature), true)
+		}
 		if g.ownPtr(p.Var.Type()) {
 			// A borrowed owned pointer: &T, &mut T, or in an Option where
 			// it may be nil (RFC 0017, steps 2 and 3).
@@ -351,6 +357,8 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 		if fnBody && i == len(list)-2 {
 			if ret, ok := list[i+1].(*ast.ReturnStmt); ok {
 				if !g.hasLineCommentsBetween(s.End(), ret.Pos()) {
+					g.inlineClosures(s)
+					g.inlineClosures(ret)
 					if e, folded, ok := g.foldTailLetReturn(s, ret); ok {
 						var b strings.Builder
 						out := g.out
@@ -393,6 +401,7 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 				last = list[i]
 			}
 		case isReturn(s) && fnBody && i == len(list)-1:
+			g.inlineClosures(s)
 			if subset.ReadsChangedGlobal(g.pkg, s, g.globals) {
 				g.hoistCalls(s, severalValues(s)) // gc's order (RFC 0010)
 			} else {
@@ -710,6 +719,10 @@ func (g *gen) stmt(s ast.Stmt) {
 	if ec := g.errs.Calls[s]; ec != nil && ec.General {
 		g.generalCall(ec) // an if statement's init (RFC 0012)
 		return
+	}
+	switch s.(type) {
+	case *ast.ExprStmt, *ast.ReturnStmt, *ast.AssignStmt:
+		g.inlineClosures(s) // bound just before (RFC 0018, step 2)
 	}
 	switch s.(type) {
 	case *ast.ExprStmt, *ast.ReturnStmt, *ast.DeclStmt, *ast.AssignStmt:

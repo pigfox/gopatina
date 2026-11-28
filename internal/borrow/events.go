@@ -71,6 +71,36 @@ func (w *walker) add(ev event) {
 	w.evs = append(w.evs, ev)
 }
 
+// passedClosures records, at a call of the program, the changes made by
+// the closures it is passed (RFC 0018, step 2): the callee calls them.
+func (w *walker) passedClosures(e *ast.CallExpr) {
+	info := w.info()
+	for _, a := range e.Args {
+		var cl *subset.Closure
+		switch a := ast.Unparen(a).(type) {
+		case *ast.FuncLit:
+			cl = subset.Inline(w.a.pkg)[a]
+		case *ast.Ident:
+			if v, ok := info.Uses[a].(*types.Var); ok {
+				cl = subset.Closures(w.a.pkg)[v]
+			}
+		}
+		if cl != nil {
+			w.changes(cl, e)
+		}
+	}
+}
+
+// changes records that the closure cl changes, at e, the variables it
+// changes.
+func (w *walker) changes(cl *subset.Closure, e *ast.CallExpr) {
+	for _, c := range cl.Captures {
+		if cl.Writes[c] {
+			w.add(event{kind: evMut, v: c, e: e.Fun, whole: true, pos: e.Pos()})
+		}
+	}
+}
+
 // localVar returns the local variable (or parameter) id names, or nil.
 func (w *walker) localVar(id *ast.Ident) *types.Var {
 	v, ok := w.info().Uses[id].(*types.Var)
@@ -284,6 +314,7 @@ func (w *walker) call(e *ast.CallExpr) {
 		w.read(e.Args[0])
 		return
 	}
+	w.passedClosures(e)
 	switch f := fun.(type) {
 	case *ast.Ident:
 		if b, ok := info.Uses[f].(*types.Builtin); ok {
@@ -292,14 +323,14 @@ func (w *walker) call(e *ast.CallExpr) {
 		}
 		if v, ok := info.Uses[f].(*types.Var); ok {
 			// A closure's call (RFC 0018): its arguments by value, and the
-			// variables it changes, changed here.
-			cl := subset.Closures(w.a.pkg)[v]
-			w.args(w.operands(), e, w.a.res.Closures[v], f.Name)
-			for _, c := range cl.Captures {
-				if cl.Writes[c] {
-					w.add(event{kind: evMut, v: c, e: f, whole: true, pos: e.Pos()})
-				}
+			// variables it changes, changed here; or a call of a parameter
+			// of function type.
+			if cl := subset.Closures(w.a.pkg)[v]; cl != nil {
+				w.args(w.operands(), e, w.a.res.Closures[v], f.Name)
+				w.changes(cl, e)
+				return
 			}
+			w.args(w.operands(), e, w.a.res.FuncParams[v], f.Name)
 			return
 		}
 		callee := w.a.funcs[info.Uses[f].(*types.Func)]

@@ -6,34 +6,103 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/pigfox/gopatina/internal/borrow"
 	"github.com/pigfox/gopatina/internal/subset"
 )
 
 // closureDecl writes f := func(...) {...} (RFC 0018, step 1): a Rust
 // closure, borrowing the variables it captures, mut when it changes one.
-// Its body is written as the function the borrow checker checked it as,
-// its returns its own.
 func (g *gen) closureDecl(s *ast.AssignStmt, lit *ast.FuncLit) {
 	v := g.info.Defs[s.Lhs[0].(*ast.Ident)].(*types.Var)
-	cl := subset.Closures(g.pkg)[v]
-	fn := g.res.Closures[v]
+	g.closureLet(g.varName(v), subset.Closures(g.pkg)[v], g.res.Closures[v])
+}
+
+// inlineClosures binds, just before statement s, each function literal s
+// passes to a parameter of function type (RFC 0018, step 2), so the call
+// lends it by name.
+func (g *gen) inlineClosures(s ast.Stmt) {
+	var lits []*ast.FuncLit
+	ast.Inspect(s, func(n ast.Node) bool {
+		if lit, ok := n.(*ast.FuncLit); ok {
+			if _, done := g.litNames[lit]; !done && subset.Inline(g.pkg)[lit] != nil {
+				lits = append(lits, lit) // not yet bound
+			}
+			return false
+		}
+		return true
+	})
+	for _, lit := range lits {
+		name := g.lnames.name("", func(string) string { return "f" })
+		if g.litNames == nil {
+			g.litNames = map[*ast.FuncLit]string{}
+		}
+		g.litNames[lit] = name
+		g.closureLet(name, subset.Inline(g.pkg)[lit], g.res.Lits[lit])
+	}
+}
+
+// funcArg renders an argument of a parameter of function type: a function
+// of the program by name; a closure that changes what it captures lent as
+// &mut; any other closure by value, a copy (it holds only shared borrows,
+// so it is Copy, and stays usable).
+func (g *gen) funcArg(a ast.Expr) node {
+	lend := func(name string, cl *subset.Closure) node {
+		if len(cl.Writes) > 0 {
+			return text("&mut " + name)
+		}
+		return text(name)
+	}
+	if lit, ok := ast.Unparen(a).(*ast.FuncLit); ok {
+		return lend(g.litNames[lit], subset.Inline(g.pkg)[lit])
+	}
+	// The checker allows only these and a function of the program.
+	id := ast.Unparen(a).(*ast.Ident)
+	if v, ok := g.info.Uses[id].(*types.Var); ok {
+		return lend(g.varName(v), subset.Closures(g.pkg)[v])
+	}
+	fn := g.info.Uses[id].(*types.Func)
+	return text(g.qual(fn.Pkg(), g.funcs[fn]))
+}
+
+// fnTrait renders sig as the trait of a generic parameter: impl Fn(T) -> R,
+// or impl FnMut when mut.
+func (g *gen) fnTrait(sig *types.Signature, mut bool) string {
+	var ps []string
+	for i := 0; i < sig.Params().Len(); i++ {
+		ps = append(ps, g.rustType(sig.Params().At(i).Type()))
+	}
+	trait := "impl Fn("
+	if mut {
+		trait = "impl FnMut("
+	}
+	trait += strings.Join(ps, ", ") + ")"
+	if sig.Results().Len() == 1 {
+		trait += " -> " + g.rustType(sig.Results().At(0).Type())
+	}
+	return trait
+}
+
+// closureLet writes let name = |...| {...}; for closure cl, whose body the
+// borrow checker checked as fn: mut when it changes what it captures. Its
+// body is written as that function, its returns its own.
+func (g *gen) closureLet(name string, cl *subset.Closure, fn *borrow.Func) {
 	sig := fn.Obj.Signature()
 	var params []string
 	for _, p := range fn.Params {
-		name := "_"
+		pname := "_"
 		if p.Var.Name() != "_" && p.Var.Name() != "" {
-			name = g.varName(p.Var)
+			pname = g.varName(p.Var)
 		}
 		if p.Mut {
-			name = "mut " + name
+			pname = "mut " + pname
 		}
-		params = append(params, name+": "+g.rustType(p.Var.Type()))
+		params = append(params, pname+": "+g.rustType(p.Var.Type()))
 	}
 	head := "let "
 	if len(cl.Writes) > 0 {
 		head += "mut "
 	}
-	head += g.varName(v) + " = |" + strings.Join(params, ", ") + "|"
+	head += name + " = |" + strings.Join(params, ", ") + "|"
 	if sig.Results().Len() == 1 {
 		head += " -> " + g.rustType(sig.Results().At(0).Type())
 	}
