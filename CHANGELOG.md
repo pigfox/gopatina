@@ -10,6 +10,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **A canary for the next Rust edition.** Rust 2027 has no number yet
+  (nightly calls it `future`). `scripts/edition-canary.sh` compiles every
+  committed crate without dependencies with nightly's next edition, with
+  future-incompatible and edition-future-compatibility lints and every
+  warning denied. All 189 compile today. It runs in the `toolchains`
+  workflow, and a scheduled failure opens an issue.
 - **math.Pow**, bit for bit with Go on every chip. Go writes it in Go
   (`pow.go`) on every target: Exp and Log for the fraction of y, then
   squarings for its integer part, with Frexp and Ldexp through the
