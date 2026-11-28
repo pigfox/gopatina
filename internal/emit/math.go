@@ -29,6 +29,9 @@ func (g *gen) mathCall(e *ast.CallExpr, name string) node {
 		return method("sqrt")
 	case "math.Abs":
 		return method("abs")
+	case "math.Log":
+		g.rt["log"] = true
+		return &call{head: "rt::log", open: "(", close: ")", args: []node{g.value(a[0])}}
 	case "math.Exp":
 		g.rt["exp"] = true
 		g.rt[g.fmaUsable()] = true

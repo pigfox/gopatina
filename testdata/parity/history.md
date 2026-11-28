@@ -21,3 +21,4 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-26 | a fused multiply-add through a local, and float32, on arm64 and GOAMD64=v3 (no corpus change at amd64 v1) | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |
 | 2026-11-27 | NaN payloads match gc where math.Float64bits reads them (no corpus program reads NaN bits) | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |
 | 2026-11-27 | math.Exp, bit for bit on every chip (no corpus program calls it) | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |
+| 2026-11-27 | math.Log, bit for bit on every chip (no corpus program calls it) | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |

@@ -56,7 +56,10 @@ var StdFuncs = map[string]bool{
 	"math.Float64frombits": true,
 	// math.Exp: Go's own algorithm for the target (exp_amd64.s, with or
 	// without FMA as the processor has it; exp_arm64.s), bit for bit.
-	"math.Exp":     true,
+	"math.Exp": true,
+	// math.Log: Go's own for the target (log_amd64.s; log.go as gc
+	// compiles it on arm64, fusing ten of its multiply-adds), bit for bit.
+	"math.Log":     true,
 	"slices.Clone": true,
 	"bytes.Clone":  true,
 }
