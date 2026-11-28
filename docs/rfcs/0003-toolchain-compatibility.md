@@ -119,6 +119,16 @@ FMA, the toolchain matrix and clippy, the difftest on amd64 and arm64, and
 the benchmarks), and, for stable, opens a pull request when they pass. A
 failed gate opens an issue.
 
+**The next edition.** Emitted crates use the 2024 edition. The next one,
+Rust 2027, has no number yet: on 2026-11-27, neither stable 1.100.1 nor
+nightly 1.102.0 accepts `--edition 2027`, and nightly calls it `future`.
+A canary in the `toolchains` workflow, `scripts/edition-canary.sh`,
+compiles every committed crate without dependencies (189 of 190) with
+nightly's next edition, denying `future-incompatible`,
+`edition-future-compatibility` and every warning. On a scheduled failure
+it opens an issue. When 2027 is stable, the crates move to it with the
+toolchain bump, as for a new pinned release.
+
 **Go's pin.** CI's Go is pinned too (toolchain.json `go.pinned`, and
 `.go-version`, which actions/setup-go reads), except in the Go stable and
 oldstable matrix and the canaries. It matters because the sites where gc
