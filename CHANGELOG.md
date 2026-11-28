@@ -10,6 +10,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **math.Sin and math.Cos**, bit for bit with Go on every chip. Go writes
+  them in Go (`sin.go`, and `trig_reduce.go`'s Payne-Hanek reduction from
+  2**29 on), and gc fuses their multiply-adds differently for each target:
+  on arm64 the reduction and every polynomial step, from `GOAMD64=v3` each
+  polynomial's outer add, below v3 none. GoPatina ports each choice;
+  nothing is refused at run time. `testdata/golden/math_trig` checks
+  400,000 random arguments (every exponent, and within 64 pi of zero) and
+  the edge values on amd64 at v1 and v3, on arm64, and on a Nehalem.
 - **-static**: `gopatina build -patina -static` (and `-emit-rust -static`)
   builds a fully static binary on linux/amd64 and linux/arm64. It uses
   Rust's musl target, linked by `rust-lld` with Rust's own musl runtime,

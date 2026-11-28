@@ -926,6 +926,212 @@ fn fma_usable() -> bool {
 `,
 	},
 	{
+		name: "trig",
+		code: `// sin.go's and trig_reduce.go's constants, bit for bit.
+const TRIG_PI4A: f64 = f64::from_bits(0x3fe9_21fb_4000_0000);
+const TRIG_PI4B: f64 = f64::from_bits(0x3e64_442d_0000_0000);
+const TRIG_PI4C: f64 = f64::from_bits(0x3ce8_4698_98cc_5170);
+const TRIG_FOUR_OVER_PI: f64 = f64::from_bits(0x3ff4_5f30_6dc9_c883);
+const TRIG_PI4: f64 = f64::from_bits(0x3fe9_21fb_5444_2d18);
+const TRIG_SIN: [f64; 6] = [
+    f64::from_bits(0x3de5_d8fd_1fd1_9ccd),
+    f64::from_bits(0xbe5a_e5e5_a929_1f5d),
+    f64::from_bits(0x3ec7_1de3_567d_48a1),
+    f64::from_bits(0xbf2a_01a0_19bf_df03),
+    f64::from_bits(0x3f81_1111_1110_f7d0),
+    f64::from_bits(0xbfc5_5555_5555_5548),
+];
+const TRIG_COS: [f64; 6] = [
+    f64::from_bits(0xbda8_fa49_a086_1a9b),
+    f64::from_bits(0x3e21_ee9d_7b4e_3f05),
+    f64::from_bits(0xbe92_7e4f_7eac_4bc6),
+    f64::from_bits(0x3efa_01a0_19c8_44f5),
+    f64::from_bits(0xbf56_c16c_16c1_4f91),
+    f64::from_bits(0x3fa5_5555_5555_554b),
+];
+const TRIG_MPI4: [u64; 20] = [
+    0x0000_0000_0000_0001,
+    0x45f3_06dc_9c88_2a53,
+    0xf84e_afa3_ea69_bb81,
+    0xb6c5_2b32_7887_2083,
+    0xfca2_c757_bd77_8ac3,
+    0x6e48_dc74_849b_a5c0,
+    0x0c92_5dd4_13a3_2439,
+    0xfc3b_d639_6253_4e7d,
+    0xd104_6bea_5d76_8909,
+    0xd338_e04d_68be_fc82,
+    0x7323_ac73_06a6_73e9,
+    0x3908_bf17_7bf2_5076,
+    0x3ff1_2fff_bc0b_301f,
+    0xde5e_2316_b414_da3e,
+    0xda6c_fd9e_4f96_136e,
+    0x9e8c_7ecd_3cbf_d45a,
+    0xea4f_758f_d7cb_e2f6,
+    0x7a0e_73ef_14a5_25d4,
+    0xd7f6_bf62_3f1a_ba10,
+    0xac06_608d_f8f6_d757,
+];
+
+/// Go's math.Sin, bit for bit (sin.go, which gc compiles on every target).
+pub fn sin(x: f64) -> f64 {
+    trig(x, false)
+}
+
+/// Go's math.Cos, bit for bit (sin.go).
+pub fn cos(x: f64) -> f64 {
+    trig(x, true)
+}
+
+/// a*b + c, fused (rounded once) where gc fuses that site for the target,
+/// and rounded twice where it does not.
+#[inline(always)]
+fn trig_fm(fused: bool, a: f64, b: f64, c: f64) -> f64 {
+    if fused { a.mul_add(b, c) } else { a * b + c }
+}
+
+/// sin.go's sin (cos false) and cos (cos true). gc fuses, on arm64, the
+/// reduction's three steps (TRIG_FUSE_REDUCE), every step of both
+/// polynomials and cos's 1 - zz/2 (TRIG_FUSE_POLY), and each polynomial's
+/// outer add (TRIG_FUSE_OUTER); at GOAMD64=v3 only the outer add; below v3
+/// nothing.
+fn trig(x: f64, cos: bool) -> f64 {
+    let (fr, fp, fo) = (TRIG_FUSE_REDUCE, TRIG_FUSE_POLY, TRIG_FUSE_OUTER);
+    if x.is_nan() {
+        // Sin returns a NaN as it is; Cos returns Go's NaN.
+        return if cos {
+            f64::from_bits(0x7ff8_0000_0000_0001)
+        } else {
+            x
+        };
+    }
+    if x.is_infinite() {
+        return f64::from_bits(0x7ff8_0000_0000_0001);
+    }
+    if !cos && x == 0.0 {
+        return x;
+    }
+    let mut sign = false;
+    let mut x = x;
+    if cos {
+        x = x.abs();
+    } else if x < 0.0 {
+        x = -x;
+        sign = true;
+    }
+    let (mut j, z);
+    if x >= 536_870_912.0 {
+        // reduceThreshold, 1 << 29.
+        (j, z) = trig_reduce(x);
+    } else {
+        j = (x * TRIG_FOUR_OVER_PI) as u64;
+        let mut y = j as f64;
+        if j & 1 == 1 {
+            j += 1;
+            y += 1.0;
+        }
+        j &= 7;
+        let mut r = trig_fm(fr, -y, TRIG_PI4A, x);
+        r = trig_fm(fr, -y, TRIG_PI4B, r);
+        z = trig_fm(fr, -y, TRIG_PI4C, r);
+    }
+    if j > 3 {
+        j -= 4;
+        sign = !sign;
+    }
+    if cos && j > 1 {
+        sign = !sign;
+    }
+    let zz = z * z;
+    // Cos takes sin's polynomial for octants 1 and 2, Sin cos's.
+    let y = if (j == 1 || j == 2) != cos {
+        let mut p = TRIG_COS[0];
+        for c in &TRIG_COS[1..] {
+            p = trig_fm(fp, p, zz, *c);
+        }
+        let a = trig_fm(fp, -0.5, zz, 1.0);
+        trig_fm(fo, zz * zz, p, a)
+    } else {
+        let mut p = TRIG_SIN[0];
+        for c in &TRIG_SIN[1..] {
+            p = trig_fm(fp, p, zz, *c);
+        }
+        trig_fm(fo, z * zz, p, z)
+    };
+    if sign { -y } else { y }
+}
+
+/// Go's x << n and x >> n for an unsigned 64-bit x: 0 once n reaches 64.
+fn trig_shl(x: u64, n: u32) -> u64 {
+    x.checked_shl(n).unwrap_or(0)
+}
+
+fn trig_shr(x: u64, n: u32) -> u64 {
+    x.checked_shr(n).unwrap_or(0)
+}
+
+/// trig_reduce.go's trigReduce: x reduced modulo Pi/4 with Payne and
+/// Hanek's method, for x of at least 2**29, as the octant j and z.
+fn trig_reduce(x: f64) -> (u64, f64) {
+    if x < TRIG_PI4 {
+        return (0, x);
+    }
+    let mut ix = x.to_bits();
+    let exp = ((ix >> 52) & 0x7ff) as i64 - 1023 - 52;
+    ix &= !(0x7ff << 52);
+    ix |= 1 << 52;
+    let (digit, bitshift) = (((exp + 61) / 64) as usize, ((exp + 61) % 64) as u32);
+    let m = &TRIG_MPI4;
+    let z0 = trig_shl(m[digit], bitshift) | trig_shr(m[digit + 1], 64 - bitshift);
+    let z1 = trig_shl(m[digit + 1], bitshift) | trig_shr(m[digit + 2], 64 - bitshift);
+    let z2 = trig_shl(m[digit + 2], bitshift) | trig_shr(m[digit + 3], 64 - bitshift);
+    let z2hi = ((u128::from(z2) * u128::from(ix)) >> 64) as u64;
+    let z1p = u128::from(z1) * u128::from(ix);
+    let (z1hi, z1lo) = ((z1p >> 64) as u64, z1p as u64);
+    let z0lo = z0.wrapping_mul(ix);
+    let (lo, c) = z1lo.overflowing_add(z2hi);
+    let hi = z0lo.wrapping_add(z1hi).wrapping_add(u64::from(c));
+    let mut j = hi >> 61;
+    let mut hi = (hi << 3) | (lo >> 61);
+    let lz = hi.leading_zeros();
+    let e = 1023 - (u64::from(lz) + 1);
+    hi = trig_shl(hi, lz + 1) | trig_shr(lo, 64 - (lz + 1));
+    hi = trig_shr(hi, 64 - 52);
+    hi |= e << 52;
+    let mut z = f64::from_bits(hi);
+    if j & 1 == 1 {
+        j += 1;
+        j &= 7;
+        z -= 1.0;
+    }
+    (j, z * TRIG_PI4)
+}
+`,
+	},
+	{
+		name: "trig_fuse",
+		code: `/// Which of sin.go's multiply-adds gc fuses (rt::trig): on arm64 all of
+/// them; on amd64 none, below GOAMD64=v3.
+#[cfg(target_arch = "aarch64")]
+const TRIG_FUSE_REDUCE: bool = true;
+#[cfg(not(target_arch = "aarch64"))]
+const TRIG_FUSE_REDUCE: bool = false;
+const TRIG_FUSE_POLY: bool = TRIG_FUSE_REDUCE;
+const TRIG_FUSE_OUTER: bool = TRIG_FUSE_REDUCE;
+`,
+	},
+	{
+		name: "trig_fuse_v3",
+		code: `/// Which of sin.go's multiply-adds gc fuses (rt::trig): on arm64 all of
+/// them; on amd64 each polynomial's outer add, from GOAMD64=v3.
+#[cfg(target_arch = "aarch64")]
+const TRIG_FUSE_REDUCE: bool = true;
+#[cfg(not(target_arch = "aarch64"))]
+const TRIG_FUSE_REDUCE: bool = false;
+const TRIG_FUSE_POLY: bool = TRIG_FUSE_REDUCE;
+const TRIG_FUSE_OUTER: bool = true;
+`,
+	},
+	{
 		name: "exp",
 		code: `/// Go's math.Exp, bit for bit: on amd64 its assembly (exp_amd64.s,
 /// Shibata's method), with fused multiply-adds where Go uses them
