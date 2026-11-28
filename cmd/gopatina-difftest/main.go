@@ -194,6 +194,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 		made = []string{filepath.Join(c.work, "gocache")}
 	}
 	c.gocache = filepath.Join(c.work, "gocache")
+	if c.lint > 0 {
+		// Every Nth batch runs clippy with the crates' pinned toolchain;
+		// without it each of those batches fails, so say so now.
+		if err := clippyInstalled(c); err != nil {
+			fmt.Fprintln(stderr, "gopatina-difftest:", err)
+			for _, d := range made {
+				os.RemoveAll(d)
+			}
+			return 1
+		}
+	}
 	var mu sync.Mutex // guards stderr
 	g := &guard{work: c.work, gocache: c.gocache, max: c.gocacheMax << 20, minFree: c.minFree, logf: func(format string, args ...any) {
 		mu.Lock()
@@ -234,12 +245,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 			defer wg.Done()
 			for i := range next {
 				if errs[i] = g.before(batches[i].first); errs[i] != nil {
+					if errs[i] != errSkipped { // the run is stopping
+						logError(&mu, stderr, batches[i].first, batches[i].n, errs[i])
+					}
 					continue
 				}
 				g.mu.RLock()
 				results[i], errs[i] = batch(c, batches[i].first, batches[i].n)
 				g.mu.RUnlock()
 				g.after()
+				if errs[i] != nil {
+					logError(&mu, stderr, batches[i].first, batches[i].n, errs[i])
+				}
 				if errs[i] == nil {
 					mu.Lock()
 					fmt.Fprintf(stderr, "batch %d-%d: %d mismatched, build failed %t, %d Go disagreements\n",
@@ -272,6 +289,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 3
 	}
 	return 0
+}
+
+// logError logs, when it happens, that batch first..first+n-1 ended with
+// err: every batch has a line in the log, so a gap in the numbers is a
+// batch that never ran.
+func logError(mu *sync.Mutex, stderr io.Writer, first, n int, err error) {
+	reason, _, _ := strings.Cut(err.Error(), "\n")
+	mu.Lock()
+	defer mu.Unlock()
+	fmt.Fprintf(stderr, "batch %d-%d: ERROR %s\n", first, first+n-1, reason)
 }
 
 // onSignal waits for a signal or the end of the run; on a signal it
