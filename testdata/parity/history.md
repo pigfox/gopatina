@@ -33,3 +33,4 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-28 | deferred closures, step 5 of RFC 0018: no program matches yet; the corpus programs that defer a closure also need sync (mutexes, mutex-counter) | 137 | 53 | 54 (39.4%) | 54 (39.4%) | 54 (39.4%) | 0 |
 | 2026-11-28 | local maps, step 1 of RFC 0019: gotour/moretypes/mutating-maps now matches | 137 | 53 | 55 (40.1%) | 55 (40.1%) | 55 (40.1%) | 0 |
 | 2026-11-28 | package-level maps and struct values, step 2 of RFC 0019: gotour/moretypes/map-literals and map-literals-continued now match | 137 | 53 | 57 (41.6%) | 57 (41.6%) | 57 (41.6%) | 0 |
+| 2026-11-28 | range over a map, step 3 of RFC 0019: no program matches yet; the corpus programs that range over a map print in its order (skipped) or need more (gobyexample/maps: clear and maps.Equal) | 137 | 53 | 57 (41.6%) | 57 (41.6%) | 57 (41.6%) | 0 |

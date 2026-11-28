@@ -149,3 +149,44 @@ func (g *gen) mapShow(t *types.Map, p node) node {
 		text("|v| " + g.show(t.Elem(), "v")),
 	}}
 }
+
+// mapRange returns the pattern and iterator of for k, v := range m, and
+// the lines that start its body (RFC 0019, step 3): m.iter(), or m.keys()
+// or m.values() for one of them, in the hash table's order, which Go
+// leaves unspecified. A Copy key or value is bound by pattern, &k; a
+// string, or one the body changes, is copied in a first line.
+func (g *gen) mapRange(s *ast.RangeStmt) (string, node, []string) {
+	mt := g.typeOf(s.X).Underlying().(*types.Map)
+	var first []string
+	bind := func(e ast.Expr, t types.Type) string {
+		id, ok := e.(*ast.Ident)
+		if !ok || id.Name == "_" {
+			return "_"
+		}
+		v := g.localVar(id)
+		name := g.varName(v)
+		switch {
+		case !isStringType(t) && g.mutPrefix(v) == "":
+			return "&" + name
+		case isStringType(t):
+			first = append(first, "let "+g.mutPrefix(v)+name+" = "+name+".clone();")
+		default:
+			first = append(first, "let "+g.mutPrefix(v)+name+" = *"+name+";")
+		}
+		return name
+	}
+	key, value := bind(s.Key, mt.Key()), "_"
+	if s.Value != nil {
+		value = bind(s.Value, mt.Elem())
+	}
+	m := g.place(s.X)
+	switch {
+	case value == "_" && key == "_":
+		return "_", &call{recv: m, head: ".iter", open: "(", close: ")"}, first
+	case value == "_":
+		return key, &call{recv: m, head: ".keys", open: "(", close: ")"}, first
+	case key == "_":
+		return value, &call{recv: m, head: ".values", open: "(", close: ")"}, first
+	}
+	return "(" + key + ", " + value + ")", &call{recv: m, head: ".iter", open: "(", close: ")"}, first
+}

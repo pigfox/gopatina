@@ -104,7 +104,7 @@ Printing a map sorts its keys, as `fmt` does, so the output never depends on
 the order of the hash table. The variable has one owner: it is only indexed,
 passed to `delete` or `len`, or printed. Copying it, passing it to a
 function, a nil map (`var m map[K]V`), maps in fields, parameters, results
-and closures, float keys, and `range` over a map are refused for now.
+and closures, and float keys are refused for now.
 
 **Package-level maps and struct values (RFC 0019, step 2).** A package-level
 map variable made by a map literal where it is declared, which nothing
@@ -113,6 +113,15 @@ built once, and read as a local map is. Map values may also be named
 structs of numbers and bools (`map[string]Vertex`); a read hands out a
 copy, as Go does. A changed package-level map, one made by `make`, and a
 nil one are refused.
+
+**Range over a map (RFC 0019, step 3).** `for k, v := range m` visits the
+entries in the hash table's order (`m.iter()`, or `m.keys()` or `m.values()`
+for one of them). Go leaves the order unspecified and randomizes it on every
+range, so a program cannot depend on it; patina mode's order is fixed for a
+build, but may change with the Rust release, so its tests, like Go programs,
+only print what does not depend on it. A body that changes the map it
+ranges over (an element, or `delete`) is refused (RFC 0019, decision 5), as
+is a range over another package's map, for now.
 
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps beyond step 1 of RFC 0019 (below), closures and function values beyond step 1 of

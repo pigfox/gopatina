@@ -263,6 +263,9 @@ func TestRejected(t *testing.T) {
 		{"global map copied", "package main\nimport \"fmt\"\nvar m = map[string]int{}\nfunc main() { n := m; fmt.Println(len(n)) }\n", "using the package-level variable m this way (a copy of a slice or a map shares its elements) is not supported"},
 		{"map struct of strings", "package main\nimport \"fmt\"\ntype T struct{ s string }\nfunc main() { m := map[string]T{}; fmt.Println(len(m)) }\n", "a map with values of type main.T (RFC 0019 takes numbers, bools, strings and structs of numbers and bools) is not supported"},
 		{"map anonymous struct", "package main\nimport \"fmt\"\nfunc main() { m := map[string]struct{ x int }{}; fmt.Println(len(m)) }\n", "a map with values of type struct{x int} (RFC 0019 takes numbers, bools, strings and structs of numbers and bools) is not supported"},
+		{"map range set", "package main\nimport \"fmt\"\nfunc main() { m := map[string]int{\"a\": 1}; for k := range m { m[k] = 2 }; fmt.Println(m) }\n", "changing the map m while ranging over it (decision 5 of RFC 0019) is not supported"},
+		{"map range delete", "package main\nimport \"fmt\"\nfunc main() { m := map[string]int{\"a\": 1}; for k := range m { delete(m, k) }; fmt.Println(m) }\n", "changing the map m while ranging over it (decision 5 of RFC 0019) is not supported"},
+		{"map range inc", "package main\nimport \"fmt\"\nfunc main() { m := map[string]int{\"a\": 1}; for k, v := range m { x := v; x++; m[k]++; fmt.Println(x) }; fmt.Println(m) }\n", "changing the map m while ranging over it (decision 5 of RFC 0019) is not supported"},
 		{"closure", "package main\nfunc main() { f := func() {}; _ = f }\n", "using the closure f other than by calling it or passing it to a parameter of function type (RFC 0018, steps 1 and 2) is not supported"},
 		{"slice expr", "package main\nfunc main() { s := []int{1}; _ = s[0:1] }\n", "a slice expression (s[i:j]) is not supported"},
 		{"print int pointer", "package main\nimport \"fmt\"\nfunc k() *int { x := 1; return &x }\nfunc main() { fmt.Println(k()) }\n", "printing a pointer of type *int, which has no String or Error method"},
@@ -382,7 +385,7 @@ func TestRejected(t *testing.T) {
 		{"type switch case", "package main\nfunc main() { var x any; switch x.(type) { case *int: } }\n", "converting a pointer to a type other than a named type of the program to an interface"},
 		{"assert iface", "package main\ntype I interface{ M([]int) }\nfunc main() { var x any; _ = x.(I) }\n", "an interface method with a slice parameter is not supported"},
 		{"expr stmt", "package main\nfunc main() { c := make(chan int); <-c }\n", "a channel receive as a statement is not supported"},
-		{"range map", "package main\nfunc main() { for range map[int]int{} {} }\n", "range over a map (map[int]int) is not supported"},
+		{"range map", "package main\nfunc main() { for range map[int]int{} {} }\n", "range over a map other than a map variable (step 3 of RFC 0019) is not supported"},
 		{"range func", "package main\nfunc seq(yield func(int) bool) {}\nfunc main() { for range seq {} }\n", "range over a function (Go 1.23) is not supported"},
 		{"range float", "package main\nfunc main() { var c chan int; for range c {} }\n", "range over a channel (chan int) is not supported"},
 		{"range assign", "package main\nfunc main() { i := 0; for i = range 3 {}; _ = i }\n", "a range loop that assigns to existing variables (use :=) is not supported"},
@@ -592,5 +595,49 @@ func TestLibraryAccepted(t *testing.T) {
 		"func Bump(t *T) { t.N++ }\n"
 	if got := check(t, src); got != "" {
 		t.Errorf("rejected:\n%s", got)
+	}
+}
+
+func TestMapRangeOtherPackage(t *testing.T) {
+	got := checkModule(t, map[string]string{
+		"main.go": "package main\n\nimport (\n\t\"fmt\"\n\n\t\"example.com/m/a\"\n)\n\nfunc main() {\n\tfor k := range a.M {\n\t\tfmt.Println(k)\n\t}\n}\n",
+		"a/a.go":  "package a\n\nvar M = map[string]int{\"x\": 1}\n",
+	})
+	want := "main.go:10:17: range over a package-level map of another package (step 3 of RFC 0019) is not supported"
+	if !strings.Contains(got, want) || strings.Count(got, "is not supported") != 1 {
+		t.Errorf("diagnostics lack %q, or have more:\n%s", want, got)
+	}
+}
+
+func TestMapRangeAccepted(t *testing.T) {
+	// Changing another map, a slice or a copy of a value while ranging
+	// over a map is not changing the map (decision 5 of RFC 0019).
+	pkg, err := load.Source("/m/app", "main.go", `package main
+
+import "fmt"
+
+type pt struct{ x int }
+
+func main() {
+	m := map[string]int{"a": 1}
+	n := map[string]int{}
+	p := pt{}
+	s := []int{0}
+	for k, v := range m {
+		n[k] = v
+		delete(n, "z")
+		v++
+		s[0]++
+		p.x++
+		fmt.Println(m, k, v)
+	}
+	fmt.Println(n, s, p.x)
+}
+`, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ds := Check(pkg); len(ds) > 0 {
+		t.Errorf("rejected: %v", ds)
 	}
 }

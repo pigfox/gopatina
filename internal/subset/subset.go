@@ -552,6 +552,11 @@ func (c *checker) rangeStmt(s *ast.RangeStmt) {
 	t := c.pkg.Info.Types[s.X].Type
 	switch t.Underlying().(type) {
 	case *types.Slice, *types.Basic: // a slice, a string or an integer or an integer; go/types rejects the rest
+	case *types.Map:
+		if what := c.mapRangeProblem(s); what != "" { // RFC 0019, step 3
+			c.unsupported(s.X, what)
+			return
+		}
 	case *types.Signature:
 		c.unsupported(s.X, "range over a function (Go 1.23)")
 		return

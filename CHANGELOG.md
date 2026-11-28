@@ -10,6 +10,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Range over a map, step 3 of RFC 0019.** `for k, v := range m` is
+  `for (k, v) in m.iter()` (or `keys()`, `values()`), in the hash table's
+  order, which Go leaves unspecified. Changing the map inside the loop is
+  refused. `testdata/golden/maps_range` prints only order-independent
+  results: sums, counts, maps built from the entries, and sorted keys.
 - **Package-level maps and struct values, step 2 of RFC 0019.** A
   package-level map made by a literal that nothing changes is a `LazyLock`
   static, and map values may be structs of numbers and bools. Go Tour's
