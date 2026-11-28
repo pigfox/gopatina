@@ -148,6 +148,17 @@ func (g *gen) errHelpers() {
 		g.line("    boxed(Dyn::" + goErrorVariant + "(rt::Error::new(message)))")
 		g.line("}")
 	}
+	if g.ifc.helpers["iface_panic"] {
+		g.line("")
+		g.line("/// panic(err): Go prints Error(), and for a nil error the text of its")
+		g.line("/// runtime.PanicNilError.")
+		g.line("pub fn iface_panic(x: &Iface) -> String {")
+		g.line("    if x.is_none() {")
+		g.line("        return String::from(\"" + g.panicNilText() + "\");")
+		g.line("    }")
+		g.line("    iface_show(x)")
+		g.line("}")
+	}
 	if g.ifc.helpers["iface_s"] {
 		g.line("")
 		g.line("/// %s of an error, padded to width: %!s(<nil>), unpadded, for nil.")
@@ -511,4 +522,30 @@ func (g *gen) errorsAPI() {
 		g.line("    }")
 		g.line("}")
 	}
+}
+
+// panicNilText is what Go's runtime prints for panic(nil): from Go 1.27 a
+// runtime error, before it plain (go1.26's "panic called with nil
+// argument"). An unknown Go version is taken as the newest.
+func (g *gen) panicNilText() string {
+	if v := g.pkg.Target.GoVersion; v != "" && versionLess(v, "go1.27") {
+		return "panic called with nil argument"
+	}
+	return "runtime error: panic called with nil argument"
+}
+
+// versionLess reports whether Go release v (go1.26.3, go1.28rc1) comes
+// before release w, by their minor numbers (every release is Go 1).
+func versionLess(v, w string) bool {
+	minor := func(s string) int {
+		n := 0
+		for _, c := range strings.TrimPrefix(s, "go1.") {
+			if c < '0' || c > '9' {
+				break
+			}
+			n = n*10 + int(c-'0')
+		}
+		return n
+	}
+	return minor(v) < minor(w)
 }

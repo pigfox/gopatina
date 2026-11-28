@@ -279,8 +279,22 @@ func (g *gen) builtin(e *ast.CallExpr, name string) node {
 	case "make":
 		return g.makeSlice(e)
 	}
-	// panic(s). The marker lets the runtime hook tell a Go panic apart from
+	// panic(v). The marker lets the runtime hook tell a Go panic apart from
 	// Rust's own runtime messages, which it translates to Go's text.
+	t := g.typeOf(e.Args[0])
+	switch {
+	case isErrorType(t):
+		// Error(), or for a nil error the text of Go's PanicNilError.
+		return &call{head: "panic!", open: "(", close: ")", args: []node{
+			text(strLit(userPanicMarker + "{}")),
+			&call{head: g.helper("iface_panic"), open: "(", close: ")", args: []node{g.ref(e.Args[0])}},
+		}}
+	case printMethodOf(t) == nil:
+		if n, ok := types.Unalias(t).(*types.Named); ok && isStringType(n) {
+			// The runtime prints a named string type as T("s"), unescaped.
+			return g.format("panic!", nil, userPanicMarker+goTypeName(t)+"(\"{}\")", []ast.Expr{e.Args[0]})
+		}
+	}
 	return g.format("panic!", nil, userPanicMarker+"{}", []ast.Expr{e.Args[0]})
 }
 

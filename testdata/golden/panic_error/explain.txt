@@ -1,0 +1,2 @@
+./main.go:10:11: parameter name is a shared borrow: open only reads it
+./main.go:13:33: moved inner into fmt.Errorf's %w: inner is not used afterwards

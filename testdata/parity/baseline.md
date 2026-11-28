@@ -18,9 +18,9 @@
 | 10 | a function type is not supported in patina mode yet | gobyexample/closures, gobyexample/directories, gobyexample/mutexes |
 | 9 | a map type is not supported in patina mode yet | gobyexample/enums, gobyexample/maps, gobyexample/mutexes |
 | 9 | calling a function value is not supported in patina mode yet | gobyexample/closures, gobyexample/directories, gobyexample/recursion |
-| 9 | panic with a value that is not a string is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/enums |
 | 8 | the go statement (goroutines are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/channels, gobyexample/select |
 | 7 | make of chan string is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
+| 7 | panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 7 | uses the standard package io/fs, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 7 | uses the standard package iter, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/maps |
 | 7 | uses the standard package path, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
@@ -182,6 +182,7 @@
 | 1 | package encoding/base64 is not supported in patina mode yet | gobyexample/base64-encoding |
 | 1 | package runtime is not supported in patina mode yet | gotour/flowcontrol/switch |
 | 1 | package sync/atomic is not supported in patina mode yet | gobyexample/atomic-counters |
+| 1 | panic with an error value: printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet | gobyexample/xml |
 | 1 | printing _ value of type [N][N]int is not supported in patina mode yet | gobyexample/arrays |
 | 1 | printing _ value of type []main._ is not supported in patina mode yet | gobyexample/sorting-by-functions |
 | 1 | printing a value of type (_ int, _ int) is not supported in patina mode yet | gotour/basics/named-results |
