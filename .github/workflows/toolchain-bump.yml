@@ -198,7 +198,9 @@ jobs:
           path: new
       - uses: actions/setup-go@v7
         with:
-          go-version-file: .go-version
+          # The checkouts are in old/ and new/; old's Go builds main, and
+          # GOTOOLCHAIN gives new/ its own pin below.
+          go-version-file: old/.go-version
       - name: Install Rust stable (the hand-written crates) and both pins
         run: |
           rustup toolchain install stable --profile minimal
