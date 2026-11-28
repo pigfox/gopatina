@@ -1,0 +1,13 @@
+./main.go:11:11: parameter words is a shared borrow: each only reads it
+./main.go:17:15: parameter words is a shared borrow: mapWords only reads it
+./main.go:25:14: parameter greeting is owned: greeter keeps it
+./main.go:26:14: parameter name is a shared borrow: closure only reads it
+./main.go:27:10: moved greeting into a returned function literal: greeting is not used afterwards
+./main.go:33:15: parameter a is a shared borrow: closure only reads it
+./main.go:33:18: parameter b is a shared borrow: closure only reads it
+./main.go:39:17: parameter s is a shared borrow: closure only reads it
+./main.go:47:41: parameter w is a shared borrow: closure only reads it
+./main.go:52:16: parameter w is a shared borrow: closure only reads it
+./main.go:57:13: parameter s is a shared borrow: closure only reads it
+./main.go:58:10: copied s into a return: s is borrowed, so its value cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:62:10: copied sep into a return: sep is used again on line 0; Go strings are immutable, so a copy keeps the program's meaning

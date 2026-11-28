@@ -77,6 +77,15 @@ variable defined by a call of such a function holds that box. It is only
 called, or passed to a parameter of function type (lent `&mut`). Copying it,
 reassigning it and comparing it with nil are refused: one owner.
 
+**Closures over strings (RFC 0018).** A function literal may take strings,
+use and change strings of its enclosing function, and return them. A string
+parameter is a `&str` (a literal, `impl Fn(&str)` and `Box<dyn FnMut(&str)>`
+all borrow it), copied where the body keeps it; a string the closure uses
+from its enclosing function is borrowed, and copied where the body hands it
+on, since the closure may run again; a string a returned closure uses is
+moved in, so a parameter it uses is owned. A deferred literal still takes
+only numbers and bools.
+
 **Math functions as values (RFC 0018).** `math.Pow`, `Log`, `Exp`, `Sin`,
 `Cos`, `Sqrt`, `Floor`, `Ceil` and `Trunc` may be passed to a parameter of
 function type, as in `compute(math.Pow)`: each is the runtime function a

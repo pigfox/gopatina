@@ -26,7 +26,10 @@ func (l *live) handOff(ev event, lv set) {
 	}
 	next, usedLater := lv[ev.v]
 	through := ev.ref || (ev.indirect && !ev.elem)
-	needCopy := usedLater || ev.force || ev.elem || through
+	// A closure may run again, and the variable it uses outlives it: what
+	// it consumes of one is copied (RFC 0018).
+	captured := l.a.captures[l.fn][ev.v]
+	needCopy := usedLater || ev.force || ev.elem || through || captured
 	if !needCopy {
 		a.res.Actions[ev.e] = Move
 		if ev.whole && ev.into != "a return" && ev.into != "a composite literal" && ev.into != "append" {

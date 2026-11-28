@@ -39,6 +39,7 @@ type Param struct {
 	escapes       bool // stores, returns or hands on the value
 	firstEscape   token.Pos
 	owned         bool // an owned pointer (RFC 0016): lent, never kept
+	lent          bool // a string parameter of a function literal: always &str (RFC 0018)
 }
 
 // Keeps reports whether the callee keeps the value after it returns, or
