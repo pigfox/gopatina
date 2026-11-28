@@ -278,6 +278,7 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	c.signature(d, sig)
 	c.loops = nil
 	c.body = d.Body
+	c.funcParamUses(d)
 	c.block(d.Body)
 }
 
@@ -316,6 +317,12 @@ func (c *checker) signature(d *ast.FuncDecl, sig *types.Signature) {
 }
 
 func (c *checker) paramType(n ast.Node, t types.Type) {
+	if sig, ok := t.Underlying().(*types.Signature); ok {
+		if what := funcTypeProblem(sig); what != "" {
+			c.unsupported(n, what) // RFC 0018, step 2
+		}
+		return
+	}
 	switch {
 	case isWriter(t):
 	case isError(t): // an interface value (RFC 0012)
@@ -838,8 +845,8 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 			return
 		}
 		if _, ok := info.Uses[f].(*types.Func); !ok {
-			if v, ok := info.Uses[f].(*types.Var); ok && Closures(c.pkg)[v] != nil {
-				c.exprs(e.Args) // a closure's call (RFC 0018, step 1)
+			if v, ok := info.Uses[f].(*types.Var); ok && (Closures(c.pkg)[v] != nil || FuncParams(c.pkg)[v] != nil) {
+				c.exprs(e.Args) // a closure's or a function parameter's call (RFC 0018)
 				return
 			}
 			c.unsupported(e, "calling a function value")
@@ -871,7 +878,7 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 		return
 	}
 	// nil passed for a pointer is a heap pointer (RFC 0013).
-	c.exprs(e.Args)
+	c.programArgs(e)
 }
 
 func (c *checker) stdCall(e *ast.CallExpr, name string) {

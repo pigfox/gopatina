@@ -57,6 +57,16 @@ functions. While it is still to be called, the function may not change a
 variable the closure reads, nor use one it changes; a call inside a loop
 keeps it live to the end of that loop.
 
+**Function-typed parameters (RFC 0018, step 2).** A parameter of type
+`func(...) R`, with the types step 1 takes, is a generic `impl Fn(...) -> R`,
+or `impl FnMut` when a closure passed to it changes what it captures. The
+function only calls it. Its argument is a function of the program, a closure,
+or a function literal written in the call. The crate binds that literal just
+before the statement, so the call must be the statement, an assignment's
+value or a returned value, and the statement may not otherwise use a variable
+the literal changes, nor change one it reads. With `impl FnMut`, `f(f(x))`
+is refused, since Rust would borrow `f` twice at once.
+
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values beyond step 1 of
 RFC 0018 (below), the interface

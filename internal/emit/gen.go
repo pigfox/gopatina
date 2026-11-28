@@ -96,6 +96,7 @@ type gen struct {
 	refElem    map[*types.Var]bool     // range variables bound to an element
 	nils       map[ast.Expr]types.Type // the type each untyped nil stands for
 	hoisted    map[ast.Expr]string     // arguments computed into a variable first
+	litNames   map[*ast.FuncLit]string // function literals bound before their statement (RFC 0018)
 	hoistedIdx map[ast.Expr]string     // assignment indexes computed into a variable first
 	letTypes   []string                // the types of a tuple let, when Rust cannot infer them
 	// Go comments, written where they stand in the Go source.
@@ -880,6 +881,9 @@ func (g *gen) rustType(t types.Type) string {
 
 // paramType returns the Rust type of a parameter passed in mode m.
 func (g *gen) paramType(t types.Type, m borrow.Mode) string {
+	if sig, ok := t.Underlying().(*types.Signature); ok {
+		return g.fnTrait(sig, false) // RFC 0018, step 2
+	}
 	if p, ok := t.(*types.Pointer); ok && !g.heapPtr(t) {
 		// A pointer borrows the pointed-to value itself, so a slice can
 		// grow through it.

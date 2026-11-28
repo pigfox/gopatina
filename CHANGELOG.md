@@ -10,6 +10,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Function-typed parameters, step 2 of RFC 0018.** A parameter of
+  function type is a generic `impl Fn(...) -> R`, or `impl FnMut` when a
+  closure passed to it at some call changes what it captures. Its
+  argument is a function of the program, a closure (passed by value when
+  it changes nothing, which makes it `Copy`, or lent `&mut`), or a function
+  literal in the call, bound just before the statement.
+  `testdata/golden/closures_param` covers it.
 - **Closures, step 1 (RFC 0018).** `f := func(...) {...}` called where it
   is made: a Rust closure borrowing the numbers and bools it uses, `mut`
   when it changes one. Its parameters are numbers or bools, its result a

@@ -133,6 +133,15 @@ func (c *checker) closureDecl(s *ast.AssignStmt, lit *ast.FuncLit, body *ast.Blo
 // closureProblem says why closure cl, in the function whose body is body,
 // is not supported yet, or returns "".
 func closureProblem(pkg *load.Package, cl *Closure, body *ast.BlockStmt) string {
+	if what := closureBodyProblem(pkg, cl); what != "" {
+		return what
+	}
+	return closureUseProblem(pkg.Info, cl, body)
+}
+
+// closureBodyProblem says why the function literal of cl is not supported
+// yet: its signature, what it captures, what its body does.
+func closureBodyProblem(pkg *load.Package, cl *Closure) string {
 	info := pkg.Info
 	sig := info.Types[cl.Lit].Type.(*types.Signature)
 	if sig.Variadic() {
@@ -178,10 +187,7 @@ func closureProblem(pkg *load.Package, cl *Closure, body *ast.BlockStmt) string 
 		}
 		return what == ""
 	})
-	if what != "" {
-		return what
-	}
-	return closureUseProblem(info, cl, body)
+	return what
 }
 
 // captures reports whether id names a variable cl captures.
@@ -200,11 +206,15 @@ func (cl *Closure) captures(info *types.Info, id *ast.Ident) bool {
 // function does not change a variable it reads, nor use one it changes,
 // which would conflict with the closure's borrow of it.
 func closureUseProblem(info *types.Info, cl *Closure, body *ast.BlockStmt) string {
-	calls := map[*ast.Ident]bool{}
+	calls := callees(body)
 	ast.Inspect(body, func(n ast.Node) bool {
+		// An argument of a parameter of function type (step 2) is a use
+		// too: the callee calls it.
 		if call, ok := n.(*ast.CallExpr); ok {
-			if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
-				calls[id] = true
+			for i, a := range call.Args {
+				if id, ok := ast.Unparen(a).(*ast.Ident); ok && funcParamAt(info, call, i) != nil {
+					calls[id] = true
+				}
 			}
 		}
 		return true
@@ -220,7 +230,7 @@ func closureUseProblem(info *types.Info, cl *Closure, body *ast.BlockStmt) strin
 			return true
 		}
 		if !calls[id] {
-			problem = fmt.Sprintf("using the closure %s other than by calling it (step 1 of RFC 0018)", cl.Var.Name())
+			problem = fmt.Sprintf("using the closure %s other than by calling it or passing it to a parameter of function type (RFC 0018, steps 1 and 2)", cl.Var.Name())
 			return false
 		}
 		if last := liveUntil(body, cl.Lit, id); last > end {

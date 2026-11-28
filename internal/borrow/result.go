@@ -133,6 +133,11 @@ type Result struct {
 	// Closures are the functions closures' bodies are checked as, by the
 	// variable each is bound to (RFC 0018).
 	Closures map[*types.Var]*Func
+	// Lits are the same by literal, for every closure, also one passed as
+	// an argument; FuncParams the calls of parameters of function type
+	// (RFC 0018, step 2), each taking its arguments by value.
+	Lits       map[*ast.FuncLit]*Func
+	FuncParams map[*types.Var]*Func
 	// CopyFirst holds the places handed to a call that is not the program's
 	// (a print) through an exclusive local borrow whose source the same
 	// statement reads after: read into a local before the statement, so the

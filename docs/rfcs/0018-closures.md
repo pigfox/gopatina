@@ -9,7 +9,9 @@
   `impl Fn`. Implementation in five steps, each its own pull request:
   non-escaping closures (step 1, in place: called where it is made, with
   number and bool parameters and captures, and a number, bool or string
-  result); function-typed parameters; escaping closures and
+  result); function-typed parameters (step 2, in place: generic impl Fn,
+  impl FnMut where a passed closure changes what it captures); escaping
+  closures and
   function-typed variables; recursive closures; defer of a closure
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-27

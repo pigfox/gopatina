@@ -29,8 +29,13 @@ func (g *gen) call(e *ast.CallExpr) node {
 			return g.builtin(e, b.Name())
 		}
 		if v, ok := g.info.Uses[f].(*types.Var); ok {
-			// A closure's call (RFC 0018): its parameters by value.
-			return &call{head: g.varName(v), open: "(", close: ")", args: g.args(e, g.res.Closures[v])}
+			// A closure's call, or a function parameter's (RFC 0018): its
+			// parameters by value.
+			fn := g.res.Closures[v]
+			if fn == nil {
+				fn = g.res.FuncParams[v]
+			}
+			return &call{head: g.varName(v), open: "(", close: ")", args: g.args(e, fn)}
 		}
 		fn := g.res.Funcs[g.info.Uses[f].(*types.Func)]
 		return &call{head: g.funcs[fn.Obj], open: "(", close: ")", args: g.args(e, fn)}
@@ -223,6 +228,9 @@ func (g *gen) args(e *ast.CallExpr, fn *borrow.Func) []node {
 }
 
 func (g *gen) arg(a ast.Expr, p *borrow.Param) node {
+	if _, ok := p.Var.Type().Underlying().(*types.Signature); ok {
+		return g.funcArg(a) // RFC 0018, step 2
+	}
 	if name, ok := g.hoisted[a]; ok {
 		return text(name)
 	}
