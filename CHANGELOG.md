@@ -10,6 +10,14 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Closures, step 1 (RFC 0018).** `f := func(...) {...}` called where it
+  is made: a Rust closure borrowing the numbers and bools it uses, `mut`
+  when it changes one. Its parameters are numbers or bools, its result a
+  number, bool or string. Using a variable while a closure that changes
+  it is still to be called (or changing one it reads) is refused, in Go's
+  terms. The body is checked as a function of its own, so its returns are
+  its own. Hoisting, evaluation order, NaN tracking and interface results
+  stop at function literals. `testdata/golden/closures_local` covers it.
 - **panic(err)** and other non-string panics, printed as Go's runtime
   prints them: an error's `Error()`, `runtime error: panic called with nil
   argument` for a nil error, a Stringer's `String()`. Other values are not

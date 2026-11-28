@@ -28,6 +28,10 @@ func (g *gen) call(e *ast.CallExpr) node {
 		if b, ok := g.info.Uses[f].(*types.Builtin); ok {
 			return g.builtin(e, b.Name())
 		}
+		if v, ok := g.info.Uses[f].(*types.Var); ok {
+			// A closure's call (RFC 0018): its parameters by value.
+			return &call{head: g.varName(v), open: "(", close: ")", args: g.args(e, g.res.Closures[v])}
+		}
 		fn := g.res.Funcs[g.info.Uses[f].(*types.Func)]
 		return &call{head: g.funcs[fn.Obj], open: "(", close: ")", args: g.args(e, fn)}
 	}

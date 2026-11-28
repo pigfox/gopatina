@@ -53,36 +53,6 @@
       ]
     },
     {
-      "fingerprint": "a function literal (closure) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/atomic-counters",
-        "gobyexample/closures",
-        "gobyexample/directories",
-        "gobyexample/mutexes",
-        "gobyexample/recursion",
-        "gobyexample/switch",
-        "gobyexample/text-templates",
-        "gotour/moretypes/function-closures",
-        "gotour/moretypes/function-values",
-        "gotour/solutions/fib"
-      ]
-    },
-    {
-      "fingerprint": "a function type is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/closures",
-        "gobyexample/directories",
-        "gobyexample/mutexes",
-        "gobyexample/recursion",
-        "gobyexample/string-functions",
-        "gobyexample/switch",
-        "gobyexample/text-templates",
-        "gotour/moretypes/function-closures",
-        "gotour/moretypes/function-values",
-        "gotour/solutions/fib"
-      ]
-    },
-    {
       "fingerprint": "a map type is not supported in patina mode yet",
       "programs": [
         "gobyexample/enums",
@@ -94,20 +64,6 @@
         "gotour/moretypes/map-literals-continued",
         "gotour/moretypes/maps",
         "gotour/moretypes/mutating-maps"
-      ]
-    },
-    {
-      "fingerprint": "calling a function value is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/closures",
-        "gobyexample/directories",
-        "gobyexample/recursion",
-        "gobyexample/string-functions",
-        "gobyexample/switch",
-        "gobyexample/text-templates",
-        "gotour/moretypes/function-closures",
-        "gotour/moretypes/function-values",
-        "gotour/solutions/fib"
       ]
     },
     {
@@ -207,6 +163,28 @@
       ]
     },
     {
+      "fingerprint": "a function type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/closures",
+        "gobyexample/recursion",
+        "gobyexample/string-functions",
+        "gotour/moretypes/function-closures",
+        "gotour/moretypes/function-values",
+        "gotour/solutions/fib"
+      ]
+    },
+    {
+      "fingerprint": "calling a function value is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/closures",
+        "gobyexample/recursion",
+        "gobyexample/string-functions",
+        "gotour/moretypes/function-closures",
+        "gotour/moretypes/function-values",
+        "gotour/solutions/fib"
+      ]
+    },
+    {
       "fingerprint": "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
       "programs": [
         "gobyexample/defer",
@@ -225,6 +203,16 @@
         "gobyexample/text-templates",
         "gobyexample/timers",
         "gotour/methods/reader"
+      ]
+    },
+    {
+      "fingerprint": "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/atomic-counters",
+        "gobyexample/closures",
+        "gobyexample/mutexes",
+        "gobyexample/recursion",
+        "gotour/moretypes/function-closures"
       ]
     },
     {
@@ -330,6 +318,14 @@
       ]
     },
     {
+      "fingerprint": "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/directories",
+        "gobyexample/mutexes",
+        "gobyexample/text-templates"
+      ]
+    },
+    {
       "fingerprint": "a slice expression (_[i:j]) is not supported in patina mode yet",
       "programs": [
         "gotour/moretypes/slice-bounds",
@@ -418,7 +414,7 @@
       ]
     },
     {
-      "fingerprint": "_ function literal (closure) is not supported in patina mode yet",
+      "fingerprint": "_ function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
       "programs": [
         "gobyexample/range-over-iterators",
         "gobyexample/sorting-by-functions"
@@ -634,7 +630,7 @@
       ]
     },
     {
-      "fingerprint": "_ function type is not supported in patina mode yet",
+      "fingerprint": "_ function literal with _ parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
       "programs": [
         "gobyexample/sorting-by-functions"
       ]
@@ -691,6 +687,18 @@
       "fingerprint": "a complex number is not supported in patina mode yet",
       "programs": [
         "gotour/basics/basic-types"
+      ]
+    },
+    {
+      "fingerprint": "a function literal (closure) other than _ := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
+      "programs": [
+        "gotour/solutions/fib"
+      ]
+    },
+    {
+      "fingerprint": "a function literal with a parameter of type any (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/switch"
       ]
     },
     {
@@ -1670,6 +1678,12 @@
       "programs": [
         "gotour/moretypes/function-values"
       ]
+    },
+    {
+      "fingerprint": "using the closure _ other than by calling it (step N of RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/function-values"
+      ]
     }
   ],
   "results": [
@@ -1690,7 +1704,7 @@
         "package sync/atomic is not supported in patina mode yet",
         "type sync/atomic.Uint64 is not supported in patina mode yet",
         "type sync.WaitGroup is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet"
+        "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet"
       ]
     },
     {
@@ -1759,7 +1773,7 @@
       "stage": "refused",
       "fingerprints": [
         "a function type is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
+        "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet"
       ]
     },
@@ -1849,9 +1863,7 @@
         "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "os.Mkdir is not supported in patina mode yet",
         "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
-        "a function type is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
-        "calling a function value is not supported in patina mode yet",
+        "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "os.MkdirAll is not supported in patina mode yet",
         "os.ReadDir is not supported in patina mode yet",
         "os.Chdir is not supported in patina mode yet",
@@ -2041,8 +2053,8 @@
         "a map type is not supported in patina mode yet",
         "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "type sync.WaitGroup is not supported in patina mode yet",
-        "a function type is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
+        "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
+        "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
         "printing a value of type map[string]int is not supported in patina mode yet"
       ]
     },
@@ -2115,7 +2127,7 @@
         "_ method on _ generic type (Go N.N) is not supported in patina mode yet",
         "_._ is copied and kept in _._, so its object has two owners",
         "_._._ is copied and kept in _._, so its object has two owners",
-        "_ function literal (closure) is not supported in patina mode yet",
+        "_ function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
         "range over _ function (Go N.N) is not supported in patina mode yet",
         "slices.Collect is not supported in patina mode yet",
         "strings.SplitSeq is not supported in patina mode yet",
@@ -2163,7 +2175,7 @@
       "stage": "refused",
       "fingerprints": [
         "a function type is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
+        "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet"
       ]
     },
@@ -2253,10 +2265,10 @@
       "name": "gobyexample/sorting-by-functions",
       "stage": "refused",
       "fingerprints": [
-        "_ function type is not supported in patina mode yet",
-        "_ function literal (closure) is not supported in patina mode yet",
+        "_ function literal with _ parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "slices.SortFunc is not supported in patina mode yet",
         "_ type declared inside _ function is not supported in patina mode yet",
+        "_ function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
         "printing _ value of type []main._ is not supported in patina mode yet",
         "calls cmp.Compare, whose standard-library code patina mode does not support yet"
       ]
@@ -2318,9 +2330,7 @@
       "fingerprints": [
         "time.Now is not supported in patina mode yet",
         "type time.Time is not supported in patina mode yet",
-        "a function type is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
-        "calling a function value is not supported in patina mode yet"
+        "a function literal with a parameter of type any (step N of RFC N takes numbers and bools) is not supported in patina mode yet"
       ]
     },
     {
@@ -2341,10 +2351,8 @@
         "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "template.Must(_.Parse(\"S\")) lends back a pointer its caller owns, and it is kept in _, so the object has two owners",
         "the results of Parse used here other than as v..., _ := Parse(...) or return Parse(...)",
-        "a function type is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
+        "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "template.Must(template.New(_).Parse(_)) lends back a pointer its caller owns, and it is kept, so the object has two owners",
-        "calling a function value is not supported in patina mode yet",
         "an anonymous struct type is not supported in patina mode yet",
         "a map type is not supported in patina mode yet",
         "calls template.Template.Execute, whose standard-library code patina mode does not support yet",
@@ -2941,7 +2949,7 @@
       "stage": "refused",
       "fingerprints": [
         "a function type is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
+        "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet"
       ]
     },
@@ -2951,7 +2959,7 @@
       "fingerprints": [
         "a function type is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
+        "using the closure _ other than by calling it (step N of RFC N) is not supported in patina mode yet",
         "using math.Pow as a value is not supported in patina mode yet"
       ]
     },
@@ -3124,7 +3132,7 @@
       "stage": "refused",
       "fingerprints": [
         "a function type is not supported in patina mode yet",
-        "a function literal (closure) is not supported in patina mode yet",
+        "a function literal (closure) other than _ := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet"
       ]
     },

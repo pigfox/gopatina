@@ -46,8 +46,20 @@ the exact error committed beside it.
 | `fmt` | `Print`, `Println`, `Printf`, `Sprint`, `Sprintln`, `Sprintf`, `Fprint`, `Fprintln`, `Fprintf` (to an `io.Writer` parameter, `os.Stdout` or `os.Stderr`), `Errorf`; verbs `%v %d %s %t %f %g %x %X %c %q %%` (`%q` of a string, or of a value printed through its `String` or `Error` method, with a width and the `-` flag: Go's `strconv.Quote`, by the Unicode tables of the Go release the crate was made with) (`%g` of a float, without a precision or the `+` or `0` flag) with the `-`, `+` and `0` flags, a width and a precision; `%x` and `%X` also of strings and `[]byte` and with the `#` flag; values and slices of a named type printed through its `String` or `Error` method (where the method cannot panic); a width on a slice pads each element, as in Go; struct values with plain `%v` (and `Print`, `Println`, `Sprint`), as `{f1 f2 ...}`, when every field is of a printable basic type, a slice of one, or such a struct (not a field `fmt` prints through a method, nor a pointer or interface field; nor `%+v`, `%#v` or a width, which Go applies to each field); interface values with `Println`, `Sprintln`, `Fprintln` and plain `%v` and `%T` |
 | Other functions | `strings.Contains`, `HasPrefix`, `HasSuffix`, `Index`, `Join`, `Repeat`, `TrimSpace`, and (RFC 0011) `ToLower`, `ToUpper`, `EqualFold`, `Split`, `Cut`, `TrimPrefix`, `TrimSuffix`, `ReplaceAll`, `IndexByte`; `errors.New`, `Is`, `As`, `Unwrap`; `os.Exit`; `slices.Clone`, `bytes.Clone`; (RFC 0011) `math.Sqrt`, `Abs`, `Floor`, `Ceil`, `Trunc`, `Copysign`, `Signbit`, `IsNaN`, `IsInf`, `Inf`, `NaN`, `Float64bits`, `Float64frombits`, `Exp` (Go's own algorithm for each target: amd64's with or without FMA, as the processor has it, and arm64's), `Log` (amd64's assembly; on arm64 Go's own code as gc compiles it there), `Sin` and `Cos` (Go's own code, fused where gc fuses it for the target: all of it on arm64, the polynomials' outer adds from GOAMD64=v3), `Pow` (Go's own code, with the target's `Exp` and `Log`) and the math constants, each giving Go's result bit for bit, NaNs included, on amd64 and arm64 |
 
+**Closures (RFC 0018, step 1).** `f := func(...) {...}` in a function body,
+called only (never passed, returned, stored or compared), later in the same
+function. It is a Rust closure that borrows the variables it uses from the
+enclosing function. Its parameters are numbers or bools, its result a number,
+bool or string, or none, and the variables it uses from the enclosing
+function are local numbers or bools. Its body has no function literal, no
+`defer`, no package-level variable and no call of the program's own
+functions. While it is still to be called, the function may not change a
+variable the closure reads, nor use one it changes; a call inside a loop
+keeps it live to the end of that loop.
+
 Not supported yet, each with its own error: goroutines, channels and
-`select` (RFC 0002), maps, closures and function values, the interface
+`select` (RFC 0002), maps, closures and function values beyond step 1 of
+RFC 0018 (below), the interface
 cases listed under [Interfaces](#interfaces), generics, `defer` other than of a print (below), labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,
 general slicing (`s[i:j]`), arrays, package-level variables of slice type

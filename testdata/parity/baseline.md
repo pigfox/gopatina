@@ -14,10 +14,7 @@
 | programs | fingerprint | examples |
 |---|---|---|
 | 11 | a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
-| 10 | a function literal (closure) is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/closures, gobyexample/directories |
-| 10 | a function type is not supported in patina mode yet | gobyexample/closures, gobyexample/directories, gobyexample/mutexes |
 | 9 | a map type is not supported in patina mode yet | gobyexample/enums, gobyexample/maps, gobyexample/mutexes |
-| 9 | calling a function value is not supported in patina mode yet | gobyexample/closures, gobyexample/directories, gobyexample/recursion |
 | 8 | the go statement (goroutines are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/channels, gobyexample/select |
 | 7 | make of chan string is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
 | 7 | panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
@@ -26,8 +23,11 @@
 | 7 | uses the standard package path, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 7 | uses the standard package unicode/utf8, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 6 | a channel send (planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
+| 6 | a function type is not supported in patina mode yet | gobyexample/closures, gobyexample/recursion, gobyexample/string-functions |
+| 6 | calling a function value is not supported in patina mode yet | gobyexample/closures, gobyexample/recursion, gobyexample/string-functions |
 | 6 | defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/mutexes |
 | 5 | _ is copied and kept, so its object has two owners | gobyexample/defer, gobyexample/reading-files, gobyexample/text-templates |
+| 5 | a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/closures, gobyexample/mutexes |
 | 5 | calls filepath.Join, whose standard-library code patina mode does not support yet | gobyexample/defer, gobyexample/file-paths, gobyexample/panic |
 | 5 | the cap built-in is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/append, gotour/moretypes/making-slices |
 | 5 | uses the standard package unicode, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/regular-expressions |
@@ -39,6 +39,7 @@
 | 4 | type os.File is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/reading-files |
 | 4 | uses the standard package internal/strconv, which patina mode does not support yet | gobyexample/sha256-hashes, gobyexample/text-templates, gobyexample/xml |
 | 4 | uses the standard package reflect, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/text-templates |
+| 3 | a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/directories, gobyexample/mutexes, gobyexample/text-templates |
 | 3 | a slice expression (_[i:j]) is not supported in patina mode yet | gotour/moretypes/slice-bounds, gotour/moretypes/slice-len-cap, gotour/moretypes/slices |
 | 3 | an anonymous struct type is not supported in patina mode yet | gobyexample/structs, gobyexample/text-templates, gotour/moretypes/slice-literals |
 | 3 | converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet | gobyexample/base64-encoding, gobyexample/reading-files, gobyexample/xml |
@@ -50,7 +51,7 @@
 | 3 | the address of _ kept where its object would have more than one owner is not supported in patina mode yet | gobyexample/command-line-flags, gobyexample/xml, gotour/moretypes/pointers |
 | 3 | time.Now is not supported in patina mode yet | gobyexample/switch, gotour/flowcontrol/switch-evaluation-order, gotour/flowcontrol/switch-with-no-condition |
 | 3 | time.Sleep is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/timers, gotour/concurrency/mutex-counter |
-| 2 | _ function literal (closure) is not supported in patina mode yet | gobyexample/range-over-iterators, gobyexample/sorting-by-functions |
+| 2 | _ function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet | gobyexample/range-over-iterators, gobyexample/sorting-by-functions |
 | 2 | _ is converted to an interface while it is still used, so its object has two owners | gobyexample/reading-files, gobyexample/xml |
 | 2 | _._ is copied and kept in _._, so its object has two owners | gobyexample/generics, gobyexample/range-over-iterators |
 | 2 | _._._ is copied and kept in _._, so its object has two owners | gobyexample/generics, gobyexample/range-over-iterators |
@@ -81,7 +82,7 @@
 | 2 | uses the standard package flag, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands |
 | 2 | using the package-level variable Args this way (a copy of a slice shares its elements) is not supported in patina mode yet | gobyexample/command-line-arguments, gobyexample/command-line-subcommands |
 | 1 | _ bare return in _ function that returns an error | gotour/solutions/rot13 |
-| 1 | _ function type is not supported in patina mode yet | gobyexample/sorting-by-functions |
+| 1 | _ function literal with _ parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/sorting-by-functions |
 | 1 | _ generic type (Go N.N) is not supported in patina mode yet | gobyexample/range-over-iterators |
 | 1 | _ method on _ generic type (Go N.N) is not supported in patina mode yet | gobyexample/range-over-iterators |
 | 1 | _ slice expression (_[i:j]) is not supported in patina mode yet | gotour/moretypes/making-slices |
@@ -91,6 +92,8 @@
 | 1 | a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet | gotour/concurrency/exercise-web-crawler |
 | 1 | a call with ... arguments is not supported in patina mode yet | gobyexample/variadic-functions |
 | 1 | a complex number is not supported in patina mode yet | gotour/basics/basic-types |
+| 1 | a function literal (closure) other than _ := func(...) {...} (RFC N, step N) is not supported in patina mode yet | gotour/solutions/fib |
+| 1 | a function literal with a parameter of type any (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/switch |
 | 1 | a method on a generic type (Go N.N) is not supported in patina mode yet | gobyexample/generics |
 | 1 | a package-level variable of type map[string]main._ that the program changes is not supported in patina mode yet | gotour/moretypes/maps |
 | 1 | a pointer here (RFC N supports pointers in variables, parameters, results and fields) is not supported in patina mode yet | gotour/moretypes/struct-literals |
@@ -254,6 +257,7 @@
 | 1 | using fmt.Println as a value is not supported in patina mode yet | gobyexample/string-functions |
 | 1 | using function _ as a value is not supported in patina mode yet | gobyexample/directories |
 | 1 | using math.Pow as a value is not supported in patina mode yet | gotour/moretypes/function-values |
+| 1 | using the closure _ other than by calling it (step N of RFC N) is not supported in patina mode yet | gotour/moretypes/function-values |
 
 ## Skipped (not counted)
 

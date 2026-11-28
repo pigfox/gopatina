@@ -36,6 +36,8 @@ func main() {
 	}
 
 	fmt.Printf("[%12q] [%-12q] [%3q]\n", "日本", "日本", "longer")
+	word := "日本"
+	fmt.Printf("[%8q] [%-8q]\n", word, word)
 	fmt.Printf("%q %q\n", level(1), level(3))
 	q := fmt.Sprintf("%q", greeting)
 	fmt.Println(len(q), q)

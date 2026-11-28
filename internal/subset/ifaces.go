@@ -85,6 +85,12 @@ func ifaces(pkg *load.Package) *IfacePlan {
 				ast.Inspect(n.Body, walk)
 				results = results[:len(results)-1]
 				return false
+			case *ast.FuncLit:
+				// Its returns are its own (RFC 0018).
+				results = append(results, info.Types[n].Type.(*types.Signature).Results())
+				ast.Inspect(n.Body, walk)
+				results = results[:len(results)-1]
+				return false
 			case *ast.AssignStmt:
 				if len(n.Lhs) == len(n.Rhs) && (n.Tok == token.ASSIGN || n.Tok == token.DEFINE) {
 					for i, l := range n.Lhs {

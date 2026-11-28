@@ -70,6 +70,8 @@ fn main() {
         "[{:>12}] [{:<12}] [{:>3}]",
         "\"日本\"", "\"日本\"", "\"longer\"",
     );
+    let word: String = String::from("日本");
+    println!("[{:>8}] [{:<8}]", rt::quote(&word), rt::quote(&word));
     println!(
         "{} {}",
         rt::quote(&level_string(1)),
