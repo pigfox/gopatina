@@ -10,6 +10,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Recursive closures, step 4 of RFC 0018.** `var fib func(int) int;
+  fib = func(n int) int { ... fib(n-1) ... }`, whose literal uses nothing
+  of its enclosing function but itself, is a nested `fn fib(n: i64) -> i64`.
+  `testdata/golden/closures_recursive` covers Go by Example's recursion.
 - **Returned closures, step 3 of RFC 0018.** A function returning a
   function, `func adder() func(int) int`, returns
   `Box<dyn FnMut(i64) -> i64>`, and each `return func(...) {...}` is

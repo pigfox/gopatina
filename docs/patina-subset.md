@@ -77,6 +77,12 @@ variable defined by a call of such a function holds that box. It is only
 called, or passed to a parameter of function type (lent `&mut`). Copying it,
 reassigning it and comparing it with nil are refused: one owner.
 
+**Recursive closures (RFC 0018, step 4).** `var f func(...) R`, then one
+`f = func(...) R {...}` whose literal uses nothing of its enclosing function
+but `f` itself, is a nested Rust `fn`, which can call itself. A call of `f`
+before the assignment (a nil function in Go) and a second assignment are
+refused.
+
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values beyond step 1 of
 RFC 0018 (below), the interface

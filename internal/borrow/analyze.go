@@ -177,6 +177,9 @@ func sortedClosures(pkg *load.Package) []*subset.Closure {
 	for _, cl := range subset.Returned(pkg) {
 		out = append(out, cl)
 	}
+	for _, cl := range subset.Recursive(pkg) {
+		out = append(out, cl)
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Lit.Pos() < out[j].Lit.Pos() })
 	return out
 }

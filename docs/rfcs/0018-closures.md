@@ -13,7 +13,8 @@
   impl FnMut where a passed closure changes what it captures); escaping
   closures and function-typed variables (step 3, in place: returned
   literals as Box<dyn FnMut>, owning what they capture; variables only
-  called or passed); recursive closures; defer of a closure
+  called or passed); recursive closures (step 4, in place: a nested
+  fn); defer of a closure
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-27
 - **Discussion:** the pull request that adds this file

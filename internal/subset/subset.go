@@ -493,7 +493,7 @@ func (c *checker) localVars(d *ast.GenDecl) {
 	for _, spec := range d.Specs {
 		vs := spec.(*ast.ValueSpec)
 		for _, name := range vs.Names {
-			if obj := c.pkg.Info.Defs[name]; obj != nil {
+			if obj := c.pkg.Info.Defs[name]; obj != nil && Recursive(c.pkg)[obj.(*types.Var)] == nil {
 				c.localType(name, obj.Type())
 			}
 		}
@@ -594,6 +594,15 @@ func (c *checker) switchStmt(s *ast.SwitchStmt) {
 }
 
 func (c *checker) assign(s *ast.AssignStmt) {
+	if s.Tok == token.ASSIGN && len(s.Lhs) == 1 && c.body != nil {
+		if id, ok := ast.Unparen(s.Lhs[0]).(*ast.Ident); ok {
+			v, _ := c.pkg.Info.Uses[id].(*types.Var)
+			if cl := Recursive(c.pkg)[v]; cl != nil && ast.Unparen(s.Rhs[0]) == cl.Lit {
+				c.recursiveDecl(s, cl, c.body) // var f func...; f = func... (RFC 0018, step 4)
+				return
+			}
+		}
+	}
 	if lit, ok := closureLit(s); ok && c.inClosure == nil && c.body != nil {
 		c.closureDecl(s, lit, c.body) // f := func(...) {...} (RFC 0018)
 		return
@@ -854,7 +863,7 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 			return
 		}
 		if _, ok := info.Uses[f].(*types.Func); !ok {
-			if v, ok := info.Uses[f].(*types.Var); ok && (Closures(c.pkg)[v] != nil || FuncParams(c.pkg)[v] != nil || FuncVars(c.pkg)[v]) {
+			if v, ok := info.Uses[f].(*types.Var); ok && (Closures(c.pkg)[v] != nil || FuncParams(c.pkg)[v] != nil || FuncVars(c.pkg)[v] || Recursive(c.pkg)[v] != nil) {
 				c.exprs(e.Args) // a closure's or a function parameter's call (RFC 0018)
 				return
 			}

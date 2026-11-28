@@ -2,6 +2,7 @@ package emit
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 	"strings"
 	"unicode/utf8"
@@ -60,6 +61,9 @@ func (g *gen) funcArg(a ast.Expr) node {
 	if v, ok := g.info.Uses[id].(*types.Var); ok {
 		if cl := subset.Closures(g.pkg)[v]; cl != nil {
 			return lend(g.varName(v), cl)
+		}
+		if subset.Recursive(g.pkg)[v] != nil {
+			return text(g.varName(v)) // a nested fn (step 4)
 		}
 		return text("&mut " + g.varName(v)) // a Box<dyn FnMut> (step 3)
 	}
@@ -120,17 +124,7 @@ func (g *gen) returnClosure(r *ast.ReturnStmt, tail bool) bool {
 // its returns its own.
 func (g *gen) closureExpr(prefix string, fn *borrow.Func, end string) {
 	sig := fn.Obj.Signature()
-	var params []string
-	for _, p := range fn.Params {
-		pname := "_"
-		if p.Var.Name() != "_" && p.Var.Name() != "" {
-			pname = g.varName(p.Var)
-		}
-		if p.Mut {
-			pname = "mut " + pname
-		}
-		params = append(params, pname+": "+g.rustType(p.Var.Type()))
-	}
+	params := g.closureParams(fn)
 	head := prefix + "|" + strings.Join(params, ", ") + "|"
 	if sig.Results().Len() == 1 {
 		head += " -> " + g.rustType(sig.Results().At(0).Type())
@@ -161,4 +155,54 @@ func (g *gen) closureExpr(prefix string, fn *borrow.Func, end string) {
 	g.line(head + " {")
 	g.out.WriteString(text)
 	g.line("}" + end)
+}
+
+// recursiveFn writes f = func(...) {...} of a recursive closure (RFC 0018,
+// step 4) as a nested fn, which can call itself: it captures nothing. It
+// reports whether s is one.
+func (g *gen) recursiveFn(s *ast.AssignStmt) bool {
+	if s.Tok != token.ASSIGN || len(s.Lhs) != 1 {
+		return false
+	}
+	id, ok := ast.Unparen(s.Lhs[0]).(*ast.Ident)
+	if !ok {
+		return false
+	}
+	v, _ := g.info.Uses[id].(*types.Var)
+	if subset.Recursive(g.pkg)[v] == nil {
+		return false
+	}
+	fn := g.res.Closures[v]
+	sig := fn.Obj.Signature()
+	params := g.closureParams(fn)
+	head := "fn " + g.varName(v) + "(" + strings.Join(params, ", ") + ")"
+	if sig.Results().Len() == 1 {
+		head += " -> " + g.rustType(sig.Results().At(0).Type())
+	}
+	g.line(head + " {")
+	savedFn, savedRecv, savedStart, savedBody, savedDeferred := g.fn, g.recv, g.fnStart, g.fnBody, g.deferred
+	g.fn, g.recv = fn, nil
+	g.ind++
+	g.funcBody(fn.Decl, fn.Obj, sig, fn.Params)
+	g.ind--
+	g.fn, g.recv, g.fnStart, g.fnBody, g.deferred = savedFn, savedRecv, savedStart, savedBody, savedDeferred
+	g.line("}")
+	return true
+}
+
+// closureParams renders the parameters of the closure whose body the
+// borrow checker checked as fn: name: type, mut where the body changes one.
+func (g *gen) closureParams(fn *borrow.Func) []string {
+	var params []string
+	for _, p := range fn.Params {
+		pname := "_"
+		if p.Var.Name() != "_" && p.Var.Name() != "" {
+			pname = g.varName(p.Var)
+		}
+		if p.Mut {
+			pname = "mut " + pname
+		}
+		params = append(params, pname+": "+g.rustType(p.Var.Type()))
+	}
+	return params
 }

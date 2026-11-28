@@ -325,9 +325,11 @@ func (w *walker) call(e *ast.CallExpr) {
 			// A closure's call (RFC 0018): its arguments by value, and the
 			// variables it changes, changed here; or a call of a parameter
 			// of function type.
-			if cl := subset.Closures(w.a.pkg)[v]; cl != nil {
-				w.args(w.operands(), e, w.a.res.Closures[v], f.Name)
-				w.changes(cl, e)
+			if fn := w.a.res.Closures[v]; fn != nil {
+				w.args(w.operands(), e, fn, f.Name)
+				if cl := subset.Closures(w.a.pkg)[v]; cl != nil {
+					w.changes(cl, e) // a recursive one captures nothing
+				}
 				return
 			}
 			w.args(w.operands(), e, w.a.res.FuncParams[v], f.Name)
