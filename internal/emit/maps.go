@@ -66,7 +66,7 @@ func (g *gen) mapLit(e *ast.CompositeLit) node {
 		kv := el.(*ast.KeyValueExpr)
 		pairs = append(pairs, &call{open: "(", close: ")", args: []node{g.owned(kv.Key), g.owned(kv.Value)}})
 	}
-	return &call{head: "rt::Map::from_iter", open: "(", close: ")", args: []node{&call{open: "[", close: "]", args: pairs}}}
+	return &call{head: "rt::Map::from_iter", open: "(", close: ")", args: []node{&call{open: "[", close: "]", args: pairs, array: true}}}
 }
 
 // mapStmt writes an assignment or ++/-- whose target is an element of a

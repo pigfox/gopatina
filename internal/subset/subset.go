@@ -392,7 +392,7 @@ func unsupportedType(t types.Type, constOK bool) string {
 	case *types.Pointer:
 		return "a pointer here (RFC 0013 supports pointers in variables, parameters, results and fields)"
 	case *types.Map:
-		return "a map type other than a local variable's (step 1 of RFC 0019)"
+		return "a map type other than a variable's (RFC 0019)"
 	case *types.Chan:
 		return "a channel type (goroutines and channels are planned, RFC 0002)"
 	case *types.Interface:
@@ -1138,7 +1138,7 @@ func (c *checker) printProblem(t types.Type) string {
 	if _, ok := t.Underlying().(*types.Struct); ok {
 		return structPrintProblem(t)
 	}
-	if m, ok := t.Underlying().(*types.Map); ok && isPrintableBasic(m.Key()) && isPrintableBasic(m.Elem()) {
+	if m, ok := t.Underlying().(*types.Map); ok && isPrintableBasic(m.Key()) && (isPrintableBasic(m.Elem()) || copyStruct(m.Elem()) && structPrintProblem(m.Elem()) == "") {
 		return "" // keys sorted, as fmt prints them (RFC 0019)
 	}
 	return fmt.Sprintf("printing a value of type %s", t)

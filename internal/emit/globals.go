@@ -156,6 +156,9 @@ func (g *gen) globalDecl(s *ast.ValueSpec) {
 			var init node
 			if i < len(s.Values) {
 				init = &addrOf{"|| ", g.owned(s.Values[i])}
+				if f := init.(*addrOf).x.flat(); f == "rt::Map::default()" {
+					init = text("rt::Map::default") // an empty map literal (RFC 0019), not || rt::Map::default()
+				}
 			} else if z := g.zero(v.Type()).flat(); strings.HasSuffix(z, "::new()") || strings.HasSuffix(z, "::default()") {
 				init = text(strings.TrimSuffix(z, "()")) // Vec::new, not || Vec::new()
 			} else {

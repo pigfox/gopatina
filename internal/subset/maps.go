@@ -27,10 +27,46 @@ func mapTypeProblem(t *types.Map) string {
 		// RFC 0019 decision 4: float keys are refused (Go's NaN is never
 		// equal to itself).
 		return fmt.Sprintf("a map with keys of type %s (step 1 of RFC 0019 takes strings, integers and bools)", t.Key())
-	case !isCopyBasic(t.Elem()) && !isString(t.Elem()):
-		return fmt.Sprintf("a map with values of type %s (step 1 of RFC 0019 takes numbers, bools and strings)", t.Elem())
+	case !isCopyBasic(t.Elem()) && !isString(t.Elem()) && !copyStruct(t.Elem()):
+		return fmt.Sprintf("a map with values of type %s (RFC 0019 takes numbers, bools, strings and structs of numbers and bools)", t.Elem())
 	}
 	return ""
+}
+
+// copyStruct reports whether t is a named struct of numbers and bools (or
+// of such structs): a Copy value, which a map hands out as a copy.
+func copyStruct(t types.Type) bool {
+	_, named := types.Unalias(t).(*types.Named)
+	_, isStruct := t.Underlying().(*types.Struct)
+	return named && isStruct && copyKind(t)
+}
+
+// globalMap checks package-level variable v, of map type t, declared by
+// spec s (RFC 0019, step 2): made by a map literal, then only read, which
+// checkGlobals checks (a changed one is refused there).
+func (c *checker) globalMap(s *ast.ValueSpec, n *ast.Ident, t *types.Map) {
+	if what := mapTypeProblem(t); what != "" {
+		c.unsupported(n, what)
+		return
+	}
+	if len(s.Values) != len(s.Names) {
+		c.unsupported(n, fmt.Sprintf("a package-level map variable %s not made by a map literal where it is declared (a nil map; step 2 of RFC 0019)", n.Name))
+		return
+	}
+	for i, name := range s.Names {
+		if name != n {
+			continue
+		}
+		lit, ok := ast.Unparen(s.Values[i]).(*ast.CompositeLit)
+		if !ok {
+			c.unsupported(n, fmt.Sprintf("a package-level map variable %s not made by a map literal where it is declared (step 2 of RFC 0019)", n.Name))
+			return
+		}
+		if c.mapInits == nil {
+			c.mapInits = map[ast.Expr]bool{}
+		}
+		c.mapInits[lit] = true
+	}
 }
 
 // localMap checks local variable v, of map type t, defined at n: made by

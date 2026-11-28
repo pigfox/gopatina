@@ -1,0 +1,5 @@
+# Pinned toolchain, so the crate builds the same way later (RFC 0003).
+[toolchain]
+channel = "1.100.1"
+profile = "minimal"
+targets = ["x86_64-unknown-linux-gnu"]
