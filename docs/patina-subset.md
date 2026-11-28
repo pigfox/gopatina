@@ -103,9 +103,16 @@ value for a missing key, `v, ok := m[k]` says whether it is there, and
 Printing a map sorts its keys, as `fmt` does, so the output never depends on
 the order of the hash table. The variable has one owner: it is only indexed,
 passed to `delete` or `len`, or printed. Copying it, passing it to a
-function, a nil map (`var m map[K]V`), maps in fields, parameters, results,
-package-level variables and closures, float keys, and `range` over a map are
-refused for now.
+function, a nil map (`var m map[K]V`), maps in fields, parameters, results
+and closures, float keys, and `range` over a map are refused for now.
+
+**Package-level maps and struct values (RFC 0019, step 2).** A package-level
+map variable made by a map literal where it is declared, which nothing
+changes (no assignment to an element, no `delete`), is a `LazyLock` static
+built once, and read as a local map is. Map values may also be named
+structs of numbers and bools (`map[string]Vertex`); a read hands out a
+copy, as Go does. A changed package-level map, one made by `make`, and a
+nil one are refused.
 
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps beyond step 1 of RFC 0019 (below), closures and function values beyond step 1 of

@@ -73,6 +73,15 @@ func Globals(pkg *load.Package) map[*types.Var]GlobalKind {
 				if g := root(n.X); g != nil {
 					changed[g] = true
 				}
+			case *ast.CallExpr:
+				// delete(m, k) changes the map m (RFC 0019).
+				if id, ok := ast.Unparen(n.Fun).(*ast.Ident); ok && len(n.Args) == 2 {
+					if b, ok := pkg.Info.Uses[id].(*types.Builtin); ok && b.Name() == "delete" {
+						if g := root(n.Args[0]); g != nil {
+							changed[g] = true
+						}
+					}
+				}
 			case *ast.UnaryExpr:
 				if n.Op == token.AND {
 					if g := root(n.X); g != nil {
@@ -148,6 +157,8 @@ func (c *checker) globalSpec(s *ast.ValueSpec) {
 			// goroutines choose the shareable form (RFC 0002); inside a
 			// struct or slice it is not supported yet.
 			c.unsupported(n, "a package-level variable holding an interface value in a struct or slice")
+		case isMap(t):
+			c.globalMap(s, n, t.Underlying().(*types.Map)) // RFC 0019, step 2
 		case !isPointer(t) && holdsPointer(t, map[types.Type]bool{}):
 			// Heap pointers are reference-counted cells, which a static
 			// cannot hold (RFC 0013); a pointer variable itself is
@@ -215,7 +226,7 @@ func (c *checker) checkGlobals() {
 				}
 			}
 			if g := c.globalUse(n); g != nil && kinds[g] == GlobalStatic && !copyKind(g.Type()) && !isString(g.Type()) && !IsIface(g.Type()) && !c.readUse(n, parent) {
-				c.unsupported(n, fmt.Sprintf("using the package-level variable %s this way (a copy of a slice shares its elements)", g.Name()))
+				c.unsupported(n, fmt.Sprintf("using the package-level variable %s this way (a copy of a slice or a map shares its elements)", g.Name()))
 			}
 			return true
 		})

@@ -218,6 +218,12 @@ func layBroken(n node, col, ind, suffix int) string {
 	f := n.flat()
 	switch n := n.(type) {
 	case *addrOf:
+		if n.prefix == "|| " {
+			// rustfmt writes a closure whose body does not fit on the line
+			// as a block: || {, the body on its own lines, }.
+			inner := ind + indentWidth
+			return "|| {\n" + strings.Repeat(" ", inner) + layWith(n.x, inner, inner, 0) + "\n" + strings.Repeat(" ", ind) + "}"
+		}
 		return n.prefix + layBroken(n.x, col+len(n.prefix), ind, suffix)
 	case *call:
 		if root, links := chainOf(n); len(links) >= 2 {
@@ -250,6 +256,16 @@ func fits(n node, f string, col, suffix int) bool {
 		if len(n.args) == 1 && !overflows(n.args[0]) {
 			return true // rustfmt keeps a lone simple argument on the line
 		}
+		if a, ok := loneArray(n); ok {
+			// A lone array is held to the array width, and each element
+			// to its own.
+			for _, el := range a.args {
+				if !fits(el, el.flat(), 0, 0) {
+					return false
+				}
+			}
+			return fits(a, a.flat(), 0, 0)
+		}
 		// rustfmt holds the arguments to their own widths too: a struct
 		// literal in a call in a call is broken when its fields are long.
 		for _, a := range n.args {
@@ -276,7 +292,7 @@ func (c *call) broken(col, ind, suffix int) string {
 	}
 	b.WriteString(c.head)
 	b.WriteString(c.open)
-	if len(c.args) == 1 && !c.array && overflows(c.args[0]) {
+	if len(c.args) == 1 && (!c.array || isTuple(c.args[0])) && overflows(c.args[0]) {
 		// rustfmt lets a lone argument that is itself a call or a struct
 		// literal overflow: it stays on this line and breaks inside. A
 		// method chain that breaks into one link per line does not: it
@@ -475,4 +491,21 @@ func chainBroken(root node, links []*call, ind int) string {
 		b.WriteString(l.flat())
 	}
 	return b.String()
+}
+
+// loneArray returns c's argument when it is an array literal and c's only
+// argument.
+func loneArray(c *call) (*call, bool) {
+	if len(c.args) != 1 {
+		return nil, false
+	}
+	a, ok := c.args[0].(*call)
+	return a, ok && a.array
+}
+
+// isTuple reports whether n is a tuple, (a, b): the one element of an
+// array that rustfmt lets overflow, as it does a lone argument.
+func isTuple(n node) bool {
+	c, ok := n.(*call)
+	return ok && c.head == "" && c.recv == nil && c.open == "(" && !c.array
 }

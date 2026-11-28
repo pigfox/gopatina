@@ -10,6 +10,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Package-level maps and struct values, step 2 of RFC 0019.** A
+  package-level map made by a literal that nothing changes is a `LazyLock`
+  static, and map values may be structs of numbers and bools. Go Tour's
+  map-literals and map-literals-continued are covered by
+  `testdata/golden/maps_global`. Layout follows rustfmt for a closure
+  that breaks (a block) and for a lone array argument or element.
 - **Maps, step 1 of RFC 0019.** A local `map[K]V` of string, integer or bool
   keys and number, bool or string values is an `rt::Map`, a `HashMap` with a
   fixed hasher: `make`, literals, reads with the zero value for a missing
