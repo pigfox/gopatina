@@ -16,6 +16,22 @@ on:
       per:
         description: programs per batch
         default: "200"
+  workflow_call:
+    # toolchain-bump.yml runs it as a gate, where a defect fails the run.
+    inputs:
+      ref:
+        type: string
+        default: ""
+      programs:
+        type: string
+        default: "400"
+      per:
+        type: string
+        default: "200"
+      strict:
+        description: fail on a defect (exit 3), not only on a broken run
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,6 +43,8 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
           go-version: stable
@@ -38,11 +56,12 @@ jobs:
         # Parallel builds each installing it race in rustup ("could not
         # rename 'downloaded' file"). Every emitted crate pins the same one;
         # the lint check needs its clippy.
-        run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' examples/hello/rust/rust-toolchain.toml)" --profile minimal --component clippy
+        run: rustup toolchain install "$(jq -r .rust.pinned toolchain.json)" --profile minimal --component clippy
       - name: run (seed 1, from program 0)
         env:
           PROGRAMS: ${{ inputs.programs }}
           PER: ${{ inputs.per }}
+          STRICT: ${{ inputs.strict }}
         run: |
           code=0
           "$RUNNER_TEMP/gopatina-difftest" -seed 1 -start 0 -programs "$PROGRAMS" -per "$PER" -jobs 3 \
@@ -51,7 +70,7 @@ jobs:
           tail -40 difftest-arm64.log
           cat difftest-arm64.json
           echo "difftest exit $code (3: defects found)"
-          if [ "$code" != 0 ] && [ "$code" != 3 ]; then exit "$code"; fi
+          if [ "$code" != 0 ] && { [ "$code" != 3 ] || [ "$STRICT" = true ]; }; then exit "$code"; fi
       - name: keep the report and the differing batches
         if: always()
         uses: actions/upload-artifact@v7

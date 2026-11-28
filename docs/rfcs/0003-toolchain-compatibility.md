@@ -104,6 +104,21 @@ stable and the MSRV and compares it with the Go build, checks the committed
 crates with the pinned toolchain (no warnings, rustfmt-clean,
 `gopatina verify`), and runs Go tip and Rust beta and nightly as canaries.
 
+**The pin.** `toolchain.json` is the one place the toolchain versions are
+written: the Rust release emitted crates pin, the MSRV, the edition and
+go.mod's `go` version. Everything else that names them is a copy, and
+`TestToolchainDrift` (internal/emit) fails when one disagrees: the
+`Toolchain` and `MSRV` constants, every committed crate's
+`rust-toolchain.toml` and `Cargo.toml`, the workflows (which read the file
+and name no version of their own), and the README and patina-subset lines
+that state the pin. `scripts/toolchain-bump.sh <toolchain>` rewrites every
+copy at once. Weekly, the `toolchain bump` workflow runs it for the newest
+Rust stable and beta on a branch, runs every gate there (the golden crates
+and Rust tests, float bit for bit on arm64 and on amd64 with and without
+FMA, the toolchain matrix and clippy, the difftest on amd64 and arm64, and
+the benchmarks), and, for stable, opens a pull request when they pass. A
+failed gate opens an issue.
+
 ## Drawbacks
 
 - Two release cadences to follow; the 4-week Go target is a commitment of
@@ -116,8 +131,9 @@ crates with the pinned toolchain (no warnings, rustfmt-clean,
 - The initial MSRV is 1.85, the first release with the 2024 edition: it is
   in every emitted `Cargo.toml` and tested in CI. Whether it stays there for
   1.0 is open.
-- Emitted crates pin an exact toolchain (Rust 1.93.0) in
-  `rust-toolchain.toml`, as reproducible builds need. When the pin moves is
-  open.
+- Emitted crates pin an exact toolchain (`toolchain.json`) in
+  `rust-toolchain.toml`, as reproducible builds need. The weekly bump
+  proposes each new stable once every gate passes on it; whether such a
+  pull request is merged at once or held for a benchmark review is open.
 - How long a Go version stays supported in patina mode after it drops out of
   Go's own support window.

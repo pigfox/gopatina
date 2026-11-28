@@ -10,6 +10,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **toolchain.json**, the one place the toolchain versions are written
+  (the pinned Rust release, the MSRV, the edition, go.mod's `go`).
+  `TestToolchainDrift` fails when a copy disagrees: internal/emit's
+  constants, every committed crate, the workflows, the README.
+  `scripts/toolchain-bump.sh` rewrites every copy, and a weekly
+  `toolchain bump` workflow runs it for the newest Rust stable and beta,
+  runs every gate on the branch (goldens, float bit for bit on three
+  targets, difftest on amd64 and arm64, clippy, bench) and opens a pull
+  request for stable when they pass, or an issue when one fails.
 - **math.Log**, bit for bit with Go on every chip: amd64's assembly
   (`log_amd64.s`, whose own Frexp leaves a subnormal argument as it is,
   whose reduction takes `f1 <= Sqrt2/2` where `log.go` takes `<`, and which

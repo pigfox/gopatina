@@ -1,0 +1,231 @@
+name: toolchain bump
+
+# Weekly, moves the Rust toolchain emitted crates pin (toolchain.json) to the
+# newest stable release, and tries the newest beta the same way:
+# scripts/toolchain-bump.sh rewrites every copy of the pin on a branch, and
+# every gate runs on that branch: the golden crates and Rust tests, float bit
+# for bit on arm64, amd64 with FMA and amd64 without it (CI), the toolchain
+# matrix and clippy (toolchains), the difftest on amd64 and arm64, and the
+# benchmarks (bench).
+# - stable: when every gate passes, it opens a pull request against main.
+# - beta: it opens no pull request; the run warns of what the next stable
+#   will break, about six weeks ahead.
+# When a gate fails, it opens an issue (or comments on the open one).
+#
+# A pull request opened with the workflow's own token starts no workflows,
+# so its checks would not run on it. With a TOOLCHAIN_BUMP_TOKEN secret (a
+# fine-grained token with contents and pull requests write on this
+# repository), it opens the pull request with that token instead, and the
+# usual checks run on it too. Without one, the pull request links this run,
+# where the same gates passed.
+
+on:
+  schedule:
+    - cron: "23 5 * * 2" # Tuesdays 05:23 UTC: stable
+    - cron: "53 5 * * 2" # Tuesdays 05:53 UTC: beta
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: stable or beta
+        type: choice
+        options: [stable, beta]
+        default: stable
+
+permissions:
+  contents: read
+
+concurrency:
+  group: toolchain-bump-${{ inputs.channel || github.event.schedule }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: rewrite the pin (rust ${{ inputs.channel || (github.event.schedule == '53 5 * * 2' && 'beta' || 'stable') }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      channel: ${{ steps.pick.outputs.channel }}
+      pin: ${{ steps.pick.outputs.pin }}
+      old: ${{ steps.pick.outputs.old }}
+      branch: ${{ steps.push.outputs.branch }}
+      sha: ${{ steps.push.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: Pick the newest ${{ inputs.channel || 'release' }}
+        id: pick
+        env:
+          CHANNEL: ${{ inputs.channel || (github.event.schedule == '53 5 * * 2' && 'beta' || 'stable') }}
+        run: |
+          manifest="$(curl -fsSL "https://static.rust-lang.org/dist/channel-rust-$CHANNEL.toml")"
+          if [ "$CHANNEL" = stable ]; then
+            # [pkg.rustc] version = "1.101.0 (abcdef012 2026-12-10)"
+            pin="$(printf '%s\n' "$manifest" | sed -n '/^\[pkg\.rustc\]$/,/^version/ s/^version = "\([0-9.]*\) .*/\1/p')"
+          else
+            pin="beta-$(printf '%s\n' "$manifest" | sed -n 's/^date = "\(.*\)"$/\1/p')"
+          fi
+          old="$(jq -r .rust.pinned toolchain.json)"
+          echo "rust $CHANNEL: $pin (pinned: $old)"
+          if [ -z "$pin" ] || [ "$pin" = beta- ]; then
+            echo "::error::could not read the $CHANNEL manifest's version"
+            exit 1
+          fi
+          {
+            echo "channel=$CHANNEL"
+            echo "pin=$pin"
+            echo "old=$old"
+          } >> "$GITHUB_OUTPUT"
+      - name: Install Rust ${{ steps.pick.outputs.pin }}
+        run: rustup toolchain install "${{ steps.pick.outputs.pin }}" --profile minimal --component clippy,rustfmt
+      - name: Rewrite every copy of the pin (scripts/toolchain-bump.sh)
+        run: scripts/toolchain-bump.sh "${{ steps.pick.outputs.pin }}"
+      - name: Push the branch
+        id: push
+        env:
+          CHANNEL: ${{ steps.pick.outputs.channel }}
+          PIN: ${{ steps.pick.outputs.pin }}
+          OLD: ${{ steps.pick.outputs.old }}
+        run: |
+          if git diff --quiet; then
+            echo "Already pinned to $PIN; nothing to try."
+            echo "branch=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          branch="toolchain/rust-$CHANNEL"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -q -a -F - <<EOF
+          build(rust): pin emitted crates to Rust $PIN
+
+          scripts/toolchain-bump.sh $PIN, from $OLD: toolchain.json and every
+          copy TestToolchainDrift checks.
+
+          Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          EOF
+          # The branch belongs to this workflow; each week's run replaces it.
+          git push --force origin "$branch"
+          {
+            echo "branch=$branch"
+            echo "sha=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
+  ci:
+    needs: prepare
+    if: needs.prepare.outputs.branch != ''
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+
+  toolchains:
+    needs: prepare
+    if: needs.prepare.outputs.branch != ''
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/toolchains.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+
+  bench:
+    needs: prepare
+    if: needs.prepare.outputs.branch != ''
+    uses: ./.github/workflows/bench.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+
+  difftest-arm64:
+    needs: prepare
+    if: needs.prepare.outputs.branch != ''
+    uses: ./.github/workflows/difftest-arm64.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+      programs: "400"
+      per: "200"
+      strict: true
+
+  difftest-amd64:
+    name: difftest (ubuntu-latest, amd64)
+    needs: prepare
+    if: needs.prepare.outputs.branch != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: Install the pinned toolchain with clippy
+        run: rustup toolchain install "$(jq -r .rust.pinned toolchain.json)" --profile minimal --component clippy
+      - name: seed 1, programs 0-399 (CONTRIBUTING.md's gate)
+        run: go run ./cmd/gopatina-difftest -seed 1 -start 0 -programs 400 -per 200
+
+  open-pr:
+    name: open the pull request
+    needs: [prepare, ci, toolchains, bench, difftest-arm64, difftest-amd64]
+    if: needs.prepare.outputs.branch != '' && needs.prepare.outputs.channel == 'stable'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Open or update the pull request
+        env:
+          GH_TOKEN: ${{ secrets.TOOLCHAIN_BUMP_TOKEN || github.token }}
+          BRANCH: ${{ needs.prepare.outputs.branch }}
+          PIN: ${{ needs.prepare.outputs.pin }}
+          OLD: ${{ needs.prepare.outputs.old }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$(cat <<EOF
+          Moves the Rust toolchain emitted crates pin from $OLD to $PIN
+          (toolchain.json), with every copy rewritten by
+          scripts/toolchain-bump.sh.
+
+          Every gate passed on $SHA in $RUN_URL: golden crates and Rust
+          tests, float bit for bit on arm64, amd64 with FMA and amd64
+          without it, the toolchain matrix and clippy, the difftest (seed 1,
+          programs 0-399) on amd64 and arm64, and the benchmarks.
+
+          A new rustc can compile the same crate to different machine code:
+          compare the bench run's ratios with BENCHMARKS.md before merging.
+          EOF
+          )"
+          existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --repo "$GITHUB_REPOSITORY" --title "build(rust): pin emitted crates to Rust $PIN" --body "$body"
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" \
+              --title "build(rust): pin emitted crates to Rust $PIN" --body "$body"
+          fi
+
+  report-failure:
+    name: open an issue on a failed gate
+    needs: [prepare, ci, toolchains, bench, difftest-arm64, difftest-amd64]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open or comment on the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "ci: Rust ${{ needs.prepare.outputs.channel || 'toolchain' }} bump fails a gate"
+          PIN: ${{ needs.prepare.outputs.pin }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Still failing with Rust $PIN: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label triage \
+              --body "Pinning emitted crates to Rust $PIN fails a gate: $RUN_URL. See RFC 0003."
+          fi
