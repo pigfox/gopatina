@@ -211,7 +211,12 @@ jobs:
       - name: Install the pinned toolchain with clippy
         run: rustup toolchain install "$(jq -r .rust.pinned toolchain.json)" --profile minimal --component clippy
       - name: seed 1, programs 0-399 (CONTRIBUTING.md's gate)
-        run: go run ./cmd/gopatina-difftest -seed 1 -start 0 -programs 400 -per 200
+        # The difftest runs the gopatina it is given; a defect (exit 3)
+        # fails the gate, as on arm64.
+        run: |
+          go build -o "$RUNNER_TEMP/gopatina" ./cmd/gopatina
+          go run ./cmd/gopatina-difftest -seed 1 -start 0 -programs 400 -per 200 -jobs 3 \
+            -gopatina "$RUNNER_TEMP/gopatina"
 
   open-pr:
     name: open the pull request
