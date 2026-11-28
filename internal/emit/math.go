@@ -32,9 +32,13 @@ func (g *gen) mathCall(e *ast.CallExpr, name string) node {
 	case "math.Log":
 		g.rt["log"] = true
 		return &call{head: "rt::log", open: "(", close: ")", args: []node{g.value(a[0])}}
+	case "math.Pow":
+		g.rt["pow"] = true
+		g.rt[g.fmaUsable()] = true
+		return &call{head: "rt::pow", open: "(", close: ")", args: []node{g.value(a[0]), g.value(a[1])}}
 	case "math.Sin", "math.Cos":
 		g.rt["trig"] = true
-		g.rt[g.trigFuse()] = true
+		g.rt[g.v3Item("trig_fuse")] = true
 		head := "rt::sin"
 		if name == "math.Cos" {
 			head = "rt::cos"
@@ -142,14 +146,14 @@ func (g *gen) f32Suffix(e ast.Expr) string {
 	return ""
 }
 
-// trigFuse names the runtime item that says which of sin.go's
-// multiply-adds gc fuses on amd64: from GOAMD64=v3, each polynomial's
-// outer add.
-func (g *gen) trigFuse() string {
+// v3Item names the runtime item that says which multiply-adds gc fuses in
+// Go code of package math (sin.go, pow.go) on amd64: base below
+// GOAMD64=v3, base_v3 from it, where gc fuses more.
+func (g *gen) v3Item(base string) string {
 	if (fma.Target{GOARCH: "amd64", GOAMD64: g.pkg.Target.GOAMD64}).Fuses() {
-		return "trig_fuse_v3"
+		return base + "_v3"
 	}
-	return "trig_fuse"
+	return base
 }
 
 // fmaUsable names the runtime item that says whether Go's math uses FMA

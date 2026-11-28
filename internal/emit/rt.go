@@ -1132,6 +1132,173 @@ const TRIG_FUSE_OUTER: bool = true;
 `,
 	},
 	{
+		name: "pow",
+		code: `/// Go's math.Pow, bit for bit (pow.go, which gc compiles on every target):
+/// Exp and Log for the fraction of y, then squarings for its integer part.
+pub fn pow(x: f64, y: f64) -> f64 {
+    if y == 0.0 || x == 1.0 {
+        return 1.0;
+    }
+    if y == 1.0 {
+        return x;
+    }
+    if x.is_nan() || y.is_nan() {
+        return f64::from_bits(0x7ff8_0000_0000_0001);
+    }
+    if x == 0.0 {
+        let odd = x.is_sign_negative() && pow_odd_int(y);
+        if y < 0.0 {
+            return if odd {
+                f64::NEG_INFINITY
+            } else {
+                f64::INFINITY
+            };
+        }
+        return if odd { x } else { 0.0 };
+    }
+    if y.is_infinite() {
+        return if x == -1.0 {
+            1.0
+        } else if (x.abs() < 1.0) == (y == f64::INFINITY) {
+            0.0
+        } else {
+            f64::INFINITY
+        };
+    }
+    if x.is_infinite() {
+        if x == f64::NEG_INFINITY {
+            return pow(1.0 / x, -y);
+        }
+        return if y < 0.0 { 0.0 } else { f64::INFINITY };
+    }
+    if y == 0.5 {
+        return sqrt_nan(x);
+    }
+    if y == -0.5 {
+        let s = sqrt_nan(x);
+        return nan(1.0 / s, &[1.0, s]);
+    }
+    // Modf(Abs(y)): Trunc, and the fraction, which is not negative here.
+    let mut yi = y.abs().trunc();
+    let mut yf = y.abs() - yi;
+    if yf != 0.0 && x < 0.0 {
+        return f64::from_bits(0x7ff8_0000_0000_0001);
+    }
+    if yi >= 9_223_372_036_854_775_808.0 {
+        // 1 << 63: a large even integer, so the result overflows or
+        // underflows, except for x == -1.
+        return if x == -1.0 {
+            1.0
+        } else if (x.abs() < 1.0) == (y > 0.0) {
+            0.0
+        } else {
+            f64::INFINITY
+        };
+    }
+    let mut a1 = 1.0;
+    let mut ae: i64 = 0;
+    if yf != 0.0 {
+        if yf > 0.5 {
+            yf -= 1.0;
+            yi += 1.0;
+        }
+        a1 = exp(yf * log(x));
+    }
+    let (mut x1, mut xe) = pow_frexp(x);
+    let mut i = yi as i64;
+    while i != 0 {
+        if !(-4096..=4096).contains(&xe) {
+            // xe would overflow the shift below; the result underflows or
+            // overflows in pow_ldexp.
+            ae += xe;
+            break;
+        }
+        if i & 1 == 1 {
+            a1 *= x1;
+            ae += xe;
+        }
+        x1 *= x1;
+        xe <<= 1;
+        if x1 < 0.5 {
+            // x1 += x1. gc fuses it with the square before it on arm64 and
+            // from GOAMD64=v3, computing old*old + x1 rounded once; that is
+            // always 2*x1: the exact value is within ulp(x1)/2, a quarter
+            // of ulp(2*x1), of 2*x1, which is a float64. So both are this.
+            x1 += x1;
+            xe -= 1;
+        }
+        i >>= 1;
+    }
+    if y < 0.0 {
+        a1 = 1.0 / a1;
+        ae = -ae;
+    }
+    pow_ldexp(a1, ae)
+}
+
+/// pow.go's isOddInt.
+fn pow_odd_int(x: f64) -> bool {
+    if x.abs() >= 9_007_199_254_740_992.0 {
+        // 1 << 53: every float64 from here on is an even integer.
+        return false;
+    }
+    let xi = x.trunc();
+    x - xi == 0.0 && (xi as i64) & 1 == 1
+}
+
+/// Go's math.Frexp (frexp.go): a subnormal f is made normal first.
+fn pow_frexp(f: f64) -> (f64, i64) {
+    if f == 0.0 || f.is_infinite() || f.is_nan() {
+        return (f, 0);
+    }
+    let (f, mut e) = if f.abs() < f64::MIN_POSITIVE {
+        (f * 4_503_599_627_370_496.0, -52)
+    } else {
+        (f, 0)
+    };
+    let mut b = f.to_bits();
+    e += ((b >> 52) & 0x7ff) as i64 - 1022;
+    b &= !(0x7ff << 52);
+    b |= 1022 << 52;
+    (f64::from_bits(b), e)
+}
+
+/// Go's math.Ldexp (ldexp.go): frac * 2**exp, through the subnormals.
+fn pow_ldexp(frac: f64, exp: i64) -> f64 {
+    if frac == 0.0 || frac.is_infinite() || frac.is_nan() {
+        return frac;
+    }
+    let (frac, e) = if frac.abs() < f64::MIN_POSITIVE {
+        (frac * 4_503_599_627_370_496.0, -52)
+    } else {
+        (frac, 0)
+    };
+    let mut exp = exp + e;
+    let mut x = frac.to_bits();
+    exp += ((x >> 52) & 0x7ff) as i64 - 1023;
+    if exp < -1075 {
+        return 0.0f64.copysign(frac);
+    }
+    if exp > 1023 {
+        return if frac < 0.0 {
+            f64::NEG_INFINITY
+        } else {
+            f64::INFINITY
+        };
+    }
+    let mut m = 1.0;
+    if exp < -1022 {
+        exp += 53;
+        m = 1.0 / 9_007_199_254_740_992.0;
+    }
+    x &= !(0x7ff << 52);
+    x |= ((exp + 1023) as u64) << 52;
+    m * f64::from_bits(x)
+}
+`,
+		deps: []string{"exp", "log", "sqrt_nan", "nan"},
+	},
+	{
 		name: "exp",
 		code: `/// Go's math.Exp, bit for bit: on amd64 its assembly (exp_amd64.s,
 /// Shibata's method), with fused multiply-adds where Go uses them

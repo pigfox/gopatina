@@ -62,8 +62,12 @@ var StdFuncs = map[string]bool{
 	"math.Log": true,
 	// math.Sin, math.Cos: sin.go as gc compiles it for the target, fusing
 	// what it fuses there (all on arm64; the outer adds from GOAMD64=v3).
-	"math.Sin":     true,
-	"math.Cos":     true,
+	"math.Sin": true,
+	"math.Cos": true,
+	// math.Pow: pow.go, with Exp and Log as above. gc fuses its square
+	// and doubling on arm64 and from GOAMD64=v3, which rounds to the same
+	// value.
+	"math.Pow":     true,
 	"slices.Clone": true,
 	"bytes.Clone":  true,
 }
