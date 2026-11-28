@@ -58,7 +58,10 @@ func (g *gen) funcArg(a ast.Expr) node {
 	// The checker allows only these and a function of the program.
 	id := ast.Unparen(a).(*ast.Ident)
 	if v, ok := g.info.Uses[id].(*types.Var); ok {
-		return lend(g.varName(v), subset.Closures(g.pkg)[v])
+		if cl := subset.Closures(g.pkg)[v]; cl != nil {
+			return lend(g.varName(v), cl)
+		}
+		return text("&mut " + g.varName(v)) // a Box<dyn FnMut> (step 3)
 	}
 	fn := g.info.Uses[id].(*types.Func)
 	return text(g.qual(fn.Pkg(), g.funcs[fn]))
@@ -83,9 +86,39 @@ func (g *gen) fnTrait(sig *types.Signature, mut bool) string {
 }
 
 // closureLet writes let name = |...| {...}; for closure cl, whose body the
-// borrow checker checked as fn: mut when it changes what it captures. Its
-// body is written as that function, its returns its own.
+// borrow checker checked as fn: mut when it changes what it captures.
 func (g *gen) closureLet(name string, cl *subset.Closure, fn *borrow.Func) {
+	head := "let "
+	if len(cl.Writes) > 0 {
+		head += "mut "
+	}
+	g.closureExpr(head+name+" = ", fn, ";")
+}
+
+// returnClosure writes return func(...) {...} of a function whose result is
+// of function type (RFC 0018, step 3): Box::new(move |...| ...), the
+// closure owning what it captures, moved in. tail: the function's last
+// statement. It reports whether r is one.
+func (g *gen) returnClosure(r *ast.ReturnStmt, tail bool) bool {
+	if len(r.Results) != 1 {
+		return false
+	}
+	lit, ok := ast.Unparen(r.Results[0]).(*ast.FuncLit)
+	if !ok || subset.Returned(g.pkg)[lit] == nil {
+		return false
+	}
+	head, end := "Box::new(move ", ")"
+	if !tail {
+		head, end = "return "+head, ");"
+	}
+	g.closureExpr(head, g.res.Lits[lit], end)
+	return true
+}
+
+// closureExpr writes head + |...| {...} + end, for the closure whose body
+// the borrow checker checked as fn. Its body is written as that function,
+// its returns its own.
+func (g *gen) closureExpr(prefix string, fn *borrow.Func, end string) {
 	sig := fn.Obj.Signature()
 	var params []string
 	for _, p := range fn.Params {
@@ -98,11 +131,7 @@ func (g *gen) closureLet(name string, cl *subset.Closure, fn *borrow.Func) {
 		}
 		params = append(params, pname+": "+g.rustType(p.Var.Type()))
 	}
-	head := "let "
-	if len(cl.Writes) > 0 {
-		head += "mut "
-	}
-	head += name + " = |" + strings.Join(params, ", ") + "|"
+	head := prefix + "|" + strings.Join(params, ", ") + "|"
 	if sig.Results().Len() == 1 {
 		head += " -> " + g.rustType(sig.Results().At(0).Type())
 	}
@@ -120,16 +149,16 @@ func (g *gen) closureLet(name string, cl *subset.Closure, fn *borrow.Func) {
 	// expression on the closure's own line when it fits.
 	text := body.String()
 	if text == "" {
-		g.line(head + " {};")
+		g.line(head + " {}" + end)
 		return
 	}
 	if expr := strings.TrimSpace(text); !strings.Contains(expr, "\n") && !strings.HasSuffix(expr, ";") && !strings.Contains(expr, "//") {
-		if one := head + " { " + expr + " };"; g.ind*indentWidth+utf8.RuneCountInString(one) <= maxWidth {
+		if one := head + " { " + expr + " }" + end; g.ind*indentWidth+utf8.RuneCountInString(one) <= maxWidth {
 			g.line(one)
 			return
 		}
 	}
 	g.line(head + " {")
 	g.out.WriteString(text)
-	g.line("};")
+	g.line("}" + end)
 }

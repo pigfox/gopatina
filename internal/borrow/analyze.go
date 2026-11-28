@@ -89,7 +89,15 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 	}
 	// A parameter of function type (RFC 0018, step 2) is called with its
 	// arguments by value.
+	values := []*types.Var{}
 	for v := range subset.FuncParams(pkg) {
+		values = append(values, v)
+	}
+	for v := range subset.FuncVars(pkg) {
+		values = append(values, v)
+		a.res.Mut[v] = true // calling a Box<dyn FnMut> changes it (step 3)
+	}
+	for _, v := range values {
 		sig := v.Type().Underlying().(*types.Signature)
 		fn := &Func{Obj: types.NewFunc(v.Pos(), pkg.Types, v.Name(), sig)}
 		for i := 0; i < sig.Params().Len(); i++ {
@@ -164,6 +172,9 @@ func sortedClosures(pkg *load.Package) []*subset.Closure {
 		out = append(out, cl)
 	}
 	for _, cl := range subset.Inline(pkg) {
+		out = append(out, cl)
+	}
+	for _, cl := range subset.Returned(pkg) {
 		out = append(out, cl)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Lit.Pos() < out[j].Lit.Pos() })

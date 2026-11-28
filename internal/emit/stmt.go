@@ -401,6 +401,9 @@ func (g *gen) bodyTo(list []ast.Stmt, fnBody bool, end token.Pos) {
 				last = list[i]
 			}
 		case isReturn(s) && fnBody && i == len(list)-1:
+			if g.returnClosure(s.(*ast.ReturnStmt), true) {
+				break // Box::new(move |...| ...) (RFC 0018, step 3)
+			}
 			g.inlineClosures(s)
 			if subset.ReadsChangedGlobal(g.pkg, s, g.globals) {
 				g.hoistCalls(s, severalValues(s)) // gc's order (RFC 0010)
@@ -789,6 +792,9 @@ func (g *gen) stmt(s ast.Stmt) {
 	case *ast.TypeSwitchStmt:
 		g.typeSwitch(s) // RFC 0012
 	case *ast.ReturnStmt:
+		if g.returnClosure(s, false) {
+			return // RFC 0018, step 3
+		}
 		if e := g.returnValue(s); e != nil {
 			g.stmtLine("return ", e, ";")
 		} else {

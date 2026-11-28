@@ -279,6 +279,10 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	c.loops = nil
 	c.body = d.Body
 	c.funcParamUses(d)
+	c.funcVarUses(d)
+	if returnsFunc(sig) {
+		c.funcResult(d, sig)
+	}
 	c.block(d.Body)
 }
 
@@ -305,6 +309,8 @@ func (c *checker) signature(d *ast.FuncDecl, sig *types.Signature) {
 	for i := 0; i < sig.Results().Len(); i++ {
 		t := sig.Results().At(i).Type()
 		switch {
+		case returnsFunc(sig):
+			// Checked with the body (funcResult, RFC 0018 step 3).
 		case isError(t) && i != sig.Results().Len()-1:
 			c.unsupported(d.Name, "an error result that is not the last result")
 		case isError(t):
@@ -594,7 +600,7 @@ func (c *checker) assign(s *ast.AssignStmt) {
 	}
 	if s.Tok == token.DEFINE {
 		for _, l := range s.Lhs {
-			if id := l.(*ast.Ident); c.pkg.Info.Defs[id] != nil {
+			if id := l.(*ast.Ident); c.pkg.Info.Defs[id] != nil && !FuncVars(c.pkg)[c.pkg.Info.Defs[id].(*types.Var)] {
 				c.localType(id, c.pkg.Info.Defs[id].Type())
 			}
 		}
@@ -685,8 +691,11 @@ func (c *checker) expr(e ast.Expr) {
 	case *ast.KeyValueExpr:
 		c.expr(e.Value)
 	case *ast.FuncLit:
+		if Returned(c.pkg)[e] != nil {
+			return // checked by funcResult (step 3)
+		}
 		// One inside a closure was refused with its closure (closureProblem).
-		c.unsupported(e, "a function literal (closure) other than f := func(...) {...} (RFC 0018, step 1)")
+		c.unsupported(e, "a function literal (closure) other than f := func(...) {...}, an argument or a returned value (RFC 0018)")
 	case *ast.SliceExpr:
 		c.unsupported(e, "a slice expression (s[i:j])")
 	case *ast.TypeAssertExpr:
@@ -845,7 +854,7 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 			return
 		}
 		if _, ok := info.Uses[f].(*types.Func); !ok {
-			if v, ok := info.Uses[f].(*types.Var); ok && (Closures(c.pkg)[v] != nil || FuncParams(c.pkg)[v] != nil) {
+			if v, ok := info.Uses[f].(*types.Var); ok && (Closures(c.pkg)[v] != nil || FuncParams(c.pkg)[v] != nil || FuncVars(c.pkg)[v]) {
 				c.exprs(e.Args) // a closure's or a function parameter's call (RFC 0018)
 				return
 			}

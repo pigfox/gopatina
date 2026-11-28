@@ -4,10 +4,10 @@
 
 | of 137 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 50 | 36.5% |
-| compiled to Rust | 50 | 36.5% |
-| output matches Go | 50 | 36.5% |
-| clippy clean (of 50 linted) | 48 | 96.0% |
+| accepted by patina mode | 53 | 38.7% |
+| compiled to Rust | 53 | 38.7% |
+| output matches Go | 53 | 38.7% |
+| clippy clean (of 53 linted) | 51 | 96.2% |
 
 ## Failure clusters, largest first
 
@@ -25,8 +25,6 @@
 | 6 | a channel send (planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
 | 6 | defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/mutexes |
 | 5 | _ is copied and kept, so its object has two owners | gobyexample/defer, gobyexample/reading-files, gobyexample/text-templates |
-| 5 | a function type is not supported in patina mode yet | gobyexample/closures, gobyexample/recursion, gobyexample/string-functions |
-| 5 | calling a function value is not supported in patina mode yet | gobyexample/closures, gobyexample/recursion, gobyexample/string-functions |
 | 5 | calls filepath.Join, whose standard-library code patina mode does not support yet | gobyexample/defer, gobyexample/file-paths, gobyexample/panic |
 | 5 | the cap built-in is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/append, gotour/moretypes/making-slices |
 | 5 | uses the standard package unicode, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/regular-expressions |
@@ -38,7 +36,6 @@
 | 4 | type os.File is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/reading-files |
 | 4 | uses the standard package internal/strconv, which patina mode does not support yet | gobyexample/sha256-hashes, gobyexample/text-templates, gobyexample/xml |
 | 4 | uses the standard package reflect, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/text-templates |
-| 3 | a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet | gobyexample/closures, gobyexample/recursion, gotour/moretypes/function-closures |
 | 3 | a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/directories, gobyexample/mutexes, gobyexample/text-templates |
 | 3 | a slice expression (_[i:j]) is not supported in patina mode yet | gotour/moretypes/slice-bounds, gotour/moretypes/slice-len-cap, gotour/moretypes/slices |
 | 3 | an anonymous struct type is not supported in patina mode yet | gobyexample/structs, gobyexample/text-templates, gotour/moretypes/slice-literals |
@@ -51,16 +48,17 @@
 | 3 | the address of _ kept where its object would have more than one owner is not supported in patina mode yet | gobyexample/command-line-flags, gobyexample/xml, gotour/moretypes/pointers |
 | 3 | time.Now is not supported in patina mode yet | gobyexample/switch, gotour/flowcontrol/switch-evaluation-order, gotour/flowcontrol/switch-with-no-condition |
 | 3 | time.Sleep is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/timers, gotour/concurrency/mutex-counter |
-| 2 | _ function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet | gobyexample/range-over-iterators, gobyexample/sorting-by-functions |
 | 2 | _ is converted to an interface while it is still used, so its object has two owners | gobyexample/reading-files, gobyexample/xml |
 | 2 | _._ is copied and kept in _._, so its object has two owners | gobyexample/generics, gobyexample/range-over-iterators |
 | 2 | _._._ is copied and kept in _._, so its object has two owners | gobyexample/generics, gobyexample/range-over-iterators |
 | 2 | a channel receive as a statement is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/timers |
+| 2 | a function type is not supported in patina mode yet | gobyexample/recursion, gobyexample/string-functions |
 | 2 | a generic function (Go N.N) is not supported in patina mode yet | gobyexample/generics, gotour/generics/index |
 | 2 | a generic type (Go N.N) is not supported in patina mode yet | gobyexample/generics, gotour/generics/list |
 | 2 | a type declared inside a function is not supported in patina mode yet | gobyexample/struct-embedding, gobyexample/xml |
 | 2 | a value returned together with a non-nil error must be the zero value | gobyexample/custom-errors, gobyexample/errors |
 | 2 | an instantiated generic function (Go N.N) is not supported in patina mode yet | gobyexample/custom-errors, gobyexample/generics |
+| 2 | calling a function value is not supported in patina mode yet | gobyexample/recursion, gobyexample/string-functions |
 | 2 | comparing a slice with nil is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/nil-slices |
 | 2 | converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet | gobyexample/line-filters, gobyexample/reading-files |
 | 2 | make of chan bool is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/non-blocking-channel-operations |
@@ -82,9 +80,11 @@
 | 2 | uses the standard package flag, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands |
 | 2 | using the package-level variable Args this way (a copy of a slice shares its elements) is not supported in patina mode yet | gobyexample/command-line-arguments, gobyexample/command-line-subcommands |
 | 1 | _ bare return in _ function that returns an error | gotour/solutions/rot13 |
+| 1 | _ function literal (closure) other than f := func(...) {...}, an argument or _ returned value (RFC N) is not supported in patina mode yet | gobyexample/sorting-by-functions |
 | 1 | _ function literal with _ parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/sorting-by-functions |
 | 1 | _ generic type (Go N.N) is not supported in patina mode yet | gobyexample/range-over-iterators |
 | 1 | _ method on _ generic type (Go N.N) is not supported in patina mode yet | gobyexample/range-over-iterators |
+| 1 | _ result of function type: _ parameter of function type taking func(int) bool (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/range-over-iterators |
 | 1 | _ slice expression (_[i:j]) is not supported in patina mode yet | gotour/moretypes/making-slices |
 | 1 | _ slice expression (s[i:j]) is not supported in patina mode yet | gotour/moretypes/slices-pointers |
 | 1 | _ type declared inside _ function is not supported in patina mode yet | gobyexample/sorting-by-functions |
@@ -94,7 +94,7 @@
 | 1 | a complex number is not supported in patina mode yet | gotour/basics/basic-types |
 | 1 | a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported _ patina mode yet | gobyexample/regular-expressions |
 | 1 | a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported in patina mode yet | gotour/moretypes/function-values |
-| 1 | a function literal (closure) other than _ := func(...) {...} (RFC N, step N) is not supported in patina mode yet | gotour/solutions/fib |
+| 1 | a function literal (closure) other than f := func(...) {...}, an argument or a returned value (RFC N) is not supported in patina mode yet | gobyexample/recursion |
 | 1 | a function literal that uses _, of type func(_ string, _ int), from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/mutexes |
 | 1 | a function literal that uses _, of type sync/atomic.Uint64, from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/atomic-counters |
 | 1 | a function literal with a parameter of type any (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/switch |

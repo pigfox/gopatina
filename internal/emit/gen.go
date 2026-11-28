@@ -863,6 +863,10 @@ func (g *gen) rustType(t types.Type) string {
 		return "Vec<" + g.rustType(t.Elem()) + ">"
 	case *types.Pointer:
 		return g.ptrType(t) // a heap pointer; a borrow is a parameter's type
+	case *types.Signature:
+		// A function value (RFC 0018, step 3): a closure that owns what it
+		// captures.
+		return "Box<dyn " + strings.TrimPrefix(g.fnTrait(t, true), "impl ") + ">"
 	}
 	if subset.IsIface(t) {
 		return g.root("Iface")

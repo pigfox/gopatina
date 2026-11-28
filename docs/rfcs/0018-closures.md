@@ -11,8 +11,9 @@
   number and bool parameters and captures, and a number, bool or string
   result); function-typed parameters (step 2, in place: generic impl Fn,
   impl FnMut where a passed closure changes what it captures); escaping
-  closures and
-  function-typed variables; recursive closures; defer of a closure
+  closures and function-typed variables (step 3, in place: returned
+  literals as Box<dyn FnMut>, owning what they capture; variables only
+  called or passed); recursive closures; defer of a closure
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-27
 - **Discussion:** the pull request that adds this file
