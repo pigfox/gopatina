@@ -211,6 +211,15 @@ jobs:
           go test -run '^$' -fuzz FuzzCheck -fuzztime 60s ./internal/subset
           go test -run '^$' -fuzz FuzzBorrow -fuzztime 60s ./internal/borrow
           go test -run '^$' -fuzz FuzzEmit -fuzztime 60s ./internal/emit
+      - name: Upload the failing inputs
+        # The runner is gone after the job; without this a crash's input is
+        # lost and has to be re-found by fuzzing again.
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-failures
+          path: internal/*/testdata/fuzz/
+          if-no-files-found: ignore
 
   pr-hygiene:
     name: pr hygiene

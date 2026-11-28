@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package main\n\nimport \"fmt\"\n\nfunc main() {\n\ta := make([]int, 10)\n\tfor i := 0; i < 5; i++ {\n\t\ta[i+3/2.0*2] = i\n\t}\n\tfmt.Println(a)\n}\n")

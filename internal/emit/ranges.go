@@ -158,10 +158,16 @@ func (g *gen) planNest(s *ast.ForStmt) *nestPlan {
 		ok := true
 		check := func(e ast.Expr) {
 			ast.Inspect(e, func(n ast.Node) bool {
-				if x, isExpr := n.(ast.Expr); isExpr && ok && hi(x).Cmp(limit) > 0 {
+				x, isExpr := n.(ast.Expr)
+				if !isExpr {
+					return ok
+				}
+				if hi(x).Cmp(limit) > 0 {
 					ok = false
 				}
-				return ok
+				// A constant is written as its value, so its parts are never
+				// computed; they need not even be integers (3/2.0*2).
+				return ok && g.info.Types[x].Value == nil
 			})
 		}
 		for _, e := range raw {
