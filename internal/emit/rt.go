@@ -1110,12 +1110,12 @@ fn log_arm64(x: f64) -> f64 {
     // gc's fused sites in log.go (fma-sites from -d=fmahash): 124:17, :25,
     // :32; 125:17, :25; 126:10; 128:17, :26, :36, :40.
     let p1 = s4.mul_add(s4.mul_add(s4.mul_add(l7, l5), l3), l1);
-    let t1 = s2 * p1;
     let q = s4.mul_add(s4.mul_add(l6, l4), l2);
-    let r = s4.mul_add(q, t1); // t1 + t2: t2's multiply fused
+    let t2 = s4 * q;
+    let r = s2.mul_add(p1, t2); // t1 + t2: t1's multiply fused
     let half = 0.5 * f;
     let a = half.mul_add(f, r); // hfsq+R: hfsq's multiply fused
-    let c = k.mul_add(LOG_LN2LO, s * a); // s*(hfsq+R) + k*Ln2Lo
+    let c = s.mul_add(a, k * LOG_LN2LO); // s*(hfsq+R) + k*Ln2Lo: s's fused
     let d = half.mul_add(f, -c); // hfsq - (...): FNMSUB
     let e = d - f;
     k.mul_add(LOG_LN2HI, -e) // k*Ln2Hi - (...): FNMSUB
