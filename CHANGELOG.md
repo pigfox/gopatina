@@ -10,6 +10,16 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Printing structs.** `fmt.Println(p)`, `Print`, `Sprint` and plain
+  `%v` of a struct value print Go's `{f1 f2 ...}`: each field by its own
+  `%v`, a nested struct in braces, a slice in brackets, floats as Go
+  formats them. Each printed struct type gets a `show_` function in the
+  crate. Fields of printable basic types, slices of them and such structs
+  are supported. Not yet supported: a field `fmt` prints through its
+  String or Error method (Go calls it for exported fields only), pointer
+  and interface fields, and `%+v`, `%#v` or a width.
+  `testdata/golden/print_structs` covers it. The slice helper interfaces
+  used, `iface_slice`, is now `rt::show_slice`, shared by both.
 - **A canary for the next Rust edition.** Rust 2027 has no number yet
   (nightly calls it `future`). `scripts/edition-canary.sh` compiles every
   committed crate without dependencies with nightly's next edition, with

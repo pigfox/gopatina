@@ -1748,6 +1748,16 @@ impl Show for f64 {
 `,
 	},
 	{
+		name: "show_slice",
+		code: `/// %v of a slice inside another value (a struct's field, an interface's
+/// dynamic value): its elements' %v, in brackets.
+pub fn show_slice<T>(v: &[T], show: impl Fn(&T) -> String) -> String {
+    let parts: Vec<String> = v.iter().map(show).collect();
+    format!("[{}]", parts.join(" "))
+}
+`,
+	},
+	{
 		name: "show_ints",
 		deps: []string{"Show"},
 		code: `show_display!(i8, i16, u16, u32, u64);

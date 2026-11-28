@@ -437,8 +437,8 @@ pub fn iface_show(x: &Iface) -> String {
         Some(Dyn::Int32(v)) => v.to_string(),
         Some(Dyn::Outer(v)) => format!("{{{} {}}}", format!("{{{}}}", rt::Float(v.i.x)), v.n),
         Some(Dyn::Empty(v)) => String::from("{}"),
-        Some(Dyn::Path(v)) => iface_slice(v, |e| e.to_string()),
-        Some(Dyn::SliceInt(v)) => iface_slice(v, |e| e.to_string()),
+        Some(Dyn::Path(v)) => rt::show_slice(v, |e| e.to_string()),
+        Some(Dyn::SliceInt(v)) => rt::show_slice(v, |e| e.to_string()),
     }
 }
 
@@ -475,12 +475,6 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
-}
-
-/// %v of a slice: its elements' %v, in brackets.
-pub fn iface_slice<T>(v: &[T], show: impl Fn(&T) -> String) -> String {
-    let parts: Vec<String> = v.iter().map(show).collect();
-    format!("[{}]", parts.join(" "))
 }
 
 /// v, ok := x.(main.Box).

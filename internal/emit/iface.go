@@ -31,7 +31,6 @@ type ifaceState struct {
 	missKeys []string
 	gets     map[string]types.Type // x.(T) and v, ok := x.(T) helpers by name
 	getKeys  []string
-	slices   bool                  // iface_slice is used
 	goError  bool                  // errors.New or fmt.Errorf is used
 	wrap     bool                  // fmt.Errorf with %w is used
 	ases     map[string]types.Type // errors.As helpers by name
@@ -625,14 +624,6 @@ func (g *gen) ifaceItems() {
 	g.line("        _ => (None, false),")
 	g.line("    }")
 	g.line("}")
-	if g.ifc.slices {
-		g.line("")
-		g.line("/// %v of a slice: its elements' %v, in brackets.")
-		g.line("pub fn iface_slice<T>(v: &[T], show: impl Fn(&T) -> String) -> String {")
-		g.line("    let parts: Vec<String> = v.iter().map(show).collect();")
-		g.line("    format!(\"[{}]\", parts.join(\" \"))")
-		g.line("}")
-	}
 	for _, name := range g.ifc.getKeys {
 		g.getterFn(name, g.ifc.gets[name])
 	}
@@ -894,8 +885,8 @@ func (g *gen) dynDisplay(t types.Type, p string, ref bool) (string, bool) {
 	}
 	switch u := t.Underlying().(type) {
 	case *types.Slice:
-		g.ifc.slices = true
-		return "iface_slice(" + p + ", |e| " + g.show(u.Elem(), "e") + ")", true
+		g.rt["show_slice"] = true
+		return "rt::show_slice(" + p + ", |e| " + g.show(u.Elem(), "e") + ")", true
 	case *types.Struct:
 		if u.NumFields() == 0 {
 			return "String::from(\"{}\")", true

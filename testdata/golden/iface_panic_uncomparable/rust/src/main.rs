@@ -106,7 +106,7 @@ pub fn iface_show(x: &Iface) -> String {
     match x.as_ref() {
         None => String::from("<nil>"),
         Some(Dyn::Path(v)) => path_error(v),
-        Some(Dyn::SliceInt(v)) => iface_slice(v, |e| e.to_string()),
+        Some(Dyn::SliceInt(v)) => rt::show_slice(v, |e| e.to_string()),
         Some(Dyn::String(v)) => v.to_string(),
         Some(Dyn::ErrorsErrorString(v)) => v.to_string(),
     }
@@ -145,12 +145,6 @@ pub fn iface_try(x: &Iface, missing: fn(&Dyn) -> Option<&'static str>) -> (Iface
         Some(d) if missing(d).is_none() => (x.clone(), true),
         _ => (None, false),
     }
-}
-
-/// %v of a slice: its elements' %v, in brackets.
-pub fn iface_slice<T>(v: &[T], show: impl Fn(&T) -> String) -> String {
-    let parts: Vec<String> = v.iter().map(show).collect();
-    format!("[{}]", parts.join(" "))
 }
 
 /// errors.Is: whether err or an error it wraps is target, or says it is.
