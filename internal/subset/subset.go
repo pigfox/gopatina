@@ -1078,6 +1078,12 @@ func structPrintProblem(t types.Type) string {
 	return ""
 }
 
+// plainQuote reports whether %q directive v has only a width and the -
+// flag, which pad the quoted string as Go does.
+func plainQuote(v Verb) bool {
+	return v.Prec < 0 && !v.Plus && !v.Sharp && !v.Zero && !v.Space
+}
+
 // PrintMethod returns the method fmt calls to print a value of type t with
 // %v or %s: Error() string, else String() string, from the value's method
 // set (fmt receives a copy, so a pointer-receiver method is not used), or
@@ -1309,6 +1315,12 @@ func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
 				return fmt.Sprintf("the format %s with a value of type %s", v.Spec, t)
 			}
 			return c.methodPrintProblem(m)
+		case 'q':
+			// fmt quotes the method's result.
+			if !plainQuote(v) {
+				return fmt.Sprintf("the format %s with a value of type %s", v.Spec, t)
+			}
+			return c.methodPrintProblem(m)
 		}
 	}
 	b, _ := t.Underlying().(*types.Basic)
@@ -1333,6 +1345,11 @@ func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
 		ok = (kind(types.IsString) || isError(t) || c.methodSlice(t) || (isByteSlice(t) && v.Width < 0 && v.Prec < 0 && fn != "fmt.Sprintf" && fn != "fmt.Errorf")) && !v.Plus && !v.Zero
 	case 't':
 		ok = kind(types.IsBoolean) && v.Prec < 0 && !v.Plus && !v.Zero
+	case 'q':
+		// strconv.Quote of a string, padded to a width as Go pads it, by
+		// runes. Not yet %q of a rune or a []byte, nor %+q (ASCII only),
+		// %#q (backquoted), %.Nq (truncated first) or 0 (zero padding).
+		ok = kind(types.IsString) && plainQuote(v)
 	case 'f', 'F':
 		ok = kind(types.IsFloat)
 	case 'g':

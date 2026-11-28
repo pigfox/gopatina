@@ -77,7 +77,7 @@ func ParseFormat(format string) ([]Verb, error) {
 		i++
 		v.Spec = format[start:i]
 		switch v.Verb {
-		case 'v', 'd', 's', 't', 'f', 'F', 'g', 'x', 'X', 'c', 'T', 'w':
+		case 'v', 'd', 's', 't', 'f', 'F', 'g', 'x', 'X', 'c', 'T', 'w', 'q':
 		case '%':
 			if v.Spec != "%%" {
 				return nil, fmt.Errorf("%q: flags on %%%% are not supported", format)
