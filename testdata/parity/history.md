@@ -22,3 +22,5 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-27 | NaN payloads match gc where math.Float64bits reads them (no corpus program reads NaN bits) | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |
 | 2026-11-27 | math.Exp, bit for bit on every chip (no corpus program calls it) | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |
 | 2026-11-27 | math.Log, bit for bit on every chip (no corpus program calls it) | 137 | 53 | 43 (31.4%) | 43 (31.4%) | 43 (31.4%) | 0 |
+| 2026-11-27 | math.Sin and math.Cos (#202) and math.Pow (#206), measured here: 3 more programs match, among them gotour/flowcontrol/if-and-else and if-with-a-short-statement (math.Pow) | 137 | 53 | 46 (33.6%) | 46 (33.6%) | 46 (33.6%) | 0 |
+| 2026-11-27 | printing structs with %v (Println, Print, Sprint): gotour/moretypes/structs and struct-pointers now match | 137 | 53 | 48 (35.0%) | 48 (35.0%) | 48 (35.0%) | 0 |

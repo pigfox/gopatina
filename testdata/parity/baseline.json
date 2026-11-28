@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 53,
   "tested": 137,
-  "accepted": 43,
-  "compiled": 43,
-  "matched": 43,
-  "linted": 43,
-  "lint_clean": 41,
+  "accepted": 48,
+  "compiled": 48,
+  "matched": 48,
+  "linted": 48,
+  "lint_clean": 46,
   "rates": {
-    "accepted": 31.4,
-    "compiled": 31.4,
-    "lint_clean": 95.3,
-    "matched": 31.4
+    "accepted": 35,
+    "compiled": 35,
+    "lint_clean": 95.8,
+    "matched": 35
   },
   "skips": {
     "does not build with Go": 6,
@@ -220,17 +220,6 @@
       ]
     },
     {
-      "fingerprint": "printing a value of type main._ is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/structs",
-        "gotour/methods/indirection",
-        "gotour/moretypes/maps",
-        "gotour/moretypes/struct-literals",
-        "gotour/moretypes/struct-pointers",
-        "gotour/moretypes/structs"
-      ]
-    },
-    {
       "fingerprint": "_ is copied and kept, so its object has two owners",
       "programs": [
         "gobyexample/defer",
@@ -389,14 +378,6 @@
         "gobyexample/maps",
         "gotour/concurrency/mutex-counter",
         "gotour/moretypes/mutating-maps"
-      ]
-    },
-    {
-      "fingerprint": "math.Pow is not supported in patina mode yet",
-      "programs": [
-        "gotour/flowcontrol/if-and-else",
-        "gotour/flowcontrol/if-with-a-short-statement",
-        "gotour/moretypes/function-values"
       ]
     },
     {
@@ -1180,12 +1161,6 @@
       ]
     },
     {
-      "fingerprint": "math.Sin is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/constants"
-      ]
-    },
-    {
       "fingerprint": "os.Chdir is not supported in patina mode yet",
       "programs": [
         "gobyexample/directories"
@@ -1315,12 +1290,6 @@
       "fingerprint": "printing a value of type []struct{_ int; _ bool} is not supported in patina mode yet",
       "programs": [
         "gotour/moretypes/slice-literals"
-      ]
-    },
-    {
-      "fingerprint": "printing a value of type struct{_ string; _ bool} is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/structs"
       ]
     },
     {
@@ -1694,6 +1663,12 @@
       "programs": [
         "gobyexample/directories"
       ]
+    },
+    {
+      "fingerprint": "using math.Pow as a value is not supported in patina mode yet",
+      "programs": [
+        "gotour/moretypes/function-values"
+      ]
     }
   ],
   "results": [
@@ -1833,10 +1808,9 @@
     },
     {
       "name": "gobyexample/constants",
-      "stage": "refused",
-      "fingerprints": [
-        "math.Sin is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gobyexample/context",
@@ -2334,10 +2308,8 @@
       "name": "gobyexample/structs",
       "stage": "refused",
       "fingerprints": [
-        "printing a value of type main._ is not supported in patina mode yet",
         "printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet",
-        "an anonymous struct type is not supported in patina mode yet",
-        "printing a value of type struct{_ string; _ bool} is not supported in patina mode yet"
+        "an anonymous struct type is not supported in patina mode yet"
       ]
     },
     {
@@ -2727,17 +2699,15 @@
     },
     {
       "name": "gotour/flowcontrol/if-and-else",
-      "stage": "refused",
-      "fingerprints": [
-        "math.Pow is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/flowcontrol/if-with-a-short-statement",
-      "stage": "refused",
-      "fingerprints": [
-        "math.Pow is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/flowcontrol/switch",
@@ -2830,7 +2800,6 @@
       "name": "gotour/methods/indirection",
       "stage": "refused",
       "fingerprints": [
-        "printing a value of type main._ is not supported in patina mode yet",
         "printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet"
       ]
     },
@@ -2986,7 +2955,7 @@
         "a function type is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet",
         "a function literal (closure) is not supported in patina mode yet",
-        "math.Pow is not supported in patina mode yet"
+        "using math.Pow as a value is not supported in patina mode yet"
       ]
     },
     {
@@ -3019,8 +2988,7 @@
       "fingerprints": [
         "a map type is not supported in patina mode yet",
         "a package-level variable of type map[string]main._ that the program changes is not supported in patina mode yet",
-        "make of map[string]main._ is not supported in patina mode yet",
-        "printing a value of type main._ is not supported in patina mode yet"
+        "make of map[string]main._ is not supported in patina mode yet"
       ]
     },
     {
@@ -3120,23 +3088,20 @@
       "fingerprints": [
         "a *_ with more than one owner (a package-level variable holds it) is not supported in patina mode yet",
         "a pointer here (RFC N supports pointers in variables, parameters, results and fields) is not supported in patina mode yet",
-        "printing a value of type main._ is not supported in patina mode yet",
         "printing a pointer of type *main._, which has no String or Error method (fmt prints \u0026{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet"
       ]
     },
     {
       "name": "gotour/moretypes/struct-pointers",
-      "stage": "refused",
-      "fingerprints": [
-        "printing a value of type main._ is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/moretypes/structs",
-      "stage": "refused",
-      "fingerprints": [
-        "printing a value of type main._ is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/solutions/binarytrees",

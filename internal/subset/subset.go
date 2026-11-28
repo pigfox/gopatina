@@ -1043,7 +1043,39 @@ func (c *checker) printProblem(t types.Type) string {
 			return ""
 		}
 	}
+	if _, ok := t.Underlying().(*types.Struct); ok {
+		return structPrintProblem(t)
+	}
 	return fmt.Sprintf("printing a value of type %s", t)
+}
+
+// structPrintProblem says why fmt's %v of a struct of type t, which has no
+// String or Error method, cannot be printed yet. fmt prints {f1 f2 ...},
+// each field by its own %v. The subset prints fields of the printable
+// basic types, slices of them, and structs printed the same way. A field
+// whose type has a String or Error method is not printed yet: fmt calls it
+// for an exported field only, and Go's reflection decides which. Nor is a
+// pointer field (fmt prints its address), an interface, or anything else.
+func structPrintProblem(t types.Type) string {
+	st := t.Underlying().(*types.Struct)
+	for i := 0; i < st.NumFields(); i++ {
+		f := st.Field(i).Type()
+		switch {
+		case PrintMethod(f) != nil:
+			return fmt.Sprintf("printing a struct of type %s, whose field %s fmt prints through its %s method", t, st.Field(i).Name(), PrintMethod(f).Name())
+		case isPrintableBasic(f):
+		case isStruct(f):
+			if what := structPrintProblem(f); what != "" {
+				return what
+			}
+		default:
+			if s, ok := f.Underlying().(*types.Slice); ok && isPrintableBasic(s.Elem()) && PrintMethod(s.Elem()) == nil {
+				continue
+			}
+			return fmt.Sprintf("printing a struct of type %s, whose field %s is of type %s", t, st.Field(i).Name(), f)
+		}
+	}
+	return ""
 }
 
 // PrintMethod returns the method fmt calls to print a value of type t with
@@ -1285,6 +1317,10 @@ func (c *checker) verbProblem(v Verb, t types.Type, fn string) string {
 	switch v.Verb {
 	case 'v':
 		ok = c.printProblem(t) == "" && !v.Zero && v.Prec < 0
+		if isStruct(t) && (v.Width >= 0 || v.Plus || v.Minus || v.Sharp) {
+			// fmt pads each field, and %+v and %#v print names and Go syntax.
+			ok = false
+		}
 	case 'd':
 		ok = kind(types.IsInteger) && v.Prec < 0
 	case 'x', 'X':

@@ -160,3 +160,10 @@ impl fmt::Display for Float32 {
         pad(f, &layout(&e))
     }
 }
+
+/// %v of a slice inside another value (a struct's field, an interface's
+/// dynamic value): its elements' %v, in brackets.
+pub fn show_slice<T>(v: &[T], show: impl Fn(&T) -> String) -> String {
+    let parts: Vec<String> = v.iter().map(show).collect();
+    format!("[{}]", parts.join(" "))
+}

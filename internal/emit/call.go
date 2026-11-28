@@ -771,6 +771,10 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 	case isInt(t):
 		flags(true)
 		arg = g.value(e)
+	case isStruct(t):
+		// {f1 f2 ...}, each field by its %v (the checker allows plain %v
+		// only), through the struct's show_ function.
+		arg = &call{head: g.showFn(t), open: "(", close: ")", args: []node{g.ref(e)}}
 	default: // strings, booleans, errors
 		flags(false)
 		arg = g.formatDisplay(e)

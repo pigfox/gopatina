@@ -4,10 +4,10 @@
 
 | of 137 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 43 | 31.4% |
-| compiled to Rust | 43 | 31.4% |
-| output matches Go | 43 | 31.4% |
-| clippy clean (of 43 linted) | 41 | 95.3% |
+| accepted by patina mode | 48 | 35.0% |
+| compiled to Rust | 48 | 35.0% |
+| output matches Go | 48 | 35.0% |
+| clippy clean (of 48 linted) | 46 | 95.8% |
 
 ## Failure clusters, largest first
 
@@ -27,7 +27,6 @@
 | 7 | uses the standard package unicode/utf8, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 6 | a channel send (planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
 | 6 | defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/mutexes |
-| 6 | printing a value of type main._ is not supported in patina mode yet | gobyexample/structs, gotour/methods/indirection, gotour/moretypes/maps |
 | 5 | _ is copied and kept, so its object has two owners | gobyexample/defer, gobyexample/reading-files, gobyexample/text-templates |
 | 5 | calls filepath.Join, whose standard-library code patina mode does not support yet | gobyexample/defer, gobyexample/file-paths, gobyexample/panic |
 | 5 | the cap built-in is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/append, gotour/moretypes/making-slices |
@@ -46,7 +45,6 @@
 | 3 | converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet | gobyexample/base64-encoding, gobyexample/reading-files, gobyexample/xml |
 | 3 | make of chan int is not supported in patina mode yet | gotour/concurrency/buffered-channels, gotour/concurrency/range-and-close, gotour/concurrency/select |
 | 3 | make of map[string]int is not supported in patina mode yet | gobyexample/maps, gotour/concurrency/mutex-counter, gotour/moretypes/mutating-maps |
-| 3 | math.Pow is not supported in patina mode yet | gotour/flowcontrol/if-and-else, gotour/flowcontrol/if-with-a-short-statement, gotour/moretypes/function-values |
 | 3 | os.Create is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/writing-files |
 | 3 | package sync is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/mutexes, gotour/concurrency/mutex-counter |
 | 3 | printing a pointer of type *main._, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet | gobyexample/structs, gotour/methods/indirection, gotour/moretypes/struct-literals |
@@ -170,7 +168,6 @@
 | 1 | io.EOF is not supported in patina mode yet | gotour/methods/reader |
 | 1 | io.ReadAtLeast is not supported in patina mode yet | gobyexample/reading-files |
 | 1 | make of map[string]main._ is not supported in patina mode yet | gotour/moretypes/maps |
-| 1 | math.Sin is not supported in patina mode yet | gobyexample/constants |
 | 1 | os.Chdir is not supported in patina mode yet | gobyexample/directories |
 | 1 | os.Environ is not supported in patina mode yet | gobyexample/environment-variables |
 | 1 | os.Getenv is not supported in patina mode yet | gobyexample/environment-variables |
@@ -193,7 +190,6 @@
 | 1 | printing a value of type [][]int is not supported _ patina mode yet | gobyexample/regular-expressions |
 | 1 | printing a value of type [][]int is not supported in patina mode yet | gobyexample/slices |
 | 1 | printing a value of type []struct{_ int; _ bool} is not supported in patina mode yet | gotour/moretypes/slice-literals |
-| 1 | printing a value of type struct{_ string; _ bool} is not supported in patina mode yet | gobyexample/structs |
 | 1 | printing a value whose String method may panic is not supported in patina mode yet | gotour/methods/images |
 | 1 | printing a value whose _ method may panic is not supported in patina mode yet | gobyexample/enums |
 | 1 | printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet | gobyexample/number-parsing |
@@ -256,6 +252,7 @@
 | 1 | uses the standard package unique, which patina mode does not support yet | gobyexample/text-templates |
 | 1 | using fmt.Println as a value is not supported in patina mode yet | gobyexample/string-functions |
 | 1 | using function _ as a value is not supported in patina mode yet | gobyexample/directories |
+| 1 | using math.Pow as a value is not supported in patina mode yet | gotour/moretypes/function-values |
 
 ## Skipped (not counted)
 

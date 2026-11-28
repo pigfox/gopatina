@@ -62,6 +62,13 @@ fn go_panic_message(msg: &str) -> String {
     msg.to_string()
 }
 
+/// %v of a slice inside another value (a struct's field, an interface's
+/// dynamic value): its elements' %v, in brackets.
+pub fn show_slice<T>(v: &[T], show: impl Fn(&T) -> String) -> String {
+    let parts: Vec<String> = v.iter().map(show).collect();
+    format!("[{}]", parts.join(" "))
+}
+
 /// A Go error value made by errors.New or fmt.Errorf. Functions that
 /// return (T, error) in Go return Result<T, Error> here. Each one is a new
 /// pointer in Go, equal only to itself and its copies; id stands for that
