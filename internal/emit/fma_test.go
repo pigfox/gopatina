@@ -153,3 +153,35 @@ func TestExpFMAChoice(t *testing.T) {
 		}
 	}
 }
+
+// math.Sin and math.Cos fuse what gc fuses in sin.go for the target: from
+// GOAMD64=v3, each polynomial's outer add; below it, nothing on amd64.
+func TestTrigFMAChoice(t *testing.T) {
+	src := "package main\n\nimport (\n\t\"fmt\"\n\t\"math\"\n)\n\nfunc main() { fmt.Println(math.Sin(1), math.Cos(1)) }\n"
+	for level, want := range map[string]string{"v1": "const TRIG_FUSE_OUTER: bool = TRIG_FUSE_REDUCE;", "v3": "const TRIG_FUSE_OUTER: bool = true;"} {
+		pkg, err := load.Source("/r", "main.go", src, "go1.25")
+		if err != nil {
+			t.Fatal(err)
+		}
+		pkg.Target = fma.Target{GOOS: "linux", GOARCH: "amd64", GOAMD64: level}
+		if ds := subset.Check(pkg); len(ds) > 0 {
+			t.Fatal(ds)
+		}
+		res, _ := borrow.Check(pkg)
+		var rt, main string
+		for _, f := range Emit(pkg, res, Options{Target: goldenTarget, Version: "devel"}).Files {
+			switch f.Path {
+			case "src/rt.rs":
+				rt = string(f.Data)
+			case "src/main.rs":
+				main = string(f.Data)
+			}
+		}
+		if !strings.Contains(rt, want) || !strings.Contains(rt, "pub fn sin(x: f64) -> f64") {
+			t.Errorf("%s: rt.rs lacks %q", level, want)
+		}
+		if !strings.Contains(main, "rt::sin(1.0)") || !strings.Contains(main, "rt::cos(1.0)") {
+			t.Errorf("%s: main.rs does not call rt::sin and rt::cos:\n%s", level, main)
+		}
+	}
+}

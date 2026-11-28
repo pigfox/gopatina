@@ -59,7 +59,11 @@ var StdFuncs = map[string]bool{
 	"math.Exp": true,
 	// math.Log: Go's own for the target (log_amd64.s; log.go as gc
 	// compiles it on arm64, fusing ten of its multiply-adds), bit for bit.
-	"math.Log":     true,
+	"math.Log": true,
+	// math.Sin, math.Cos: sin.go as gc compiles it for the target, fusing
+	// what it fuses there (all on arm64; the outer adds from GOAMD64=v3).
+	"math.Sin":     true,
+	"math.Cos":     true,
 	"slices.Clone": true,
 	"bytes.Clone":  true,
 }

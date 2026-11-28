@@ -32,6 +32,14 @@ func (g *gen) mathCall(e *ast.CallExpr, name string) node {
 	case "math.Log":
 		g.rt["log"] = true
 		return &call{head: "rt::log", open: "(", close: ")", args: []node{g.value(a[0])}}
+	case "math.Sin", "math.Cos":
+		g.rt["trig"] = true
+		g.rt[g.trigFuse()] = true
+		head := "rt::sin"
+		if name == "math.Cos" {
+			head = "rt::cos"
+		}
+		return &call{head: head, open: "(", close: ")", args: []node{g.value(a[0])}}
 	case "math.Exp":
 		g.rt["exp"] = true
 		g.rt[g.fmaUsable()] = true
@@ -132,6 +140,16 @@ func (g *gen) f32Suffix(e ast.Expr) string {
 		return "_f32"
 	}
 	return ""
+}
+
+// trigFuse names the runtime item that says which of sin.go's
+// multiply-adds gc fuses on amd64: from GOAMD64=v3, each polynomial's
+// outer add.
+func (g *gen) trigFuse() string {
+	if (fma.Target{GOARCH: "amd64", GOAMD64: g.pkg.Target.GOAMD64}).Fuses() {
+		return "trig_fuse_v3"
+	}
+	return "trig_fuse"
 }
 
 // fmaUsable names the runtime item that says whether Go's math uses FMA
