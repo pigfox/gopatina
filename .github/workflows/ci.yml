@@ -30,7 +30,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: gofmt
         run: |
           unformatted="$(gofmt -l .)"
@@ -88,7 +88,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: Go and the generated Rust print the same output, every golden program
         env:
           GOPATINA_RUST_TESTS: "1"
@@ -107,7 +107,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: the runner has FMA
         run: grep -qw fma /proc/cpuinfo
       - name: Go and the generated Rust print the same output, every golden program
@@ -131,7 +131,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: math_exp, built by Go and by GoPatina, with FMA and without
         run: |
           grep -qw fma /proc/cpuinfo
@@ -176,7 +176,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: serve gopatina.org's page locally
         run: |
           go build -o /tmp/gopatina-site ./site
@@ -202,7 +202,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: go test -fuzz
         # A fixed time budget (docs/QUALITY.md). A failing input is written
         # under the package's testdata/fuzz directory; commit it as a

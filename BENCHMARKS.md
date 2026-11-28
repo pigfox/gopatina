@@ -329,6 +329,29 @@ specialized for `n <= 3037000500`, where `i*i` cannot wrap, and its hot loop
 is the same instructions as the hand-written Rust. This compares code, not
 speed; the equivalence run on the test server is pending.
 
+## Rust 1.93.0 to 1.100.1: sieve, 2026-11-27 (not official)
+
+The toolchain bump that moves the pin from Rust 1.93.0 to 1.100.1 compared
+GoPatina's crates built with each pin against the same hand-written Rust,
+built with 1.100.1, on one shared runner. Every case stayed within 5%
+except `sieve`, where GoPatina/Rust went from 0.915 to 1.077: GoPatina's
+sieve is about 18% slower when built with 1.100.1 than with 1.93.0. An
+earlier run of the same comparison found 0.974 to 1.030.
+
+That is rustc's change, not GoPatina's. `bench/asm-check.sh` compiles both
+crates with one rustc:
+
+| rustc | GoPatina's `main` | hand-written `main` | what differs |
+| --- | --- | --- | --- |
+| 1.93.0 | 58 instructions | 56 | the panic hook's setup |
+| 1.100.1 | 73 instructions | 70 | the panic hook's setup, one alignment no-op |
+
+Under 1.100.1, the hot loop is the same code in both. rustc 1.100.1 compiles
+this loop longer than 1.93.0 did, for hand-written Rust as for GoPatina. So
+GoPatina still matches hand-written Rust on the new pin, and a hand-written
+sieve slows the same way when it moves to 1.100.1. The project lead chose to
+track stable (2026-11-27).
+
 ## Allocators for static musl binaries, 2026-11-27 (not official)
 
 GoPatina's crates for the three cases that allocate in their hot loop,

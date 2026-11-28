@@ -99,7 +99,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: Install Rust stable with clippy
         run: |
           rustup toolchain install stable --profile minimal --component clippy,rustfmt

@@ -18,16 +18,24 @@ name: toolchain bump
 # starts no workflows: no checks run on the pull request itself. The gates
 # in this run are its checks, and its body says so and links the run.
 
+#
+# The same for Go, daily: go-stable moves CI's pinned Go (toolchain.json,
+# .go-version) to the newest release and opens a pull request when every
+# gate passes; go-rc runs every gate with the newest release candidate
+# (1.28rc1 first) and files an issue with the result either way.
+
 on:
   schedule:
-    - cron: "23 5 * * 2" # Tuesdays 05:23 UTC: stable
-    - cron: "53 5 * * 2" # Tuesdays 05:53 UTC: beta
+    - cron: "23 5 * * 2" # Tuesdays 05:23 UTC: Rust stable
+    - cron: "53 5 * * 2" # Tuesdays 05:53 UTC: Rust beta
+    - cron: "17 4 * * *" # daily 04:17 UTC: Go stable
+    - cron: "47 4 * * *" # daily 04:47 UTC: Go release candidate
   workflow_dispatch:
     inputs:
       channel:
-        description: stable or beta
+        description: stable or beta (Rust), go-stable or go-rc (Go)
         type: choice
-        options: [stable, beta]
+        options: [stable, beta, go-stable, go-rc]
         default: stable
 
 permissions:
@@ -39,7 +47,7 @@ concurrency:
 
 jobs:
   prepare:
-    name: rewrite the pin (rust ${{ inputs.channel || (github.event.schedule == '53 5 * * 2' && 'beta' || 'stable') }})
+    name: rewrite the pin (${{ inputs.channel || (github.event.schedule == '53 5 * * 2' && 'beta' || github.event.schedule == '17 4 * * *' && 'go-stable' || github.event.schedule == '47 4 * * *' && 'go-rc' || 'stable') }})
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -49,18 +57,46 @@ jobs:
       old: ${{ steps.pick.outputs.old }}
       branch: ${{ steps.push.outputs.branch }}
       sha: ${{ steps.push.outputs.sha }}
+      base: ${{ steps.push.outputs.base }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: main
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
-      - name: Pick the newest ${{ inputs.channel || 'release' }}
+          go-version-file: .go-version
+      - name: Pick the newest release
         id: pick
         env:
-          CHANNEL: ${{ inputs.channel || (github.event.schedule == '53 5 * * 2' && 'beta' || 'stable') }}
+          CHANNEL: ${{ inputs.channel || (github.event.schedule == '53 5 * * 2' && 'beta' || github.event.schedule == '17 4 * * *' && 'go-stable' || github.event.schedule == '47 4 * * *' && 'go-rc' || 'stable') }}
         run: |
+          case "$CHANNEL" in
+            go-*)
+              releases="$(curl -fsSL 'https://go.dev/dl/?mode=json&include=all')"
+              if [ "$CHANNEL" = go-stable ]; then
+                pin="$(printf '%s' "$releases" | jq -r '[.[] | select(.stable)][0].version | ltrimstr("go")')"
+              else
+                # The newest release candidate, if it is newer than every
+                # stable release (go.dev lists the newest first).
+                pin="$(printf '%s' "$releases" | jq -r 'if .[0].stable then "" else .[0].version | ltrimstr("go") end')"
+              fi
+              old="$(jq -r .go.pinned toolchain.json)"
+              # Daily runs try each release once: skip one this channel's
+              # branch already carries.
+              if [ -n "$pin" ] && git fetch -q origin "toolchain/$CHANNEL" 2>/dev/null &&
+                [ "$(git show FETCH_HEAD:toolchain.json | jq -r .go.pinned)" = "$pin" ]; then
+                echo "go$pin was already tried on toolchain/$CHANNEL"
+                pin=""
+              fi
+              echo "$CHANNEL: ${pin:-none} (pinned: $old)"
+              {
+                echo "channel=$CHANNEL"
+                echo "pin=$pin"
+                echo "old=$old"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
           manifest="$(curl -fsSL "https://static.rust-lang.org/dist/channel-rust-$CHANNEL.toml")"
           if [ "$CHANNEL" = stable ]; then
             # [pkg.rustc] version = "1.101.0 (abcdef012 2026-12-10)"
@@ -80,9 +116,18 @@ jobs:
             echo "old=$old"
           } >> "$GITHUB_OUTPUT"
       - name: Install Rust ${{ steps.pick.outputs.pin }}
+        if: ${{ !startsWith(steps.pick.outputs.channel, 'go-') }}
         run: rustup toolchain install "${{ steps.pick.outputs.pin }}" --profile minimal --component clippy,rustfmt
-      - name: Rewrite every copy of the pin (scripts/toolchain-bump.sh)
-        run: scripts/toolchain-bump.sh "${{ steps.pick.outputs.pin }}"
+      - name: Rewrite every copy of the pin (scripts/toolchain-bump.sh, scripts/go-bump.sh)
+        if: steps.pick.outputs.pin != ''
+        env:
+          CHANNEL: ${{ steps.pick.outputs.channel }}
+          PIN: ${{ steps.pick.outputs.pin }}
+        run: |
+          case "$CHANNEL" in
+            go-*) scripts/go-bump.sh "$PIN" ;;
+            *) scripts/toolchain-bump.sh "$PIN" ;;
+          esac
       - name: Push the branch
         id: push
         env:
@@ -95,15 +140,19 @@ jobs:
             echo "branch=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          branch="toolchain/rust-$CHANNEL"
+          case "$CHANNEL" in
+            go-*) branch="toolchain/$CHANNEL"; subject="build(go): pin CI's Go to go$PIN"; script=go-bump.sh ;;
+            *) branch="toolchain/rust-$CHANNEL"; subject="build(rust): pin emitted crates to Rust $PIN"; script=toolchain-bump.sh ;;
+          esac
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
-          git commit -q -a -F - <<EOF
-          build(rust): pin emitted crates to Rust $PIN
+          git add -A
+          git commit -q -F - <<EOF
+          $subject
 
-          scripts/toolchain-bump.sh $PIN, from $OLD: toolchain.json and every
-          copy TestToolchainDrift checks.
+          scripts/$script $PIN, from $OLD: toolchain.json and every copy
+          TestToolchainDrift checks.
 
           Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           EOF
@@ -112,6 +161,7 @@ jobs:
           {
             echo "branch=$branch"
             echo "sha=$(git rev-parse HEAD)"
+            echo "base=$(git rev-parse HEAD~1)"
           } >> "$GITHUB_OUTPUT"
 
   ci:
@@ -148,7 +198,7 @@ jobs:
           path: new
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: Install Rust stable (the hand-written crates) and both pins
         run: |
           rustup toolchain install stable --profile minimal
@@ -159,7 +209,7 @@ jobs:
         # hand-written one with stable, so only the pin differs between runs.
         run: |
           (cd old && bench/run.sh --toolchain shipped --out "$RUNNER_TEMP/old.json")
-          (cd new && bench/run.sh --toolchain shipped --out "$RUNNER_TEMP/new.json")
+          (cd new && GOTOOLCHAIN="go$(jq -r .go.pinned toolchain.json)" bench/run.sh --toolchain shipped --out "$RUNNER_TEMP/new.json")
       - name: Compare (a ratio 5% worse is flagged)
         env:
           OLD: ${{ needs.prepare.outputs.old }}
@@ -207,7 +257,7 @@ jobs:
           ref: ${{ needs.prepare.outputs.sha }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: Install the pinned toolchain with clippy
         run: rustup toolchain install "$(jq -r .rust.pinned toolchain.json)" --profile minimal --component clippy
       - name: seed 1, programs 0-399 (CONTRIBUTING.md's gate)
@@ -221,7 +271,7 @@ jobs:
   open-pr:
     name: open the pull request
     needs: [prepare, ci, toolchains, bench-compare, difftest-arm64, difftest-amd64]
-    if: needs.prepare.outputs.branch != '' && needs.prepare.outputs.channel == 'stable'
+    if: needs.prepare.outputs.branch != '' && (needs.prepare.outputs.channel == 'stable' || needs.prepare.outputs.channel == 'go-stable')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -230,10 +280,24 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: bench-compare
+      - name: The gates ran on main's tip
+        # The gates tested the bump on the main it started from. If main
+        # moved meanwhile, the pull request would merge a tree no gate saw.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ needs.prepare.outputs.base }}
+        run: |
+          tip="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [ "$tip" != "$BASE" ]; then
+            echo "::error::stale base; re-dispatch: the gates ran on main $BASE, and main is now $tip"
+            exit 1
+          fi
       - name: Open or update the pull request
         env:
           GH_TOKEN: ${{ github.token }}
+          BASE: ${{ needs.prepare.outputs.base }}
           BRANCH: ${{ needs.prepare.outputs.branch }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
           PIN: ${{ needs.prepare.outputs.pin }}
           OLD: ${{ needs.prepare.outputs.old }}
           SHA: ${{ needs.prepare.outputs.sha }}
@@ -247,36 +311,48 @@ jobs:
             | difftest, seed 1, programs 0-399, arm64 | ${{ needs.difftest-arm64.result }} |
             | bench, the old pin against the new | ${{ needs.bench-compare.result }} |
         run: |
+          if [ "$CHANNEL" = go-stable ]; then
+            title="build(go): pin CI's Go to go$PIN"
+            what="Moves the Go release CI pins from go$OLD to go$PIN (toolchain.json, .go-version), with the fma-sites records rewritten by scripts/go-bump.sh."
+          else
+            title="build(rust): pin emitted crates to Rust $PIN"
+            what="Moves the Rust toolchain emitted crates pin from $OLD to $PIN (toolchain.json), with every copy rewritten by scripts/toolchain-bump.sh."
+          fi
           {
-            echo "Moves the Rust toolchain emitted crates pin from $OLD to $PIN"
-            echo "(toolchain.json), with every copy rewritten by scripts/toolchain-bump.sh."
+            echo "$what"
             echo
             echo "## Gates"
             echo
             echo "This pull request was opened with GITHUB_TOKEN, so no checks run on it."
-            echo "These gates are its checks. They ran on $SHA in $RUN_URL:"
+            echo "These gates are its checks. They ran on $SHA, the bump on main $BASE,"
+            echo "in $RUN_URL. Merge it only while main is still $BASE; otherwise"
+            echo "re-dispatch the workflow."
             echo
             printf '%s\n' "$GATES"
             echo "## Benchmarks"
             echo
-            echo "GoPatina's crates built with each pin, against the same hand-written"
-            echo "Rust (stable), on one shared runner: ratios, not times. A ratio 5% worse"
-            echo "is marked as a regression; compare with BENCHMARKS.md before merging."
+            echo "GoPatina's crates built with the old pin and with the new one, each"
+            echo "against the same hand-written Rust built with the newest stable, on one"
+            echo "shared runner: ratios, not times. A change is in GoPatina's own speed"
+            echo "under the new rustc. A ratio 5% worse is marked as a regression."
+            echo "bench/asm-check.sh --toolchain <pin> compiles both crates with one"
+            echo "rustc and shows whether hand-written Rust changed the same way, that is,"
+            echo "whether the change is rustc's. Compare with BENCHMARKS.md before merging."
             echo
             cat bench-compare.md
           } > body.md
           existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json number --jq '.[0].number')"
           if [ -n "$existing" ]; then
-            gh pr edit "$existing" --repo "$GITHUB_REPOSITORY" --title "build(rust): pin emitted crates to Rust $PIN" --body-file body.md
+            gh pr edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file body.md
           else
             gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" \
-              --title "build(rust): pin emitted crates to Rust $PIN" --body-file body.md
+              --title "$title" --body-file body.md
           fi
 
   report-failure:
     name: open an issue on a failed gate
     needs: [prepare, ci, toolchains, bench-compare, difftest-arm64, difftest-amd64]
-    if: failure()
+    if: failure() && needs.prepare.outputs.channel != 'go-rc'
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -294,4 +370,38 @@ jobs:
           else
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label triage \
               --body "Pinning emitted crates to Rust $PIN fails a gate: $RUN_URL. See RFC 0003."
+          fi
+
+  report-rc:
+    name: report the Go release candidate
+    needs: [prepare, ci, toolchains, bench-compare, difftest-arm64, difftest-amd64]
+    if: always() && needs.prepare.outputs.channel == 'go-rc' && needs.prepare.outputs.branch != ''
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open or comment on the release candidate's issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PIN: ${{ needs.prepare.outputs.pin }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ALL: ${{ needs.ci.result == 'success' && needs.toolchains.result == 'success' && needs.bench-compare.result == 'success' && needs.difftest-arm64.result == 'success' && needs.difftest-amd64.result == 'success' }}
+          GATES: |
+            | gate | result |
+            | --- | --- |
+            | CI, float bit for bit on three targets | ${{ needs.ci.result }} |
+            | toolchains, clippy | ${{ needs.toolchains.result }} |
+            | difftest, amd64 | ${{ needs.difftest-amd64.result }} |
+            | difftest, arm64 | ${{ needs.difftest-arm64.result }} |
+            | bench, the old pin against the new | ${{ needs.bench-compare.result }} |
+        run: |
+          verdict="fails a gate"
+          if [ "$ALL" = true ]; then verdict="passes every gate"; fi
+          title="ci: go$PIN against GoPatina"
+          body="$(printf 'go%s %s: %s\n\n%s' "$PIN" "$verdict" "$RUN_URL" "$GATES")"
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --label triage --body "$body"
           fi

@@ -1,4 +1,4 @@
-# go1.27.1 linux/arm64
+# go1.27.4 linux/arm64
 main.go:15:51
 main.go:18:53
 main.go:21:55
@@ -7,7 +7,7 @@ main.go:27:51
 main.go:30:55
 main.go:33:48
 main.go:36:47
-# go1.27.1 linux/amd64 GOAMD64=v3
+# go1.27.4 linux/amd64 GOAMD64=v3
 main.go:15:51
 main.go:18:53
 main.go:21:55

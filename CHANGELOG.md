@@ -10,6 +10,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Go's pin and a watcher.** CI's Go is pinned to go1.27.4
+  (toolchain.json, `.go-version`), with the `fma-sites.txt` records
+  rewritten from it, so TestFMASites compares them exactly instead of
+  logging a version difference. `scripts/go-bump.sh` moves the pin. Each
+  day the toolchain bump workflow tries the newest Go release (a pull
+  request when every gate passes) and each new release candidate (an issue
+  with the result).
 - **math.Sin and math.Cos**, bit for bit with Go on every chip. Go writes
   them in Go (`sin.go`, and `trig_reduce.go`'s Payne-Hanek reduction from
   2**29 on), and gc fuses their multiply-adds differently for each target:
