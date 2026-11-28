@@ -322,6 +322,9 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A loop nest that indexes with a constant expression whose parts are not
+  integers, such as `a[i+3/2.0*2]`, no longer crashes the emitter (found by
+  FuzzEmit in CI); the fuzz job now uploads a failing input.
 - A panic message of several lines now indents each line after the first
   with a tab, as Go's runtime does; it was printed as it was.
 - `panic` of a named string type printed the bare string; Go prints
