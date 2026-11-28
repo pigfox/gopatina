@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 53,
   "tested": 137,
-  "accepted": 48,
-  "compiled": 48,
-  "matched": 48,
-  "linted": 48,
-  "lint_clean": 46,
+  "accepted": 50,
+  "compiled": 50,
+  "matched": 50,
+  "linted": 50,
+  "lint_clean": 48,
   "rates": {
-    "accepted": 35,
-    "compiled": 35,
-    "lint_clean": 95.8,
-    "matched": 35
+    "accepted": 36.5,
+    "compiled": 36.5,
+    "lint_clean": 96,
+    "matched": 36.5
   },
   "skips": {
     "does not build with Go": 6,
@@ -275,15 +275,6 @@
         "gotour/moretypes/array",
         "gotour/moretypes/slices",
         "gotour/moretypes/slices-pointers"
-      ]
-    },
-    {
-      "fingerprint": "format string: \"S\": the verb %q is not supported in patina mode yet",
-      "programs": [
-        "gotour/basics/zero",
-        "gotour/concurrency/exercise-web-crawler",
-        "gotour/methods/reader",
-        "gotour/methods/type-switches"
       ]
     },
     {
@@ -1431,6 +1422,12 @@
       ]
     },
     {
+      "fingerprint": "the format %q with a value of type []byte is not supported in patina mode yet",
+      "programs": [
+        "gotour/methods/reader"
+      ]
+    },
+    {
       "fingerprint": "the format %v with a value of type complex128 is not supported in patina mode yet",
       "programs": [
         "gotour/basics/basic-types"
@@ -2571,10 +2568,9 @@
     },
     {
       "name": "gotour/basics/zero",
-      "stage": "refused",
-      "fingerprints": [
-        "format string: \"S\": the verb %q is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/concurrency/buffered-channels",
@@ -2606,7 +2602,6 @@
       "stage": "refused",
       "fingerprints": [
         "type _: an interface method with an error result is not supported in patina mode yet",
-        "format string: \"S\": the verb %q is not supported in patina mode yet",
         "type _: a map type is not supported in patina mode yet",
         "a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet"
       ]
@@ -2884,8 +2879,8 @@
         "type strings.Reader is not supported in patina mode yet",
         "strings.NewReader is not supported in patina mode yet",
         "_ is copied and kept, so its object has two owners",
-        "format string: \"S\": the verb %q is not supported in patina mode yet",
         "a slice expression (s[i:j]) is not supported in patina mode yet",
+        "the format %q with a value of type []byte is not supported in patina mode yet",
         "io.EOF is not supported in patina mode yet"
       ]
     },
@@ -2903,10 +2898,9 @@
     },
     {
       "name": "gotour/methods/type-switches",
-      "stage": "refused",
-      "fingerprints": [
-        "format string: \"S\": the verb %q is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/moretypes/append",

@@ -10,6 +10,15 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **The verb %q** of a string, and of a value printed through its String
+  or Error method, with a width and the `-` flag. It is Go's
+  `strconv.Quote`: double quotes, `\"` and `\\`, `\a \b \f \n \r \t \v`,
+  and `\xNN`, `\uNNNN` or `\UNNNNNNNN` for every rune Go does not consider
+  printable. `rt::quote` carries `strconv/isprint.go`'s tables, from the Go
+  release the crate was made with. It matched `strconv.Quote` on every
+  Unicode scalar value (1,112,064 runes). A constant is quoted when the
+  crate is made. Not yet: `%q` of a rune or a `[]byte`, `%+q`, `%#q`, a
+  precision, or the `0` flag.
 - **Printing structs.** `fmt.Println(p)`, `Print`, `Sprint` and plain
   `%v` of a struct value print Go's `{f1 f2 ...}`: each field by its own
   `%v`, a nested struct in braces, a slice in brackets, floats as Go

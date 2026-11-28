@@ -4,10 +4,10 @@
 
 | of 137 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 48 | 35.0% |
-| compiled to Rust | 48 | 35.0% |
-| output matches Go | 48 | 35.0% |
-| clippy clean (of 48 linted) | 46 | 95.8% |
+| accepted by patina mode | 50 | 36.5% |
+| compiled to Rust | 50 | 36.5% |
+| output matches Go | 50 | 36.5% |
+| clippy clean (of 50 linted) | 48 | 96.0% |
 
 ## Failure clusters, largest first
 
@@ -33,7 +33,6 @@
 | 5 | uses the standard package unicode, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/regular-expressions |
 | 4 | a slice expression (s[i:j]) is not supported in patina mode yet | gobyexample/command-line-arguments, gobyexample/command-line-subcommands, gobyexample/reading-files |
 | 4 | an array type is not supported in patina mode yet | gobyexample/arrays, gotour/moretypes/array, gotour/moretypes/slices |
-| 4 | format string: "S": the verb %q is not supported in patina mode yet | gotour/basics/zero, gotour/concurrency/exercise-web-crawler, gotour/methods/reader |
 | 4 | os.TempDir is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/reading-files |
 | 4 | select (planned, RFC N) is not supported in patina mode yet | gobyexample/non-blocking-channel-operations, gobyexample/select, gobyexample/timeouts |
 | 4 | the <- operator is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
@@ -213,6 +212,7 @@
 | 1 | the format %T with a value of type complex128 is not supported in patina mode yet | gotour/basics/basic-types |
 | 1 | the format %T with a value of type int is not supported in patina mode yet | gotour/basics/type-inference |
 | 1 | the format %T with a value of type uint64 is not supported in patina mode yet | gotour/basics/basic-types |
+| 1 | the format %q with a value of type []byte is not supported in patina mode yet | gotour/methods/reader |
 | 1 | the format %v with a value of type complex128 is not supported in patina mode yet | gotour/basics/basic-types |
 | 1 | the results of Parse used here other than as v..., _ := Parse(...) or return Parse(...) | gobyexample/text-templates |
 | 1 | time.NewTimer is not supported in patina mode yet | gobyexample/timers |

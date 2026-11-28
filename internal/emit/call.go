@@ -618,6 +618,29 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 		return "{}", g.ifaceVerb('T', e), ""
 	}
 	plain := v.Width < 0 && v.Prec < 0 && !v.Plus && !v.Minus && !v.Zero
+	if v.Verb == 'q' {
+		// strconv.Quote of the string, or of the String or Error method's
+		// result; padded to a width by chars, as Go pads by runes.
+		m := printMethodOf(t)
+		if m == nil && tv.Value != nil {
+			// A constant is quoted here, by Go's own strconv.Quote.
+			q := strconv.Quote(constant.StringVal(tv.Value))
+			if v.Width < 0 {
+				return "", nil, q
+			}
+			return padSpec(v), text(strLit(q)), ""
+		}
+		g.rt["quote"] = true
+		var s node = &addrOf{"&", g.display(e)}
+		if m != nil {
+			s = &addrOf{"&", g.printCall(e, t, m)}
+		}
+		spec := "{}"
+		if v.Width >= 0 {
+			spec = padSpec(v)
+		}
+		return spec, &call{head: "rt::quote", open: "(", close: ")", args: []node{s}}, ""
+	}
 	if m := printMethodOf(t); m != nil && (v.Verb == 'v' || v.Verb == 's') {
 		// fmt prints the result of Error or String (RFC 0007); the subset
 		// checker has made sure the method cannot panic.
@@ -781,6 +804,15 @@ func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string
 	}
 	b.WriteString("}")
 	return b.String(), arg, ""
+}
+
+// padSpec is the format spec of a string padded to v's width, on the left,
+// or on the right for the - flag, as Go pads by runes.
+func padSpec(v subset.Verb) string {
+	if v.Minus {
+		return "{:<" + itoa(v.Width) + "}"
+	}
+	return "{:>" + itoa(v.Width) + "}"
 }
 
 // hexPadSpec is the format spec of a hex string from rt::hex_bytes: Go pads
