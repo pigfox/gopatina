@@ -4,10 +4,10 @@
 
 | of 137 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 53 | 38.7% |
-| compiled to Rust | 53 | 38.7% |
-| output matches Go | 53 | 38.7% |
-| clippy clean (of 53 linted) | 51 | 96.2% |
+| accepted by patina mode | 54 | 39.4% |
+| compiled to Rust | 54 | 39.4% |
+| output matches Go | 54 | 39.4% |
+| clippy clean (of 54 linted) | 52 | 96.3% |
 
 ## Failure clusters, largest first
 
@@ -52,13 +52,11 @@
 | 2 | _._ is copied and kept in _._, so its object has two owners | gobyexample/generics, gobyexample/range-over-iterators |
 | 2 | _._._ is copied and kept in _._, so its object has two owners | gobyexample/generics, gobyexample/range-over-iterators |
 | 2 | a channel receive as a statement is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/timers |
-| 2 | a function type is not supported in patina mode yet | gobyexample/recursion, gobyexample/string-functions |
 | 2 | a generic function (Go N.N) is not supported in patina mode yet | gobyexample/generics, gotour/generics/index |
 | 2 | a generic type (Go N.N) is not supported in patina mode yet | gobyexample/generics, gotour/generics/list |
 | 2 | a type declared inside a function is not supported in patina mode yet | gobyexample/struct-embedding, gobyexample/xml |
 | 2 | a value returned together with a non-nil error must be the zero value | gobyexample/custom-errors, gobyexample/errors |
 | 2 | an instantiated generic function (Go N.N) is not supported in patina mode yet | gobyexample/custom-errors, gobyexample/generics |
-| 2 | calling a function value is not supported in patina mode yet | gobyexample/recursion, gobyexample/string-functions |
 | 2 | comparing a slice with nil is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/nil-slices |
 | 2 | converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet | gobyexample/line-filters, gobyexample/reading-files |
 | 2 | make of chan bool is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/non-blocking-channel-operations |
@@ -94,10 +92,10 @@
 | 1 | a complex number is not supported in patina mode yet | gotour/basics/basic-types |
 | 1 | a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported _ patina mode yet | gobyexample/regular-expressions |
 | 1 | a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported in patina mode yet | gotour/moretypes/function-values |
-| 1 | a function literal (closure) other than f := func(...) {...}, an argument or a returned value (RFC N) is not supported in patina mode yet | gobyexample/recursion |
 | 1 | a function literal that uses _, of type func(_ string, _ int), from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/mutexes |
 | 1 | a function literal that uses _, of type sync/atomic.Uint64, from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/atomic-counters |
 | 1 | a function literal with a parameter of type any (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/switch |
+| 1 | a function type is not supported in patina mode yet | gobyexample/string-functions |
 | 1 | a method on a generic type (Go N.N) is not supported in patina mode yet | gobyexample/generics |
 | 1 | a package-level variable of type map[string]main._ that the program changes is not supported in patina mode yet | gotour/moretypes/maps |
 | 1 | a pointer here (RFC N supports pointers in variables, parameters, results and fields) is not supported in patina mode yet | gotour/moretypes/struct-literals |
@@ -107,6 +105,7 @@
 | 1 | a slice expression (_[_:j]) is not supported in patina mode yet | gobyexample/strings-and-runes |
 | 1 | a variadic function is not supported in patina mode yet | gobyexample/variadic-functions |
 | 1 | an embedded field is not supported in patina mode yet | gobyexample/struct-embedding |
+| 1 | calling a function value is not supported in patina mode yet | gobyexample/string-functions |
 | 1 | calling a pointer-receiver method on a package-level variable is not supported in patina mode yet | gobyexample/base64-encoding |
 | 1 | calls base64.Encoding.DecodeString, whose standard-library code patina mode does not support yet | gobyexample/base64-encoding |
 | 1 | calls base64.Encoding.EncodeToString, whose standard-library code patina mode does not support yet | gobyexample/base64-encoding |

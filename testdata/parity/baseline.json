@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 53,
   "tested": 137,
-  "accepted": 53,
-  "compiled": 53,
-  "matched": 53,
-  "linted": 53,
-  "lint_clean": 51,
+  "accepted": 54,
+  "compiled": 54,
+  "matched": 54,
+  "linted": 54,
+  "lint_clean": 52,
   "rates": {
-    "accepted": 38.7,
-    "compiled": 38.7,
-    "lint_clean": 96.2,
-    "matched": 38.7
+    "accepted": 39.4,
+    "compiled": 39.4,
+    "lint_clean": 96.3,
+    "matched": 39.4
   },
   "skips": {
     "does not build with Go": 6,
@@ -410,13 +410,6 @@
       ]
     },
     {
-      "fingerprint": "a function type is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/recursion",
-        "gobyexample/string-functions"
-      ]
-    },
-    {
       "fingerprint": "a generic function (Go N.N) is not supported in patina mode yet",
       "programs": [
         "gobyexample/generics",
@@ -449,13 +442,6 @@
       "programs": [
         "gobyexample/custom-errors",
         "gobyexample/generics"
-      ]
-    },
-    {
-      "fingerprint": "calling a function value is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/recursion",
-        "gobyexample/string-functions"
       ]
     },
     {
@@ -689,12 +675,6 @@
       ]
     },
     {
-      "fingerprint": "a function literal (closure) other than f := func(...) {...}, an argument or a returned value (RFC N) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/recursion"
-      ]
-    },
-    {
       "fingerprint": "a function literal that uses _, of type func(_ string, _ int), from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
       "programs": [
         "gobyexample/mutexes"
@@ -710,6 +690,12 @@
       "fingerprint": "a function literal with a parameter of type any (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
       "programs": [
         "gobyexample/switch"
+      ]
+    },
+    {
+      "fingerprint": "a function type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/string-functions"
       ]
     },
     {
@@ -764,6 +750,12 @@
       "fingerprint": "an embedded field is not supported in patina mode yet",
       "programs": [
         "gobyexample/struct-embedding"
+      ]
+    },
+    {
+      "fingerprint": "calling a function value is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/string-functions"
       ]
     },
     {
@@ -2149,12 +2141,9 @@
     },
     {
       "name": "gobyexample/recursion",
-      "stage": "refused",
-      "fingerprints": [
-        "a function type is not supported in patina mode yet",
-        "a function literal (closure) other than f := func(...) {...}, an argument or a returned value (RFC N) is not supported in patina mode yet",
-        "calling a function value is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gobyexample/regular-expressions",

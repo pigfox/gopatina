@@ -234,6 +234,9 @@ func (c *checker) programArgs(e *ast.CallExpr) {
 				if FuncVars(c.pkg)[u] {
 					continue // a function value, lent &mut (step 3)
 				}
+				if Recursive(c.pkg)[u] != nil {
+					continue // a nested fn (step 4)
+				}
 			}
 		case *ast.FuncLit:
 			c.inlineClosure(e, a)

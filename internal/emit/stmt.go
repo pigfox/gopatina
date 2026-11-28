@@ -887,8 +887,8 @@ func (g *gen) declStmt(d *ast.GenDecl) {
 		vs := spec.(*ast.ValueSpec)
 		if len(vs.Values) == 0 {
 			for _, name := range vs.Names {
-				if v := g.localVar(name); v != nil {
-					g.letZero(v)
+				if v := g.localVar(name); v != nil && subset.Recursive(g.pkg)[v] == nil {
+					g.letZero(v) // a recursive closure is its nested fn (RFC 0018, step 4)
 				}
 			}
 			continue
@@ -983,6 +983,9 @@ func (g *gen) needsType(e ast.Expr) bool {
 }
 
 func (g *gen) assign(s *ast.AssignStmt) {
+	if g.recursiveFn(s) {
+		return // var f func...; f = func... (RFC 0018, step 4)
+	}
 	if s.Tok == token.DEFINE && len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 		if lit, ok := ast.Unparen(s.Rhs[0]).(*ast.FuncLit); ok {
 			g.closureDecl(s, lit)
