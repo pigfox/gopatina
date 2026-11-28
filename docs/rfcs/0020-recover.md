@@ -7,7 +7,7 @@
   do. Just get it done, okay?" The decisions: recover only directly in a
   deferred literal; its value is Go's panic text, an Option<String>; Go's
   result semantics; catch_unwind in rt::recovering; deferred bodies keep
-  the no-panic rule
+  the no-panic rule. Implemented: testdata/golden/recover
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-28
 - **Discussion:** the pull request that adds this file

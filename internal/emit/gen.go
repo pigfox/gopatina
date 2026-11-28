@@ -97,6 +97,7 @@ type gen struct {
 	nils       map[ast.Expr]types.Type // the type each untyped nil stands for
 	hoisted    map[ast.Expr]string     // arguments computed into a variable first
 	litNames   map[*ast.FuncLit]string // function literals bound before their statement (RFC 0018)
+	bareIf     *ast.IfStmt             // if x := ...; c {...}, a closure body's only statement
 	hoistedIdx map[ast.Expr]string     // assignment indexes computed into a variable first
 	letTypes   []string                // the types of a tuple let, when Rust cannot infer them
 	// Go comments, written where they stand in the Go source.

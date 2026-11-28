@@ -10,6 +10,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **recover, RFC 0020.** `defer func() { if r := recover(); r != nil { ... } }()`
+  stops a panic: the function runs its body under `rt::recovering`
+  (`catch_unwind`) and returns as Go's does after a recovered panic, named
+  results as they are, printing nothing. The panic hook is installed once
+  and is silent; emitted crates always unwind, checked by a test.
+  `testdata/golden/recover` covers Go by Example's recover and more.
 - **Math functions as function values.** `compute(math.Pow)` passes
   `rt::pow`, the runtime function a call of `math.Pow` uses, so the result
   is Go's bit for bit; `Log`, `Exp`, `Sin`, `Cos`, `Sqrt`, `Floor`, `Ceil`

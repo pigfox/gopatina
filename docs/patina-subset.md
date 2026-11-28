@@ -100,6 +100,17 @@ and no calls but `fmt.Print`, `Println`, `Printf`, the `Sprint` family,
 `math` and conversions between numbers. Deferring a literal with parameters
 or arguments is refused.
 
+**recover (RFC 0020).** `recover()` called directly by a deferred function
+literal stops the panic being recovered and returns its value, as `%v`
+prints it, or nil; it may be compared with nil, printed, or held in
+`r := recover()` for those. The function that defers it runs its body under
+`rt::recovering` (`catch_unwind`); after a recovered panic it returns as Go's
+does, its named results as they are and the zero value of an unnamed one,
+and prints nothing. Its results are numbers, bools, structs of them or
+unnamed strings; a program that recovers panics only with strings and
+errors, whose recovered values print as their panics do. `recover` anywhere
+else (where Go's returns nil) is refused.
+
 **Maps (RFC 0019, step 1).** A local variable of type `map[K]V`, with `K` a
 string, an integer or a bool and `V` a number, a bool or a string, made where
 it is declared by `make` (with a constant size, or none) or a map literal, is
@@ -144,8 +155,8 @@ a body (assembly), and complex numbers.
 booleans run as in Go: their arguments are evaluated at the `defer`
 statement, and the prints run last first when the function returns, also
 when a panic unwinds through it, before Go's panic message; `os.Exit` skips
-them. `recover`, and deferring a call other than a print or a function literal
-(Deferred closures, below), are not supported yet.
+them. Deferring a call other than a print or a function literal (Deferred
+closures, below) is not supported yet; `recover` is (below).
 
 Float arithmetic gives the bits of the default `go build` for the same
 target, also where gc fuses a multiply and an add into one rounding (arm64,

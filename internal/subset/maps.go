@@ -188,21 +188,8 @@ func mapCallArg(info *types.Info, call *ast.CallExpr) bool {
 	case *ast.Ident:
 		b, ok := info.Uses[f].(*types.Builtin)
 		return ok && (b.Name() == "delete" || b.Name() == "len")
-	case *ast.SelectorExpr:
-		id, ok := f.X.(*ast.Ident)
-		if !ok {
-			return false
-		}
-		pn, ok := info.Uses[id].(*types.PkgName)
-		if !ok || pn.Imported().Path() != "fmt" {
-			return false
-		}
-		switch f.Sel.Name {
-		case "Print", "Println", "Printf", "Sprint", "Sprintln", "Sprintf":
-			return true
-		}
 	}
-	return false
+	return printCall(info, call)
 }
 
 // mapUpdateProblem checks m[k] op= v or m[k]++ of a map element: step 1

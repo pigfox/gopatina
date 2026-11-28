@@ -288,6 +288,9 @@ func (g *gen) builtin(e *ast.CallExpr, name string) node {
 			}
 		}
 		return out
+	case "recover":
+		g.rt["recovering"] = true
+		return text("rt::recover()") // RFC 0020
 	case "make":
 		if isMapType(g.typeOf(e)) {
 			g.rt["Map"] = true
@@ -621,6 +624,11 @@ func (g *gen) formatVerbs(macro string, writer ast.Expr, verbs []subset.Verb, op
 func (g *gen) verb(v subset.Verb, e ast.Expr) (spec string, arg node, lit string) {
 	t := g.typeOf(e)
 	tv := g.info.Types[e]
+	if subset.IsRecoverValue(g.pkg, e) {
+		// recover's value, an Option<String> (RFC 0020).
+		g.rt["recovering"] = true
+		return "{}", &call{head: "rt::show_recovered", open: "(", close: ")", args: []node{g.recoverRef(e)}}, ""
+	}
 	if subset.IsIface(t) && !isErrorType(t) {
 		return "{}", g.ifaceVerb(v.Verb, e), "" // RFC 0012: plain %v and %T
 	}

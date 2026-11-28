@@ -35,3 +35,4 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-28 | package-level maps and struct values, step 2 of RFC 0019: gotour/moretypes/map-literals and map-literals-continued now match | 137 | 53 | 57 (41.6%) | 57 (41.6%) | 57 (41.6%) | 0 |
 | 2026-11-28 | range over a map, step 3 of RFC 0019: no program matches yet; the corpus programs that range over a map print in its order (skipped) or need more (gobyexample/maps: clear and maps.Equal) | 137 | 53 | 57 (41.6%) | 57 (41.6%) | 57 (41.6%) | 0 |
 | 2026-11-28 | math functions as function values: gotour/moretypes/function-values now matches | 137 | 53 | 58 (42.3%) | 58 (42.3%) | 58 (42.3%) | 0 |
+| 2026-11-28 | recover, RFC 0020: gobyexample/recover now matches | 137 | 53 | 59 (43.1%) | 59 (43.1%) | 59 (43.1%) | 0 |

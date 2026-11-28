@@ -280,6 +280,11 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	c.signature(d, sig)
 	c.loops = nil
 	c.body = d.Body
+	if obj, ok := c.pkg.Info.Defs[d.Name].(*types.Func); ok && Recovering(c.pkg)[obj] {
+		if what := recoveringFuncProblem(obj.Signature()); what != "" {
+			c.unsupported(d.Name, what)
+		}
+	}
 	c.mapMade, c.mapInits = mapMakes(c.pkg.Info, d.Body)
 	c.funcParamUses(d)
 	c.funcVarUses(d)
@@ -1012,7 +1017,17 @@ func (c *checker) builtin(e *ast.CallExpr, name string) {
 		}
 		c.typ(e, info.Types[e.Args[0]].Type, false)
 		c.exprs(e.Args[1:])
+	case "recover":
+		if c.inClosure == nil || Deferred(c.pkg)[c.inClosure] == nil {
+			c.unsupported(e, "recover other than directly in a deferred function literal (it returns nil there; RFC 0020)")
+		}
 	case "panic":
+		if len(Recovering(c.pkg)) > 0 {
+			if what := recoveredPanicProblem(info, e); what != "" {
+				c.unsupported(e, what)
+				return
+			}
+		}
 		// Go prints a string; an error's Error() (Go's PanicNilError text
 		// for a nil error); a Stringer's String(); a named string type as
 		// T("s"). Other values print by the runtime's own rules, not yet.

@@ -63,6 +63,9 @@ func (c *checker) deferredClosure(s *ast.DeferStmt, cl *Closure, body *ast.Block
 	if what == "" {
 		what = mayPanic(c.pkg.Info, cl.Lit.Body)
 	}
+	if what == "" {
+		what = recoverUseProblem(c.pkg, cl.Lit) // RFC 0020
+	}
 	if what != "" {
 		c.unsupported(cl.Lit, what)
 		return
@@ -178,6 +181,9 @@ func divides(info *types.Info, op token.Token, y ast.Expr) bool {
 // safeCall reports whether call, in a deferred closure, cannot panic: a
 // print, or a function of math, or a conversion between number types.
 func safeCall(info *types.Info, call *ast.CallExpr) bool {
+	if isRecover(info, call) {
+		return true // RFC 0020
+	}
 	if tv := info.Types[call.Fun]; tv.IsType() {
 		b, ok := tv.Type.Underlying().(*types.Basic)
 		return ok && b.Info()&types.IsNumeric != 0

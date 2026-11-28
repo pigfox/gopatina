@@ -127,6 +127,11 @@ func TestDifferential(t *testing.T) {
 					want.code, want.stdout, stderrLine(want.stderr),
 					got.code, got.stdout, stderrLine(got.stderr))
 			}
+			if want.stderr == "" && got.stderr != "" {
+				// A recovered panic prints nothing (RFC 0020): Rust's
+				// default hook would print before catch_unwind stops it.
+				t.Errorf("Go prints nothing on standard error, patina prints:\n%s", got.stderr)
+			}
 		})
 	}
 }
