@@ -1,8 +1,17 @@
 # RFC 0002: Concurrency in patina mode
 
-- **Status:** Draft, revised 2026-11-28 into decisions for the project lead
-  (the first draft, 2026-11-16, chose Tokio before RFCs 0017 to 0020; its
-  analysis is kept under "Rationale and alternatives")
+- **Status:** Accepted (2026-11-28), with the recommended option on each
+  of the seven decisions below and the three conditions under "Conditions
+  of acceptance". The coordinator decided for the project lead, under his
+  standing order of 2026-11-27: "Stop telling me what to do. Just get it
+  done, okay?" The decisions: OS threads; rt::Chan on Mutex and Condvar
+  with Go's exact semantics; values move into goroutines and through
+  channels; select uniformly random among ready cases; a Mutex owns the
+  fields it guards, accessed only between Lock and Unlock in one function;
+  deadlock detected, with Go's fatal message and exit 2; a goroutine panic
+  ends the program with exit 2. (The first draft, 2026-11-16, chose Tokio
+  before RFCs 0017 to 0020; its analysis is kept under "Rationale and
+  alternatives".)
 - **Author(s):** Peter Sjolin; revised by GoPatina contributors
 - **Created:** 2026-11-16
 - **Discussion:** this file's pull request, and issues labelled `rfc`
@@ -20,8 +29,8 @@ a channel is `rt::Chan<T>`, a small runtime type on `std::sync::Mutex` and
 Go does. Emitted crates stay on the standard library alone. Under RFC 0017's
 rule, a value a goroutine uses is moved into it, and a value sent on a
 channel is moved into the receiver: the borrow checker turns Go's data races
-into compile errors in Go's terms. Seven decisions are for the project lead;
-each has a recommended option.
+into compile errors in Go's terms. The seven decisions below were made with
+the recommended option on each (see Status).
 
 ## Motivation
 
@@ -142,8 +151,32 @@ first: the goldens print only results that are the same in any schedule
 (sums, collected and sorted values, results received in a fixed order from
 per-goroutine channels), progen writes no goroutines, and the parity corpus
 keeps skipping the programs whose Go output varies between runs. Step 1
-adds to the differential test that a golden which starts goroutines runs
-several times, in Go and in Rust, so a schedule-dependent golden is caught.
+adds to the differential test that a golden which starts goroutines runs 20
+times, in Go and in Rust (condition 3), so a schedule-dependent golden is
+caught.
+
+## Conditions of acceptance
+
+Each is written into the implementation and tested.
+
+1. **No new dependency.** Steps 1 and 2 add no crate dependency: the
+   runtime is `std::thread`, `std::sync` and `rt::`. If one ever looks
+   necessary, it goes back to the project lead first.
+2. **Deadlock detection never fires falsely.** A goroutine blocked in
+   `time.Sleep`, on a timer (`time.After`, a ticker), or on I/O is not
+   asleep in Go's sense: it wakes on its own. Only goroutines blocked on a
+   channel operation, a `select` without `default` whose channels are all
+   blocked, or `WaitGroup.Wait` count as asleep; the message is printed only
+   when every goroutine, `main` included, is in one of those. A golden proves
+   each case that must not fire: a program that is merely slow (a long
+   computation while another goroutine waits for it), one whose goroutines
+   wait on `time.Sleep` and on a timer while the others block, and one
+   blocked reading its standard input while the others wait (if step 1
+   supports reading input; otherwise when it is added). A golden that does
+   deadlock checks Go's message and exit status.
+3. **No flakes.** CI runs every golden that starts goroutines 20 times, in
+   Go and in Rust, and treats any run whose output, standard error or exit
+   status differs as a defect, never a retry.
 
 ## Compatibility
 
