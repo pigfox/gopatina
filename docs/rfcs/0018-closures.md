@@ -1,6 +1,14 @@
 # RFC 0018: Closures and function values
 
-- **Status:** Draft
+- **Status:** Accepted (2026-11-27), with the recommended option on each
+  of the four decisions below. The coordinator decided for the project
+  lead, under his standing order of that day: "Stop telling me what to do.
+  Just get it done, okay?" The decisions: escaping closures move their
+  captures; copying a function value moves it; a closure that captures
+  only itself is a nested fn; function-typed parameters are generic
+  `impl Fn`. Implementation in five steps, each its own pull request:
+  non-escaping closures; function-typed parameters; escaping closures and
+  function-typed variables; recursive closures; defer of a closure
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-27
 - **Discussion:** the pull request that adds this file
@@ -16,8 +24,8 @@ outlives them (returned, stored, sent on) owns them: they move into it, and
 using one in the enclosing function afterwards is an error that says so. A
 function value copied with `g := f` is moved, as a pointer is. A closure
 that calls only itself, through the variable that holds it, is a nested
-function. Four decisions are for the project lead; each has a recommended
-option.
+function. The four decisions below were made with the recommended option
+on each (see Status).
 
 ## Motivation
 
