@@ -79,7 +79,12 @@ func (g *gen) funcArg(a ast.Expr) node {
 func (g *gen) fnTrait(sig *types.Signature, mut bool) string {
 	var ps []string
 	for i := 0; i < sig.Params().Len(); i++ {
-		ps = append(ps, g.rustType(sig.Params().At(i).Type()))
+		t := sig.Params().At(i).Type()
+		if isStringType(t) {
+			ps = append(ps, "&str") // a closure borrows a string it is passed
+			continue
+		}
+		ps = append(ps, g.rustType(t))
 	}
 	trait := "impl Fn("
 	if mut {
@@ -209,7 +214,7 @@ func (g *gen) closureParams(fn *borrow.Func) []string {
 		if p.Mut {
 			pname = "mut " + pname
 		}
-		params = append(params, pname+": "+g.rustType(p.Var.Type()))
+		params = append(params, pname+": "+g.paramType(p.Var.Type(), p.Mode))
 	}
 	return params
 }

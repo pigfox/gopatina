@@ -148,8 +148,8 @@ func closureBodyProblem(pkg *load.Package, cl *Closure) string {
 		return "a function literal with a ... parameter"
 	}
 	for i := 0; i < sig.Params().Len(); i++ {
-		if !isCopyBasic(sig.Params().At(i).Type()) {
-			return fmt.Sprintf("a function literal with a parameter of type %s (step 1 of RFC 0018 takes numbers and bools)", sig.Params().At(i).Type())
+		if t := sig.Params().At(i).Type(); !isCopyBasic(t) && !isString(t) {
+			return fmt.Sprintf("a function literal with a parameter of type %s (RFC 0018 takes numbers, bools and strings)", sig.Params().At(i).Type())
 		}
 	}
 	switch r := sig.Results(); {
@@ -161,8 +161,8 @@ func closureBodyProblem(pkg *load.Package, cl *Closure) string {
 		return fmt.Sprintf("a function literal with a result of type %s (step 1 of RFC 0018 takes numbers, bools and strings)", r.At(0).Type())
 	}
 	for _, v := range cl.Captures {
-		if !isCopyBasic(v.Type()) {
-			return fmt.Sprintf("a function literal that uses %s, of type %s, from its enclosing function (step 1 of RFC 0018 takes numbers and bools)", v.Name(), v.Type())
+		if !isCopyBasic(v.Type()) && !isString(v.Type()) {
+			return fmt.Sprintf("a function literal that uses %s, of type %s, from its enclosing function (RFC 0018 takes numbers, bools and strings)", v.Name(), v.Type())
 		}
 	}
 	what := ""

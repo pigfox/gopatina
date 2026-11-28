@@ -118,8 +118,31 @@ func (w *walker) simple(s ast.Stmt) {
 				w.read(r) // a borrow of the input lent back (RFC 0017, decision 4)
 				continue
 			}
+			if lit, ok := ast.Unparen(r).(*ast.FuncLit); ok {
+				w.movedCaptures(lit)
+			}
 			w.consume(r, "a return", nil)
 		}
+	}
+}
+
+// movedCaptures records that lit, a returned function literal (RFC 0018,
+// step 3), moves in what it captures: a string it uses is consumed there,
+// so a parameter it captures is owned, which the returned closure can keep.
+func (w *walker) movedCaptures(lit *ast.FuncLit) {
+	cl := subset.Returned(w.a.pkg)[lit]
+	for _, v := range cl.Captures {
+		if KindOf(v.Type()) == Copy {
+			continue
+		}
+		found := false
+		ast.Inspect(lit.Body, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok && !found && w.info().Uses[id] == v {
+				w.consume(id, "a returned function literal", nil)
+				found = true
+			}
+			return !found
+		})
 	}
 }
 

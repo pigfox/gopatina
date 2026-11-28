@@ -17,6 +17,9 @@ type analyzer struct {
 	params   map[*types.Var]*Param
 	pointers map[*types.Var]*Pointer
 	refs     map[*types.Var]bool // range variables bound to a borrowed element
+	// captures are, for each closure's Func, the variables of its enclosing
+	// function it uses (RFC 0018).
+	captures map[*Func]map[*types.Var]bool
 	res      *Result
 	diags    map[token.Pos]diag.Diagnostic
 	fixes    map[token.Pos]Fix
@@ -78,7 +81,22 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		obj := types.NewFunc(cl.Lit.Pos(), pkg.Types, "closure", sig)
 		fd := &ast.FuncDecl{Name: &ast.Ident{Name: obj.Name(), NamePos: cl.Lit.Pos()}, Type: cl.Lit.Type, Body: cl.Lit.Body}
 		fn := a.declare(fd, obj)
+		for _, p := range fn.Params {
+			// A function literal borrows a string it is passed, so that every
+			// closure fits impl Fn(&str); one it keeps is copied there.
+			if KindOf(p.Var.Type()) == Value && !subset.IsIface(p.Var.Type()) {
+				p.lent = true
+				p.Mode = p.mode()
+			}
+		}
 		a.res.Lits[cl.Lit] = fn
+		if a.captures == nil {
+			a.captures = map[*Func]map[*types.Var]bool{}
+		}
+		a.captures[fn] = map[*types.Var]bool{}
+		for _, v := range cl.Captures {
+			a.captures[fn][v] = true
+		}
 		if cl.Var != nil {
 			a.res.Closures[cl.Var] = fn
 		}
@@ -205,6 +223,9 @@ func (p *Param) mode() Mode {
 		if p.changesShared || p.changesFields {
 			return RefMut
 		}
+		return Ref
+	}
+	if p.lent {
 		return Ref
 	}
 	switch p.Kind {

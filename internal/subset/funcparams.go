@@ -133,8 +133,8 @@ func funcTypeProblem(sig *types.Signature) string {
 		return "a parameter of function type with a ... parameter"
 	}
 	for i := 0; i < sig.Params().Len(); i++ {
-		if !isCopyBasic(sig.Params().At(i).Type()) {
-			return fmt.Sprintf("a parameter of function type taking %s (step 2 of RFC 0018 takes numbers and bools)", sig.Params().At(i).Type())
+		if t := sig.Params().At(i).Type(); !isCopyBasic(t) && !isString(t) {
+			return fmt.Sprintf("a parameter of function type taking %s (RFC 0018 takes numbers, bools and strings)", t)
 		}
 	}
 	if r := sig.Results(); r.Len() > 1 || r.Len() == 1 && !isCopyBasic(r.At(0).Type()) && !isString(r.At(0).Type()) {

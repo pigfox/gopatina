@@ -10,6 +10,12 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Closures over strings (RFC 0018).** Function literals take string
+  parameters (as `&str`, so every closure fits `impl Fn(&str)`), use and
+  change strings of their enclosing function, and return strings; what a
+  closure keeps or hands on is copied, and a returned closure owns the
+  strings it uses. `testdata/golden/closures_strings` covers local, passed
+  and returned closures.
 - **recover, RFC 0020.** `defer func() { if r := recover(); r != nil { ... } }()`
   stops a panic: the function runs its body under `rt::recovering`
   (`catch_unwind`) and returns as Go's does after a recovered panic, named

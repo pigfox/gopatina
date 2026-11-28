@@ -96,6 +96,11 @@ func inLoop(body *ast.BlockStmt, s ast.Stmt) bool {
 // the closure runs with copies made at s.
 func deferredUseProblem(info *types.Info, cl *Closure, s *ast.DeferStmt, body *ast.BlockStmt) string {
 	for _, v := range cl.Captures {
+		if !isCopyBasic(v.Type()) {
+			return fmt.Sprintf("a deferred function literal that uses %s, of type %s (it would be moved in; step 5 of RFC 0018 takes numbers and bools)", v.Name(), v.Type())
+		}
+	}
+	for _, v := range cl.Captures {
 		if cl.Writes[v] {
 			return fmt.Sprintf("a deferred function literal that changes %s, of its enclosing function (step 5 of RFC 0018)", v.Name())
 		}
