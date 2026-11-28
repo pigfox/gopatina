@@ -1,6 +1,13 @@
 # RFC 0020: recover
 
-- **Status:** Draft
+- **Status:** Accepted (2026-11-28), with the recommended option on each
+  of the five decisions below and the three conditions under
+  "Conditions of acceptance". The coordinator decided for the project
+  lead, under his standing order of 2026-11-27: "Stop telling me what to
+  do. Just get it done, okay?" The decisions: recover only directly in a
+  deferred literal; its value is Go's panic text, an Option<String>; Go's
+  result semantics; catch_unwind in rt::recovering; deferred bodies keep
+  the no-panic rule
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-28
 - **Discussion:** the pull request that adds this file
@@ -15,8 +22,8 @@ function that defers such a literal runs its body under
 unwinds to it, runs the deferred calls, and `recover()` in one of them
 returns the panic's value and stops the panic: the function then returns
 normally, as Go does: each named result with the value it has, and the
-zero value for an unnamed one. Five decisions are
-for the project lead; each has a recommended option.
+zero value for an unnamed one. The five decisions below were made with the
+recommended option on each (see Status).
 
 ## Motivation
 
@@ -126,6 +133,36 @@ literal's body may not do anything that can panic, since Rust aborts on a
 panic while one unwinds. With `rt::recovering`, the deferred calls of a
 recovering function run after `catch_unwind` returns, not during the unwind,
 so the rule could be relaxed there; this RFC keeps it (decision 5).
+
+## Conditions of acceptance
+
+Each is written into the implementation and tested.
+
+1. **A recovered panic prints nothing.** Rust's panic hook runs before
+   `catch_unwind` catches the unwind, and the default one prints
+   "thread 'main' panicked at ..." to standard error; Go prints nothing for
+   a recovered panic. The runtime installs a hook that records the panic's
+   text and prints nothing (as `rt::run_main`'s hook already does), so
+   standard error stays empty unless the panic reaches `rt::run_main`, which
+   prints Go's message. A golden program that recovers checks that its
+   standard error is empty and its exit status 0.
+2. **Emitted crates always unwind.** `catch_unwind` cannot catch a panic
+   under `panic = "abort"`, and neither can `rt::Defers` run deferred calls.
+   Every profile of an emitted `Cargo.toml` keeps the default, `unwind`; a
+   test fails if any profile, in any golden crate or any crate the emitter
+   writes, sets `panic = "abort"`.
+3. **AssertUnwindSafe is sound here.** The body closure borrows the
+   function's state, its named results and, through its parameters, its
+   caller's, so it is not `UnwindSafe`, and `rt::recovering` wraps it in
+   `AssertUnwindSafe`. That marker is not about memory safety (a panic
+   never leaves memory unsafe in Rust; a `RefCell`'s borrow flag, for one,
+   is reset as its guard drops while unwinding); it warns that a value may
+   be seen half-changed after a panic. That is Go's behaviour exactly:
+   after a recovered panic, Go code sees whatever the body had changed
+   before the panic, in its named results and through its pointers, and
+   nothing else. Patina mode exposes the same, and only that: the named
+   results (decision 3) and the deferred literal's own copies (RFC 0018,
+   step 5); the body's locals are gone with its closure.
 
 ## Compatibility
 
