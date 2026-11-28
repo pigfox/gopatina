@@ -310,7 +310,7 @@ What each GoPatina release supports is stated here and in its release notes
 
 | GoPatina | Go | Rust stable | Rust MSRV | Rust edition |
 | --- | --- | --- | --- | --- |
-| `main` (Phase 1, unreleased) | the two latest releases (stable, oldstable) | emitted crates pin 1.93.0; CI also tests the latest stable | 1.85 | 2024 |
+| `main` (Phase 1, unreleased) | the two latest releases (stable, oldstable) | emitted crates pin 1.100.1; CI also tests the latest stable | 1.85 | 2024 |
 
 Default mode works with any Go release, because it runs your installed `go`.
 Patina modes refuse Go features they do not support yet, naming the feature

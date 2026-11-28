@@ -246,7 +246,7 @@ an error type that has an `As` method.
 | --- | --- |
 | `Cargo.toml` | edition 2024, `rust-version = "1.85"`, no dependencies, the reproducible release profile (`codegen-units = 1`, `debug = false`, `strip = true`, `incremental = false`) |
 | `Cargo.lock` | for `--locked` |
-| `rust-toolchain.toml` | Rust 1.93.0, minimal profile, the target |
+| `rust-toolchain.toml` | Rust 1.100.1, minimal profile, the target |
 | `.cargo/config.toml` | the explicit target (from `GOOS`/`GOARCH`) |
 | `src/main.rs` | the program, with the Go comments |
 | `src/rt.rs` | the runtime support it uses, and nothing else |
