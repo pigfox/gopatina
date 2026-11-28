@@ -47,7 +47,7 @@ jobs:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: .go-version
       - name: build gopatina and gopatina-difftest
         run: |
           go build -o "$RUNNER_TEMP/gopatina" ./cmd/gopatina

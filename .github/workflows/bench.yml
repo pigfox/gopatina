@@ -49,7 +49,7 @@ jobs:
       - uses: actions/setup-go@v7
         if: steps.cases.outputs.ready == 'true'
         with:
-          go-version: stable
+          go-version-file: .go-version
 
       - name: Install the latest stable Rust
         if: steps.cases.outputs.ready == 'true'

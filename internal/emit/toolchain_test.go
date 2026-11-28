@@ -22,6 +22,7 @@ type toolchainFile struct {
 	} `json:"rust"`
 	Go struct {
 		Module string `json:"module"`
+		Pinned string `json:"pinned"`
 	} `json:"go"`
 }
 
@@ -37,10 +38,19 @@ func readToolchain(t *testing.T) toolchainFile {
 	if err := dec.Decode(&tc); err != nil {
 		t.Fatalf("toolchain.json: %v", err)
 	}
-	if tc.Rust.Pinned == "" || tc.Rust.MSRV == "" || tc.Rust.Edition == "" || tc.Go.Module == "" {
+	if tc.Rust.Pinned == "" || tc.Rust.MSRV == "" || tc.Rust.Edition == "" || tc.Go.Module == "" || tc.Go.Pinned == "" {
 		t.Fatalf("toolchain.json: every field must be set: %+v", tc)
 	}
 	return tc
+}
+
+// goVersionFile is how actions/setup-go spells Go release p in
+// .go-version: 1.27.4 as it is, a release candidate 1.28rc1 as 1.28.0-rc.1.
+func goVersionFile(p string) string {
+	if major, rc, ok := strings.Cut(p, "rc"); ok {
+		return major + ".0-rc." + rc
+	}
+	return p
 }
 
 // field returns the value of the first `key = "value"` line in a TOML file.
@@ -50,6 +60,14 @@ func field(data []byte, key string) string {
 		return ""
 	}
 	return string(m[1])
+}
+
+func TestGoVersionFile(t *testing.T) {
+	for in, want := range map[string]string{"1.27.4": "1.27.4", "1.28rc1": "1.28.0-rc.1", "1.28rc12": "1.28.0-rc.12"} {
+		if got := goVersionFile(in); got != want {
+			t.Errorf("goVersionFile(%q) = %q, want %q", in, got, want)
+		}
+	}
 }
 
 func TestToolchainDrift(t *testing.T) {
@@ -107,6 +125,32 @@ func TestToolchainDrift(t *testing.T) {
 		t.Errorf("go.mod's go directive is not toolchain.json go.module = %q", tc.Go.Module)
 	}
 
+	// CI's Go is the pinned one (actions/setup-go reads .go-version), and
+	// the fusion sites gc reported were recorded with it.
+	gv, err := os.ReadFile(filepath.Join(root(), ".go-version"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.TrimSpace(string(gv)), goVersionFile(tc.Go.Pinned); got != want {
+		t.Errorf(".go-version = %q, toolchain.json go.pinned %q wants %q", got, tc.Go.Pinned, want)
+	}
+	sites, err := filepath.Glob(filepath.Join(root(), "testdata", "golden", "*", "fma-sites.txt"))
+	if err != nil || len(sites) == 0 {
+		t.Fatalf("no fma-sites.txt: %v", err)
+	}
+	for _, f := range sites {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.HasPrefix(line, "# go") && !strings.HasPrefix(line, "# go"+tc.Go.Pinned+" ") {
+				rel, _ := filepath.Rel(root(), f)
+				t.Errorf("%s records %q, not go.pinned go%s (go test ./internal/patina -run TestFMASites -update-fma-sites)", rel, line, tc.Go.Pinned)
+			}
+		}
+	}
+
 	// The workflows read toolchain.json; none writes a version of its own.
 	flows, err := filepath.Glob(filepath.Join(root(), ".github", "workflows", "*.yml"))
 	if err != nil {
@@ -117,7 +161,7 @@ func TestToolchainDrift(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, v := range []string{tc.Rust.Pinned, `"` + tc.Rust.MSRV + `"`} {
+		for _, v := range []string{tc.Rust.Pinned, `"` + tc.Rust.MSRV + `"`, "go-version: " + tc.Go.Pinned, "go-version: \"" + tc.Go.Pinned} {
 			if bytes.Contains(data, []byte(v)) {
 				t.Errorf("%s names %s; read it from toolchain.json instead", filepath.Base(f), v)
 			}

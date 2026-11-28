@@ -119,6 +119,17 @@ FMA, the toolchain matrix and clippy, the difftest on amd64 and arm64, and
 the benchmarks), and, for stable, opens a pull request when they pass. A
 failed gate opens an issue.
 
+**Go's pin.** CI's Go is pinned too (toolchain.json `go.pinned`, and
+`.go-version`, which actions/setup-go reads), except in the Go stable and
+oldstable matrix and the canaries. It matters because the sites where gc
+fuses a multiply-add depend on the release: the `fma-sites.txt` records
+are gc's, from the pinned release, so TestFMASites compares them exactly.
+`scripts/go-bump.sh <release>` rewrites the pin and the records. Daily,
+the bump workflow's `go-stable` channel tries the newest Go release through
+every gate and opens a pull request when they pass. Its `go-rc` channel
+tries each new release candidate (go1.28rc1 first) and files an issue with
+the result either way, so a change in gc is known before the release.
+
 ## Drawbacks
 
 - Two release cadences to follow; the 4-week Go target is a commitment of
