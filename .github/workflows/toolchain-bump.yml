@@ -30,6 +30,17 @@ on:
     - cron: "53 5 * * 2" # Tuesdays 05:53 UTC: Rust beta
     - cron: "17 4 * * *" # daily 04:17 UTC: Go stable
     - cron: "47 4 * * *" # daily 04:47 UTC: Go release candidate
+  # A pull request that changes the bump runs it as a dry run: the same
+  # jobs, checkouts and setup-go steps, on the pull request's own tree,
+  # with small difftests and benchmarks. It pushes nothing, opens no pull
+  # request and files no issue; open-pr writes the body it would have
+  # opened to the job summary.
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/toolchain-bump.yml
+      - scripts/toolchain-bump.sh
+      - scripts/go-bump.sh
   workflow_dispatch:
     inputs:
       channel:
@@ -42,7 +53,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: toolchain-bump-${{ inputs.channel || github.event.schedule }}
+  group: toolchain-bump-${{ inputs.channel || github.event.schedule || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -61,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
       - uses: actions/setup-go@v7
         with:
           go-version-file: .go-version
@@ -134,7 +145,20 @@ jobs:
           CHANNEL: ${{ steps.pick.outputs.channel }}
           PIN: ${{ steps.pick.outputs.pin }}
           OLD: ${{ steps.pick.outputs.old }}
+          DRY: ${{ github.event_name == 'pull_request' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          if [ "$DRY" = true ]; then
+            # The script ran above; its changes stay here. The gates run on
+            # the pull request's own commit, which exists on the remote.
+            git diff --stat
+            {
+              echo "branch=dry-run"
+              echo "sha=$HEAD_SHA"
+              echo "base=$(git ls-remote origin refs/heads/main | cut -f1)"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if git diff --quiet; then
             echo "Already pinned to $PIN; nothing to try."
             echo "branch=" >> "$GITHUB_OUTPUT"
@@ -166,14 +190,15 @@ jobs:
 
   ci:
     needs: prepare
-    if: needs.prepare.outputs.branch != ''
+    # A dry run skips it: the pull request's own CI runs it.
+    if: needs.prepare.outputs.branch != '' && !(github.event_name == 'pull_request')
     uses: ./.github/workflows/ci.yml
     with:
       ref: ${{ needs.prepare.outputs.sha }}
 
   toolchains:
     needs: prepare
-    if: needs.prepare.outputs.branch != ''
+    if: needs.prepare.outputs.branch != '' && !(github.event_name == 'pull_request')
     permissions:
       contents: read
       issues: write
@@ -210,8 +235,10 @@ jobs:
         # shipped: GoPatina's crate is built with the toolchain it pins, the
         # hand-written one with stable, so only the pin differs between runs.
         run: |
-          (cd old && bench/run.sh --toolchain shipped --out "$RUNNER_TEMP/old.json")
-          (cd new && GOTOOLCHAIN="go$(jq -r .go.pinned toolchain.json)" bench/run.sh --toolchain shipped --out "$RUNNER_TEMP/new.json")
+          runs=()
+          if [ "${{ github.event_name == 'pull_request' }}" = true ]; then runs=(--runs 1); fi
+          (cd old && bench/run.sh --toolchain shipped "${runs[@]}" --out "$RUNNER_TEMP/old.json")
+          (cd new && GOTOOLCHAIN="go$(jq -r .go.pinned toolchain.json)" bench/run.sh --toolchain shipped "${runs[@]}" --out "$RUNNER_TEMP/new.json")
       - name: Compare (a ratio 5% worse is flagged)
         env:
           OLD: ${{ needs.prepare.outputs.old }}
@@ -243,8 +270,8 @@ jobs:
     uses: ./.github/workflows/difftest-arm64.yml
     with:
       ref: ${{ needs.prepare.outputs.sha }}
-      programs: "400"
-      per: "200"
+      programs: ${{ github.event_name == 'pull_request' && '20' || '400' }}
+      per: ${{ github.event_name == 'pull_request' && '10' || '200' }}
       strict: true
 
   difftest-amd64:
@@ -267,13 +294,17 @@ jobs:
         # fails the gate, as on arm64.
         run: |
           go build -o "$RUNNER_TEMP/gopatina" ./cmd/gopatina
-          go run ./cmd/gopatina-difftest -seed 1 -start 0 -programs 400 -per 200 -jobs 3 \
+          n=400 per=200
+          if [ "${{ github.event_name == 'pull_request' }}" = true ]; then n=20 per=10; fi
+          go run ./cmd/gopatina-difftest -seed 1 -start 0 -programs "$n" -per "$per" -jobs 3 \
             -gopatina "$RUNNER_TEMP/gopatina"
 
   open-pr:
     name: open the pull request
     needs: [prepare, ci, toolchains, bench-compare, difftest-arm64, difftest-amd64]
-    if: needs.prepare.outputs.branch != '' && (needs.prepare.outputs.channel == 'stable' || needs.prepare.outputs.channel == 'go-stable')
+    if: >-
+      !failure() && !cancelled() && needs.prepare.outputs.branch != ''
+      && (needs.prepare.outputs.channel == 'stable' || needs.prepare.outputs.channel == 'go-stable')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -343,6 +374,12 @@ jobs:
             echo
             cat bench-compare.md
           } > body.md
+          if [ "${{ github.event_name == 'pull_request' }}" = true ]; then
+            echo "Dry run: the pull request it would open or update:" >> "$GITHUB_STEP_SUMMARY"
+            cat body.md >> "$GITHUB_STEP_SUMMARY"
+            cat body.md
+            exit 0
+          fi
           existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json number --jq '.[0].number')"
           if [ -n "$existing" ]; then
             gh pr edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file body.md
@@ -354,7 +391,7 @@ jobs:
   report-failure:
     name: open an issue on a failed gate
     needs: [prepare, ci, toolchains, bench-compare, difftest-arm64, difftest-amd64]
-    if: failure() && needs.prepare.outputs.channel != 'go-rc'
+    if: failure() && needs.prepare.outputs.channel != 'go-rc' && !(github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -377,7 +414,7 @@ jobs:
   report-rc:
     name: report the Go release candidate
     needs: [prepare, ci, toolchains, bench-compare, difftest-arm64, difftest-amd64]
-    if: always() && needs.prepare.outputs.channel == 'go-rc' && needs.prepare.outputs.branch != ''
+    if: always() && needs.prepare.outputs.channel == 'go-rc' && needs.prepare.outputs.branch != '' && !(github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     permissions:
       issues: write
