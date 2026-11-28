@@ -10,6 +10,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Sorting integers and strings.** `slices.Sort`, `slices.IsSorted`,
+  `sort.Ints`, `sort.Strings`, `sort.IntsAreSorted` and
+  `sort.StringsAreSorted` on slices of integers or strings are Rust's
+  `sort` and `is_sorted`. `testdata/golden/sorting` covers Go by Example's
+  sorting. Package `sort` is now importable.
 - **Closures over strings (RFC 0018).** Function literals take string
   parameters (as `&str`, so every closure fits `impl Fn(&str)`), use and
   change strings of their enclosing function, and return strings; what a

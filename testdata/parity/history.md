@@ -37,3 +37,4 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-28 | math functions as function values: gotour/moretypes/function-values now matches | 137 | 53 | 58 (42.3%) | 58 (42.3%) | 58 (42.3%) | 0 |
 | 2026-11-28 | recover, RFC 0020: gobyexample/recover now matches | 137 | 53 | 59 (43.1%) | 59 (43.1%) | 59 (43.1%) | 0 |
 | 2026-11-28 | closures over strings: no program matches yet; the corpus programs that need them also need filepath, slices.SortFunc, templates or sync | 137 | 53 | 59 (43.1%) | 59 (43.1%) | 59 (43.1%) | 0 |
+| 2026-11-28 | sorting integers and strings (slices.Sort, sort.Ints, sort.Strings and their checks): gobyexample/sorting now matches | 137 | 53 | 60 (43.8%) | 60 (43.8%) | 60 (43.8%) | 0 |
