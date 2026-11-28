@@ -56,6 +56,9 @@ func (g *gen) funcArg(a ast.Expr) node {
 	if lit, ok := ast.Unparen(a).(*ast.FuncLit); ok {
 		return lend(g.litNames[lit], subset.Inline(g.pkg)[lit])
 	}
+	if sel, ok := ast.Unparen(a).(*ast.SelectorExpr); ok {
+		return g.mathFuncValue(subset.MathFuncValue(g.info, sel))
+	}
 	// The checker allows only these and a function of the program.
 	id := ast.Unparen(a).(*ast.Ident)
 	if v, ok := g.info.Uses[id].(*types.Var); ok {

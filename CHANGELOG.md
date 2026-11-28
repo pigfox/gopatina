@@ -10,6 +10,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Math functions as function values.** `compute(math.Pow)` passes
+  `rt::pow`, the runtime function a call of `math.Pow` uses, so the result
+  is Go's bit for bit; `Log`, `Exp`, `Sin`, `Cos`, `Sqrt`, `Floor`, `Ceil`
+  and `Trunc` too. `testdata/golden/closures_math` is Go Tour's
+  function-values, whose closure gc fuses on arm64 and amd64 v3.
 - `scripts/gates.sh` runs every local gate (gofmt, vet, race tests with
   100% coverage, the Rust suites, the difftest and, with `--parity`, the
   parity run) with the Go release `.go-version` pins, through `GOTOOLCHAIN`,

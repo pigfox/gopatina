@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 53,
   "tested": 137,
-  "accepted": 57,
-  "compiled": 57,
-  "matched": 57,
-  "linted": 57,
-  "lint_clean": 55,
+  "accepted": 58,
+  "compiled": 58,
+  "matched": 58,
+  "linted": 58,
+  "lint_clean": 56,
   "rates": {
-    "accepted": 41.6,
-    "compiled": 41.6,
-    "lint_clean": 96.5,
-    "matched": 41.6
+    "accepted": 42.3,
+    "compiled": 42.3,
+    "lint_clean": 96.6,
+    "matched": 42.3
   },
   "skips": {
     "does not build with Go": 6,
@@ -642,15 +642,9 @@
       ]
     },
     {
-      "fingerprint": "a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported _ patina mode yet",
+      "fingerprint": "a function argument other than a function of the program, a closure, a function literal or a math function (RFC N) is not supported _ patina mode yet",
       "programs": [
         "gobyexample/regular-expressions"
-      ]
-    },
-    {
-      "fingerprint": "a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported in patina mode yet",
-      "programs": [
-        "gotour/moretypes/function-values"
       ]
     },
     {
@@ -1675,14 +1669,14 @@
       "name": "gobyexample/base64-encoding",
       "stage": "refused",
       "fingerprints": [
-        "package encoding/base64 is not supported in patina mode yet",
-        "calling a pointer-receiver method on a package-level variable is not supported in patina mode yet",
-        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
         "calls base64.URLEncoding, whose standard-library code patina mode does not support yet",
         "uses the standard package encoding/base64, which patina mode does not support yet",
         "calls base64.StdEncoding, whose standard-library code patina mode does not support yet",
         "calls base64.Encoding.EncodeToString, whose standard-library code patina mode does not support yet",
-        "calls base64.Encoding.DecodeString, whose standard-library code patina mode does not support yet"
+        "calls base64.Encoding.DecodeString, whose standard-library code patina mode does not support yet",
+        "package encoding/base64 is not supported in patina mode yet",
+        "calling a pointer-receiver method on a package-level variable is not supported in patina mode yet",
+        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet"
       ]
     },
     {
@@ -1751,7 +1745,6 @@
       "name": "gobyexample/command-line-flags",
       "stage": "refused",
       "fingerprints": [
-        "the address of _ kept where its object would have more than one owner is not supported in patina mode yet",
         "calls flag.Bool, whose standard-library code patina mode does not support yet",
         "calls flag.Parse, whose standard-library code patina mode does not support yet",
         "calls flag.Int, whose standard-library code patina mode does not support yet",
@@ -1761,16 +1754,14 @@
         "calls flag.String, whose standard-library code patina mode does not support yet",
         "uses the standard package iter, which patina mode does not support yet",
         "uses the standard package reflect, which patina mode does not support yet",
-        "uses the standard package unicode, which patina mode does not support yet"
+        "uses the standard package unicode, which patina mode does not support yet",
+        "the address of _ kept where its object would have more than one owner is not supported in patina mode yet"
       ]
     },
     {
       "name": "gobyexample/command-line-subcommands",
       "stage": "refused",
       "fingerprints": [
-        "os.Args is not supported in patina mode yet",
-        "a slice expression (s[i:j]) is not supported in patina mode yet",
-        "using the package-level variable Args this way (a copy of a slice or a map shares its elements) is not supported in patina mode yet",
         "calls flag.FlagSet.Bool, whose standard-library code patina mode does not support yet",
         "calls flag.FlagSet.Parse, whose standard-library code patina mode does not support yet",
         "calls flag.FlagSet.Int, whose standard-library code patina mode does not support yet",
@@ -1779,7 +1770,10 @@
         "calls flag.NewFlagSet, whose standard-library code patina mode does not support yet",
         "uses the standard package iter, which patina mode does not support yet",
         "uses the standard package reflect, which patina mode does not support yet",
-        "uses the standard package unicode, which patina mode does not support yet"
+        "uses the standard package unicode, which patina mode does not support yet",
+        "os.Args is not supported in patina mode yet",
+        "a slice expression (s[i:j]) is not supported in patina mode yet",
+        "using the package-level variable Args this way (a copy of a slice or a map shares its elements) is not supported in patina mode yet"
       ]
     },
     {
@@ -1805,34 +1799,34 @@
       "name": "gobyexample/defer",
       "stage": "refused",
       "fingerprints": [
+        "calls filepath.Join, whose standard-library code patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package path, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet",
         "os.TempDir is not supported in patina mode yet",
         "type os.File is not supported in patina mode yet",
         "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "_ is copied and kept, so its object has two owners",
         "os.Create is not supported in patina mode yet",
-        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
-        "calls filepath.Join, whose standard-library code patina mode does not support yet",
-        "uses the standard package io/fs, which patina mode does not support yet",
-        "uses the standard package path, which patina mode does not support yet",
-        "uses the standard package unicode/utf8, which patina mode does not support yet"
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet"
       ]
     },
     {
       "name": "gobyexample/directories",
       "stage": "refused",
       "fingerprints": [
+        "calls filepath.WalkDir, whose standard-library code patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "calls fs.DirEntry, whose standard-library code patina mode does not support yet",
+        "uses the standard package path, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet",
         "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "os.Mkdir is not supported in patina mode yet",
         "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "os.MkdirAll is not supported in patina mode yet",
         "os.ReadDir is not supported in patina mode yet",
-        "os.Chdir is not supported in patina mode yet",
-        "calls filepath.WalkDir, whose standard-library code patina mode does not support yet",
-        "uses the standard package io/fs, which patina mode does not support yet",
-        "calls fs.DirEntry, whose standard-library code patina mode does not support yet",
-        "uses the standard package path, which patina mode does not support yet",
-        "uses the standard package unicode/utf8, which patina mode does not support yet"
+        "os.Chdir is not supported in patina mode yet"
       ]
     },
     {
@@ -1884,7 +1878,6 @@
       "name": "gobyexample/file-paths",
       "stage": "refused",
       "fingerprints": [
-        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "calls filepath.Rel, whose standard-library code patina mode does not support yet",
         "calls filepath.Ext, whose standard-library code patina mode does not support yet",
         "calls filepath.Base, whose standard-library code patina mode does not support yet",
@@ -1893,7 +1886,8 @@
         "uses the standard package io/fs, which patina mode does not support yet",
         "calls filepath.Join, whose standard-library code patina mode does not support yet",
         "uses the standard package path, which patina mode does not support yet",
-        "uses the standard package unicode/utf8, which patina mode does not support yet"
+        "uses the standard package unicode/utf8, which patina mode does not support yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet"
       ]
     },
     {
@@ -1964,13 +1958,13 @@
       "name": "gobyexample/line-filters",
       "stage": "refused",
       "fingerprints": [
-        "converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet",
-        "os.Stdin is converted to an interface, so its object has two owners",
-        "os.Stdin is not supported in patina mode yet",
         "calls bufio.Scanner.Err, whose standard-library code patina mode does not support yet",
         "calls bufio.NewScanner, whose standard-library code patina mode does not support yet",
         "calls bufio.Scanner.Text, whose standard-library code patina mode does not support yet",
-        "calls bufio.Scanner.Scan, whose standard-library code patina mode does not support yet"
+        "calls bufio.Scanner.Scan, whose standard-library code patina mode does not support yet",
+        "converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet",
+        "os.Stdin is converted to an interface, so its object has two owners",
+        "os.Stdin is not supported in patina mode yet"
       ]
     },
     {
@@ -1982,10 +1976,10 @@
       "name": "gobyexample/maps",
       "stage": "refused",
       "fingerprints": [
-        "using the map _ other than by indexing it, passing it to delete or len, or printing it (it would be copied; step N of RFC N) is not supported in patina mode yet",
-        "the clear built-in (Go N.N) is not supported in patina mode yet",
         "uses the standard package iter, which patina mode does not support yet",
-        "calls maps.Equal, whose standard-library code patina mode does not support yet"
+        "calls maps.Equal, whose standard-library code patina mode does not support yet",
+        "using the map _ other than by indexing it, passing it to delete or len, or printing it (it would be copied; step N of RFC N) is not supported in patina mode yet",
+        "the clear built-in (Go N.N) is not supported in patina mode yet"
       ]
     },
     {
@@ -2028,25 +2022,25 @@
       "name": "gobyexample/number-parsing",
       "stage": "refused",
       "fingerprints": [
-        "printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "calls strconv.ParseFloat, whose standard-library code patina mode does not support yet",
         "calls strconv.Atoi, whose standard-library code patina mode does not support yet",
         "calls strconv.ParseUint, whose standard-library code patina mode does not support yet",
-        "calls strconv.ParseInt, whose standard-library code patina mode does not support yet"
+        "calls strconv.ParseInt, whose standard-library code patina mode does not support yet",
+        "printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet"
       ]
     },
     {
       "name": "gobyexample/panic",
       "stage": "refused",
       "fingerprints": [
-        "os.TempDir is not supported in patina mode yet",
-        "type os.File is not supported in patina mode yet",
-        "os.Create is not supported in patina mode yet",
-        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "calls filepath.Join, whose standard-library code patina mode does not support yet",
         "uses the standard package io/fs, which patina mode does not support yet",
         "uses the standard package path, which patina mode does not support yet",
-        "uses the standard package unicode/utf8, which patina mode does not support yet"
+        "uses the standard package unicode/utf8, which patina mode does not support yet",
+        "os.TempDir is not supported in patina mode yet",
+        "type os.File is not supported in patina mode yet",
+        "os.Create is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet"
       ]
     },
     {
@@ -2079,6 +2073,8 @@
       "name": "gobyexample/range-over-iterators",
       "stage": "refused",
       "fingerprints": [
+        "calls iter.Seq, whose standard-library code patina mode does not support yet",
+        "uses the standard package iter, which patina mode does not support yet",
         "_ generic type (Go N.N) is not supported in patina mode yet",
         "_ method on _ generic type (Go N.N) is not supported in patina mode yet",
         "_._ is copied and kept in _._, so its object has two owners",
@@ -2086,9 +2082,7 @@
         "_ result of function type: _ parameter of function type taking func(int) bool (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "range over _ function (Go N.N) is not supported in patina mode yet",
         "slices.Collect is not supported in patina mode yet",
-        "strings.SplitSeq is not supported in patina mode yet",
-        "calls iter.Seq, whose standard-library code patina mode does not support yet",
-        "uses the standard package iter, which patina mode does not support yet"
+        "strings.SplitSeq is not supported in patina mode yet"
       ]
     },
     {
@@ -2100,6 +2094,12 @@
       "name": "gobyexample/reading-files",
       "stage": "refused",
       "fingerprints": [
+        "calls bufio.Reader.Peek, whose standard-library code patina mode does not support yet",
+        "calls bufio.NewReader, whose standard-library code patina mode does not support yet",
+        "calls filepath.Join, whose standard-library code patina mode does not support yet",
+        "uses the standard package io/fs, which patina mode does not support yet",
+        "uses the standard package path, which patina mode does not support yet",
+        "uses the standard package unicode/utf8, which patina mode does not support yet",
         "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "os.TempDir is not supported in patina mode yet",
         "os.ReadFile is not supported in patina mode yet",
@@ -2110,13 +2110,7 @@
         "a slice expression (s[i:j]) is not supported in patina mode yet",
         "io.ReadAtLeast is not supported in patina mode yet",
         "converting a pointer to a type other than a named type of the program to an interface is not supported in patina mode yet",
-        "_ is converted to an interface while it is still used, so its object has two owners",
-        "calls bufio.Reader.Peek, whose standard-library code patina mode does not support yet",
-        "calls bufio.NewReader, whose standard-library code patina mode does not support yet",
-        "calls filepath.Join, whose standard-library code patina mode does not support yet",
-        "uses the standard package io/fs, which patina mode does not support yet",
-        "uses the standard package path, which patina mode does not support yet",
-        "uses the standard package unicode/utf8, which patina mode does not support yet"
+        "_ is converted to an interface while it is still used, so its object has two owners"
       ]
     },
     {
@@ -2136,9 +2130,6 @@
       "name": "gobyexample/regular-expressions",
       "stage": "refused",
       "fingerprints": [
-        "printing a value of type [][]int is not supported _ patina mode yet",
-        "a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported _ patina mode yet",
-        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported _ patina mode yet",
         "calls regexp.Regexp.ReplaceAllFunc, whose standard-library code patina mode does not support yet",
         "calls regexp.Regexp.FindAllStringSubmatchIndex, whose standard-library code patina mode does not support yet",
         "uses the standard package iter, which patina mode does not support yet",
@@ -2151,7 +2142,10 @@
         "calls regexp.Regexp.FindStringSubmatch, whose standard-library code patina mode does not support yet",
         "calls regexp.Regexp.FindAllString, whose standard-library code patina mode does not support yet",
         "calls regexp.MustCompile, whose standard-library code patina mode does not support yet",
-        "uses the standard package unicode, which patina mode does not support yet"
+        "uses the standard package unicode, which patina mode does not support yet",
+        "printing a value of type [][]int is not supported _ patina mode yet",
+        "a function argument other than a function of the program, a closure, a function literal or a math function (RFC N) is not supported _ patina mode yet",
+        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported _ patina mode yet"
       ]
     },
     {
@@ -2217,12 +2211,12 @@
       "name": "gobyexample/sorting-by-functions",
       "stage": "refused",
       "fingerprints": [
+        "calls cmp.Compare, whose standard-library code patina mode does not support yet",
         "_ function literal with _ parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "slices.SortFunc is not supported in patina mode yet",
         "_ type declared inside _ function is not supported in patina mode yet",
         "_ function literal (closure) other than f := func(...) {...}, an argument or _ returned value (RFC N) is not supported in patina mode yet",
-        "printing _ value of type []main._ is not supported in patina mode yet",
-        "calls cmp.Compare, whose standard-library code patina mode does not support yet"
+        "printing _ value of type []main._ is not supported in patina mode yet"
       ]
     },
     {
@@ -2254,9 +2248,9 @@
       "name": "gobyexample/strings-and-runes",
       "stage": "refused",
       "fingerprints": [
+        "calls utf8.DecodeRuneInString, whose standard-library code patina mode does not support yet",
         "format string: \"S\": the verb %#U is not supported in patina mode yet",
-        "a slice expression (_[_:j]) is not supported in patina mode yet",
-        "calls utf8.DecodeRuneInString, whose standard-library code patina mode does not support yet"
+        "a slice expression (_[_:j]) is not supported in patina mode yet"
       ]
     },
     {
@@ -2299,15 +2293,6 @@
       "name": "gobyexample/text-templates",
       "stage": "refused",
       "fingerprints": [
-        "_ is copied and kept, so its object has two owners",
-        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
-        "template.Must(_.Parse(\"S\")) lends back a pointer its caller owns, and it is kept in _, so the object has two owners",
-        "the results of Parse used here other than as v..., _ := Parse(...) or return Parse(...)",
-        "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
-        "template.Must(template.New(_).Parse(_)) lends back a pointer its caller owns, and it is kept, so the object has two owners",
-        "an anonymous struct type is not supported in patina mode yet",
-        "a map literal or make of a map other than the value of a local map variable where it is declared (step N of RFC N) is not supported in patina mode yet",
-        "a map type other than a variable's (RFC N) is not supported in patina mode yet",
         "calls template.Template.Execute, whose standard-library code patina mode does not support yet",
         "calls template.Template.Parse, whose standard-library code patina mode does not support yet",
         "uses the standard package internal/strconv, which patina mode does not support yet",
@@ -2320,7 +2305,16 @@
         "uses the standard package reflect, which patina mode does not support yet",
         "calls template.Must, whose standard-library code patina mode does not support yet",
         "uses the standard package unicode, which patina mode does not support yet",
-        "uses the standard package unique, which patina mode does not support yet"
+        "uses the standard package unique, which patina mode does not support yet",
+        "_ is copied and kept, so its object has two owners",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
+        "template.Must(_.Parse(\"S\")) lends back a pointer its caller owns, and it is kept in _, so the object has two owners",
+        "the results of Parse used here other than as v..., _ := Parse(...) or return Parse(...)",
+        "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
+        "template.Must(template.New(_).Parse(_)) lends back a pointer its caller owns, and it is kept, so the object has two owners",
+        "an anonymous struct type is not supported in patina mode yet",
+        "a map literal or make of a map other than the value of a local map variable where it is declared (step N of RFC N) is not supported in patina mode yet",
+        "a map type other than a variable's (RFC N) is not supported in patina mode yet"
       ]
     },
     {
@@ -2399,29 +2393,24 @@
       "name": "gobyexample/writing-files",
       "stage": "refused",
       "fingerprints": [
-        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
-        "os.TempDir is not supported in patina mode yet",
-        "os.WriteFile is not supported in patina mode yet",
-        "type os.File is not supported in patina mode yet",
-        "os.Create is not supported in patina mode yet",
-        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "calls bufio.Writer.Flush, whose standard-library code patina mode does not support yet",
         "calls bufio.Writer.WriteString, whose standard-library code patina mode does not support yet",
         "calls filepath.Join, whose standard-library code patina mode does not support yet",
         "uses the standard package io/fs, which patina mode does not support yet",
         "uses the standard package path, which patina mode does not support yet",
-        "uses the standard package unicode/utf8, which patina mode does not support yet"
+        "uses the standard package unicode/utf8, which patina mode does not support yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
+        "os.TempDir is not supported in patina mode yet",
+        "os.WriteFile is not supported in patina mode yet",
+        "type os.File is not supported in patina mode yet",
+        "os.Create is not supported in patina mode yet",
+        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet"
       ]
     },
     {
       "name": "gobyexample/xml",
       "stage": "refused",
       "fingerprints": [
-        "_ is converted to an interface while it is still used, so its object has two owners",
-        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
-        "the address of _ kept where its object would have more than one owner is not supported in patina mode yet",
-        "panic with an error value: printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet",
-        "a type declared inside a function is not supported in patina mode yet",
         "calls xml.Unmarshal, whose standard-library code patina mode does not support yet",
         "calls xml.MarshalIndent, whose standard-library code patina mode does not support yet",
         "uses the standard package internal/strconv, which patina mode does not support yet",
@@ -2430,20 +2419,25 @@
         "uses the standard package reflect, which patina mode does not support yet",
         "uses the standard package strconv, which patina mode does not support yet",
         "uses the standard package unicode, which patina mode does not support yet",
-        "uses the standard package unicode/utf8, which patina mode does not support yet"
+        "uses the standard package unicode/utf8, which patina mode does not support yet",
+        "_ is converted to an interface while it is still used, so its object has two owners",
+        "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
+        "the address of _ kept where its object would have more than one owner is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet",
+        "a type declared inside a function is not supported in patina mode yet"
       ]
     },
     {
       "name": "gotour/basics/basic-types",
       "stage": "refused",
       "fingerprints": [
+        "uses the standard package math/cmplx, which patina mode does not support yet",
         "type complex128 is not supported in patina mode yet",
         "a complex number is not supported in patina mode yet",
         "the format %T with a value of type bool is not supported in patina mode yet",
         "the format %T with a value of type uint64 is not supported in patina mode yet",
         "the format %T with a value of type complex128 is not supported in patina mode yet",
-        "the format %v with a value of type complex128 is not supported in patina mode yet",
-        "uses the standard package math/cmplx, which patina mode does not support yet"
+        "the format %v with a value of type complex128 is not supported in patina mode yet"
       ]
     },
     {
@@ -2749,11 +2743,11 @@
       "name": "gotour/methods/images",
       "stage": "refused",
       "fingerprints": [
-        "printing a value whose String method may panic is not supported in patina mode yet",
-        "printing a value of type (r uint32, g uint32, b uint32, a uint32) is not supported in patina mode yet",
         "uses the standard package image/color, which patina mode does not support yet",
         "uses the standard package image, which patina mode does not support yet",
-        "uses the standard package internal/strconv, which patina mode does not support yet"
+        "uses the standard package internal/strconv, which patina mode does not support yet",
+        "printing a value whose String method may panic is not supported in patina mode yet",
+        "printing a value of type (r uint32, g uint32, b uint32, a uint32) is not supported in patina mode yet"
       ]
     },
     {
@@ -2906,10 +2900,9 @@
     },
     {
       "name": "gotour/moretypes/function-values",
-      "stage": "refused",
-      "fingerprints": [
-        "a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/moretypes/making-slices",

@@ -77,6 +77,12 @@ variable defined by a call of such a function holds that box. It is only
 called, or passed to a parameter of function type (lent `&mut`). Copying it,
 reassigning it and comparing it with nil are refused: one owner.
 
+**Math functions as values (RFC 0018).** `math.Pow`, `Log`, `Exp`, `Sin`,
+`Cos`, `Sqrt`, `Floor`, `Ceil` and `Trunc` may be passed to a parameter of
+function type, as in `compute(math.Pow)`: each is the runtime function a
+call of it uses (`rt::pow`), which gives Go's result bit for bit. Other
+functions of the standard library are refused as values for now.
+
 **Recursive closures (RFC 0018, step 4).** `var f func(...) R`, then one
 `f = func(...) R {...}` whose literal uses nothing of its enclosing function
 but `f` itself, is a nested Rust `fn`, which can call itself. A call of `f`
