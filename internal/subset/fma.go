@@ -40,6 +40,9 @@ func (c *checker) checkFusion() {
 					if b, ok := n.(*ast.BinaryExpr); ok {
 						funcOf[b] = fd
 					}
+					if s, ok := n.(*ast.AssignStmt); ok && pkg.OpAssigns[s] != nil {
+						funcOf[pkg.OpAssigns[s]] = fd
+					}
 					return true
 				})
 			}
@@ -227,6 +230,12 @@ func (c *checker) mulOf(e ast.Expr) *ast.BinaryExpr {
 func (c *checker) eachFloatAddSub(f func(*ast.BinaryExpr)) {
 	for _, file := range c.pkg.Files {
 		ast.Inspect(file, func(n ast.Node) bool {
+			if s, ok := n.(*ast.AssignStmt); ok {
+				if e := c.opAssign(s); e != nil {
+					f(e)
+				}
+				return true
+			}
 			e, ok := n.(*ast.BinaryExpr)
 			if !ok || (e.Op != token.ADD && e.Op != token.SUB) || c.pkg.Info.Types[e].Value != nil {
 				return true
@@ -270,4 +279,37 @@ func (c *checker) fmaTarget() string { return c.pkg.Fused.Target.String() }
 func (c *checker) unsupportedAt(p fma.Pos, what string) {
 	d := diag.Errorf(token.Position{Filename: p.File, Line: p.Line, Column: p.Col}, "%s is not supported in patina mode yet", what)
 	c.diags = append(c.diags, d.With(seeCompat))
+}
+
+// opAssign returns float x += y or x -= y at s as the binary expression
+// x + y or x - y, at the operator, where gc reports a fusion of it (issue
+// #223); the emitter then writes x = the fused expression. It is recorded
+// in pkg.OpAssigns. A target with a call in it is left out: written twice,
+// its call would run twice.
+func (c *checker) opAssign(s *ast.AssignStmt) *ast.BinaryExpr {
+	op := map[token.Token]token.Token{token.ADD_ASSIGN: token.ADD, token.SUB_ASSIGN: token.SUB}[s.Tok]
+	if op == token.ILLEGAL {
+		return nil // Go's op= has one target and one value
+	}
+	b, ok := c.pkg.Info.Types[s.Lhs[0]].Type.Underlying().(*types.Basic)
+	if !ok || b.Info()&types.IsFloat == 0 || hasCall(s.Lhs[0]) {
+		return nil
+	}
+	e := &ast.BinaryExpr{X: s.Lhs[0], OpPos: s.TokPos, Op: op, Y: s.Rhs[0]}
+	if c.pkg.OpAssigns == nil {
+		c.pkg.OpAssigns = map[*ast.AssignStmt]*ast.BinaryExpr{}
+	}
+	c.pkg.OpAssigns[s] = e
+	return e
+}
+
+// hasCall reports whether e calls a function.
+func hasCall(e ast.Expr) bool {
+	found := false
+	ast.Inspect(e, func(n ast.Node) bool {
+		_, isCall := n.(*ast.CallExpr)
+		found = found || isCall
+		return !found
+	})
+	return found
 }

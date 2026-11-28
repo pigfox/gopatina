@@ -67,6 +67,10 @@ type Package struct {
 	// Kept are the multiplies a local holds that a fusion uses (v := x*y,
 	// then v + z): their operands are kept as they were, for the + .
 	Kept map[*ast.BinaryExpr]bool
+	// OpAssigns are the float x += y and x -= y of the program as x + y and
+	// x - y, at the operator, so gc's fusion of one is matched as a binary
+	// expression's is (issue #223).
+	OpAssigns map[*ast.AssignStmt]*ast.BinaryExpr
 	// NaNExact are the float operations whose NaN a bit-level read may see
 	// (subset.NaNObservers), which the emitter writes with the target's
 	// NaN rules.

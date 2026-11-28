@@ -185,3 +185,31 @@ func TestTrigFMAChoice(t *testing.T) {
 		}
 	}
 }
+
+// TestFusedOpAssign checks x += a*b and x -= a*b that gc fuses (issue
+// #223): x = the multiply-add, as for the binary expression.
+func TestFusedOpAssign(t *testing.T) {
+	src := program("func f(a, b float64, xs []float64) float64 {\n\tx := 1.0\n\tx += a * b\n\txs[0] -= a * b\n\treturn x + xs[0]\n}\n\nfunc main() {\n\tfmt.Println(f(1, 2, []float64{3}))\n}")
+	// Lines 7 and 8, the operator at column 4 and 8.
+	sites := []fma.Site{{Pos: fma.Pos{File: "/r/main.go", Line: 7, Col: 4}}, {Pos: fma.Pos{File: "/r/main.go", Line: 8, Col: 8}}}
+	pkg, err := load.Source("/r", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg.Fused = &fma.Sites{Target: fma.Target{GoVersion: "go1.27.1", GOOS: "linux", GOARCH: "arm64"}, List: sites}
+	if ds := subset.Check(pkg); len(ds) > 0 {
+		t.Fatal(ds)
+	}
+	res, _ := borrow.Check(pkg)
+	var main string
+	for _, f := range Emit(pkg, res, Options{Target: goldenTarget, Version: "devel"}).Files {
+		if f.Path == "src/main.rs" {
+			main = string(f.Data)
+		}
+	}
+	for _, w := range []string{"x = rt::fma_arm64(b, a, x);", "xs[0] = rt::fma_arm64(-b, a, xs[0]);"} {
+		if !strings.Contains(main, w) {
+			t.Errorf("main.rs lacks %q:\n%s", w, main)
+		}
+	}
+}

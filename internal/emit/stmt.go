@@ -1245,6 +1245,11 @@ func (g *gen) appendStmt(l ast.Expr, c *ast.CallExpr) {
 func (g *gen) opAssign(s *ast.AssignStmt) {
 	l, r := s.Lhs[0], s.Rhs[0]
 	target := g.lhsPlace(l).flat()
+	if f, ok := g.pkg.Fusions[g.pkg.OpAssigns[s]]; ok {
+		// x += a*b that gc fuses (issue #223): x = the multiply-add.
+		g.stmtLine(target+" = ", g.fused(f), ";")
+		return
+	}
 	lt := g.typeOf(l)
 	op := s.Tok.String()
 	switch {
