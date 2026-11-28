@@ -77,6 +77,13 @@ variable defined by a call of such a function holds that box. It is only
 called, or passed to a parameter of function type (lent `&mut`). Copying it,
 reassigning it and comparing it with nil are refused: one owner.
 
+**Sorting.** `slices.Sort`, `slices.IsSorted`, `sort.Ints`, `sort.Strings`,
+`sort.IntsAreSorted` and `sort.StringsAreSorted` work on slices of integers
+and strings (named types of them too): Rust's `sort` and `is_sorted` give
+Go's order, since equal integers or strings are the same. Slices of floats
+are refused (Go orders a NaN first; Rust's sort needs a total order), as are
+`sort.Slice` and `slices.SortFunc` for now.
+
 **Closures over strings (RFC 0018).** A function literal may take strings,
 use and change strings of its enclosing function, and return them. A string
 parameter is a `&str` (a literal, `impl Fn(&str)` and `Box<dyn FnMut(&str)>`

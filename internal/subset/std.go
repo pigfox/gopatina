@@ -70,7 +70,18 @@ var StdFuncs = map[string]bool{
 	"math.Pow":     true,
 	"slices.Clone": true,
 	"bytes.Clone":  true,
+	// Sorting a slice of integers or strings (sortProblem): Rust's sort
+	// and Go's give the same order, since equal elements are the same.
+	"slices.Sort":           true,
+	"slices.IsSorted":       true,
+	"sort.Ints":             true,
+	"sort.Strings":          true,
+	"sort.IntsAreSorted":    true,
+	"sort.StringsAreSorted": true,
 }
+
+// Sorts are the functions of StdFuncs that sort a slice in place.
+var Sorts = map[string]bool{"slices.Sort": true, "sort.Ints": true, "sort.Strings": true}
 
 // StdVars lists the standard-library variables patina mode supports.
 var StdVars = map[string]bool{

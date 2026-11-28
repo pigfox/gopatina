@@ -4,10 +4,10 @@
 
 | of 137 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 59 | 43.1% |
-| compiled to Rust | 59 | 43.1% |
-| output matches Go | 59 | 43.1% |
-| clippy clean (of 59 linted) | 57 | 96.6% |
+| accepted by patina mode | 60 | 43.8% |
+| compiled to Rust | 60 | 43.8% |
+| output matches Go | 60 | 43.8% |
+| clippy clean (of 60 linted) | 58 | 96.7% |
 
 ## Failure clusters, largest first
 
@@ -202,9 +202,8 @@
 | 1 | range over a channel (chan string) is not supported in patina mode yet | gobyexample/range-over-channels |
 | 1 | slices.Collect is not supported in patina mode yet | gobyexample/range-over-iterators |
 | 1 | slices.Equal is not supported in patina mode yet | gobyexample/slices |
-| 1 | slices.IsSorted is not supported in patina mode yet | gobyexample/sorting |
-| 1 | slices.Sort is not supported in patina mode yet | gobyexample/sorting |
 | 1 | slices.SortFunc is not supported in patina mode yet | gobyexample/sorting-by-functions |
+| 1 | slices.SortFunc of _ slice of main._ (patina mode sorts integers and strings) is not supported in patina mode yet | gobyexample/sorting-by-functions |
 | 1 | strings.SplitN is not supported in patina mode yet | gobyexample/environment-variables |
 | 1 | strings.SplitSeq is not supported in patina mode yet | gobyexample/range-over-iterators |
 | 1 | template.Must(_.Parse("S")) lends back a pointer its caller owns, and it is kept in _, so the object has two owners | gobyexample/text-templates |

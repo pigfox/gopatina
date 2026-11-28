@@ -361,6 +361,10 @@ func (w *walker) call(e *ast.CallExpr) {
 						ops.add(a, false, false, false, func() { w.expr(a, evMut) })
 						continue
 					}
+					if i == 0 && subset.Sorts[name] {
+						ops.add(a, false, false, false, func() { w.expr(a, evMut) }) // sorted in place
+						continue
+					}
 					if i == 1 && name == "errors.As" {
 						target := stripAddr(a) // errors.As sets it (RFC 0012)
 						ops.add(target, false, false, false, func() { w.expr(target, evMut) })

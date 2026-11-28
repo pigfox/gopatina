@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 53,
   "tested": 137,
-  "accepted": 59,
-  "compiled": 59,
-  "matched": 59,
-  "linted": 59,
-  "lint_clean": 57,
+  "accepted": 60,
+  "compiled": 60,
+  "matched": 60,
+  "linted": 60,
+  "lint_clean": 58,
   "rates": {
-    "accepted": 43.1,
-    "compiled": 43.1,
-    "lint_clean": 96.6,
-    "matched": 43.1
+    "accepted": 43.8,
+    "compiled": 43.8,
+    "lint_clean": 96.7,
+    "matched": 43.8
   },
   "skips": {
     "does not build with Go": 6,
@@ -1324,19 +1324,13 @@
       ]
     },
     {
-      "fingerprint": "slices.IsSorted is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/sorting"
-      ]
-    },
-    {
-      "fingerprint": "slices.Sort is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/sorting"
-      ]
-    },
-    {
       "fingerprint": "slices.SortFunc is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/sorting-by-functions"
+      ]
+    },
+    {
+      "fingerprint": "slices.SortFunc of _ slice of main._ (patina mode sorts integers and strings) is not supported in patina mode yet",
       "programs": [
         "gobyexample/sorting-by-functions"
       ]
@@ -2204,11 +2198,9 @@
     },
     {
       "name": "gobyexample/sorting",
-      "stage": "refused",
-      "fingerprints": [
-        "slices.Sort is not supported in patina mode yet",
-        "slices.IsSorted is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gobyexample/sorting-by-functions",
@@ -2218,6 +2210,7 @@
         "_ call of _ function of the program inside _ function literal is not supported in patina mode yet",
         "slices.SortFunc is not supported in patina mode yet",
         "_ type declared inside _ function is not supported in patina mode yet",
+        "slices.SortFunc of _ slice of main._ (patina mode sorts integers and strings) is not supported in patina mode yet",
         "_ function literal (closure) other than f := func(...) {...}, an argument or _ returned value (RFC N) is not supported in patina mode yet",
         "printing _ value of type []main._ is not supported in patina mode yet"
       ]

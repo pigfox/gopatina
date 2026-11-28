@@ -485,6 +485,10 @@ func (g *gen) std(e *ast.CallExpr, name string) node {
 		return &call{head: "std::process::exit", open: "(", close: ")", args: []node{code}}
 	case "slices.Clone", "bytes.Clone":
 		return method(g.sliceRef(a[0]), "to_vec")
+	case "slices.Sort", "sort.Ints", "sort.Strings":
+		return method(g.place(a[0]), "sort") // integers or strings: Go's order
+	case "slices.IsSorted", "sort.IntsAreSorted", "sort.StringsAreSorted":
+		return method(g.sliceRef(a[0]), "is_sorted")
 	}
 	return g.fmtCall(e, name)
 }

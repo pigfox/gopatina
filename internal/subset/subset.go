@@ -117,7 +117,7 @@ var (
 )
 
 var allowedImports = map[string]bool{
-	"bytes": true, "errors": true, "fmt": true, "io": true, "os": true, "slices": true, "strings": true,
+	"bytes": true, "errors": true, "fmt": true, "io": true, "os": true, "slices": true, "sort": true, "strings": true,
 	"time": true, // RFC 0011: Duration (ProvidedTypes)
 	"math": true, // RFC 0011: the functions exact by IEEE 754 (StdFuncs)
 }
@@ -942,7 +942,23 @@ func (c *checker) stdCall(e *ast.CallExpr, name string) {
 	switch {
 	case strings.HasPrefix(name, "fmt."):
 		c.fmtCall(e, name)
+	case strings.HasPrefix(name, "slices.Sort"), strings.HasPrefix(name, "slices.IsSorted"):
+		if what := sortProblem(c.pkg.Info, e, name); what != "" {
+			c.unsupported(e, what)
+		}
 	}
+}
+
+// sortProblem checks slices.Sort(s) or slices.IsSorted(s): s holds
+// integers or strings, whose order Rust's sort gives as Go's does. Floats
+// are refused: Go orders a NaN before every number, Rust's sort needs a
+// total order.
+func sortProblem(info *types.Info, e *ast.CallExpr, name string) string {
+	elem := info.Types[e.Args[0]].Type.Underlying().(*types.Slice).Elem()
+	if b, ok := elem.Underlying().(*types.Basic); ok && b.Info()&(types.IsInteger|types.IsString) != 0 {
+		return ""
+	}
+	return fmt.Sprintf("%s of a slice of %s (patina mode sorts integers and strings)", name, elem)
 }
 
 func (c *checker) conversion(e *ast.CallExpr, to types.Type) {
