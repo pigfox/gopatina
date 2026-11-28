@@ -10,6 +10,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Hardware FMA on amd64.** A crate built for baseline x86-64 compiled
+  each `mul_add` to a call to the library's `fma`, which musl does in
+  software. math.Exp's fused path is now compiled for AVX and FMA, and
+  `rt::fma_amd64` uses VFMADD when std::arch finds FMA, so each fused
+  multiply-add is one instruction in line. Both run only where the
+  processor has the feature (the same check that already chose the fused
+  path), and the values are unchanged: rounded once either way.
 - **toolchain.json**, the one place the toolchain versions are written
   (the pinned Rust release, the MSRV, the edition, go.mod's `go`).
   `TestToolchainDrift` fails when a copy disagrees: internal/emit's
