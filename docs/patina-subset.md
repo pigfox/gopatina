@@ -67,6 +67,16 @@ value or a returned value, and the statement may not otherwise use a variable
 the literal changes, nor change one it reads. With `impl FnMut`, `f(f(x))`
 is refused, since Rust would borrow `f` twice at once.
 
+**Returned closures and function values (RFC 0018, step 3).** A function
+whose only result is of function type (with the types step 2 takes) returns
+`Box<dyn FnMut(...) -> R>`. Each of its returns is a function literal,
+written `Box::new(move |...| ...)`: the closure owns the numbers and bools it
+captures, moved in, so each call of the function makes a state of its own
+(Go's closure over a variable of a function that has returned). A local
+variable defined by a call of such a function holds that box. It is only
+called, or passed to a parameter of function type (lent `&mut`). Copying it,
+reassigning it and comparing it with nil are refused: one owner.
+
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values beyond step 1 of
 RFC 0018 (below), the interface

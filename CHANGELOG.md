@@ -10,6 +10,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Returned closures, step 3 of RFC 0018.** A function returning a
+  function, `func adder() func(int) int`, returns
+  `Box<dyn FnMut(i64) -> i64>`, and each `return func(...) {...}` is
+  `Box::new(move |...| ...)`, owning what it captures. A variable holding
+  one (`pos, neg := adder(), adder()`) is called, or passed to a parameter
+  of function type. `testdata/golden/closures_escape` covers Go by
+  Example's intSeq and the Tour's adder and fibonacci.
 - **Function-typed parameters, step 2 of RFC 0018.** A parameter of
   function type is a generic `impl Fn(...) -> R`, or `impl FnMut` when a
   closure passed to it at some call changes what it captures. Its

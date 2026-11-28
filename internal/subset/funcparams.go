@@ -85,6 +85,8 @@ func plan(pkg *load.Package) *funcPlan {
 						if cl := Closures(pkg)[v]; cl != nil {
 							writes = len(cl.Writes) > 0
 						}
+						// A function value (step 3) is a Box<dyn FnMut>.
+						writes = writes || FuncVars(pkg)[v]
 					}
 				}
 				if fp := p.params[param]; fp != nil && writes {
@@ -228,6 +230,9 @@ func (c *checker) programArgs(e *ast.CallExpr) {
 				}
 				if FuncParams(c.pkg)[u] != nil {
 					continue // refused where it is used (funcParamUses)
+				}
+				if FuncVars(c.pkg)[u] {
+					continue // a function value, lent &mut (step 3)
 				}
 			}
 		case *ast.FuncLit:

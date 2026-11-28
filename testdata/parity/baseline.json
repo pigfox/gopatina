@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 53,
   "tested": 137,
-  "accepted": 50,
-  "compiled": 50,
-  "matched": 50,
-  "linted": 50,
-  "lint_clean": 48,
+  "accepted": 53,
+  "compiled": 53,
+  "matched": 53,
+  "linted": 53,
+  "lint_clean": 51,
   "rates": {
-    "accepted": 36.5,
-    "compiled": 36.5,
-    "lint_clean": 96,
-    "matched": 36.5
+    "accepted": 38.7,
+    "compiled": 38.7,
+    "lint_clean": 96.2,
+    "matched": 38.7
   },
   "skips": {
     "does not build with Go": 6,
@@ -184,26 +184,6 @@
       ]
     },
     {
-      "fingerprint": "a function type is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/closures",
-        "gobyexample/recursion",
-        "gobyexample/string-functions",
-        "gotour/moretypes/function-closures",
-        "gotour/solutions/fib"
-      ]
-    },
-    {
-      "fingerprint": "calling a function value is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/closures",
-        "gobyexample/recursion",
-        "gobyexample/string-functions",
-        "gotour/moretypes/function-closures",
-        "gotour/solutions/fib"
-      ]
-    },
-    {
       "fingerprint": "calls filepath.Join, whose standard-library code patina mode does not support yet",
       "programs": [
         "gobyexample/defer",
@@ -306,14 +286,6 @@
       ]
     },
     {
-      "fingerprint": "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/closures",
-        "gobyexample/recursion",
-        "gotour/moretypes/function-closures"
-      ]
-    },
-    {
       "fingerprint": "a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
       "programs": [
         "gobyexample/directories",
@@ -410,13 +382,6 @@
       ]
     },
     {
-      "fingerprint": "_ function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/range-over-iterators",
-        "gobyexample/sorting-by-functions"
-      ]
-    },
-    {
       "fingerprint": "_ is converted to an interface while it is still used, so its object has two owners",
       "programs": [
         "gobyexample/reading-files",
@@ -442,6 +407,13 @@
       "programs": [
         "gobyexample/channel-synchronization",
         "gobyexample/timers"
+      ]
+    },
+    {
+      "fingerprint": "a function type is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/recursion",
+        "gobyexample/string-functions"
       ]
     },
     {
@@ -477,6 +449,13 @@
       "programs": [
         "gobyexample/custom-errors",
         "gobyexample/generics"
+      ]
+    },
+    {
+      "fingerprint": "calling a function value is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/recursion",
+        "gobyexample/string-functions"
       ]
     },
     {
@@ -626,6 +605,12 @@
       ]
     },
     {
+      "fingerprint": "_ function literal (closure) other than f := func(...) {...}, an argument or _ returned value (RFC N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/sorting-by-functions"
+      ]
+    },
+    {
       "fingerprint": "_ function literal with _ parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
       "programs": [
         "gobyexample/sorting-by-functions"
@@ -639,6 +624,12 @@
     },
     {
       "fingerprint": "_ method on _ generic type (Go N.N) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/range-over-iterators"
+      ]
+    },
+    {
+      "fingerprint": "_ result of function type: _ parameter of function type taking func(int) bool (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
       "programs": [
         "gobyexample/range-over-iterators"
       ]
@@ -698,9 +689,9 @@
       ]
     },
     {
-      "fingerprint": "a function literal (closure) other than _ := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
+      "fingerprint": "a function literal (closure) other than f := func(...) {...}, an argument or a returned value (RFC N) is not supported in patina mode yet",
       "programs": [
-        "gotour/solutions/fib"
+        "gobyexample/recursion"
       ]
     },
     {
@@ -1760,12 +1751,9 @@
     },
     {
       "name": "gobyexample/closures",
-      "stage": "refused",
-      "fingerprints": [
-        "a function type is not supported in patina mode yet",
-        "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
-        "calling a function value is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gobyexample/command-line-arguments",
@@ -2116,7 +2104,7 @@
         "_ method on _ generic type (Go N.N) is not supported in patina mode yet",
         "_._ is copied and kept in _._, so its object has two owners",
         "_._._ is copied and kept in _._, so its object has two owners",
-        "_ function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
+        "_ result of function type: _ parameter of function type taking func(int) bool (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "range over _ function (Go N.N) is not supported in patina mode yet",
         "slices.Collect is not supported in patina mode yet",
         "strings.SplitSeq is not supported in patina mode yet",
@@ -2164,7 +2152,7 @@
       "stage": "refused",
       "fingerprints": [
         "a function type is not supported in patina mode yet",
-        "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
+        "a function literal (closure) other than f := func(...) {...}, an argument or a returned value (RFC N) is not supported in patina mode yet",
         "calling a function value is not supported in patina mode yet"
       ]
     },
@@ -2256,7 +2244,7 @@
         "_ function literal with _ parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet",
         "slices.SortFunc is not supported in patina mode yet",
         "_ type declared inside _ function is not supported in patina mode yet",
-        "_ function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
+        "_ function literal (closure) other than f := func(...) {...}, an argument or _ returned value (RFC N) is not supported in patina mode yet",
         "printing _ value of type []main._ is not supported in patina mode yet",
         "calls cmp.Compare, whose standard-library code patina mode does not support yet"
       ]
@@ -2934,12 +2922,9 @@
     },
     {
       "name": "gotour/moretypes/function-closures",
-      "stage": "refused",
-      "fingerprints": [
-        "a function type is not supported in patina mode yet",
-        "a function literal (closure) other than f := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
-        "calling a function value is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/moretypes/function-values",
@@ -3114,12 +3099,9 @@
     },
     {
       "name": "gotour/solutions/fib",
-      "stage": "refused",
-      "fingerprints": [
-        "a function type is not supported in patina mode yet",
-        "a function literal (closure) other than _ := func(...) {...} (RFC N, step N) is not supported in patina mode yet",
-        "calling a function value is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gotour/solutions/http",
