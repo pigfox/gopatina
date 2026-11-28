@@ -19,7 +19,7 @@ import (
 // Toolchain is the Rust release every emitted crate pins, and MSRV the
 // minimum Rust version its code needs (RFC 0003).
 const (
-	Toolchain = "1.93.0"
+	Toolchain = "1.100.1"
 	MSRV      = "1.85"
 )
 
