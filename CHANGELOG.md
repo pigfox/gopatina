@@ -10,6 +10,11 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **Deferred closures, step 5 of RFC 0018.** `defer func() {...}()` is
+  moved into the function's `rt::Defers` and runs, in Go's order, when the
+  function returns or a panic unwinds. What it uses must not change after
+  the `defer`, and its body must not be able to panic (a second panic would
+  abort). `testdata/golden/closures_defer` covers it.
 - **Recursive closures, step 4 of RFC 0018.** `var fib func(int) int;
   fib = func(n int) int { ... fib(n-1) ... }`, whose literal uses nothing
   of its enclosing function but itself, is a nested `fn fib(n: i64) -> i64`.

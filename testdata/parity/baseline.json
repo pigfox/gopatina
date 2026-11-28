@@ -163,17 +163,6 @@
       ]
     },
     {
-      "fingerprint": "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/defer",
-        "gobyexample/directories",
-        "gobyexample/mutexes",
-        "gobyexample/recover",
-        "gobyexample/writing-files",
-        "gotour/concurrency/mutex-counter"
-      ]
-    },
-    {
       "fingerprint": "_ is copied and kept, so its object has two owners",
       "programs": [
         "gobyexample/defer",
@@ -191,6 +180,16 @@
         "gobyexample/panic",
         "gobyexample/reading-files",
         "gobyexample/writing-files"
+      ]
+    },
+    {
+      "fingerprint": "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/mutexes",
+        "gobyexample/writing-files",
+        "gotour/concurrency/mutex-counter"
       ]
     },
     {
@@ -648,6 +647,12 @@
       "fingerprint": "a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet",
       "programs": [
         "gotour/concurrency/exercise-web-crawler"
+      ]
+    },
+    {
+      "fingerprint": "a call other than fmt.Print, Println, Printf or a math function in a deferred function literal (it may panic while a panic unwinds) is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/recover"
       ]
     },
     {
@@ -2136,7 +2141,7 @@
       "name": "gobyexample/recover",
       "stage": "refused",
       "fingerprints": [
-        "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet"
+        "a call other than fmt.Print, Println, Printf or a math function in a deferred function literal (it may panic while a panic unwinds) is not supported in patina mode yet"
       ]
     },
     {

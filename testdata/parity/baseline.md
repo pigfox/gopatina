@@ -23,9 +23,9 @@
 | 7 | uses the standard package path, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 7 | uses the standard package unicode/utf8, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 6 | a channel send (planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
-| 6 | defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/mutexes |
 | 5 | _ is copied and kept, so its object has two owners | gobyexample/defer, gobyexample/reading-files, gobyexample/text-templates |
 | 5 | calls filepath.Join, whose standard-library code patina mode does not support yet | gobyexample/defer, gobyexample/file-paths, gobyexample/panic |
+| 5 | defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/mutexes |
 | 5 | the cap built-in is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/append, gotour/moretypes/making-slices |
 | 5 | uses the standard package unicode, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/regular-expressions |
 | 4 | a slice expression (s[i:j]) is not supported in patina mode yet | gobyexample/command-line-arguments, gobyexample/command-line-subcommands, gobyexample/reading-files |
@@ -88,6 +88,7 @@
 | 1 | _ type declared inside _ function is not supported in patina mode yet | gobyexample/sorting-by-functions |
 | 1 | a *_ with more than one owner (a package-level variable holds it) is not supported in patina mode yet | gotour/moretypes/struct-literals |
 | 1 | a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet | gotour/concurrency/exercise-web-crawler |
+| 1 | a call other than fmt.Print, Println, Printf or a math function in a deferred function literal (it may panic while a panic unwinds) is not supported in patina mode yet | gobyexample/recover |
 | 1 | a call with ... arguments is not supported in patina mode yet | gobyexample/variadic-functions |
 | 1 | a complex number is not supported in patina mode yet | gotour/basics/basic-types |
 | 1 | a function argument other than a function of the program, a closure or a function literal (step N of RFC N) is not supported _ patina mode yet | gobyexample/regular-expressions |

@@ -1463,6 +1463,14 @@ func (c *checker) localPath(path string) bool {
 // text is made then, and those calls cannot panic, which would be a
 // second panic while one unwinds.
 func (c *checker) deferStmt(s *ast.DeferStmt) {
+	if lit, ok := ast.Unparen(s.Call.Fun).(*ast.FuncLit); ok {
+		if len(s.Call.Args) > 0 {
+			c.unsupported(s, "deferring a function literal with arguments (step 5 of RFC 0018 takes func() {...}())")
+			return
+		}
+		c.deferredClosure(s, Deferred(c.pkg)[lit], c.body) // RFC 0018, step 5
+		return
+	}
 	sel, ok := s.Call.Fun.(*ast.SelectorExpr)
 	name := ""
 	if ok {

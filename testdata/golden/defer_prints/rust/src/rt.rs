@@ -62,20 +62,20 @@ fn go_panic_message(msg: &str) -> String {
 /// The calls a function defers, run last first when it returns or as a
 /// panic unwinds through it, as Go runs them.
 #[derive(Default)]
-pub struct Defers(Vec<String>);
+pub struct Defers(Vec<Box<dyn FnOnce()>>);
 
 impl Defers {
     /// Defers printing text, made when the defer statement runs, as Go
     /// evaluates a deferred call's arguments.
     pub fn print(&mut self, text: String) {
-        self.0.push(text);
+        self.0.push(Box::new(move || print!("{text}")));
     }
 }
 
 impl Drop for Defers {
     fn drop(&mut self) {
-        while let Some(text) = self.0.pop() {
-            print!("{text}");
+        while let Some(call) = self.0.pop() {
+            call();
         }
     }
 }

@@ -83,10 +83,21 @@ but `f` itself, is a nested Rust `fn`, which can call itself. A call of `f`
 before the assignment (a nil function in Go) and a second assignment are
 refused.
 
+**Deferred closures (RFC 0018, step 5).** `defer func() {...}()` runs the
+literal when its function returns, or as a panic unwinds through it, in
+Go's order among the function's other deferred calls. It owns copies of the
+numbers and bools it uses, so it may not change them, nothing may change them
+after the `defer`, and it may not be deferred inside a loop. Its body may not
+do anything that can panic (a second panic while one unwinds aborts a Rust
+program): no index or slice, no division, remainder or shift by a variable,
+and no calls but `fmt.Print`, `Println`, `Printf`, the `Sprint` family,
+`math` and conversions between numbers. Deferring a literal with parameters
+or arguments is refused.
+
 Not supported yet, each with its own error: goroutines, channels and
 `select` (RFC 0002), maps, closures and function values beyond step 1 of
 RFC 0018 (below), the interface
-cases listed under [Interfaces](#interfaces), generics, `defer` other than of a print (below), labels and `goto`,
+cases listed under [Interfaces](#interfaces), generics, `defer` other than of a print or a function literal (below), labels and `goto`,
 `fallthrough`, a `break` that leaves a `switch` before the end of its case,
 general slicing (`s[i:j]`), arrays, package-level variables of slice type
 that the program changes (and the other cases RFC 0010 lists), embedded fields,
@@ -98,7 +109,8 @@ a body (assembly), and complex numbers.
 booleans run as in Go: their arguments are evaluated at the `defer`
 statement, and the prints run last first when the function returns, also
 when a panic unwinds through it, before Go's panic message; `os.Exit` skips
-them. `recover`, and deferring any other call, are not supported yet.
+them. `recover`, and deferring a call other than a print or a function literal
+(Deferred closures, below), are not supported yet.
 
 Float arithmetic gives the bits of the default `go build` for the same
 target, also where gc fuses a multiply and an add into one rounding (arm64,

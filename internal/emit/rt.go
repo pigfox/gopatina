@@ -1580,21 +1580,33 @@ pub fn is_inf(f: f64, sign: i64) -> bool {
 		code: `/// The calls a function defers, run last first when it returns or as a
 /// panic unwinds through it, as Go runs them.
 #[derive(Default)]
-pub struct Defers(Vec<String>);
+pub struct Defers(Vec<Box<dyn FnOnce()>>);
 
 impl Defers {
     /// Defers printing text, made when the defer statement runs, as Go
     /// evaluates a deferred call's arguments.
     pub fn print(&mut self, text: String) {
-        self.0.push(text);
+        self.0.push(Box::new(move || print!("{text}")));
     }
 }
 
 impl Drop for Defers {
     fn drop(&mut self) {
-        while let Some(text) = self.0.pop() {
-            print!("{text}");
+        while let Some(call) = self.0.pop() {
+            call();
         }
+    }
+}
+`,
+	},
+	{
+		name: "defers_call",
+		deps: []string{"Defers"},
+		code: `impl Defers {
+    /// Defers calling f, a function literal that owns copies of what it
+    /// uses (RFC 0018, step 5).
+    pub fn call(&mut self, f: impl FnOnce() + 'static) {
+        self.0.push(Box::new(f));
     }
 }
 `,

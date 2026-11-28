@@ -232,6 +232,12 @@ func (g *gen) defers() bool {
 // change by the time the call runs, so the text is made now and printed
 // then (rt::Defers).
 func (g *gen) deferStmt(s *ast.DeferStmt) {
+	if lit, ok := ast.Unparen(s.Call.Fun).(*ast.FuncLit); ok {
+		// A deferred closure (RFC 0018, step 5), moved in.
+		g.rt["defers_call"] = true
+		g.closureExpr(g.deferred+".call(move ", g.res.Lits[lit], ");")
+		return
+	}
 	sel := s.Call.Fun.(*ast.SelectorExpr)
 	text := g.fmtCall(s.Call, "fmt.Sp"+strings.TrimPrefix(sel.Sel.Name, "P")) // Println: Sprintln
 	g.stmtLine(g.deferred+".print(", text, ");")

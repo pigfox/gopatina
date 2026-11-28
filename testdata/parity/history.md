@@ -30,3 +30,4 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-28 | function-typed parameters, step 2 of RFC 0018: no program matches yet; what is left of the corpus's closures is function-typed results and variables (step 3) and closures over strings | 137 | 53 | 50 (36.5%) | 50 (36.5%) | 50 (36.5%) | 0 |
 | 2026-11-28 | returned closures and function values, step 3 of RFC 0018: gobyexample/closures, gotour/moretypes/function-closures and gotour/solutions/fib now match | 137 | 53 | 53 (38.7%) | 53 (38.7%) | 53 (38.7%) | 0 |
 | 2026-11-28 | recursive closures as nested fns, step 4 of RFC 0018: gobyexample/recursion now matches | 137 | 53 | 54 (39.4%) | 54 (39.4%) | 54 (39.4%) | 0 |
+| 2026-11-28 | deferred closures, step 5 of RFC 0018: no program matches yet; the corpus programs that defer a closure also need sync (mutexes, mutex-counter) | 137 | 53 | 54 (39.4%) | 54 (39.4%) | 54 (39.4%) | 0 |
