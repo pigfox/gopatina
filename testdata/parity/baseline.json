@@ -2,16 +2,16 @@
   "programs": 190,
   "skipped": 53,
   "tested": 137,
-  "accepted": 58,
-  "compiled": 58,
-  "matched": 58,
-  "linted": 58,
-  "lint_clean": 56,
+  "accepted": 59,
+  "compiled": 59,
+  "matched": 59,
+  "linted": 59,
+  "lint_clean": 57,
   "rates": {
-    "accepted": 42.3,
-    "compiled": 42.3,
+    "accepted": 43.1,
+    "compiled": 43.1,
     "lint_clean": 96.6,
-    "matched": 42.3
+    "matched": 43.1
   },
   "skips": {
     "does not build with Go": 6,
@@ -621,12 +621,6 @@
       "fingerprint": "a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet",
       "programs": [
         "gotour/concurrency/exercise-web-crawler"
-      ]
-    },
-    {
-      "fingerprint": "a call other than fmt.Print, Println, Printf or a math function in a deferred function literal (it may panic while a panic unwinds) is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/recover"
       ]
     },
     {
@@ -2115,10 +2109,9 @@
     },
     {
       "name": "gobyexample/recover",
-      "stage": "refused",
-      "fingerprints": [
-        "a call other than fmt.Print, Println, Printf or a math function in a deferred function literal (it may panic while a panic unwinds) is not supported in patina mode yet"
-      ]
+      "stage": "matched",
+      "linted": true,
+      "lint_clean": true
     },
     {
       "name": "gobyexample/recursion",

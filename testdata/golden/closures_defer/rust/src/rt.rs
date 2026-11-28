@@ -167,28 +167,44 @@ impl Defers {
     }
 }
 
+/// The message of the latest panic, as quiet_hook records it.
+static PANIC_RAW: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+/// Installs, once, a panic hook that records the panic's message and prints
+/// nothing: Go prints a panic that is not recovered, when it ends the
+/// program (rt::run_main), and never one that is (RFC 0020).
+pub fn quiet_hook() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        std::panic::set_hook(Box::new(|info| {
+            let payload = info.payload();
+            let raw = if let Some(s) = payload.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = payload.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                String::from("unknown panic")
+            };
+            if let Ok(mut m) = PANIC_RAW.lock() {
+                *m = raw;
+            }
+        }));
+    });
+}
+
+/// The message of the latest panic, as the panic macro gave it.
+fn panic_raw() -> String {
+    PANIC_RAW.lock().map(|m| m.clone()).unwrap_or_default()
+}
+
 /// Runs main as Go does when the program defers calls: a panic unwinds,
 /// running them, and then its message goes to standard error and the
 /// program exits with status 2.
 pub fn run_main(main: impl FnOnce()) {
-    static MESSAGE: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
-    std::panic::set_hook(Box::new(|info| {
-        let payload = info.payload();
-        let raw = if let Some(s) = payload.downcast_ref::<&str>() {
-            s.to_string()
-        } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-        } else {
-            String::from("unknown panic")
-        };
-        if let Ok(mut m) = MESSAGE.lock() {
-            *m = go_panic_message(&raw);
-        }
-    }));
+    quiet_hook();
     if std::panic::catch_unwind(std::panic::AssertUnwindSafe(main)).is_err() {
         let _ = std::io::Write::flush(&mut std::io::stdout());
-        let msg = MESSAGE.lock().map(|m| m.clone()).unwrap_or_default();
-        eprintln!("panic: {msg}");
+        eprintln!("panic: {}", go_panic_message(&panic_raw()));
         std::process::exit(2);
     }
 }

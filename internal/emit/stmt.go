@@ -195,6 +195,10 @@ func (g *gen) funcBody(fd *ast.FuncDecl, obj *types.Func, sig *types.Signature, 
 		g.ind++
 		defer func() { g.ind--; g.line("});") }()
 	}
+	if subset.Recovering(g.pkg)[obj] {
+		g.recoveringBody(fd, sig)
+		return
+	}
 	if hasDefer(fd.Body) {
 		g.rt["Defers"] = true
 		g.deferred = g.lnames.name("", func(string) string { return "deferred" })
@@ -1287,6 +1291,13 @@ func (g *gen) opAssign(s *ast.AssignStmt) {
 }
 
 func (g *gen) ifStmt(s *ast.IfStmt) {
+	if s.Init != nil && s == g.bareIf {
+		// The only statement of a closure's body, its own scope already:
+		// rustfmt drops a block there.
+		g.stmt(s.Init)
+		g.ifChain(s, "")
+		return
+	}
 	if s.Init != nil {
 		g.line("{")
 		g.ind++

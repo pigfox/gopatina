@@ -138,7 +138,11 @@ func (g *gen) closureExpr(prefix string, fn *borrow.Func, end string) {
 	g.out = &body
 	g.fn, g.recv = fn, nil
 	g.ind++
+	if list := fn.Decl.Body.List; len(list) == 1 {
+		g.bareIf, _ = list[0].(*ast.IfStmt)
+	}
 	g.funcBody(fn.Decl, fn.Obj, sig, fn.Params)
+	g.bareIf = nil
 	g.ind--
 	g.fn, g.recv, g.fnStart, g.fnBody, g.deferred = savedFn, savedRecv, savedStart, savedBody, savedDeferred
 	g.out = savedOut

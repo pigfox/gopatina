@@ -4,10 +4,10 @@
 
 | of 137 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 58 | 42.3% |
-| compiled to Rust | 58 | 42.3% |
-| output matches Go | 58 | 42.3% |
-| clippy clean (of 58 linted) | 56 | 96.6% |
+| accepted by patina mode | 59 | 43.1% |
+| compiled to Rust | 59 | 43.1% |
+| output matches Go | 59 | 43.1% |
+| clippy clean (of 59 linted) | 57 | 96.6% |
 
 ## Failure clusters, largest first
 
@@ -85,7 +85,6 @@
 | 1 | _ type declared inside _ function is not supported in patina mode yet | gobyexample/sorting-by-functions |
 | 1 | a *_ with more than one owner (a package-level variable holds it) is not supported in patina mode yet | gotour/moretypes/struct-literals |
 | 1 | a *_ with more than one owner (a slice, map, array, channel or struct value holds it) is not supported in patina mode yet | gotour/concurrency/exercise-web-crawler |
-| 1 | a call other than fmt.Print, Println, Printf or a math function in a deferred function literal (it may panic while a panic unwinds) is not supported in patina mode yet | gobyexample/recover |
 | 1 | a call with ... arguments is not supported in patina mode yet | gobyexample/variadic-functions |
 | 1 | a complex number is not supported in patina mode yet | gotour/basics/basic-types |
 | 1 | a function argument other than a function of the program, a closure, a function literal or a math function (RFC N) is not supported _ patina mode yet | gobyexample/regular-expressions |

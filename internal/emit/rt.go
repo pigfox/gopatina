@@ -1674,32 +1674,103 @@ impl Drop for Defers {
 `,
 	},
 	{
+		name: "quiet_hook",
+		code: `/// The message of the latest panic, as quiet_hook records it.
+static PANIC_RAW: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+/// Installs, once, a panic hook that records the panic's message and prints
+/// nothing: Go prints a panic that is not recovered, when it ends the
+/// program (rt::run_main), and never one that is (RFC 0020).
+pub fn quiet_hook() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        std::panic::set_hook(Box::new(|info| {
+            let payload = info.payload();
+            let raw = if let Some(s) = payload.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = payload.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                String::from("unknown panic")
+            };
+            if let Ok(mut m) = PANIC_RAW.lock() {
+                *m = raw;
+            }
+        }));
+    });
+}
+
+/// The message of the latest panic, as the panic macro gave it.
+fn panic_raw() -> String {
+    PANIC_RAW.lock().map(|m| m.clone()).unwrap_or_default()
+}
+`,
+	},
+	{
 		name: "run_main",
-		deps: []string{"exit_on_panic"},
+		deps: []string{"exit_on_panic", "quiet_hook"},
 		code: `/// Runs main as Go does when the program defers calls: a panic unwinds,
 /// running them, and then its message goes to standard error and the
 /// program exits with status 2.
 pub fn run_main(main: impl FnOnce()) {
-    static MESSAGE: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
-    std::panic::set_hook(Box::new(|info| {
-        let payload = info.payload();
-        let raw = if let Some(s) = payload.downcast_ref::<&str>() {
-            s.to_string()
-        } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-        } else {
-            String::from("unknown panic")
-        };
-        if let Ok(mut m) = MESSAGE.lock() {
-            *m = go_panic_message(&raw);
-        }
-    }));
+    quiet_hook();
     if std::panic::catch_unwind(std::panic::AssertUnwindSafe(main)).is_err() {
         let _ = std::io::Write::flush(&mut std::io::stdout());
-        let msg = MESSAGE.lock().map(|m| m.clone()).unwrap_or_default();
-        eprintln!("panic: {msg}");
+        eprintln!("panic: {}", go_panic_message(&panic_raw()));
         std::process::exit(2);
     }
+}
+`,
+	},
+	{
+		name: "recovering",
+		deps: []string{"exit_on_panic", "quiet_hook", "Defers"},
+		code: `thread_local! {
+    /// The value of the panic a recovering function stopped, until recover
+    /// takes it (RFC 0020).
+    static RECOVERED: std::cell::Cell<Option<String>> = const { std::cell::Cell::new(None) };
+}
+
+/// Runs body, the body of a function that defers a call of recover, as Go
+/// runs it (RFC 0020): on a panic, its deferred calls run, and if one of
+/// them recovers, it returns None, and the function its results as they
+/// are, instead of the panic going on. Without a panic, Some of the body's
+/// value, after its deferred calls. The body is AssertUnwindSafe: after a
+/// recovered panic, Go code sees what the body had changed, as Rust's does.
+pub fn recovering<T>(body: impl FnOnce(&mut Defers) -> T) -> Option<T> {
+    quiet_hook();
+    let mut deferred = Defers::default();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| body(&mut deferred)));
+    match result {
+        Ok(v) => {
+            drop(deferred);
+            Some(v)
+        }
+        Err(payload) => {
+            let raw = panic_raw();
+            let value = match raw.strip_prefix("gopatina-user-panic:") {
+                Some(v) => v.to_string(),
+                None => go_panic_message(&raw),
+            };
+            RECOVERED.with(|r| r.set(Some(value)));
+            drop(deferred);
+            if RECOVERED.with(|r| r.take()).is_some() {
+                std::panic::resume_unwind(payload); // not recovered
+            }
+            None
+        }
+    }
+}
+
+/// Go's recover(): the value of the panic being recovered, as %v prints
+/// it, taken; or None, Go's nil.
+pub fn recover() -> Option<String> {
+    RECOVERED.with(|r| r.take())
+}
+
+/// %v of what recover returned: the value, or <nil>.
+pub fn show_recovered(r: &Option<String>) -> String {
+    r.clone().unwrap_or_else(|| String::from("<nil>"))
 }
 `,
 	},

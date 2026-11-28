@@ -595,6 +595,9 @@ var binOps = map[token.Token]struct {
 }
 
 func (g *gen) binary(e *ast.BinaryExpr) node {
+	if n, ok := g.recoverNil(e); ok {
+		return n // RFC 0020
+	}
 	if f, ok := g.pkg.Fusions[e]; ok {
 		return g.fused(f)
 	}
