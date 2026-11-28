@@ -14,6 +14,13 @@ name: toolchains
 # warnings, clippy-clean, rustfmt-clean, and gopatina verify (reproducible builds).
 
 on:
+  workflow_call:
+    # toolchain-bump.yml runs these gates on its branch before it opens a PR.
+    inputs:
+      ref:
+        description: the branch or commit to check out
+        type: string
+        default: ""
   push:
     branches: [main]
   pull_request:
@@ -24,13 +31,6 @@ on:
 
 permissions:
   contents: read
-
-env:
-  # Minimum supported Rust version for generated crates (rust-version in
-  # their Cargo.toml): 1.85 is the first release with the 2024 edition.
-  RUST_MSRV: "1.85"
-  # The toolchain emitted crates pin (internal/emit, rust-toolchain.toml).
-  RUST_PINNED: "1.93.0"
 
 jobs:
   toolchains:
@@ -43,9 +43,17 @@ jobs:
         rust: [stable, msrv]
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
+      - name: Read toolchain.json
+        # The minimum supported Rust (rust-version in the crates' Cargo.toml)
+        # and the toolchain emitted crates pin (rust-toolchain.toml).
+        run: |
+          echo "RUST_MSRV=$(jq -r .rust.msrv toolchain.json)" >> "$GITHUB_ENV"
+          echo "RUST_PINNED=$(jq -r .rust.pinned toolchain.json)" >> "$GITHUB_ENV"
       - name: Install Rust ${{ matrix.rust }}
         run: |
           toolchain="${{ matrix.rust }}"
@@ -87,6 +95,8 @@ jobs:
         working-directory: examples/rust-interop
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
           go-version: stable
@@ -128,6 +138,8 @@ jobs:
           - { go: stable, rust: nightly }
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
           go-version: stable
@@ -153,7 +165,7 @@ jobs:
           RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
         run: go test -run 'TestDifferential' ./internal/patina
       - name: Open an issue on a scheduled failure
-        if: failure() && github.event_name == 'schedule'
+        if: failure() && github.event_name == 'schedule' && github.workflow == 'toolchains'
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: "ci: canary failing on go ${{ matrix.go }}, rust ${{ matrix.rust }}"

@@ -5,6 +5,13 @@ name: bench
 # Shared runners are noisy, so this job reports ratios only (bench/run.sh).
 
 on:
+  workflow_call:
+    # toolchain-bump.yml runs these gates on its branch before it opens a PR.
+    inputs:
+      ref:
+        description: the branch or commit to check out
+        type: string
+        default: ""
   release:
     types: [published]
   pull_request:
@@ -26,6 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Check for benchmark cases
         id: cases

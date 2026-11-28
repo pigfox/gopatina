@@ -29,7 +29,7 @@ jobs:
 
       - name: Install the crates' pinned Rust, with clippy
         run: |
-          channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' testdata/golden/hello/rust/rust-toolchain.toml)
+          channel=$(jq -r .rust.pinned toolchain.json)
           rustup toolchain install "$channel" --profile minimal --component clippy
           rustc +"$channel" --version | tee rust-version.txt
 
