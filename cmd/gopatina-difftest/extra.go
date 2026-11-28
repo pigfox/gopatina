@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/pigfox/gopatina/internal/emit"
 	"github.com/pigfox/gopatina/internal/progen"
 )
 
@@ -45,6 +46,28 @@ var inputLints = []string{
 // lintBatch emits the batch's crate and runs clippy on it. It returns the
 // clippy output on a failure, and an error when cargo cannot run clippy at
 // all (a machine without clippy), which is not a GoPatina defect.
+// clippyInstalled checks, before any batch, that cargo runs clippy with the
+// toolchain the generated crates pin (emit.Toolchain), as every Nth batch
+// will.
+func clippyInstalled(c config) error {
+	_, _, err := runClippy(c, c.work, []string{"RUSTUP_TOOLCHAIN=" + emit.Toolchain}, "--version")
+	return err
+}
+
+// runClippy runs cargo clippy with args in dir. It returns an error when
+// cargo cannot run or clippy is not installed for the toolchain, and
+// otherwise whether clippy failed, with its output.
+func runClippy(c config, dir string, env []string, args ...string) (failed bool, out []byte, err error) {
+	out, err = c.build(c.buildLimit(), dir, env, c.cargo, append([]string{"clippy"}, args...)...)
+	if _, ran := err.(*exec.ExitError); err != nil && !ran {
+		return false, nil, fmt.Errorf("%s could not run: %v", c.cargo, err)
+	}
+	if err != nil && bytes.Contains(out, []byte("is not installed for the toolchain")) {
+		return false, nil, fmt.Errorf("clippy is not installed for Rust %s, the toolchain the generated crates pin (rustup component add --toolchain %s clippy):\n%s", emit.Toolchain, emit.Toolchain, out)
+	}
+	return err != nil, out, nil
+}
+
 func lintBatch(c config, dir string) (failed bool, out []byte, err error) {
 	crate := filepath.Join(dir, "crate")
 	goEnv := []string{"GOCACHE=" + c.gocache}
@@ -52,18 +75,11 @@ func lintBatch(c config, dir string) (failed bool, out []byte, err error) {
 		return true, out, nil
 	}
 	target := "CARGO_TARGET_DIR=" + filepath.Join(dir, "lint-target") // removed with the batch
-	args := []string{"clippy", "--release", "--quiet", "--", "-D", "warnings"}
+	args := []string{"--release", "--quiet", "--", "-D", "warnings"}
 	for _, l := range inputLints {
 		args = append(args, "-A", l)
 	}
-	out, err = c.build(c.buildLimit(), crate, []string{target}, c.cargo, args...)
-	if _, ran := err.(*exec.ExitError); err != nil && !ran {
-		return false, nil, fmt.Errorf("%s could not run: %v", c.cargo, err)
-	}
-	if err != nil && bytes.Contains(out, []byte("is not installed for the toolchain")) {
-		return false, nil, fmt.Errorf("clippy is not installed for the crate's toolchain:\n%s", out)
-	}
-	return err != nil, out, nil
+	return runClippy(c, crate, []string{target}, args...)
 }
 
 // libraryCheck runs program first's library check. It returns what to keep

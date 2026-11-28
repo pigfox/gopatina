@@ -117,6 +117,7 @@ func TestCheckErrors(t *testing.T) {
 		want string
 	}{
 		{"no clippy", []string{"-lint", "1", "-cargo", fakeCargo(t, "echo \"error: 'cargo-clippy' is not installed for the toolchain '1.93.0'\"; exit 1", "", "")}, "clippy is not installed"},
+		{"clippy gone after the start", []string{"-lint", "1", "-cargo", fakeCargo(t, "case \"$2\" in --version) echo clippy ;; *) echo \"error: 'cargo-clippy' is not installed for the toolchain '1.100.1'\"; exit 1 ;; esac", "", "")}, "batch 0: lint: clippy is not installed"},
 		{"no cargo to lint", []string{"-lint", "1", "-cargo", missing}, "could not run"},
 		{"no cargo for libraries", []string{"-libraries", "1", "-cargo", missing}, "could not run"},
 		{"check does not build", []string{"-libraries", "1", "-cargo", ok, "-go", splitGo(t, g, fakeTool(t, "gocheck", true, "", ""))}, "go build"},

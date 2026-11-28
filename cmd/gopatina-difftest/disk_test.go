@@ -56,10 +56,10 @@ func TestLowDisk(t *testing.T) {
 	if code != 0 || !strings.Contains(errs, "only 10.0% of the disk is free: cleared the run's Go build cache") {
 		t.Errorf("cleared: code %d, stderr %s", code, errs)
 	}
-	// Never enough.
+	// Never enough: logged when it happens, by the batch, and at the end.
 	freeSpace = func(string) float64 { return 3 }
 	code, out, errs := difftest("-programs", "6", "-per", "2", "-start", "4", "-go", g, "-gopatina", p)
-	if code != 1 || out != "" || strings.Count(errs, "below -min-free 15%") != 1 || !strings.Contains(errs, "stopped (resume with -start 4)") {
+	if code != 1 || out != "" || strings.Count(errs, "below -min-free 15%") != 2 || !strings.Contains(errs, "batch 4-5: ERROR batch 4: only 3.0%") || !strings.Contains(errs, "stopped (resume with -start 4)") {
 		t.Errorf("stopped: code %d, stdout %q, stderr %s", code, out, errs)
 	}
 }
