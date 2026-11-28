@@ -216,3 +216,33 @@ func TestFusionLocal(t *testing.T) {
 		t.Errorf("global: %s", errs)
 	}
 }
+
+// TestFusionOpAssign checks float x += y and x -= y at a site gc fuses
+// (issue #223): matched as x + y and x - y at the operator; a target with
+// a call is not, and stays refused; a product held in a local is fused as
+// for a binary expression.
+func TestFusionOpAssign(t *testing.T) {
+	src := "package main\n\nimport \"fmt\"\n\nfunc g() int { return 0 }\n\nfunc f(a, b float64, xs []float64) float64 {\n\tx := 1.0\n\tx += a * b // pa\n\tx -= a * b // ps\n\txs[0] += a * b // pi\n\tp := a * b\n\tx += p // pl\n\txs[g()] += a * b // pc\n\tn := 1\n\tn += 2\n\tx *= 2\n\treturn x + float64(n)\n}\n\nfunc main() { fmt.Println(f(1, 2, []float64{3})) }\n"
+	site := func(marker, op string) fma.Site { return fma.Site{Pos: at(t, src, marker, op, 0)} }
+	pkg, errs := fused(t, src, arm64, site("// pa", "+="), site("// ps", "-="), site("// pi", "+="), site("// pl", "+="))
+	if errs != "" || len(pkg.Fusions) != 4 || len(pkg.Kept) != 1 {
+		t.Errorf("accepted: %s %v %v", errs, pkg.Fusions, pkg.Kept)
+	}
+	if _, errs := fused(t, src, arm64, site("// pc", "+=")); !strings.Contains(errs, "which is not a float + or -, is not supported") {
+		t.Errorf("a call in the target: %s", errs)
+	}
+	pkg, err := load.Source("/p", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg.FusedErr = errors.New("the report is missing")
+	n := 0
+	for _, d := range Check(pkg) {
+		if strings.Contains(d.Msg, "a float +, which gc may fuse") || strings.Contains(d.Msg, "a float -, which gc may fuse") {
+			n++
+		}
+	}
+	if n != 5 { // four op-assigns (not the one with a call), and the return's +
+		t.Errorf("unknown report: %d refused", n)
+	}
+}

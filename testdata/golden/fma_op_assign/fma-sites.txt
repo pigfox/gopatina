@@ -1,0 +1,5 @@
+# go1.27.4 linux/arm64
+main.go:17:9
+main.go:23:9
+main.go:29:13
+main.go:32:10

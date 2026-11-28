@@ -374,6 +374,9 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A float `x += a*b` or `x -= a*b` that gc fuses into a multiply-add (on
+  arm64, and from GOAMD64=v3) is written `x = ` the same fused operation;
+  it was refused (issue #223). A target with a call in it stays refused.
 - A loop nest that indexes with a constant expression whose parts are not
   integers, such as `a[i+3/2.0*2]`, no longer crashes the emitter (found by
   FuzzEmit in CI); the fuzz job now uploads a failing input.
