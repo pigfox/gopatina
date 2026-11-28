@@ -482,7 +482,16 @@ neither Go nor Rust installed, exactly as with a Go binary today.
 Patina binaries are built **fully static by default**. On Linux this means
 Rust's musl targets, which matches Go's static, drop-anywhere binaries: a
 patina binary can be copied to any machine a Go binary for the same operating
-system and architecture would run on. (On macOS, as with Go, binaries link
+system and architecture would run on.
+
+**Amendment (2026-11-27): static is opt-in for now.** musl's allocator is
+1.25 to 2.3 times slower than glibc's on the benchmarks that allocate
+(bench/results/2026-11-27-allocators.md), and the fast alternative measured,
+mimalloc, is C, which would bring the host's C toolchain back into static
+builds. So `-static` builds the musl targets below, linked by `rust-lld`
+with Rust's own musl runtime and no C toolchain. Without it, Linux binaries
+use the `-gnu` targets, until a fast allocator for static builds is
+settled; then static becomes the default, as planned. (On macOS, as with Go, binaries link
 the system library dynamically, because Apple does not support static
 linking against it. On Windows, the C runtime is linked statically.)
 

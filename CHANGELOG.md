@@ -10,6 +10,13 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **-static**: `gopatina build -patina -static` (and `-emit-rust -static`)
+  builds a fully static binary on linux/amd64 and linux/arm64. It uses
+  Rust's musl target, linked by `rust-lld` with Rust's own musl runtime,
+  so it needs no C toolchain, and it is reproducible. It is opt-in: musl's
+  allocator is 1.25 to 2.3 times slower than glibc's on the allocating
+  benchmarks (bench/results/2026-11-27-allocators.md), so gnu stays the
+  default, as RFC 0001's amendment records.
 - **Hardware FMA on amd64.** A crate built for baseline x86-64 compiled
   each `mul_add` to a call to the library's `fma`, which musl does in
   software. math.Exp's fused path is now compiled for AVX and FMA, and

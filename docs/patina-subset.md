@@ -261,8 +261,11 @@ and with plain `cargo build --release --locked` in another directory, and
 requires byte-identical binaries. CI runs it on every golden program.
 
 Targets: `linux/amd64` and `linux/arm64` (the `-gnu` targets), `darwin/amd64`,
-`darwin/arm64`, `windows/amd64`, `windows/arm64`. The static musl targets of
-RFC 0001 are planned.
+`darwin/arm64`, `windows/amd64`, `windows/arm64`. With `-static`, linux/amd64
+and linux/arm64 build Rust's musl targets instead: fully static binaries,
+linked by `rust-lld` with Rust's own musl runtime, so no C toolchain is
+needed. That is opt-in for now; see RFC 0001's amendment and
+bench/results/2026-11-27-allocators.md.
 
 ## Interfaces
 

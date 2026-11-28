@@ -96,6 +96,26 @@ func TestParseErrors(t *testing.T) {
 	}
 }
 
+// -static emits the crate for Rust's musl target, linked by rust-lld.
+func TestEmitRustStatic(t *testing.T) {
+	t.Setenv("GOOS", "linux")
+	t.Setenv("GOARCH", "arm64")
+	out := filepath.Join(t.TempDir(), "crate")
+	r := runCLI(t, "", "build", "-emit-rust", "-static", "-o", out, golden("hello"))
+	if r.code != exitOK {
+		t.Fatalf("got %+v", r)
+	}
+	cfg, err := os.ReadFile(filepath.Join(out, ".cargo", "config.toml"))
+	if err != nil || !strings.Contains(string(cfg), `target = "aarch64-unknown-linux-musl"`) || !strings.Contains(string(cfg), `linker = "rust-lld"`) {
+		t.Errorf(".cargo/config.toml = %q, %v", cfg, err)
+	}
+	t.Setenv("GOOS", "windows")
+	r = runCLI(t, "", "build", "--static", "-emit-rust", "-o", filepath.Join(t.TempDir(), "w"), golden("hello"))
+	if r.code == exitOK || !strings.Contains(r.stderr, "has no static target") {
+		t.Errorf("-static on windows: %+v", r)
+	}
+}
+
 func TestEmitRust(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "crate")
 	r := runCLI(t, "", "build", "-emit-rust", "-explain", "-o", out, golden("hello"))

@@ -167,6 +167,18 @@ func TestTarget(t *testing.T) {
 	if _, err := s.Target(); err != nil && !strings.Contains(err.Error(), runtime.GOOS) {
 		t.Errorf("Target() for the host: %v", err)
 	}
+	s.Static = true
+	for pair, want := range map[string]string{"linux/amd64": "x86_64-unknown-linux-musl", "linux/arm64": "aarch64-unknown-linux-musl"} {
+		goos, goarch, _ := strings.Cut(pair, "/")
+		env = map[string]string{"GOOS": goos, "GOARCH": goarch}
+		if got, err := s.Target(); err != nil || got != want {
+			t.Errorf("-static Target() for %s = %q, %v; want %s", pair, got, err, want)
+		}
+	}
+	env = map[string]string{"GOOS": "darwin", "GOARCH": "arm64"}
+	if _, err := s.Target(); err == nil || !strings.Contains(err.Error(), "-static: GOOS/GOARCH darwin/arm64 has no static target") {
+		t.Errorf("-static Target() for darwin: %v", err)
+	}
 }
 
 func TestCargoEnv(t *testing.T) {

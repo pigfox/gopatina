@@ -40,6 +40,9 @@ type Session struct {
 	// APICheck is an earlier api.txt a library's new API is checked
 	// against (-api-check; RFC 0014), or "".
 	APICheck string
+	// Static builds a fully static binary on Linux (-static): Rust's musl
+	// target, linked by rust-lld with Rust's own musl runtime (RFC 0001).
+	Static bool
 	// Getenv reads the environment (os.Getenv, replaceable in tests).
 	Getenv func(string) string
 }
@@ -156,8 +159,15 @@ func (s *Session) Emit(dir string) (*emit.Crate, error) {
 }
 
 // targets maps GOOS/GOARCH to the Rust target patina binaries are built
-// for. The static musl targets of RFC 0001 are planned; these use each
-// platform's default C runtime.
+// for by default, each platform's default C runtime. staticTargets are
+// -static's: Rust's musl targets, fully static. They are not the default
+// yet, as RFC 0001 plans: musl's allocator is slower than glibc's
+// (bench/results/2026-11-27-allocators.md).
+var staticTargets = map[string]string{
+	"linux/amd64": "x86_64-unknown-linux-musl",
+	"linux/arm64": "aarch64-unknown-linux-musl",
+}
+
 var targets = map[string]string{
 	"linux/amd64":   "x86_64-unknown-linux-gnu",
 	"linux/arm64":   "aarch64-unknown-linux-gnu",
@@ -176,6 +186,13 @@ func (s *Session) Target() (string, error) {
 	}
 	if goarch == "" {
 		goarch = runtime.GOARCH
+	}
+	if s.Static {
+		t, ok := staticTargets[goos+"/"+goarch]
+		if !ok {
+			return "", fmt.Errorf("-static: GOOS/GOARCH %s/%s has no static target (linux/amd64 and linux/arm64 have)", goos, goarch)
+		}
+		return t, nil
 	}
 	t, ok := targets[goos+"/"+goarch]
 	if !ok {
