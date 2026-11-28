@@ -934,8 +934,24 @@ func (c *checker) builtin(e *ast.CallExpr, name string) {
 		c.typ(e, info.Types[e.Args[0]].Type, false)
 		c.exprs(e.Args[1:])
 	case "panic":
-		if !isString(info.Types[e.Args[0]].Type) {
-			c.unsupported(e, "panic with a value that is not a string")
+		// Go prints a string; an error's Error() (Go's PanicNilError text
+		// for a nil error); a Stringer's String(); a named string type as
+		// T("s"). Other values print by the runtime's own rules, not yet.
+		t := info.Types[e.Args[0]].Type
+		switch {
+		case isString(t):
+		case isError(t):
+			if what := c.printProblem(t); what != "" {
+				c.unsupported(e, "panic with an error value: "+what)
+				return
+			}
+		case PrintMethod(t) != nil:
+			if what := c.methodPrintProblem(PrintMethod(t)); what != "" {
+				c.unsupported(e, what)
+				return
+			}
+		default:
+			c.unsupported(e, "panic with a value that is not a string or an error")
 			return
 		}
 		c.exprs(e.Args)

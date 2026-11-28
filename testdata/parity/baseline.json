@@ -111,20 +111,6 @@
       ]
     },
     {
-      "fingerprint": "panic with a value that is not a string is not supported in patina mode yet",
-      "programs": [
-        "gobyexample/defer",
-        "gobyexample/directories",
-        "gobyexample/enums",
-        "gobyexample/file-paths",
-        "gobyexample/panic",
-        "gobyexample/reading-files",
-        "gobyexample/text-templates",
-        "gobyexample/writing-files",
-        "gobyexample/xml"
-      ]
-    },
-    {
       "fingerprint": "the go statement (goroutines are planned, RFC N) is not supported in patina mode yet",
       "programs": [
         "gobyexample/channel-synchronization",
@@ -147,6 +133,18 @@
         "gobyexample/range-over-channels",
         "gobyexample/select",
         "gobyexample/timeouts"
+      ]
+    },
+    {
+      "fingerprint": "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/defer",
+        "gobyexample/directories",
+        "gobyexample/file-paths",
+        "gobyexample/panic",
+        "gobyexample/reading-files",
+        "gobyexample/text-templates",
+        "gobyexample/writing-files"
       ]
     },
     {
@@ -1242,6 +1240,12 @@
       ]
     },
     {
+      "fingerprint": "panic with an error value: printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet",
+      "programs": [
+        "gobyexample/xml"
+      ]
+    },
+    {
       "fingerprint": "printing _ value of type [N][N]int is not supported in patina mode yet",
       "programs": [
         "gobyexample/arrays"
@@ -1831,7 +1835,7 @@
         "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "_ is copied and kept, so its object has two owners",
         "os.Create is not supported in patina mode yet",
-        "panic with a value that is not a string is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "calls filepath.Join, whose standard-library code patina mode does not support yet",
         "uses the standard package io/fs, which patina mode does not support yet",
         "uses the standard package path, which patina mode does not support yet",
@@ -1842,7 +1846,7 @@
       "name": "gobyexample/directories",
       "stage": "refused",
       "fingerprints": [
-        "panic with a value that is not a string is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "os.Mkdir is not supported in patina mode yet",
         "defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet",
         "a function type is not supported in patina mode yet",
@@ -1869,8 +1873,7 @@
       "stage": "refused",
       "fingerprints": [
         "a map type is not supported in patina mode yet",
-        "printing a value whose _ method may panic is not supported in patina mode yet",
-        "panic with a value that is not a string is not supported in patina mode yet"
+        "printing a value whose _ method may panic is not supported in patina mode yet"
       ]
     },
     {
@@ -1910,7 +1913,7 @@
       "name": "gobyexample/file-paths",
       "stage": "refused",
       "fingerprints": [
-        "panic with a value that is not a string is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "calls filepath.Rel, whose standard-library code patina mode does not support yet",
         "calls filepath.Ext, whose standard-library code patina mode does not support yet",
         "calls filepath.Base, whose standard-library code patina mode does not support yet",
@@ -2071,7 +2074,7 @@
         "os.TempDir is not supported in patina mode yet",
         "type os.File is not supported in patina mode yet",
         "os.Create is not supported in patina mode yet",
-        "panic with a value that is not a string is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "calls filepath.Join, whose standard-library code patina mode does not support yet",
         "uses the standard package io/fs, which patina mode does not support yet",
         "uses the standard package path, which patina mode does not support yet",
@@ -2129,7 +2132,7 @@
       "name": "gobyexample/reading-files",
       "stage": "refused",
       "fingerprints": [
-        "panic with a value that is not a string is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "os.TempDir is not supported in patina mode yet",
         "os.ReadFile is not supported in patina mode yet",
         "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
@@ -2335,7 +2338,7 @@
       "stage": "refused",
       "fingerprints": [
         "_ is copied and kept, so its object has two owners",
-        "panic with a value that is not a string is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "template.Must(_.Parse(\"S\")) lends back a pointer its caller owns, and it is kept in _, so the object has two owners",
         "the results of Parse used here other than as v..., _ := Parse(...) or return Parse(...)",
         "a function type is not supported in patina mode yet",
@@ -2435,7 +2438,7 @@
       "name": "gobyexample/writing-files",
       "stage": "refused",
       "fingerprints": [
-        "panic with a value that is not a string is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "os.TempDir is not supported in patina mode yet",
         "os.WriteFile is not supported in patina mode yet",
         "type os.File is not supported in patina mode yet",
@@ -2456,7 +2459,7 @@
         "_ is converted to an interface while it is still used, so its object has two owners",
         "converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet",
         "the address of _ kept where its object would have more than one owner is not supported in patina mode yet",
-        "panic with a value that is not a string is not supported in patina mode yet",
+        "panic with an error value: printing an interface value in a program that converts *strconv.NumError to one: printing a value whose Error method may panic is not supported in patina mode yet",
         "a type declared inside a function is not supported in patina mode yet",
         "calls xml.Unmarshal, whose standard-library code patina mode does not support yet",
         "calls xml.MarshalIndent, whose standard-library code patina mode does not support yet",

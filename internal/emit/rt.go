@@ -46,7 +46,8 @@ pub fn exit_on_panic() {
 fn go_panic_message(msg: &str) -> String {
     const USER: &str = "gopatina-user-panic:";
     if let Some(rest) = msg.strip_prefix(USER) {
-        return rest.to_string();
+        // Go's runtime indents each line after the first.
+        return rest.replace('\n', "\n\t");
     }
     match msg {
         "attempt to divide by zero"

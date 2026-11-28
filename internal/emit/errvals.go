@@ -148,6 +148,17 @@ func (g *gen) errHelpers() {
 		g.line("    boxed(Dyn::" + goErrorVariant + "(rt::Error::new(message)))")
 		g.line("}")
 	}
+	if g.ifc.helpers["iface_panic"] {
+		g.line("")
+		g.line("/// panic(err): Go prints Error(), and for a nil error the text of its")
+		g.line("/// runtime.PanicNilError.")
+		g.line("pub fn iface_panic(x: &Iface) -> String {")
+		g.line("    if x.is_none() {")
+		g.line("        return String::from(\"runtime error: panic called with nil argument\");")
+		g.line("    }")
+		g.line("    iface_show(x)")
+		g.line("}")
+	}
 	if g.ifc.helpers["iface_s"] {
 		g.line("")
 		g.line("/// %s of an error, padded to width: %!s(<nil>), unpadded, for nil.")

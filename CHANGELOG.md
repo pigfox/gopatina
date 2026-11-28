@@ -10,6 +10,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- **panic(err)** and other non-string panics, printed as Go's runtime
+  prints them: an error's `Error()`, `runtime error: panic called with nil
+  argument` for a nil error, a Stringer's `String()`. Other values are not
+  yet supported.
 - **The verb %q** of a string, and of a value printed through its String
   or Error method, with a width and the `-` flag. It is Go's
   `strconv.Quote`: double quotes, `\"` and `\\`, `\a \b \f \n \r \t \v`,
@@ -296,6 +300,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Fixed
 
+- A panic message of several lines now indents each line after the first
+  with a tab, as Go's runtime does; it was printed as it was.
+- `panic` of a named string type printed the bare string; Go prints
+  `main.T("s")`.
 - **Clippy warning**: a program keeping one of main's unexported struct
   types in an interface got a crate that warned `private_interfaces`: the
   interface enum `Dyn` is public and held the private struct. Such a crate

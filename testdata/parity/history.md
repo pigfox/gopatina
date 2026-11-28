@@ -25,3 +25,4 @@ failing with no diagnostic, a defect of its own.
 | 2026-11-27 | math.Sin and math.Cos (#202) and math.Pow (#206), measured here: 3 more programs match, among them gotour/flowcontrol/if-and-else and if-with-a-short-statement (math.Pow) | 137 | 53 | 46 (33.6%) | 46 (33.6%) | 46 (33.6%) | 0 |
 | 2026-11-27 | printing structs with %v (Println, Print, Sprint): gotour/moretypes/structs and struct-pointers now match | 137 | 53 | 48 (35.0%) | 48 (35.0%) | 48 (35.0%) | 0 |
 | 2026-11-27 | the verb %q of a string, as strconv.Quote: gotour/basics/zero and methods/type-switches now match | 137 | 53 | 50 (36.5%) | 50 (36.5%) | 50 (36.5%) | 0 |
+| 2026-11-27 | panic(err) and Stringers: no program matches yet. In 8 of the 9 that panic with an error, the error comes from os or strconv (*fs.PathError, *strconv.NumError), whose Error method is not yet known not to panic, and they also call file APIs; gobyexample/enums needs maps | 137 | 53 | 50 (36.5%) | 50 (36.5%) | 50 (36.5%) | 0 |
