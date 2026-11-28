@@ -10,6 +10,10 @@ Until 1.0.0, minor versions may contain breaking changes.
 
 ### Added
 
+- `scripts/gates.sh` runs every local gate (gofmt, vet, race tests with
+  100% coverage, the Rust suites, the difftest and, with `--parity`, the
+  parity run) with the Go release `.go-version` pins, through `GOTOOLCHAIN`,
+  so local float and FMA results match CI's.
 - **Range over a map, step 3 of RFC 0019.** `for k, v := range m` is
   `for (k, v) in m.iter()` (or `keys()`, `values()`), in the hash table's
   order, which Go leaves unspecified. Changing the map inside the loop is

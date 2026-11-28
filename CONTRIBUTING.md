@@ -33,7 +33,12 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 2. Create a topic branch from `main`, named after the change:
    `feat/short-name`, `fix/short-name`, `docs/short-name`, `ci/short-name`.
 3. Make your change. Keep it focused: one logical change per pull request.
-4. Run the same checks CI runs:
+4. Run the same checks CI runs. `scripts/gates.sh` runs all of them (gofmt,
+   vet, the race tests with the 100% coverage check, the Rust suites and the
+   difftest; `--parity <dir>` adds the parity run) with the Go release
+   `.go-version` pins, through `GOTOOLCHAIN`, as CI does: gc's float
+   multiply-add fusion differs between Go releases, so another installed Go
+   can pass what CI rejects. By hand:
 
    ```sh
    gofmt -l .          # must print nothing
