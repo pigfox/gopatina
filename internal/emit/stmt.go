@@ -1681,6 +1681,8 @@ func (g *gen) rangeStmt(s *ast.RangeStmt) {
 		}
 		pat = key
 		iter = atom{start + ".." + paren(g.value(s.X), precRange+1), precRange}
+	case isMapType(t):
+		pat, iter, first = g.mapRange(s) // RFC 0019, step 3
 	default:
 		pat, iter, first = g.sliceRange(s, key, value)
 	}

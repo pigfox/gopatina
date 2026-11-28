@@ -156,6 +156,10 @@ func mapUseProblem(info *types.Info, v *types.Var, body *ast.BlockStmt) string {
 			if id, isID := ast.Unparen(n.X).(*ast.Ident); isID {
 				ok[id] = true
 			}
+		case *ast.RangeStmt:
+			if id, isID := ast.Unparen(n.X).(*ast.Ident); isID {
+				ok[id] = true // range over the map (step 3)
+			}
 		case *ast.CallExpr:
 			if mapCallArg(info, n) {
 				for _, a := range n.Args {
@@ -216,4 +220,52 @@ func mapUpdateProblem(info *types.Info, target ast.Expr, tok token.Token) string
 		}
 	}
 	return fmt.Sprintf("%s on an element of a map other than +=, -=, *=, ++ or -- of a number (step 1 of RFC 0019)", tok)
+}
+
+// mapRangeProblem checks for k, v := range m (RFC 0019, step 3): m is a map
+// variable, and the body does not change it (decision 5). The loop visits
+// the entries in the hash table's order, which Go leaves unspecified.
+func (c *checker) mapRangeProblem(s *ast.RangeStmt) string {
+	id, ok := ast.Unparen(s.X).(*ast.Ident)
+	if _, sel := ast.Unparen(s.X).(*ast.SelectorExpr); sel {
+		return "range over a package-level map of another package (step 3 of RFC 0019)"
+	}
+	if !ok {
+		return "range over a map other than a map variable (step 3 of RFC 0019)"
+	}
+	m := c.pkg.Info.Uses[id]
+	info := c.pkg.Info
+	rooted := func(e ast.Expr) bool {
+		for {
+			switch x := ast.Unparen(e).(type) {
+			case *ast.IndexExpr:
+				e = x.X
+			case *ast.Ident:
+				return info.Uses[x] == m
+			default:
+				return false
+			}
+		}
+	}
+	problem := ""
+	ast.Inspect(s.Body, func(n ast.Node) bool {
+		changed := false
+		switch n := n.(type) {
+		case *ast.AssignStmt:
+			for _, l := range n.Lhs {
+				changed = changed || n.Tok != token.DEFINE && rooted(l)
+			}
+		case *ast.IncDecStmt:
+			changed = rooted(n.X)
+		case *ast.CallExpr:
+			fn, isID := ast.Unparen(n.Fun).(*ast.Ident)
+			b, isBuiltin := info.Uses[fn].(*types.Builtin)
+			changed = isID && isBuiltin && b.Name() == "delete" && rooted(n.Args[0])
+		}
+		if changed {
+			problem = fmt.Sprintf("changing the map %s while ranging over it (decision 5 of RFC 0019)", id.Name)
+		}
+		return problem == ""
+	})
+	return problem
 }

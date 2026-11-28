@@ -1,0 +1,3 @@
+./main.go:42:25: copied keys[j-1] into keys[j]: keys[j-1] is an element of keys, and an element cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:42:36: copied keys[j] into keys[j-1]: keys[j] is an element of keys, and an element cannot be moved out; Go strings are immutable, so a copy keeps the program's meaning
+./main.go:59:12: moved k into inv[v]: k is not used afterwards
