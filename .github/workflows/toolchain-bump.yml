@@ -6,18 +6,17 @@ name: toolchain bump
 # every gate runs on that branch: the golden crates and Rust tests, float bit
 # for bit on arm64, amd64 with FMA and amd64 without it (CI), the toolchain
 # matrix and clippy (toolchains), the difftest on amd64 and arm64, and the
-# benchmarks (bench).
-# - stable: when every gate passes, it opens a pull request against main.
+# benchmarks of GoPatina's crates built with the old pin and the new one, on
+# the same runner (bench-compare).
+# - stable: when every gate passes, it opens a pull request against main,
+#   with each gate's result and the benchmark comparison in its body.
 # - beta: it opens no pull request; the run warns of what the next stable
 #   will break, about six weeks ahead.
 # When a gate fails, it opens an issue (or comments on the open one).
 #
-# A pull request opened with the workflow's own token starts no workflows,
-# so its checks would not run on it. With a TOOLCHAIN_BUMP_TOKEN secret (a
-# fine-grained token with contents and pull requests write on this
-# repository), it opens the pull request with that token instead, and the
-# usual checks run on it too. Without one, the pull request links this run,
-# where the same gates passed.
+# The pull request is opened with the workflow's own GITHUB_TOKEN, which
+# starts no workflows: no checks run on the pull request itself. The gates
+# in this run are its checks, and its body says so and links the run.
 
 on:
   schedule:
@@ -132,12 +131,59 @@ jobs:
     with:
       ref: ${{ needs.prepare.outputs.sha }}
 
-  bench:
+  bench-compare:
+    name: bench, the old pin against the new
     needs: prepare
     if: needs.prepare.outputs.branch != ''
-    uses: ./.github/workflows/bench.yml
-    with:
-      ref: ${{ needs.prepare.outputs.sha }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          path: old
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          path: new
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: Install Rust stable (the hand-written crates) and both pins
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup toolchain install "$(jq -r .rust.pinned old/toolchain.json)" --profile minimal
+          rustup toolchain install "$(jq -r .rust.pinned new/toolchain.json)" --profile minimal
+      - name: GoPatina's crates with each pin, the same hand-written Rust
+        # shipped: GoPatina's crate is built with the toolchain it pins, the
+        # hand-written one with stable, so only the pin differs between runs.
+        run: |
+          (cd old && bench/run.sh --toolchain shipped --out "$RUNNER_TEMP/old.json")
+          (cd new && bench/run.sh --toolchain shipped --out "$RUNNER_TEMP/new.json")
+      - name: Compare (a ratio 5% worse is flagged)
+        env:
+          OLD: ${{ needs.prepare.outputs.old }}
+          NEW: ${{ needs.prepare.outputs.pin }}
+        run: |
+          {
+            echo "| case | gopatina/rust, Rust $OLD | gopatina/rust, Rust $NEW | change | memory, $OLD | memory, $NEW |"
+            echo "| --- | --- | --- | --- | --- | --- |"
+            jq -r --slurpfile n "$RUNNER_TEMP/new.json" '
+              .results[] as $o
+              | ($n[0].results[] | select(.case == $o.case)) as $w
+              | ($w.gopatina_over_rust / $o.gopatina_over_rust) as $c
+              | "| \($o.case) | \($o.gopatina_over_rust) | \($w.gopatina_over_rust) | "
+                + (if $c > 1.05 then "**\(($c - 1) * 100 | round)% slower: regression**"
+                   elif $c < 0.95 then "\((1 - $c) * 100 | round)% faster"
+                   else "within 5%" end)
+                + " | \($o.memory_gopatina_over_rust) | \($w.memory_gopatina_over_rust) |"' "$RUNNER_TEMP/old.json"
+          } > bench-compare.md
+          cat bench-compare.md >> "$GITHUB_STEP_SUMMARY"
+          cat bench-compare.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bench-compare
+          path: bench-compare.md
 
   difftest-arm64:
     needs: prepare
@@ -169,47 +215,62 @@ jobs:
 
   open-pr:
     name: open the pull request
-    needs: [prepare, ci, toolchains, bench, difftest-arm64, difftest-amd64]
+    needs: [prepare, ci, toolchains, bench-compare, difftest-arm64, difftest-amd64]
     if: needs.prepare.outputs.branch != '' && needs.prepare.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
     steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: bench-compare
       - name: Open or update the pull request
         env:
-          GH_TOKEN: ${{ secrets.TOOLCHAIN_BUMP_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ needs.prepare.outputs.branch }}
           PIN: ${{ needs.prepare.outputs.pin }}
           OLD: ${{ needs.prepare.outputs.old }}
           SHA: ${{ needs.prepare.outputs.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GATES: |
+            | gate | result |
+            | --- | --- |
+            | CI: lint, tests and coverage, golden crates, float bit for bit on arm64, amd64 at GOAMD64=v3 and amd64 without FMA, fuzz | ${{ needs.ci.result }} |
+            | toolchains: Go stable and oldstable x Rust stable and MSRV, clippy, golden crates with the pin | ${{ needs.toolchains.result }} |
+            | difftest, seed 1, programs 0-399, amd64 | ${{ needs.difftest-amd64.result }} |
+            | difftest, seed 1, programs 0-399, arm64 | ${{ needs.difftest-arm64.result }} |
+            | bench, the old pin against the new | ${{ needs.bench-compare.result }} |
         run: |
-          body="$(cat <<EOF
-          Moves the Rust toolchain emitted crates pin from $OLD to $PIN
-          (toolchain.json), with every copy rewritten by
-          scripts/toolchain-bump.sh.
-
-          Every gate passed on $SHA in $RUN_URL: golden crates and Rust
-          tests, float bit for bit on arm64, amd64 with FMA and amd64
-          without it, the toolchain matrix and clippy, the difftest (seed 1,
-          programs 0-399) on amd64 and arm64, and the benchmarks.
-
-          A new rustc can compile the same crate to different machine code:
-          compare the bench run's ratios with BENCHMARKS.md before merging.
-          EOF
-          )"
+          {
+            echo "Moves the Rust toolchain emitted crates pin from $OLD to $PIN"
+            echo "(toolchain.json), with every copy rewritten by scripts/toolchain-bump.sh."
+            echo
+            echo "## Gates"
+            echo
+            echo "This pull request was opened with GITHUB_TOKEN, so no checks run on it."
+            echo "These gates are its checks. They ran on $SHA in $RUN_URL:"
+            echo
+            printf '%s\n' "$GATES"
+            echo "## Benchmarks"
+            echo
+            echo "GoPatina's crates built with each pin, against the same hand-written"
+            echo "Rust (stable), on one shared runner: ratios, not times. A ratio 5% worse"
+            echo "is marked as a regression; compare with BENCHMARKS.md before merging."
+            echo
+            cat bench-compare.md
+          } > body.md
           existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json number --jq '.[0].number')"
           if [ -n "$existing" ]; then
-            gh pr edit "$existing" --repo "$GITHUB_REPOSITORY" --title "build(rust): pin emitted crates to Rust $PIN" --body "$body"
+            gh pr edit "$existing" --repo "$GITHUB_REPOSITORY" --title "build(rust): pin emitted crates to Rust $PIN" --body-file body.md
           else
             gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" \
-              --title "build(rust): pin emitted crates to Rust $PIN" --body "$body"
+              --title "build(rust): pin emitted crates to Rust $PIN" --body-file body.md
           fi
 
   report-failure:
     name: open an issue on a failed gate
-    needs: [prepare, ci, toolchains, bench, difftest-arm64, difftest-amd64]
+    needs: [prepare, ci, toolchains, bench-compare, difftest-arm64, difftest-amd64]
     if: failure()
     runs-on: ubuntu-latest
     permissions:
