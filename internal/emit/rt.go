@@ -1576,6 +1576,68 @@ pub fn is_inf(f: f64, sign: i64) -> bool {
 `,
 	},
 	{
+		name: "Map",
+		code: `/// Go's map (RFC 0019): a HashMap with a fixed hasher, so every run of
+/// the program is the same.
+pub type Map<K, V> = std::collections::HashMap<
+    K,
+    V,
+    std::hash::BuildHasherDefault<std::collections::hash_map::DefaultHasher>,
+>;
+`,
+	},
+	{
+		name: "map_get",
+		deps: []string{"Map"},
+		code: `/// m[k] of a map: its value, or the zero value for a missing key.
+pub fn map_get<K, V, Q>(m: &Map<K, V>, k: &Q) -> V
+where
+    K: std::borrow::Borrow<Q> + Eq + std::hash::Hash,
+    Q: Eq + std::hash::Hash + ?Sized,
+    V: Clone + Default,
+{
+    m.get(k).cloned().unwrap_or_default()
+}
+`,
+	},
+	{
+		name: "map_get_ok",
+		deps: []string{"Map"},
+		code: `/// v, ok := m[k]: the value and true, or the zero value and false for a
+/// missing key.
+pub fn map_get_ok<K, V, Q>(m: &Map<K, V>, k: &Q) -> (V, bool)
+where
+    K: std::borrow::Borrow<Q> + Eq + std::hash::Hash,
+    Q: Eq + std::hash::Hash + ?Sized,
+    V: Clone + Default,
+{
+    match m.get(k) {
+        Some(v) => (v.clone(), true),
+        None => (V::default(), false),
+    }
+}
+`,
+	},
+	{
+		name: "show_map",
+		deps: []string{"Map"},
+		code: `/// %v of a map, as fmt prints it: map[k:v ...], its keys sorted.
+pub fn show_map<K: Ord, V>(
+    m: &Map<K, V>,
+    key: impl Fn(&K) -> String,
+    val: impl Fn(&V) -> String,
+) -> String {
+    let mut entries: Vec<(&K, &V)> = m.iter().collect();
+    entries.sort_unstable_by_key(|e| e.0);
+    let parts: Vec<String> = entries
+        .iter()
+        .map(|&(k, v)| format!("{}:{}", key(k), val(v)))
+        .collect();
+    format!("map[{}]", parts.join(" "))
+}
+`,
+	},
+	{
 		name: "Defers",
 		code: `/// The calls a function defers, run last first when it returns or as a
 /// panic unwinds through it, as Go runs them.

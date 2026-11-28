@@ -767,6 +767,9 @@ func (g *gen) stmt(s ast.Stmt) {
 	case *ast.AssignStmt:
 		g.assign(s)
 	case *ast.IncDecStmt:
+		if g.mapStmt(s) {
+			return // RFC 0019
+		}
 		if id, ok := s.X.(*ast.Ident); ok && g.fastVar(g.localVar(id)) {
 			g.line(g.varName(g.localVar(id)) + " += 1;")
 			return
@@ -979,7 +982,7 @@ func (g *gen) needsType(e ast.Expr) bool {
 	}
 	switch x := ast.Unparen(e).(type) {
 	case *ast.CompositeLit:
-		return isSlice(tv.Type)
+		return isSlice(tv.Type) || isMapType(tv.Type)
 	case *ast.CallExpr:
 		if id, ok := ast.Unparen(x.Fun).(*ast.Ident); ok && id.Name == "make" {
 			return true
@@ -991,6 +994,9 @@ func (g *gen) needsType(e ast.Expr) bool {
 func (g *gen) assign(s *ast.AssignStmt) {
 	if g.recursiveFn(s) {
 		return // var f func...; f = func... (RFC 0018, step 4)
+	}
+	if g.mapStmt(s) {
+		return // RFC 0019
 	}
 	if s.Tok == token.DEFINE && len(s.Lhs) == 1 && len(s.Rhs) == 1 {
 		if lit, ok := ast.Unparen(s.Rhs[0]).(*ast.FuncLit); ok {

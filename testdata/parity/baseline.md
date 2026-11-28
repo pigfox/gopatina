@@ -4,17 +4,16 @@
 
 | of 137 tested | programs | rate |
 |---|---|---|
-| accepted by patina mode | 54 | 39.4% |
-| compiled to Rust | 54 | 39.4% |
-| output matches Go | 54 | 39.4% |
-| clippy clean (of 54 linted) | 52 | 96.3% |
+| accepted by patina mode | 55 | 40.1% |
+| compiled to Rust | 55 | 40.1% |
+| output matches Go | 55 | 40.1% |
+| clippy clean (of 55 linted) | 53 | 96.4% |
 
 ## Failure clusters, largest first
 
 | programs | fingerprint | examples |
 |---|---|---|
 | 11 | a channel type (goroutines and channels are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
-| 9 | a map type is not supported in patina mode yet | gobyexample/enums, gobyexample/maps, gobyexample/mutexes |
 | 8 | the go statement (goroutines are planned, RFC N) is not supported in patina mode yet | gobyexample/channel-synchronization, gobyexample/channels, gobyexample/select |
 | 7 | make of chan string is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channels |
 | 7 | panic with an error value: printing an interface value in a program that converts *io/fs.PathError to one: printing a value whose Error method may panic is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
@@ -23,11 +22,13 @@
 | 7 | uses the standard package path, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 7 | uses the standard package unicode/utf8, which patina mode does not support yet | gobyexample/defer, gobyexample/directories, gobyexample/file-paths |
 | 6 | a channel send (planned, RFC N) is not supported in patina mode yet | gobyexample/channel-buffering, gobyexample/channel-directions, gobyexample/channel-synchronization |
+| 6 | a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet | gobyexample/mutexes, gobyexample/text-templates, gotour/concurrency/mutex-counter |
 | 5 | _ is copied and kept, so its object has two owners | gobyexample/defer, gobyexample/reading-files, gobyexample/text-templates |
 | 5 | calls filepath.Join, whose standard-library code patina mode does not support yet | gobyexample/defer, gobyexample/file-paths, gobyexample/panic |
 | 5 | defer of a call other than fmt.Print, Println and Printf is not supported in patina mode yet | gobyexample/defer, gobyexample/directories, gobyexample/mutexes |
 | 5 | the cap built-in is not supported in patina mode yet | gobyexample/slices, gotour/moretypes/append, gotour/moretypes/making-slices |
 | 5 | uses the standard package unicode, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/regular-expressions |
+| 4 | a map literal or make of a map other than the value of a local map variable where it is declared (step N of RFC N) is not supported in patina mode yet | gobyexample/enums, gobyexample/mutexes, gobyexample/text-templates |
 | 4 | a slice expression (s[i:j]) is not supported in patina mode yet | gobyexample/command-line-arguments, gobyexample/command-line-subcommands, gobyexample/reading-files |
 | 4 | an array type is not supported in patina mode yet | gobyexample/arrays, gotour/moretypes/array, gotour/moretypes/slices |
 | 4 | os.TempDir is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/reading-files |
@@ -37,11 +38,11 @@
 | 4 | uses the standard package internal/strconv, which patina mode does not support yet | gobyexample/sha256-hashes, gobyexample/text-templates, gobyexample/xml |
 | 4 | uses the standard package reflect, which patina mode does not support yet | gobyexample/command-line-flags, gobyexample/command-line-subcommands, gobyexample/text-templates |
 | 3 | a function literal with a parameter of type string (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/directories, gobyexample/mutexes, gobyexample/text-templates |
+| 3 | a map with values of type main._ (step N of RFC N takes numbers, bools and strings) is not supported in patina mode yet | gotour/moretypes/map-literals, gotour/moretypes/map-literals-continued, gotour/moretypes/maps |
 | 3 | a slice expression (_[i:j]) is not supported in patina mode yet | gotour/moretypes/slice-bounds, gotour/moretypes/slice-len-cap, gotour/moretypes/slices |
 | 3 | an anonymous struct type is not supported in patina mode yet | gobyexample/structs, gobyexample/text-templates, gotour/moretypes/slice-literals |
 | 3 | converting a []byte to a string (patina strings must be valid UTF-N) is not supported in patina mode yet | gobyexample/base64-encoding, gobyexample/reading-files, gobyexample/xml |
 | 3 | make of chan int is not supported in patina mode yet | gotour/concurrency/buffered-channels, gotour/concurrency/range-and-close, gotour/concurrency/select |
-| 3 | make of map[string]int is not supported in patina mode yet | gobyexample/maps, gotour/concurrency/mutex-counter, gotour/moretypes/mutating-maps |
 | 3 | os.Create is not supported in patina mode yet | gobyexample/defer, gobyexample/panic, gobyexample/writing-files |
 | 3 | package sync is not supported in patina mode yet | gobyexample/atomic-counters, gobyexample/mutexes, gotour/concurrency/mutex-counter |
 | 3 | printing a pointer of type *main._, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet | gobyexample/structs, gotour/methods/indirection, gotour/moretypes/struct-literals |
@@ -64,12 +65,10 @@
 | 2 | printing _ value of type [N]int is not supported in patina mode yet | gobyexample/arrays, gotour/moretypes/array |
 | 2 | printing _ value of type [N]string is not supported in patina mode yet | gotour/moretypes/array, gotour/moretypes/slices-pointers |
 | 2 | printing a value of type (float64, error) is not supported in patina mode yet | gotour/methods/exercise-errors, gotour/solutions/errors |
-| 2 | printing a value of type map[string]int is not supported in patina mode yet | gobyexample/maps, gobyexample/mutexes |
 | 2 | printing a value of type map[string]main._ is not supported in patina mode yet | gotour/moretypes/map-literals, gotour/moretypes/map-literals-continued |
 | 2 | printing an interface value in a program that converts *main._ to one: printing a pointer of type *main._, which has no String or Error method (fmt prints &{...} for a pointer to a struct, and an address for any other or inside another value) is not supported in patina mode yet | gotour/methods/interface-values, gotour/methods/interface-values-with-nil |
 | 2 | strings.NewReader is not supported in patina mode yet | gotour/methods/reader, gotour/solutions/rot13 |
 | 2 | the close built-in is not supported in patina mode yet | gobyexample/range-over-channels, gotour/concurrency/range-and-close |
-| 2 | the delete built-in is not supported in patina mode yet | gobyexample/maps, gotour/moretypes/mutating-maps |
 | 2 | the results of _ used here other than as v..., err := _(...) or return _(...) | gotour/methods/exercise-errors, gotour/solutions/errors |
 | 2 | type strings.Reader is not supported in patina mode yet | gotour/methods/reader, gotour/solutions/rot13 |
 | 2 | type sync.Mutex is not supported in patina mode yet | gobyexample/mutexes, gotour/concurrency/mutex-counter |
@@ -97,6 +96,8 @@
 | 1 | a function literal that uses _, of type sync/atomic.Uint64, from its enclosing function (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/atomic-counters |
 | 1 | a function literal with a parameter of type any (step N of RFC N takes numbers and bools) is not supported in patina mode yet | gobyexample/switch |
 | 1 | a function type is not supported in patina mode yet | gobyexample/string-functions |
+| 1 | a map type other than a local variable'_ (step N of RFC N) is not supported in patina mode yet | gobyexample/enums |
+| 1 | a map with values of type *main._ (step N of RFC N takes numbers, bools and strings) is not supported in patina mode yet | gotour/concurrency/exercise-web-crawler |
 | 1 | a method on a generic type (Go N.N) is not supported in patina mode yet | gobyexample/generics |
 | 1 | a package-level variable of type map[string]main._ that the program changes is not supported in patina mode yet | gotour/moretypes/maps |
 | 1 | a pointer here (RFC N supports pointers in variables, parameters, results and fields) is not supported in patina mode yet | gotour/moretypes/struct-literals |
@@ -172,7 +173,6 @@
 | 1 | io.Copy is not supported in patina mode yet | gotour/solutions/rot13 |
 | 1 | io.EOF is not supported in patina mode yet | gotour/methods/reader |
 | 1 | io.ReadAtLeast is not supported in patina mode yet | gobyexample/reading-files |
-| 1 | make of map[string]main._ is not supported in patina mode yet | gotour/moretypes/maps |
 | 1 | os.Chdir is not supported in patina mode yet | gobyexample/directories |
 | 1 | os.Environ is not supported in patina mode yet | gobyexample/environment-variables |
 | 1 | os.Getenv is not supported in patina mode yet | gobyexample/environment-variables |
@@ -223,7 +223,7 @@
 | 1 | the format %v with a value of type complex128 is not supported in patina mode yet | gotour/basics/basic-types |
 | 1 | the results of Parse used here other than as v..., _ := Parse(...) or return Parse(...) | gobyexample/text-templates |
 | 1 | time.NewTimer is not supported in patina mode yet | gobyexample/timers |
-| 1 | type _: a map type is not supported in patina mode yet | gotour/concurrency/exercise-web-crawler |
+| 1 | type _: a map type other than a local variable's (step N of RFC N) is not supported in patina mode yet | gotour/concurrency/exercise-web-crawler |
 | 1 | type _: an interface method with an error result is not supported in patina mode yet | gotour/concurrency/exercise-web-crawler |
 | 1 | type complex128 is not supported in patina mode yet | gotour/basics/basic-types |
 | 1 | type io.Reader is not supported in patina mode yet | gotour/solutions/rot13 |
@@ -257,6 +257,7 @@
 | 1 | uses the standard package strconv, which patina mode does not support yet | gobyexample/xml |
 | 1 | uses the standard package unique, which patina mode does not support yet | gobyexample/text-templates |
 | 1 | using fmt.Println as a value is not supported in patina mode yet | gobyexample/string-functions |
+| 1 | using the map _ other than by indexing it, passing it to delete or len, or printing it (it would be copied; step N of RFC N) is not supported in patina mode yet | gobyexample/maps |
 
 ## Skipped (not counted)
 
