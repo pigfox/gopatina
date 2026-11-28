@@ -63,3 +63,21 @@ func main() {
 		}
 	}
 }
+
+// A closure's body runs when it is called: its reads and calls are not the
+// statement's own.
+func TestChangedBeforeReadClosure(t *testing.T) {
+	const src = "package main\n\nfunc addTo(p *int, v int) int { *p += v; return *p }\n\nfunc main() {\n\tx := 1\n\tg := func() int { return x + addTo(&x, 1) }\n\t_ = g\n}\n"
+	pkg, err := load.Source("/p", "main.go", src, "go1.25")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, _ := Check(pkg)
+	for _, d := range pkg.Files[0].Decls {
+		if fd, ok := d.(*ast.FuncDecl); ok && fd.Name.Name == "main" {
+			if ChangedBeforeRead(pkg.Info, res.Funcs, fd.Body.List[1]) {
+				t.Error("ChangedBeforeRead looked inside the closure")
+			}
+		}
+	}
+}

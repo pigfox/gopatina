@@ -964,6 +964,12 @@ func (g *gen) needsType(e ast.Expr) bool {
 }
 
 func (g *gen) assign(s *ast.AssignStmt) {
+	if s.Tok == token.DEFINE && len(s.Lhs) == 1 && len(s.Rhs) == 1 {
+		if lit, ok := ast.Unparen(s.Rhs[0]).(*ast.FuncLit); ok {
+			g.closureDecl(s, lit)
+			return
+		}
+	}
 	if id, ok := s.Lhs[0].(*ast.Ident); ok && len(s.Lhs) == 1 && g.fastVar(g.localVar(id)) {
 		// The start or the step of a usize loop variable (loopShape).
 		name := g.varName(g.localVar(id))

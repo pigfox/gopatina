@@ -290,6 +290,18 @@ func (w *walker) call(e *ast.CallExpr) {
 			w.builtin(e, b.Name())
 			return
 		}
+		if v, ok := info.Uses[f].(*types.Var); ok {
+			// A closure's call (RFC 0018): its arguments by value, and the
+			// variables it changes, changed here.
+			cl := subset.Closures(w.a.pkg)[v]
+			w.args(w.operands(), e, w.a.res.Closures[v], f.Name)
+			for _, c := range cl.Captures {
+				if cl.Writes[c] {
+					w.add(event{kind: evMut, v: c, e: f, whole: true, pos: e.Pos()})
+				}
+			}
+			return
+		}
 		callee := w.a.funcs[info.Uses[f].(*types.Func)]
 		w.args(w.operands(), e, callee, f.Name)
 	case *ast.SelectorExpr:

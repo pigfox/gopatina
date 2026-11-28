@@ -309,6 +309,9 @@ func (c *checker) ReadsChangedGlobal(n ast.Node, kinds map[*types.Var]GlobalKind
 func ReadsChangedGlobal(pkg *load.Package, n ast.Node, kinds map[*types.Var]GlobalKind) bool {
 	found := false
 	ast.Inspect(n, func(x ast.Node) bool {
+		if _, ok := x.(*ast.FuncLit); ok {
+			return false // runs when it is called, not here (RFC 0018)
+		}
 		if id, ok := x.(*ast.Ident); ok {
 			if g := Global(pkg.Info.Uses[id]); g != nil && (kinds[g] == GlobalCell || kinds[g] == GlobalString) {
 				found = true
@@ -333,6 +336,8 @@ func HoistableCalls(pkg *load.Package, n ast.Node) []*ast.CallExpr {
 	walk = func(n ast.Node) {
 		ast.Inspect(n, func(x ast.Node) bool {
 			switch x := x.(type) {
+			case *ast.FuncLit:
+				return false
 			case *ast.BinaryExpr:
 				if x.Op == token.LAND || x.Op == token.LOR {
 					walk(x.X)

@@ -88,11 +88,12 @@ func TestNaNTaint(t *testing.T) {
 			[]string{"a + b"}, "a float + of two values that may both be NaN"},
 		"two nans assign": {"func main() { a, b := math.NaN(), math.Inf(1); a *= b; fmt.Println(math.Float64bits(a)) }",
 			[]string{"a *= b"}, "a float *= of two values that may both be NaN"},
-		"var":          {"func main() { var a = math.NaN(); fmt.Println(math.Float64bits(a / 2)) }", []string{"a / 2"}, ""},
-		"twice":        {"func g(x float64) float64 { return x * 3 }\nfunc main() { a := math.NaN(); fmt.Println(math.Float64bits(g(a)), math.Float64bits(g(a))) }", []string{"x * 3"}, ""},
-		"closure":      {"func g(x float64) float64 { h := func() float64 { return 1 }; _ = h; return x * 3 }\nfunc main() { fmt.Println(math.Float64bits(g(math.NaN()))) }", []string{"x * 3"}, "closure"},
-		"two nans sub": {"func main() { a, b := math.NaN(), math.Inf(1); fmt.Println(math.Float64bits(a - b)) }", []string{"a - b"}, ""},
-		"int bits":     {"func main() { fmt.Println(math.Float64bits(math.Float64frombits(1 << 62))) }", nil, ""},
+		"var":           {"func main() { var a = math.NaN(); fmt.Println(math.Float64bits(a / 2)) }", []string{"a / 2"}, ""},
+		"twice":         {"func g(x float64) float64 { return x * 3 }\nfunc main() { a := math.NaN(); fmt.Println(math.Float64bits(g(a)), math.Float64bits(g(a))) }", []string{"x * 3"}, ""},
+		"closure":       {"func g(x float64) float64 { h := func() float64 { return 1 }; _ = h; return x * 3 }\nfunc main() { fmt.Println(math.Float64bits(g(math.NaN()))) }", []string{"x * 3"}, "closure"},
+		"closure param": {"func main() { a := 1.5; f := func(x float64) uint64 { return math.Float64bits(x * 2) }; fmt.Println(f(a - a)) }", []string{"a - a", "x * 2"}, ""},
+		"two nans sub":  {"func main() { a, b := math.NaN(), math.Inf(1); fmt.Println(math.Float64bits(a - b)) }", []string{"a - b"}, ""},
+		"int bits":      {"func main() { fmt.Println(math.Float64bits(math.Float64frombits(1 << 62))) }", nil, ""},
 	} {
 		got, errs := nanExact(t, head+c.src+"\n")
 		if c.refused == "" && errs != "" || c.refused != "" && !strings.Contains(errs, c.refused) {

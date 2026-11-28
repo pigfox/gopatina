@@ -55,31 +55,46 @@ func Check(pkg *load.Package) (*Result, []diag.Diagnostic) {
 		Counted:      map[*ast.ForStmt]bool{},
 		CopyFirst:    map[ast.Expr]bool{},
 		RefElems:     a.refs,
+		Closures:     map[*types.Var]*Func{},
 		Lent:         map[*types.Var]bool{},
 		params:       a.params,
 	}
 	var decls []*ast.FuncDecl
+	var fns []*Func
 	for _, f := range pkg.Files {
 		for _, d := range f.Decls {
 			if fd, ok := d.(*ast.FuncDecl); ok {
 				decls = append(decls, fd)
-				a.declare(fd)
+				fns = append(fns, a.declare(fd, pkg.Info.Defs[fd.Name].(*types.Func)))
 			}
+		}
+	}
+	// A closure's body is checked as a function of its own (RFC 0018), its
+	// returns its own; its calls take its parameters by value.
+	for _, cl := range sortedClosures(pkg) {
+		sig := pkg.Info.Types[cl.Lit].Type.(*types.Signature)
+		obj := types.NewFunc(cl.Lit.Pos(), pkg.Types, "closure_"+cl.Var.Name(), sig)
+		fd := &ast.FuncDecl{Name: &ast.Ident{Name: obj.Name(), NamePos: cl.Lit.Pos()}, Type: cl.Lit.Type, Body: cl.Lit.Body}
+		fn := a.declare(fd, obj)
+		a.res.Closures[cl.Var] = fn
+		fns = append(fns, fn)
+		for v := range cl.Writes {
+			a.res.Mut[v] = true // it changes v, so v is let mut
 		}
 	}
 	// Infer parameter modes and pointer kinds until nothing changes. Every
 	// fact only ever turns on, so this ends.
 	for changed := true; changed; {
 		changed = false
-		for _, fd := range decls {
-			if a.summarize(a.funcs[pkg.Info.Defs[fd.Name].(*types.Func)]) {
+		for _, fn := range fns {
+			if a.summarize(fn) {
 				changed = true
 			}
 		}
 	}
 	a.final = true
-	for _, fd := range decls {
-		a.liveness(a.funcs[pkg.Info.Defs[fd.Name].(*types.Func)])
+	for _, fn := range fns {
+		a.liveness(fn)
 	}
 	a.checkSuffixes()
 	a.checkHeap(decls)
@@ -113,8 +128,7 @@ func (a *analyzer) result() (*Result, []diag.Diagnostic) {
 	return a.res, ds
 }
 
-func (a *analyzer) declare(fd *ast.FuncDecl) {
-	obj := a.pkg.Info.Defs[fd.Name].(*types.Func)
+func (a *analyzer) declare(fd *ast.FuncDecl, obj *types.Func) *Func {
 	f := &Func{Obj: obj, Decl: fd}
 	sig := obj.Signature()
 	if r := sig.Recv(); r != nil {
@@ -124,6 +138,17 @@ func (a *analyzer) declare(fd *ast.FuncDecl) {
 		f.Params = append(f.Params, a.newParam(sig.Params().At(i)))
 	}
 	a.funcs[obj] = f
+	return f
+}
+
+// sortedClosures returns pkg's closures in source order.
+func sortedClosures(pkg *load.Package) []*subset.Closure {
+	var out []*subset.Closure
+	for _, cl := range subset.Closures(pkg) {
+		out = append(out, cl)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Lit.Pos() < out[j].Lit.Pos() })
+	return out
 }
 
 func (a *analyzer) newParam(v *types.Var) *Param {

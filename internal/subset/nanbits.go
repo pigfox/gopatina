@@ -257,6 +257,12 @@ func (n *nanTaint) ident(id *ast.Ident) {
 		}
 		return
 	}
+	for _, cl := range Closures(n.c.pkg) {
+		if v.Pos() >= cl.Lit.Type.Pos() && v.Pos() < cl.Lit.Type.End() {
+			n.all = true // a closure's parameter: from any of its calls
+			return
+		}
+	}
 	fd := n.funcOf(id)
 	if v.Parent() == v.Pkg().Scope() || fd == nil {
 		n.all = true // a package-level variable, or one of a function literal there

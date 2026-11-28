@@ -50,6 +50,9 @@ func ChangedBeforeRead(info *types.Info, funcs map[*types.Func]*Func, n ast.Node
 	}
 	var calls []*ast.CallExpr
 	ast.Inspect(n, func(m ast.Node) bool {
+		if _, ok := m.(*ast.FuncLit); ok {
+			return false // runs when it is called (RFC 0018)
+		}
 		if c, ok := m.(*ast.CallExpr); ok && funcs[calleeFunc(info, c)] != nil {
 			calls = append(calls, c)
 		}
@@ -65,6 +68,9 @@ func ChangedBeforeRead(info *types.Info, funcs map[*types.Func]*Func, n ast.Node
 	}
 	reads := map[*types.Var][]token.Pos{}
 	ast.Inspect(n, func(m ast.Node) bool {
+		if _, ok := m.(*ast.FuncLit); ok {
+			return false
+		}
 		if id, ok := m.(*ast.Ident); ok && !inCall(id) {
 			if v := local(id); v != nil {
 				reads[v] = append(reads[v], id.End())

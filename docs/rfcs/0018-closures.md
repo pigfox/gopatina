@@ -7,7 +7,9 @@
   captures; copying a function value moves it; a closure that captures
   only itself is a nested fn; function-typed parameters are generic
   `impl Fn`. Implementation in five steps, each its own pull request:
-  non-escaping closures; function-typed parameters; escaping closures and
+  non-escaping closures (step 1, in place: called where it is made, with
+  number and bool parameters and captures, and a number, bool or string
+  result); function-typed parameters; escaping closures and
   function-typed variables; recursive closures; defer of a closure
 - **Author(s):** GoPatina contributors
 - **Created:** 2026-11-27

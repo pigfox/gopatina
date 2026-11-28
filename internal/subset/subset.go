@@ -25,6 +25,10 @@ const seeCompat = "see docs/compat.md for what patina mode supports"
 type checker struct {
 	pkg   *load.Package
 	diags []diag.Diagnostic
+	// body is the body of the function being checked, and inClosure the
+	// function literal whose body is (RFC 0018), or nil.
+	body      *ast.BlockStmt
+	inClosure *ast.FuncLit
 	// fusing is the function of the fused operation being matched
 	// (checkFusion).
 	fusing *ast.FuncDecl
@@ -273,6 +277,7 @@ func (c *checker) funcDecl(d *ast.FuncDecl) {
 	sig := c.pkg.Info.Defs[d.Name].(*types.Func).Signature()
 	c.signature(d, sig)
 	c.loops = nil
+	c.body = d.Body
 	c.block(d.Body)
 }
 
@@ -576,6 +581,10 @@ func (c *checker) switchStmt(s *ast.SwitchStmt) {
 }
 
 func (c *checker) assign(s *ast.AssignStmt) {
+	if lit, ok := closureLit(s); ok && c.inClosure == nil && c.body != nil {
+		c.closureDecl(s, lit, c.body) // f := func(...) {...} (RFC 0018)
+		return
+	}
 	if s.Tok == token.DEFINE {
 		for _, l := range s.Lhs {
 			if id := l.(*ast.Ident); c.pkg.Info.Defs[id] != nil {
@@ -669,7 +678,8 @@ func (c *checker) expr(e ast.Expr) {
 	case *ast.KeyValueExpr:
 		c.expr(e.Value)
 	case *ast.FuncLit:
-		c.unsupported(e, "a function literal (closure)")
+		// One inside a closure was refused with its closure (closureProblem).
+		c.unsupported(e, "a function literal (closure) other than f := func(...) {...} (RFC 0018, step 1)")
 	case *ast.SliceExpr:
 		c.unsupported(e, "a slice expression (s[i:j])")
 	case *ast.TypeAssertExpr:
@@ -828,6 +838,10 @@ func (c *checker) call(e *ast.CallExpr, standalone bool) {
 			return
 		}
 		if _, ok := info.Uses[f].(*types.Func); !ok {
+			if v, ok := info.Uses[f].(*types.Var); ok && Closures(c.pkg)[v] != nil {
+				c.exprs(e.Args) // a closure's call (RFC 0018, step 1)
+				return
+			}
 			c.unsupported(e, "calling a function value")
 			return
 		}
